@@ -10,18 +10,19 @@ import time
 from pathlib import Path
 
 
-def ensure_package(pkg: str):
+def ensure_package(module_name: str, pip_name: str | None = None):
     try:
-        return importlib.import_module(pkg)
+        return importlib.import_module(module_name)
     except ImportError:
-        print(f"[setup] Installing missing dependency: {pkg} ...", flush=True)
+        to_install = pip_name or module_name
+        print(f"[setup] Installing missing dependency: {to_install} ...", flush=True)
         import subprocess
-        subprocess.check_call([sys.executable, "-m", "pip", "install", pkg])
-        return importlib.import_module(pkg)
+        subprocess.check_call([sys.executable, "-m", "pip", "install", to_install])
+        return importlib.import_module(module_name)
 
 
 requests = ensure_package("requests")
-bs4 = ensure_package("beautifulsoup4")
+bs4 = ensure_package("bs4", "beautifulsoup4")
 from bs4 import BeautifulSoup  # type: ignore
 
 
@@ -59,10 +60,11 @@ def crossref_search(query: str, rows: int = 20, mailto: str | None = None, sleep
     base = "https://api.crossref.org/works"
     params = {
         "query": query,
-        # type filter and publisher to keep scope narrow
-        "filter": "type:journal-article,publisher-name:Springer Nature",
+        # narrow to journal articles; we'll filter Nature-family after fetch
+        "filter": "type:journal-article",
         "rows": rows,
-        "select": "DOI,title,container-title,author,issued,URL,abstract",
+        # bias search to Nature family journals
+        "query.container-title": "Nature",
         # Crossref recommends mailto, but we'll omit if not provided
     }
     if mailto:
@@ -259,4 +261,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
