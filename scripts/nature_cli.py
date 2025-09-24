@@ -31,6 +31,18 @@ API_USER_AGENT = (
 )
 
 
+def safe_console(text: str) -> str:
+    try:
+        enc = sys.stdout.encoding or "utf-8"
+        return text.encode(enc, errors="replace").decode(enc, errors="replace")
+    except Exception:
+        # best-effort fallback
+        try:
+            return text.encode("ascii", errors="replace").decode("ascii")
+        except Exception:
+            return "<unprintable>"
+
+
 def is_nature_family(container_titles) -> bool:
     if not container_titles:
         return False
@@ -220,8 +232,10 @@ def main():
             "abstract": final_abstract,
         }
 
-        print(f"[{i}/{len(items)}] {title[:80]}...")
-        print(f"      DOI: {doi} | Journal: {container} | Year: {year}")
+        ttl = safe_console(title)
+        jn = safe_console(container)
+        print(f"[{i}/{len(items)}] {ttl[:80]}...")
+        print(f"      DOI: {doi} | Journal: {jn} | Year: {year}")
         if pmcid:
             print(f"      PMC: {pmcid} (OA: {is_oa})")
 
