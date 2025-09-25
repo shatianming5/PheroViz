@@ -656,7 +656,8 @@ def cmd_postfetch(args):
         rows = sorted(rows, key=year_key, reverse=reverse)
 
     # Build task list with processed-file skipping
-    processed_file = Path(getattr(args, "processed_file", Path(args.out) / "_processed.txt"))
+    processed_file_arg = getattr(args, "processed_file", None)
+    processed_file = Path(processed_file_arg) if processed_file_arg else (Path(args.out) / "_processed.txt")
     processed = load_processed_set(processed_file)
     tasks: list[str] = []
     for r in rows:
@@ -750,6 +751,18 @@ def postfetch_one(art_url: str, out: str, max_figs: int, sleep: float, timeout: 
         time.sleep(sleep)
     # return number of figures found; caller decides whether to fetch source data and persist processed record
     return found_count
+
+
+def postfetch_article(art_url: str, out: str, max_figs: int, max_empty_figs: int, sleep: float, timeout: float, max_retries: int):
+    aid = parse_article_id(art_url)
+    found = postfetch_one(art_url, out, max_figs, sleep, timeout, max_retries, max_empty_figs)
+    if found > 0:
+        cmd_source(argparse.Namespace(url=art_url, out=out, section_id=None, filter=None, sleep=sleep, timeout=timeout, max_retries=max_retries))
+    else:
+        base = Path(out) / aid
+        if base.exists():
+            shutil.rmtree(base, ignore_errors=True)
+    return (aid, found)
 
 
 # ---------- Auto (search multiple -> postfetch) ----------
@@ -881,6 +894,8 @@ def cmd_auto(args):
         )
         cmd_postfetch(ns)
     # Streaming: per-article postfetch immediately after discovery
+    processed_file_stream = Path(args.content_out) / "_processed.txt"
+    processed_stream = load_processed_set(processed_file_stream)
     for kw in kwds:
         print(f"[stream] Searching: {safe_console(kw)}")
         items = crossref_search(kw, rows=args.max_per_keyword, mailto=args.mailto, sleep=args.sleep, timeout=args.timeout, max_retries=args.max_retries, family_bias=True)
@@ -922,11 +937,14 @@ def cmd_auto(args):
             # postfetch this article immediately
             art_url = norm_article_url(url, it.get("DOI"))
             if art_url:
+                aid2 = parse_article_id(art_url)
+                if aid2 in processed_stream:
+                    continue
                 found = postfetch_one(art_url, args.content_out, args.max_figs, args.sleep, args.timeout, args.max_retries, getattr(args, "max_empty_figs", 2))
                 if found > 0:
                     cmd_source(argparse.Namespace(url=art_url, out=args.content_out, section_id=None, filter=None, sleep=args.sleep, timeout=args.timeout, max_retries=args.max_retries))
+                    append_processed(processed_file_stream, aid2)
                 else:
-                    aid2 = parse_article_id(art_url)
                     base2 = Path(args.content_out) / aid2
                     if base2.exists():
                         shutil.rmtree(base2, ignore_errors=True)
