@@ -841,12 +841,56 @@ DEFAULT_KEYWORDS_EXPANDED = [
     "CosMx"
 ]
 
+
+def build_default_keywords(min_count: int = 500) -> list[str]:
+    base = []
+    seen = set()
+    def add(term: str):
+        t = term.strip()
+        if t and t not in seen:
+            seen.add(t)
+            base.append(t)
+
+    for t in DEFAULT_KEYWORDS_EXPANDED:
+        add(t)
+
+    if len(base) >= min_count:
+        return base
+
+    diseases = [
+        "breast cancer", "lung cancer", "prostate cancer", "colorectal cancer", "melanoma",
+        "glioblastoma", "glioma", "leukemia", "lymphoma", "pancreatic cancer",
+        "ovarian cancer", "gastric cancer", "liver cancer", "hepatocellular carcinoma",
+        "esophageal cancer", "renal cell carcinoma", "endometrial cancer", "sarcoma",
+        "multiple myeloma", "head and neck cancer", "pediatric cancer", "rare cancer",
+        "metastatic cancer", "brain tumor", "Alzheimer disease", "Parkinson disease",
+        "ALS", "multiple sclerosis", "diabetes", "obesity", "NAFLD",
+        "cardiovascular disease", "atherosclerosis", "stroke", "hypertension",
+        "autoimmune disease", "inflammation", "infection", "COVID-19", "tuberculosis",
+        "malaria", "HIV",
+    ]
+    modalities = [
+        "single-cell", "scRNA-seq", "spatial transcriptomics", "multi-omics", "proteomics",
+        "metabolomics", "lipidomics", "epigenomics", "ATAC-seq", "ChIP-seq", "Hi-C",
+        "CRISPR", "CRISPR screen", "GWAS", "machine learning", "deep learning",
+        "foundation model", "graph neural network", "immunotherapy", "checkpoint inhibitor",
+        "organoid", "organoids", "gene editing", "base editing", "prime editing",
+        "clinical trial", "biomarker", "liquid biopsy",
+    ]
+
+    for d in diseases:
+        for m in modalities:
+            add(f"{d} {m}")
+            if len(base) >= min_count:
+                return base
+
+    return base
 def cmd_auto(args):
     # keywords
     if args.keywords_file:
         kwds = [ln.strip() for ln in Path(args.keywords_file).read_text(encoding="utf-8").splitlines() if ln.strip()]
     else:
-        kwds = DEFAULT_KEYWORDS_EXPANDED
+        kwds = build_default_keywords(500)
     print(f"[info] Keywords: {len(kwds)} items")
 
     search_out = Path(args.search_out)
