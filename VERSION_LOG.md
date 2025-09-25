@@ -5,3 +5,5 @@
 - 2025-09-24: Add environment bootstrap probe/runner. (commit: 9b6a849)
 - 2025-09-24: Windows 控制台字符编码保护；新增一次运行记录（cancer immunotherapy, 15 条）。 (commit: d5f7d6f)
 - 2025-09-24: 中文检索（“肿瘤免疫”，15 条）与 RUN_LOG 重写；中文打印兼容修复。 (commit: 83de425)
+- 2025-09-24: 增强 CLI：重试/超时、作者字段、JSONL 追加去重、可选取消 Nature 偏置；更新 README。 (commit: cdb8afb)
+- 2025-09-24: 新增两次运行记录（checkpoint inhibitor；单细胞 癌症）。 (commit: d059858)
