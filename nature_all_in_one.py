@@ -154,7 +154,18 @@ def crossref_cursor_stream(
             params["query.container-title"] = "Nature"
         if mailto:
             params["mailto"] = mailto
-        r = polite_get(base, params=params, sleep=sleep, timeout=timeout, max_retries=max_retries)
+        try:
+            r = polite_get(base, params=params, sleep=sleep, timeout=timeout, max_retries=max_retries)
+        except requests.HTTPError as exc:
+            status = getattr(exc.response, "status_code", None)
+            if status == 404:
+                msg = safe_console(f"[warn] Crossref cursor 404 for query {query!r}; skipping remainder")
+                if console:
+                    console.log(msg)
+                else:
+                    print(msg)
+                break
+            raise
         data = r.json()
         items = data.get("message", {}).get("items", [])
         for it in items:
