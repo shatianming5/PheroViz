@@ -643,7 +643,9 @@ DEFAULT_KEYWORDS_EXPANDED = [
     "lipid nanoparticles", "mRNA vaccine", "neoantigen", "TCR repertoire",
     "BCR repertoire", "immunopeptidomics", "single-cell multi-omics", "GeoMx",
     "CosMx"
-]def cmd_auto(args):
+]
+
+def cmd_auto(args):
     # keywords
     if args.keywords_file:
         kwds = [ln.strip() for ln in Path(args.keywords_file).read_text(encoding="utf-8").splitlines() if ln.strip()]
@@ -748,4 +750,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
