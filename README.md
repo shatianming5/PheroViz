@@ -22,14 +22,20 @@ Nature 系列检索与内容抓取（合规、可授权扩展）
     - `--no-family-bias` 取消对 `container-title=Nature` 的偏置（扩大范围）
     - `--mailto you@example.com` 为 Crossref 提供邮箱标识
 
-授权抓取（仅在你已确认有权使用时）
-- 图像 + caption（单页）：
-  - `python scripts/nature_fig_fetch.py --url "https://www.nature.com/articles/<article-id>/figures/1" --out outputs/nature_content`
-- Source data（整页）：
-  - `python scripts/nature_source_data_fetch.py --url "https://www.nature.com/articles/<article-id>" --out outputs/nature_content`
-  - 可选：`--section-id Sec71`，`--filter "Fig. 4"`（或 `Extended Data Fig. 7`）
-- 批量后处理（对检索结果逐篇执行图像/Source data 抓取）：
-  - `python scripts/nature_post_fetch.py --jsonl outputs/search_run/articles.jsonl --out outputs/nature_content --authorized-figs --authorized-source --max-figs 8`
+单文件入口（all‑in‑one，推荐）
+- 本仓库已将功能整合为单一脚本：`nature_all_in_one.py`
+- 子命令与示例：
+  - 自动搜索+抓取全部（图像+caption、Source data）：
+    - `python nature_all_in_one.py auto --max-per-keyword 50 --max-articles 200 --max-figs 12 --sort year_desc`
+    - 可选：`--keywords-file keywords.txt`（每行一个关键词）、`--mailto you@example.com`、`--sleep 1.0`、`--timeout 30`、`--max-retries 3`
+  - 仅检索：
+    - `python nature_all_in_one.py search --query "cancer" --max 20 --out outputs/search_run --append`
+  - 仅抓取某图页（需授权）：
+    - `python nature_all_in_one.py fig --url "https://www.nature.com/articles/<article-id>/figures/1" --out outputs/nature_content`
+  - 仅抓取某文 Source data（需授权）：
+    - `python nature_all_in_one.py source --url "https://www.nature.com/articles/<article-id>" --out outputs/nature_content --section-id Sec71 --filter "Fig. 4"`
+  - 对检索结果批量抓取（始终“抓取全部”）：
+    - `python nature_all_in_one.py postfetch --jsonl outputs/search_run/articles.jsonl --out outputs/nature_content --max-figs 12 --max-articles 200 --sort year_desc`
 
 统一输出结构（直观、便于处理）
 - 所有内容按文章 ID 存放：`<out>/<article-id>/`
