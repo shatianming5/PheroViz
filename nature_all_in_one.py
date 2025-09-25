@@ -450,7 +450,7 @@ def upsert_json_list(path: Path, item: dict, key: str):
 
 
 def download_binary(url: str, out_path: Path, referer: str | None = None, timeout=30, sleep=1.0, max_retries=3):
-    headers = {"User-Agent": API_USER_AGENT, "Accept": "image/*,*/*;q=0.8", "Connection": "close"}
+    headers = {"User-Agent": API_USER_AGENT, "Accept": "*/*", "Connection": "close"}
     if referer:
         headers["Referer"] = referer
     attempt = 0
@@ -458,7 +458,8 @@ def download_binary(url: str, out_path: Path, referer: str | None = None, timeou
     while True:
         attempt += 1
         try:
-            resp = requests.get(url, headers=headers, timeout=timeout, stream=True)
+            # Use same timeout for connect and read; allow large files
+            resp = requests.get(url, headers=headers, timeout=(timeout, timeout), stream=True)
             resp.raise_for_status()
             expected = resp.headers.get("Content-Length")
             out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -970,7 +971,7 @@ def build_parser():
     s.add_argument("--out", default="outputs/search_run")
     s.add_argument("--mailto", default=None)
     s.add_argument("--sleep", type=float, default=1.0)
-    s.add_argument("--timeout", type=float, default=30)
+    s.add_argument("--timeout", type=float, default=300)
     s.add_argument("--max-retries", type=int, default=3)
     s.add_argument("--append", action="store_true")
     s.add_argument("--no-family-bias", action="store_true")
@@ -980,7 +981,7 @@ def build_parser():
     f.add_argument("--url", required=True)
     f.add_argument("--out", default="outputs/nature_content")
     f.add_argument("--sleep", type=float, default=1.0)
-    f.add_argument("--timeout", type=float, default=30)
+    f.add_argument("--timeout", type=float, default=300)
     f.add_argument("--max-retries", type=int, default=3)
     f.set_defaults(func=cmd_fig)
 
@@ -990,7 +991,7 @@ def build_parser():
     sd.add_argument("--section-id", default=None)
     sd.add_argument("--filter", default=None)
     sd.add_argument("--sleep", type=float, default=1.0)
-    sd.add_argument("--timeout", type=float, default=30)
+    sd.add_argument("--timeout", type=float, default=300)
     sd.add_argument("--max-retries", type=int, default=3)
     sd.set_defaults(func=cmd_source)
 
@@ -1002,7 +1003,7 @@ def build_parser():
     pf.add_argument("--max-empty-figs", type=int, default=2, help="Max consecutive empty figure pages before stopping")
     pf.add_argument("--sort", choices=["year_desc", "year_asc", "input"], default="year_desc")
     pf.add_argument("--sleep", type=float, default=1.0)
-    pf.add_argument("--timeout", type=float, default=30)
+    pf.add_argument("--timeout", type=float, default=300)
     pf.add_argument("--max-retries", type=int, default=3)
     pf.add_argument("--workers", type=int, default=1, help="Worker processes for fetching (non-stream mode)")
     pf.add_argument("--processed-file", default=None, help="Path to processed record file (default: <out>/_processed.txt)")
@@ -1015,7 +1016,7 @@ def build_parser():
     au.add_argument("--content-out", default="outputs/nature_content")
     au.add_argument("--mailto", default=None)
     au.add_argument("--sleep", type=float, default=1.0)
-    au.add_argument("--timeout", type=float, default=30)
+    au.add_argument("--timeout", type=float, default=300)
     au.add_argument("--max-retries", type=int, default=3)
     au.add_argument("--max-articles", type=int, default=0)
     au.add_argument("--max-figs", type=int, default=12)
