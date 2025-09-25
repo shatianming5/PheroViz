@@ -38,3 +38,8 @@
 ## 2025-09-24 运行8（批量后处理，已获授权）
 - 命令：python scripts/nature_post_fetch.py --jsonl outputs/run_ci_checkpt_1/articles.jsonl --out outputs/nature_content --authorized-figs --authorized-source --max-figs 2 --max-articles 2 --sleep 0.8 --timeout 30 --max-retries 2
 - 结果：对前 2 篇 Nature 文章尝试抓取前 2 个图页与整页 Source data；部分文章无可用图像或 Source data，已记录清单与提示。
+
+## 2025-09-25 01:39:53 ??(auto --stream ?????)
+- ??:python nature_all_in_one.py auto --stream --max-per-keyword 1 --max-articles 2 --max-figs 1 --sort year_desc --timeout 30 --max-retries 2
+- ??:?????? 2 ???;??? outputs/nature_content/<article-id>/{figures,source_data,meta}
+

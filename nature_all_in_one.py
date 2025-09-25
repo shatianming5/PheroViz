@@ -293,10 +293,20 @@ def is_likely_image_url(u: str) -> bool:
         return False
 
 
+def normalize_img_url(u: str) -> str:
+    u = u.strip()
+    if u.startswith("//"):
+        u = "https:" + u
+    m = re.search(r"(https?://images\.nature\.com/[^\s\"]+)", u)
+    if m:
+        return m.group(1)
+    return u
+
+
 def pick_largest_src(soup: BeautifulSoup, base_url: str):
     og = soup.find("meta", attrs={"property": "og:image"})
     if og and og.get("content"):
-        cand = urljoin(base_url, og["content"].strip())
+        cand = normalize_img_url(urljoin(base_url, og["content"].strip()))
         if is_likely_image_url(cand):
             return cand
     fig = soup.find("figure")
@@ -305,14 +315,14 @@ def pick_largest_src(soup: BeautifulSoup, base_url: str):
         if src and src.get("srcset"):
             entries = [x.strip() for x in src["srcset"].split(",") if x.strip()]
             for entry in reversed(entries):
-                u = urljoin(base_url, entry.split()[0])
+                u = normalize_img_url(urljoin(base_url, entry.split()[0]))
                 if is_likely_image_url(u):
                     return u
         img = fig.find("img")
     else:
         img = soup.find("img")
     if img and img.get("src"):
-        cand = urljoin(base_url, img["src"].strip())
+        cand = normalize_img_url(urljoin(base_url, img["src"].strip()))
         if is_likely_image_url(cand):
             return cand
     return None
