@@ -845,7 +845,14 @@ def cmd_auto(args):
             # postfetch this article immediately
             art_url = norm_article_url(url, it.get("DOI"))
             if art_url:
-                postfetch_one(art_url, args.content_out, args.max_figs, args.sleep, args.timeout, args.max_retries)
+                found = postfetch_one(art_url, args.content_out, args.max_figs, args.sleep, args.timeout, args.max_retries, getattr(args, "max_empty_figs", 2))
+                if found > 0:
+                    cmd_source(argparse.Namespace(url=art_url, out=args.content_out, section_id=None, filter=None, sleep=args.sleep, timeout=args.timeout, max_retries=args.max_retries))
+                else:
+                    aid2 = parse_article_id(art_url)
+                    base2 = Path(args.content_out) / aid2
+                    if base2.exists():
+                        shutil.rmtree(base2, ignore_errors=True)
                 processed += 1
                 if args.max_articles and processed >= args.max_articles:
                     print("[stream] Reached max-articles limit.")
