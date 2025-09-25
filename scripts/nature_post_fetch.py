@@ -63,7 +63,7 @@ def run(cmd: list[str]) -> int:
 def main():
     p = argparse.ArgumentParser(description="Post-fetch Nature.com figures and source data for search results (authorized use)")
     p.add_argument("--jsonl", required=True, help="Path to articles.jsonl produced by nature_cli.py")
-    p.add_argument("--out", default="outputs/nature_content", help="Base output directory for fetched content")
+    p.add_argument("--out", default="outputs/nature_content", help="Base output directory for fetched content (organized as <out>/<article-id>/figures|source_data|meta)")
     p.add_argument("--authorized-figs", action="store_true", help="Fetch figure images+captions from nature.com")
     p.add_argument("--authorized-source", action="store_true", help="Fetch 'Source data' attachments from nature.com")
     p.add_argument("--max-figs", type=int, default=8, help="Max figures to probe per article")
@@ -118,4 +118,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

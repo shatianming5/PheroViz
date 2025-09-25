@@ -4,7 +4,7 @@ import importlib
 import json
 import os
 import re
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 import sys
 import time
 from pathlib import Path
@@ -25,7 +25,7 @@ requests = ensure_package("requests")
 bs4 = ensure_package("bs4", "beautifulsoup4")
 from bs4 import BeautifulSoup  # type: ignore
 
-UA = "PheroViz-NatureFigure/0.1 (+authorized; no-evasion; contact=local)"
+UA = "PheroViz-NatureFigure/0.2 (+authorized; no-evasion; contact=local)"
 
 
 def polite_get(url: str, timeout=30, sleep=1.0, max_retries=3):
@@ -65,11 +65,32 @@ def parse_article_id_and_fig(url: str):
     return (aid, int(fno) if fno else None)
 
 
+def is_likely_image_url(u: str) -> bool:
+    try:
+        p = urlparse(u)
+        if p.scheme not in ("http", "https"):
+            return False
+        host = (p.netloc or "").lower()
+        if any(bad in host for bad in ["doubleclick.net", "googletagservices.com", "gampad"]):
+            return False
+        path = (p.path or "").lower()
+        if any(path.endswith(ext) for ext in (".png", ".jpg", ".jpeg", ".gif", ".webp")):
+            return True
+        # allow springernature media with query-based formats
+        if "media.springernature.com" in host:
+            return True
+        return False
+    except Exception:
+        return False
+
+
 def pick_largest_src(soup: BeautifulSoup, base_url: str):
     # prefer og:image; else first figure img; choose largest srcset entry
     og = soup.find("meta", attrs={"property": "og:image"})
     if og and og.get("content"):
-        return urljoin(base_url, og["content"].strip())
+        cand = urljoin(base_url, og["content"].strip())
+        if is_likely_image_url(cand):
+            return cand
     img = None
     # nature figure page usually has figure or picture
     fig = soup.find("figure")
@@ -80,13 +101,18 @@ def pick_largest_src(soup: BeautifulSoup, base_url: str):
             entries = [x.strip() for x in src["srcset"].split(",") if x.strip()]
             # take last as largest
             if entries:
-                last = entries[-1].split()[0]
-                return urljoin(base_url, last)
+                # prefer largest that looks like an image
+                for entry in reversed(entries):
+                    u = urljoin(base_url, entry.split()[0])
+                    if is_likely_image_url(u):
+                        return u
         img = fig.find("img")
     if not img:
         img = soup.find("img")
     if img and img.get("src"):
-        return urljoin(base_url, img["src"].strip())
+        cand = urljoin(base_url, img["src"].strip())
+        if is_likely_image_url(cand):
+            return cand
     return None
 
 
@@ -167,6 +193,24 @@ def download_binary(url: str, out_path: Path, timeout=30, sleep=1.0, max_retries
         raise last_exc
 
 
+def ensure_dir(p: Path):
+    p.mkdir(parents=True, exist_ok=True)
+
+
+def upsert_json_list(path: Path, item: dict, key: str):
+    data = []
+    if path.exists():
+        try:
+            data = json.loads(path.read_text(encoding="utf-8") or "[]")
+        except Exception:
+            data = []
+    # de-dup by key
+    existing_keys = {str(d.get(key)) for d in data}
+    if str(item.get(key)) not in existing_keys:
+        data.append(item)
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
 def main():
     p = argparse.ArgumentParser(description="Fetch Nature.com figure image and caption (with authorization)")
     p.add_argument("--url", required=True, help="Nature article or figure URL, e.g., https://www.nature.com/articles/xxx/figures/1")
@@ -187,37 +231,49 @@ def main():
     img_url = pick_largest_src(soup, r.url)
     caption = extract_caption(soup)
 
-    outdir = Path(args.out) / aid
-    outdir.mkdir(parents=True, exist_ok=True)
-    meta = {
-        "source_url": url,
-        "article_id": aid,
-        "figure_no": fno,
-        "image_url": img_url,
-        "caption": caption,
-    }
-    # write meta json
-    with (outdir / (f"figure_{fno or 'page'}_meta.json")).open("w", encoding="utf-8") as f:
-        json.dump(meta, f, ensure_ascii=False, indent=2)
+    base = Path(args.out) / aid
+    figures_dir = base / "figures"
+    meta_dir = base / "meta"
+    ensure_dir(figures_dir)
+    ensure_dir(meta_dir)
 
+    fig_id = (fno if fno is not None else "page")
+    if isinstance(fig_id, int):
+        fig_tag = f"fig_{fig_id:03d}"
+    else:
+        fig_tag = f"fig_{fig_id}"
+
+    saved_img = None
     if img_url:
-        # derive extension
         ext = ".jpg"
         m = re.search(r"\.(png|jpg|jpeg|gif|webp)(?:\?|$)", img_url, re.I)
         if m:
             ext = "." + m.group(1).lower().replace("jpeg", "jpg")
-        out_img = outdir / f"figure_{fno or 'page'}{ext}"
-        saved = download_binary(img_url, out_img, timeout=args.timeout, sleep=args.sleep, max_retries=args.max_retries)
-        print(f"[done] Image saved: {saved}")
+        out_img = figures_dir / f"{fig_tag}{ext}"
+        saved_img = download_binary(img_url, out_img, timeout=args.timeout, sleep=args.sleep, max_retries=args.max_retries)
+        print(f"[done] Image saved: {saved_img}")
     else:
         print("[warn] No image URL found on the page")
 
+    saved_cap = None
     if caption:
-        with (outdir / (f"figure_{fno or 'page'}_caption.txt")).open("w", encoding="utf-8") as f:
-            f.write(caption)
+        out_cap = figures_dir / f"{fig_tag}.txt"
+        out_cap.write_text(caption, encoding="utf-8")
+        saved_cap = str(out_cap)
         print("[done] Caption saved.")
     else:
         print("[warn] No caption text found.")
+
+    # Append entry to figures.json under meta/
+    entry = {
+        "figure_tag": fig_tag,
+        "figure_no": fno,
+        "image_file": saved_img,
+        "caption_file": saved_cap,
+        "image_url": img_url,
+        "source_url": url,
+    }
+    upsert_json_list(meta_dir / "figures.json", entry, key="figure_tag")
 
 
 if __name__ == "__main__":

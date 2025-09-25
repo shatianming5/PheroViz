@@ -26,7 +26,7 @@ bs4 = ensure_package("bs4", "beautifulsoup4")
 from bs4 import BeautifulSoup  # type: ignore
 
 
-UA = "PheroViz-NatureSourceData/0.1 (+authorized; no-evasion; contact=local)"
+UA = "PheroViz-NatureSourceData/0.2 (+authorized; no-evasion; contact=local)"
 
 
 def polite_get(url: str, timeout=30, sleep=1.0, max_retries=3, headers: dict | None = None):
@@ -126,6 +126,27 @@ def download_file(file_url: str, out_path: Path, referer: str, timeout=30, sleep
         raise last_exc
 
 
+def ensure_dir(p: Path):
+    p.mkdir(parents=True, exist_ok=True)
+
+
+def sanitize(s: str) -> str:
+    return re.sub(r"[^a-zA-Z0-9_.\-]+", "_", s).strip("_.-") or "source_data"
+
+
+def upsert_json_list(path: Path, item: dict, key: str):
+    data = []
+    if path.exists():
+        try:
+            data = json.loads(path.read_text(encoding="utf-8") or "[]")
+        except Exception:
+            data = []
+    existing_keys = {str(d.get(key)) for d in data}
+    if str(item.get(key)) not in existing_keys:
+        data.append(item)
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
 def main():
     p = argparse.ArgumentParser(description="Fetch Nature.com Source data attachments (with authorization)")
     p.add_argument("--url", required=True, help="Nature article URL, e.g., https://www.nature.com/articles/xxx#Sec71")
@@ -147,27 +168,36 @@ def main():
     links = find_source_data_links(soup, r.url, args.section_id, args.filter)
     print(f"[info] Source data links found: {len(links)}")
 
-    outdir = Path(args.out) / art_id
-    outdir.mkdir(parents=True, exist_ok=True)
+    base = Path(args.out) / art_id
+    sd_dir = base / "source_data"
+    meta_dir = base / "meta"
+    ensure_dir(sd_dir)
+    ensure_dir(meta_dir)
     manifest = []
     for i, L in enumerate(links, 1):
         label = L["label"]
         file_url = L["url"]
-        fname = filename_from_url(file_url)
-        save_to = outdir / fname
+        fname_url = filename_from_url(file_url)
+        ext = Path(fname_url).suffix
+        label_safe = sanitize(label)
+        fname = label_safe + (ext or "")
+        save_to = sd_dir / fname
         print(f"  [{i}/{len(links)}] {label} -> {fname}")
         try:
             saved = download_file(file_url, save_to, referer=r.url, timeout=args.timeout, sleep=args.sleep, max_retries=args.max_retries)
-            manifest.append({"label": label, "url": file_url, "saved_as": str(save_to)})
+            entry = {"label": label, "url": file_url, "saved_as": str(save_to), "orig_name": fname_url}
+            manifest.append(entry)
+            upsert_json_list(meta_dir / "source_data.json", entry, key="label")
         except Exception as e:
             print(f"  [warn] download failed: {file_url} ({e})")
-            manifest.append({"label": label, "url": file_url, "error": str(e)})
+            entry = {"label": label, "url": file_url, "error": str(e), "orig_name": fname_url}
+            manifest.append(entry)
+            upsert_json_list(meta_dir / "source_data.json", entry, key="label")
 
-    with (outdir / "_source_data_manifest.json").open("w", encoding="utf-8") as f:
+    with (meta_dir / "_source_data_manifest.json").open("w", encoding="utf-8") as f:
         json.dump({"article_url": url, "links": manifest}, f, ensure_ascii=False, indent=2)
-    print(f"[done] Saved manifest and files under {outdir}")
+    print(f"[done] Saved manifest and files under {base}")
 
 
 if __name__ == "__main__":
     main()
-

@@ -8,4 +8,5 @@
 - 2025-09-24: 增强 CLI：重试/超时、作者字段、JSONL 追加去重、可选取消 Nature 偏置；更新 README。 (commit: cdb8afb)
 - 2025-09-24: 新增两次运行记录（checkpoint inhibitor；单细胞 癌症）。 (commit: d059858)
  - 2025-09-24: 批量后处理脚本 nature_post_fetch.py（按搜索结果批量抓取图与 Source data，需授权）。 (commit: 628e6d2)
- - 2025-09-24: 记录运行8（post_fetch 验证，前两篇/前两张图）。 (commit: 14ac49a)
+- 2025-09-24: 记录运行8（post_fetch 验证，前两篇/前两张图）。 (commit: 14ac49a)
+ - 2025-09-24: 统一输出目录结构（figures/source_data/meta），优化图与 Source data 命名；README 全中文重写。 (commit: pending)
