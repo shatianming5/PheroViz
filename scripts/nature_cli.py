@@ -27,7 +27,7 @@ from bs4 import BeautifulSoup  # type: ignore
 
 
 API_USER_AGENT = (
-    "PheroViz-NatureMeta/0.1 (+compliant; no-scrape; contact=local)"
+    "PheroViz-NatureMeta/0.2 (+compliant; no-scrape; contact=local)"
 )
 
 
@@ -59,29 +59,40 @@ def is_nature_family(container_titles) -> bool:
     return False
 
 
-def polite_get(url: str, params=None, timeout=30, sleep=1.0):
+def polite_get(url: str, params=None, timeout=30, sleep=1.0, max_retries=3):
     headers = {"User-Agent": API_USER_AGENT}
-    resp = requests.get(url, params=params, headers=headers, timeout=timeout)
-    if sleep:
-        time.sleep(sleep)
-    resp.raise_for_status()
-    return resp
+    attempt = 0
+    backoff = sleep if sleep else 0.5
+    while True:
+        attempt += 1
+        try:
+            resp = requests.get(url, params=params, headers=headers, timeout=timeout)
+            if sleep:
+                time.sleep(sleep)
+            resp.raise_for_status()
+            return resp
+        except Exception as e:
+            if attempt >= max_retries:
+                raise
+            wait = backoff * (2 ** (attempt - 1))
+            print(safe_console(f"  [retry] {url} failed ({e}); waiting {wait:.1f}s"))
+            time.sleep(wait)
 
 
-def crossref_search(query: str, rows: int = 20, mailto: str | None = None, sleep=1.0):
+def crossref_search(query: str, rows: int = 20, mailto: str | None = None, sleep=1.0, timeout=30, max_retries=3, family_bias=True):
     base = "https://api.crossref.org/works"
     params = {
         "query": query,
         # narrow to journal articles; we'll filter Nature-family after fetch
         "filter": "type:journal-article",
         "rows": rows,
-        # bias search to Nature family journals
-        "query.container-title": "Nature",
         # Crossref recommends mailto, but we'll omit if not provided
     }
+    if family_bias:
+        params["query.container-title"] = "Nature"
     if mailto:
         params["mailto"] = mailto
-    r = polite_get(base, params=params, sleep=sleep)
+    r = polite_get(base, params=params, sleep=sleep, timeout=timeout, max_retries=max_retries)
     data = r.json()
     items = data.get("message", {}).get("items", [])
     # filter to Nature-family titles
@@ -89,10 +100,10 @@ def crossref_search(query: str, rows: int = 20, mailto: str | None = None, sleep
     return filtered
 
 
-def europe_pmc_by_doi(doi: str, sleep=1.0):
+def europe_pmc_by_doi(doi: str, sleep=1.0, timeout=30, max_retries=3):
     url = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
     params = {"query": f"DOI:{doi}", "format": "json", "pageSize": 1}
-    r = polite_get(url, params=params, sleep=sleep)
+    r = polite_get(url, params=params, sleep=sleep, timeout=timeout, max_retries=max_retries)
     data = r.json()
     results = data.get("resultList", {}).get("result", [])
     if not results:
@@ -100,11 +111,11 @@ def europe_pmc_by_doi(doi: str, sleep=1.0):
     return results[0]
 
 
-def fetch_pmc_figure_urls(pmcid: str, sleep=1.0):
+def fetch_pmc_figure_urls(pmcid: str, sleep=1.0, timeout=30, max_retries=3):
     # Parse the PMC article HTML and collect figure image URLs.
     # Only used for OA PMC records.
     base = f"https://pmc.ncbi.nlm.nih.gov/articles/{pmcid}/"
-    r = polite_get(base, sleep=sleep)
+    r = polite_get(base, sleep=sleep, timeout=timeout, max_retries=max_retries)
     soup = BeautifulSoup(r.text, "html.parser")
     urls: list[str] = []
     for fig in soup.find_all("figure"):
@@ -151,9 +162,9 @@ def write_csv(path: Path, rows: list[dict], fieldnames: list[str]):
             w.writerow({k: r.get(k, "") for k in fieldnames})
 
 
-def download_image(url: str, outdir: Path, idx: int, sleep=1.0):
+def download_image(url: str, outdir: Path, idx: int, sleep=1.0, timeout=30, max_retries=3):
     try:
-        r = polite_get(url, sleep=sleep)
+        r = polite_get(url, sleep=sleep, timeout=timeout, max_retries=max_retries)
     except Exception as e:
         print(f"  [warn] image fetch failed: {url} ({e})")
         return None
@@ -177,6 +188,48 @@ def download_image(url: str, outdir: Path, idx: int, sleep=1.0):
     return str(out)
 
 
+def format_authors_crossref(author_list) -> str:
+    try:
+        parts = []
+        for a in author_list or []:
+            given = (a.get("given") or "").strip()
+            family = (a.get("family") or "").strip()
+            name = (family + ", " + given).strip(", ") if (given or family) else (a.get("name") or "")
+            if name:
+                parts.append(name)
+        return "; ".join(parts)
+    except Exception:
+        return ""
+
+
+def merge_append(records: list[dict], existing_path: Path) -> list[dict]:
+    if not existing_path.exists():
+        return records
+    seen = set()
+    merged = []
+    # load existing
+    try:
+        with existing_path.open("r", encoding="utf-8") as f:
+            for line in f:
+                try:
+                    obj = json.loads(line)
+                    doi = (obj.get("doi") or "").lower()
+                    if doi and doi not in seen:
+                        seen.add(doi)
+                        merged.append(obj)
+                except Exception:
+                    continue
+    except Exception:
+        pass
+    # add new
+    for r in records:
+        doi = (r.get("doi") or "").lower()
+        if doi and doi not in seen:
+            seen.add(doi)
+            merged.append(r)
+    return merged
+
+
 def main():
     p = argparse.ArgumentParser(description="Compliant Nature family search via Crossref + Europe PMC")
     p.add_argument("--query", required=True, help="Search query (e.g., keywords)")
@@ -185,6 +238,10 @@ def main():
     p.add_argument("--mailto", default=None, help="Optional email for Crossref mailto")
     p.add_argument("--images", action="store_true", help="Download PMC figure images when available")
     p.add_argument("--sleep", type=float, default=1.0, help="Seconds to sleep between requests")
+    p.add_argument("--timeout", type=float, default=30, help="Request timeout seconds")
+    p.add_argument("--max-retries", type=int, default=3, help="Max retries per request")
+    p.add_argument("--append", action="store_true", help="Append to existing JSONL with DOI de-duplication")
+    p.add_argument("--no-family-bias", action="store_true", help="Do not bias Crossref query by container-title=Nature")
     args = p.parse_args()
 
     outdir = Path(args.out)
@@ -192,8 +249,16 @@ def main():
 
     print(f"[info] Query: {safe_console(args.query)}")
     print(f"[info] Max: {args.max} | Images: {args.images} | Sleep: {args.sleep}s")
-
-    items = crossref_search(args.query, rows=args.max, mailto=args.mailto, sleep=args.sleep)
+    
+    items = crossref_search(
+        args.query,
+        rows=args.max,
+        mailto=args.mailto,
+        sleep=args.sleep,
+        timeout=args.timeout,
+        max_retries=args.max_retries,
+        family_bias=not args.no_family_bias,
+    )
     print(f"[info] Crossref filtered results (Nature family): {len(items)}")
 
     records: list[dict] = []
@@ -207,19 +272,26 @@ def main():
         url = it.get("URL")
         abstract = it.get("abstract")
 
-        epmc = europe_pmc_by_doi(doi, sleep=args.sleep)
+        epmc = europe_pmc_by_doi(doi, sleep=args.sleep, timeout=args.timeout, max_retries=args.max_retries)
         pmcid = None
         abstract_epmc = None
         is_oa = False
         pmc_url = None
+        pmid = None
+        author_str = None
         if epmc:
             pmcid = epmc.get("pmcid")
             abstract_epmc = epmc.get("abstractText")
             is_oa = bool(epmc.get("isOpenAccess") or pmcid)
             if pmcid:
                 pmc_url = f"https://pmc.ncbi.nlm.nih.gov/articles/{pmcid}/"
+            pmid = epmc.get("pmid")
+            author_str = epmc.get("authorString")
 
         final_abstract = abstract_epmc or abstract or ""
+        # authors from Crossref preferred; fallback to Europe PMC authorString
+        authors_crossref = format_authors_crossref(it.get("author"))
+        authors = authors_crossref or author_str or ""
         rec = {
             "doi": doi,
             "title": title,
@@ -228,8 +300,10 @@ def main():
             "url": url,
             "pmcid": pmcid,
             "pmc_url": pmc_url,
+            "pmid": pmid,
             "is_open_access": is_oa,
             "abstract": final_abstract,
+            "authors": authors,
         }
 
         ttl = safe_console(title)
@@ -243,11 +317,11 @@ def main():
         image_paths: list[str] = []
         if args.images and pmcid:
             try:
-                urls = fetch_pmc_figure_urls(pmcid, sleep=args.sleep)
+                urls = fetch_pmc_figure_urls(pmcid, sleep=args.sleep, timeout=args.timeout, max_retries=args.max_retries)
                 print(f"      Figures found: {len(urls)}")
                 figdir = outdir / "images" / sanitize_filename(doi or title)
                 for idx, u in enumerate(urls, 1):
-                    saved = download_image(u, figdir, idx, sleep=args.sleep)
+                    saved = download_image(u, figdir, idx, sleep=args.sleep, timeout=args.timeout, max_retries=args.max_retries)
                     if saved:
                         image_paths.append(saved)
             except Exception as e:
@@ -257,7 +331,12 @@ def main():
         records.append(rec)
 
     # write outputs
-    write_jsonl(outdir / "articles.jsonl", records)
+    jsonl_path = outdir / "articles.jsonl"
+    if args.append and jsonl_path.exists():
+        merged = merge_append(records, jsonl_path)
+        write_jsonl(jsonl_path, merged)
+    else:
+        write_jsonl(jsonl_path, records)
     fields = [
         "doi",
         "title",
@@ -266,8 +345,10 @@ def main():
         "url",
         "pmcid",
         "pmc_url",
+        "pmid",
         "is_open_access",
         "abstract",
+        "authors",
     ]
     write_csv(outdir / "articles.csv", records, fields)
     print(f"[done] Saved {len(records)} records to {outdir}")

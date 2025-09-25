@@ -9,6 +9,7 @@ What it does
 - Resolve metadata and abstracts via Crossref and Europe PMC (when available).
 - For articles that have a PMC ID (open access), fetch figure image URLs from the PMC article page and download locally with polite throttling.
 - Save results into a structured JSONL/CSV under `outputs/`.
+ - Include `authors` (Crossref preferred, Europe PMC fallback) and `pmid`; supports Chinese keywords and safe Windows console output.
 
 What it does NOT do
 - No anti-bot evasion, no captcha workarounds, and no scraping of publisher pages that disallow it.
@@ -18,6 +19,11 @@ Quick start
 - Python 3.9+ recommended.
 - Run: `python scripts/nature_cli.py --query "cancer" --max 5 --images --out outputs/sample`
 - The CLI installs minimal dependencies (requests, beautifulsoup4) if missing.
+- Options:
+  - `--timeout 30` and `--max-retries 3` for robust retries
+  - `--append` to append JSONL with DOI de-duplication
+  - `--no-family-bias` to remove `query.container-title=Nature` bias
+  - `--mailto you@example.com` to include a Crossref mailto identifier
 
 Notes on compliance
 - Crossref and Europe PMC are designed for API usage. Provide a clear User-Agent and throttle requests.
