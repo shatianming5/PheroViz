@@ -28,6 +28,7 @@ Nature 系列检索与内容抓取（合规、可授权扩展）
   - 自动搜索+抓取全部（图像+caption、Source data）：
     - `python nature_all_in_one.py auto --max-per-keyword 50 --max-articles 200 --max-figs 12 --sort year_desc`
     - 可选：`--keywords-file keywords.txt`（每行一个关键词）、`--mailto you@example.com`、`--sleep 1.0`、`--timeout 30`、`--max-retries 3`
+    - 说明：内置多领域关键词已扩展至约 150+（含中英文），如需自定义请使用 `--keywords-file`
   - 仅检索：
     - `python nature_all_in_one.py search --query "cancer" --max 20 --out outputs/search_run --append`
   - 仅抓取某图页（需授权）：
