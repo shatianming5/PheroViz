@@ -321,10 +321,39 @@ def pick_largest_src(soup: BeautifulSoup, base_url: str):
         img = fig.find("img")
     else:
         img = soup.find("img")
-    if img and img.get("src"):
-        cand = normalize_img_url(urljoin(base_url, img["src"].strip()))
-        if is_likely_image_url(cand):
-            return cand
+    if img:
+        src_attr = img.get("src") or img.get("data-src") or img.get("data-original")
+        if src_attr:
+            cand = normalize_img_url(urljoin(base_url, src_attr.strip()))
+            if is_likely_image_url(cand):
+                return cand
+    # Scan anchors for potential high-res downloads
+    best = None
+    def score(u: str) -> int:
+        s = 0
+        uu = u.lower()
+        if any(k in uu for k in ("original", "download", "full")):
+            s += 5
+        if uu.endswith(".tif") or ".tif?" in uu:
+            s += 4
+        elif uu.endswith(".png") or ".png?" in uu:
+            s += 3
+        elif uu.endswith(".jpg") or uu.endswith(".jpeg") or ".jpg?" in uu or ".jpeg?" in uu:
+            s += 2
+        elif uu.endswith(".webp") or ".webp?" in uu:
+            s += 1
+        return s
+    for a in soup.find_all("a"):
+        href = a.get("href")
+        if not href:
+            continue
+        u = normalize_img_url(urljoin(base_url, href))
+        if is_likely_image_url(u):
+            sc = score(u)
+            if not best or sc > best[0]:
+                best = (sc, u)
+    if best:
+        return best[1]
     return None
 
 
@@ -393,14 +422,35 @@ def upsert_json_list(path: Path, item: dict, key: str):
 
 
 def download_binary(url: str, out_path: Path, referer: str | None = None, timeout=30, sleep=1.0, max_retries=3):
-    headers = {"User-Agent": API_USER_AGENT, "Accept": "*/*", "Connection": "close"}
+    headers = {"User-Agent": API_USER_AGENT, "Accept": "image/*,*/*;q=0.8", "Connection": "close"}
     if referer:
         headers["Referer"] = referer
-    r = polite_get(url, timeout=timeout, sleep=sleep, max_retries=max_retries, headers=headers)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    with out_path.open("wb") as f:
-        f.write(r.content)
-    return str(out_path)
+    attempt = 0
+    backoff = sleep if sleep else 0.5
+    while True:
+        attempt += 1
+        try:
+            resp = requests.get(url, headers=headers, timeout=timeout, stream=True)
+            resp.raise_for_status()
+            expected = resp.headers.get("Content-Length")
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            tmp = out_path.with_suffix(out_path.suffix + ".part")
+            total = 0
+            with tmp.open("wb") as f:
+                for chunk in resp.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+                        total += len(chunk)
+            if expected and total != int(expected):
+                raise IOError(f"incomplete download: {total} != {expected}")
+            tmp.replace(out_path)
+            return str(out_path)
+        except Exception as e:
+            if attempt >= max_retries:
+                raise
+            wait = backoff * (2 ** (attempt - 1))
+            print(safe_console(f"  [retry-img] {url} ({e}); waiting {wait:.1f}s"))
+            time.sleep(wait)
 
 
 def parse_article_id_and_fig(url: str):
@@ -414,7 +464,11 @@ def cmd_fig(args):
     url = args.url
     aid, fno = parse_article_id_and_fig(url)
     print(f"[info] Article: {aid} | Figure: {fno if fno else 'all/unknown'}")
-    r = polite_get(url, timeout=args.timeout, sleep=args.sleep, max_retries=args.max_retries)
+    try:
+        r = polite_get(url, timeout=args.timeout, sleep=args.sleep, max_retries=args.max_retries)
+    except Exception as e:
+        print(safe_console(f"[warn] figure page not available: {url} ({e})"))
+        return
     soup = BeautifulSoup(r.text, "html.parser")
     img_url = pick_largest_src(soup, r.url)
     caption = extract_caption(soup)
@@ -593,9 +647,22 @@ def cmd_postfetch(args):
 def postfetch_one(art_url: str, out: str, max_figs: int, sleep: float, timeout: float, max_retries: int):
     aid = parse_article_id(art_url)
     print(f"[stream] Fetch: {aid}")
+    # verify article page is reachable
+    try:
+        polite_get(art_url, timeout=timeout, sleep=sleep, max_retries=1)
+    except Exception as e:
+        print(safe_console(f"[warn] article page not available: {art_url} ({e})"))
+        return
     for i in range(1, max_figs + 1):
         fig_url = f"{art_url}/figures/{i}"
-        cmd_fig(argparse.Namespace(url=fig_url, out=out, sleep=sleep, timeout=timeout, max_retries=max_retries))
+        try:
+            cmd_fig(argparse.Namespace(url=fig_url, out=out, sleep=sleep, timeout=timeout, max_retries=max_retries))
+        except Exception as he:
+            # stop on repeated 404
+            txt = str(he)
+            if "404" in txt:
+                print(f"[info] Stop figures loop for {aid}: 404 on {i}")
+                break
         time.sleep(sleep)
     cmd_source(argparse.Namespace(url=art_url, out=out, section_id=None, filter=None, sleep=sleep, timeout=timeout, max_retries=max_retries))
     time.sleep(sleep)
