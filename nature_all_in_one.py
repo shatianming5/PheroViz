@@ -25,6 +25,8 @@ import time
 from pathlib import Path
 from typing import Any
 from urllib.parse import urljoin, urlparse, unquote
+import shutil
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 
 def ensure_package(module_name: str, pip_name: str | None = None):
@@ -40,6 +42,13 @@ def ensure_package(module_name: str, pip_name: str | None = None):
 requests = ensure_package("requests")
 bs4 = ensure_package("bs4", "beautifulsoup4")
 from bs4 import BeautifulSoup  # type: ignore
+try:
+    ensure_package("rich")
+    from rich.console import Console
+    from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
+    console = Console()
+except Exception:
+    console = None
 
 
 API_USER_AGENT = "PheroViz-NatureAllInOne/1.0 (+compliant; authorized when required)"
@@ -170,6 +179,25 @@ def write_csv(path: Path, rows: list[dict], fieldnames: list[str]):
         w.writeheader()
         for r in rows:
             w.writerow({k: r.get(k, "") for k in fieldnames})
+
+
+def load_processed_set(path: Path) -> set[str]:
+    s: set[str] = set()
+    if path.exists():
+        try:
+            for line in path.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if line:
+                    s.add(line)
+        except Exception:
+            pass
+    return s
+
+
+def append_processed(path: Path, article_id: str):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as f:
+        f.write(article_id + "\n")
 
 
 def append_jsonl(path: Path, obj: dict):
@@ -627,19 +655,65 @@ def cmd_postfetch(args):
         reverse = (args.sort == "year_desc")
         rows = sorted(rows, key=year_key, reverse=reverse)
 
-    taken = 0
-    for idx, r in enumerate(rows, 1):
+    # Build task list with processed-file skipping
+    processed_file = Path(getattr(args, "processed_file", Path(args.out) / "_processed.txt"))
+    processed = load_processed_set(processed_file)
+    tasks: list[str] = []
+    for r in rows:
         art_url = norm_article_url(r.get("url"), r.get("doi"))
         if not art_url:
             continue
         aid = parse_article_id(art_url)
-        print(f"[{idx}] Nature article detected: {aid}")
-        postfetch_one(art_url, args.out, args.max_figs, args.sleep, args.timeout, args.max_retries, getattr(args, "max_empty_figs", 2))
-        cmd_source(argparse.Namespace(url=art_url, out=args.out, section_id=None, filter=None, sleep=args.sleep, timeout=args.timeout, max_retries=args.max_retries))
-        time.sleep(args.sleep)
-        taken += 1
-        if args.max_articles and taken >= args.max_articles:
+        if aid in processed:
+            continue
+        tasks.append(art_url)
+        if args.max_articles and len(tasks) >= args.max_articles:
             break
+
+    total = len(tasks)
+    if total == 0:
+        print("[info] No tasks to fetch (all processed or none found).")
+        return
+
+    workers = getattr(args, "workers", 1)
+    if workers > 1:
+        # Parallel with optional rich progress
+        if console:
+            with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), BarColumn(), TextColumn("{task.completed}/{task.total}"), TimeElapsedColumn(), console=console) as progress:
+                t = progress.add_task("Postfetch", total=total)
+                with ProcessPoolExecutor(max_workers=workers) as ex:
+                    futures = {ex.submit(postfetch_article, u, args.out, args.max_figs, getattr(args, "max_empty_figs", 2), args.sleep, args.timeout, args.max_retries): u for u in tasks}
+                    for fut in as_completed(futures):
+                        try:
+                            aid, found = fut.result()
+                            if found > 0:
+                                append_processed(processed_file, aid)
+                        except Exception as e:
+                            console.log(safe_console(f"[warn] postfetch failed: {e}"))
+                        progress.advance(t, 1)
+        else:
+            with ProcessPoolExecutor(max_workers=workers) as ex:
+                futures = {ex.submit(postfetch_article, u, args.out, args.max_figs, getattr(args, "max_empty_figs", 2), args.sleep, args.timeout, args.max_retries): u for u in tasks}
+                for fut in as_completed(futures):
+                    try:
+                        aid, found = fut.result()
+                        if found > 0:
+                            append_processed(processed_file, aid)
+                    except Exception as e:
+                        print(safe_console(f"[warn] postfetch failed: {e}"))
+    else:
+        for idx, u in enumerate(tasks, 1):
+            aid = parse_article_id(u)
+            print(f"[{idx}/{total}] Nature article: {aid}")
+            found = postfetch_one(u, args.out, args.max_figs, args.sleep, args.timeout, args.max_retries, getattr(args, "max_empty_figs", 2))
+            if found > 0:
+                append_processed(processed_file, aid)
+                cmd_source(argparse.Namespace(url=u, out=args.out, section_id=None, filter=None, sleep=args.sleep, timeout=args.timeout, max_retries=args.max_retries))
+            else:
+                base = Path(args.out) / aid
+                if base.exists():
+                    shutil.rmtree(base, ignore_errors=True)
+            time.sleep(args.sleep)
     print("[done] Post-fetch complete.")
 
 
@@ -654,6 +728,7 @@ def postfetch_one(art_url: str, out: str, max_figs: int, sleep: float, timeout: 
         print(safe_console(f"[warn] article page not available: {art_url} ({e})"))
         return
     empty_streak = 0
+    found_count = 0
     for i in range(1, max_figs + 1):
         fig_url = f"{art_url}/figures/{i}"
         try:
@@ -665,6 +740,7 @@ def postfetch_one(art_url: str, out: str, max_figs: int, sleep: float, timeout: 
                     break
             else:
                 empty_streak = 0
+                found_count += 1
         except Exception as he:
             # stop on repeated 404
             txt = str(he)
@@ -672,8 +748,8 @@ def postfetch_one(art_url: str, out: str, max_figs: int, sleep: float, timeout: 
                 print(f"[info] Stop figures loop for {aid}: 404 on {i}")
                 break
         time.sleep(sleep)
-    cmd_source(argparse.Namespace(url=art_url, out=out, section_id=None, filter=None, sleep=sleep, timeout=timeout, max_retries=max_retries))
-    time.sleep(sleep)
+    # return number of figures found; caller decides whether to fetch source data and persist processed record
+    return found_count
 
 
 # ---------- Auto (search multiple -> postfetch) ----------
@@ -790,7 +866,8 @@ def cmd_auto(args):
             ))
         # postfetch (always fetch all)
         jsonl = str(jsonl_path)
-        cmd_postfetch(argparse.Namespace(
+        
+        ns = argparse.Namespace(
             jsonl=jsonl,
             out=args.content_out,
             max_figs=args.max_figs,
@@ -799,10 +876,10 @@ def cmd_auto(args):
             sleep=args.sleep,
             timeout=args.timeout,
             max_retries=args.max_retries,
-        ))
-        print("[done] Search and full-content fetch completed.")
-        return
-
+            workers=getattr(args, "workers", 1),
+            processed_file=(args.processed_file or str(Path(args.content_out) / "_processed.txt")),
+        )
+        cmd_postfetch(ns)
     # Streaming: per-article postfetch immediately after discovery
     for kw in kwds:
         print(f"[stream] Searching: {safe_console(kw)}")
@@ -906,6 +983,8 @@ def build_parser():
     pf.add_argument("--sleep", type=float, default=1.0)
     pf.add_argument("--timeout", type=float, default=30)
     pf.add_argument("--max-retries", type=int, default=3)
+    pf.add_argument("--workers", type=int, default=1, help="Worker processes for fetching (non-stream mode)")
+    pf.add_argument("--processed-file", default=None, help="Path to processed record file (default: <out>/_processed.txt)")
     pf.set_defaults(func=cmd_postfetch)
 
     au = sub.add_parser("auto", help="Search multiple keywords then fetch ALL content")
@@ -921,6 +1000,8 @@ def build_parser():
     au.add_argument("--max-figs", type=int, default=12)
     au.add_argument("--max-empty-figs", type=int, default=2)
     au.add_argument("--sort", choices=["year_desc", "year_asc", "input"], default="year_desc")
+    au.add_argument("--workers", type=int, default=1, help="Workers for postfetch in non-stream mode (processes)")
+    au.add_argument("--processed-file", default=None, help="Path to processed record file (default: <content-out>/_processed.txt)")
     au.add_argument("--stream", action="store_true", help="Enable streaming mode: per-article immediate fetch (no need to wait for all searches)")
     au.set_defaults(func=cmd_auto)
 
@@ -935,6 +1016,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
