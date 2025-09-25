@@ -22,23 +22,24 @@
     - `--no-family-bias` å–æ¶ˆå¯¹ `container-title=Nature` çš„åç½®ï¼ˆæ‰©å¤§èŒƒå›´ï¼‰
     - `--mailto you@example.com` ä¸º Crossref æä¾›é‚®ç®±æ ‡è¯†
 
-å•æ–‡ä»¶å…¥å£ï¼ˆallâ€‘inâ€‘oneï¼ŒæŽ¨èï¼‰
-- æœ¬ä»“åº“å·²å°†åŠŸèƒ½æ•´åˆä¸ºå•ä¸€è„šæœ¬ï¼š`nature_all_in_one.py`
-- å­å‘½ä»¤ä¸Žç¤ºä¾‹ï¼š
-  - è‡ªåŠ¨æœç´¢+æŠ“å–å…¨éƒ¨ï¼ˆå›¾åƒ+captionã€Source dataï¼‰ï¼š
-    - ä¸¤é˜¶æ®µï¼ˆå…ˆæœåŽæŠ“ï¼‰ï¼š
+全功能入口（all-in-one，推荐）
+- 本仓库已将功能整合为单一脚本：`nature_all_in_one.py`
+- 子命令与示例：
+  - 自动搜索+抓取全部（图像+caption、Source data）：
+    - 两阶段（先搜索后抓取）：
       - `python nature_all_in_one.py auto --max-per-keyword 50 --max-articles 200 --max-figs 12 --sort year_desc`
-    - æµå¼ï¼ˆè¾¹æœè¾¹æŠ“ï¼Œæ¯å‘çŽ°ä¸€ç¯‡ç«‹å³æŠ“å–ï¼‰ï¼š
+    - 流式模式（边搜索边抓取，发现一篇立即抓取）：
       - `python nature_all_in_one.py auto --stream --max-per-keyword 50 --max-articles 200 --max-figs 12`
-    - å¯é€‰ï¼š`--keywords-file keywords.txt`ï¼ˆæ¯è¡Œä¸€ä¸ªå…³é”®è¯ï¼‰ã€`--mailto you@example.com`ã€`--sleep 1.0`ã€`--timeout 30`ã€`--max-retries 3`
-    - è¯´æ˜Žï¼šå†…ç½®å¤šé¢†åŸŸå…³é”®è¯å·²æ‰©å±•è‡³çº¦ 150+ï¼ˆå«ä¸­è‹±æ–‡ï¼‰ï¼›å¦‚éœ€è‡ªå®šä¹‰è¯·ä½¿ç”¨ `--keywords-file`
-  - ä»…æ£€ç´¢ï¼š
+      - `--stream-workers 6` 支持流式抓取阶段并行下载，Rich 实时展示关键词进度与各 worker 状态（默认 1）
+    - 可选：`--keywords-file keywords.txt`（每行一个关键词）、`--mailto you@example.com`、`--sleep 1.0`、`--timeout 30`、`--max-retries 3`
+    - 说明：内置多领域关键词已扩展至约 150+（含中英文）；如需自定义请使用 `--keywords-file`
+  - 仅检索：
     - `python nature_all_in_one.py search --query "cancer" --max 20 --out outputs/search_run --append`
-  - ä»…æŠ“å–æŸå›¾é¡µï¼ˆéœ€æŽˆæƒï¼‰ï¼š
+  - 仅抓取图像页（需授权）：
     - `python nature_all_in_one.py fig --url "https://www.nature.com/articles/<article-id>/figures/1" --out outputs/nature_content`
-  - ä»…æŠ“å–æŸæ–‡ Source dataï¼ˆéœ€æŽˆæƒï¼‰ï¼š
+  - 仅抓取 Source data（需授权）：
     - `python nature_all_in_one.py source --url "https://www.nature.com/articles/<article-id>" --out outputs/nature_content --section-id Sec71 --filter "Fig. 4"`
-  - å¯¹æ£€ç´¢ç»“æžœæ‰¹é‡æŠ“å–ï¼ˆå§‹ç»ˆâ€œæŠ“å–å…¨éƒ¨â€ï¼‰ï¼š
+  - 对检索结果批量抓取（始终“抓取全部”）：
     - `python nature_all_in_one.py postfetch --jsonl outputs/search_run/articles.jsonl --out outputs/nature_content --max-figs 12 --max-articles 200 --sort year_desc`
 
 ç»Ÿä¸€è¾“å‡ºç»“æž„ï¼ˆç›´è§‚ã€ä¾¿äºŽå¤„ç†ï¼‰

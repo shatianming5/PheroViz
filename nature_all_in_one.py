@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urljoin, urlparse, unquote
 import shutil
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed, wait, FIRST_COMPLETED
 
 
 def ensure_package(module_name: str, pip_name: str | None = None):
@@ -751,7 +751,7 @@ def cmd_postfetch(args):
     if workers > 1:
         # Parallel with optional rich progress
         if console:
-            with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), BarColumn(), TextColumn("{task.completed}/{task.total}"), TimeElapsedColumn(), console=console) as progress:
+            with Progress(SpinnerColumn(spinner_name="line"), TextColumn("[progress.description]{task.description}"), BarColumn(), TextColumn("{task.completed}/{task.total}"), TimeElapsedColumn(), console=console) as progress:
                 t = progress.add_task("Postfetch", total=total)
                 with ProcessPoolExecutor(max_workers=workers) as ex:
                     futures = {ex.submit(postfetch_article, u, args.out, args.max_figs, getattr(args, "max_empty_figs", 2), args.sleep, args.timeout, args.max_retries): u for u in tasks}
@@ -1012,84 +1012,199 @@ def cmd_auto(args):
     # Streaming: per-article postfetch immediately after discovery
     processed_file_stream = Path(args.content_out) / "_processed.txt"
     processed_stream = load_processed_set(processed_file_stream)
-    for kw in kwds:
-        print(f"[stream] Searching: {safe_console(kw)}")
-        if args.max_per_keyword > 1000:
-            items_iter = crossref_cursor_stream(
-                kw,
-                total_max=args.max_per_keyword,
-                mailto=args.mailto,
-                sleep=args.sleep,
-                timeout=args.timeout,
-                max_retries=args.max_retries,
-                family_bias=True,
-                page_rows=1000,
-            )
+    stream_workers = max(1, getattr(args, "stream_workers", 1))
+    executor = ThreadPoolExecutor(max_workers=stream_workers, thread_name_prefix="stream-fetch")
+    inflight: dict[Any, tuple[int, str]] = {}
+    free_slots = list(range(stream_workers))
+    stop_stream = False
+    total_keywords = len(kwds)
+    progress = None
+    search_task = None
+    fetch_task = None
+    worker_tasks: list[int] = []
+
+    def set_worker(slot: int, status: str, detail: str | None = None) -> None:
+        if progress is None:
+            return
+        if slot >= len(worker_tasks):
+            return
+        msg = f"worker-{slot + 1} {status}"
+        if detail:
+            clipped = detail[:48]
+            msg += f" [{clipped}]"
+        progress.update(worker_tasks[slot], description=msg)
+
+    def update_fetch_task() -> None:
+        if progress is None or fetch_task is None:
+            return
+        goal = str(args.max_articles) if args.max_articles else "inf"
+        progress.update(fetch_task, description=f"success {processed}/{goal}")
+
+    if console:
+        progress = Progress(
+            SpinnerColumn(spinner_name="line"),
+            TextColumn("[progress.description]{task.description}"),
+            TimeElapsedColumn(),
+            console=console,
+            transient=False,
+        )
+        progress.start()
+        search_task = progress.add_task(f"keywords 0/{total_keywords}", total=None)
+        fetch_task = progress.add_task(
+            f"success 0/{args.max_articles if args.max_articles else 'inf'}",
+            total=None,
+        )
+        worker_tasks = [
+            progress.add_task(f"worker-{idx + 1} idle", total=None)
+            for idx in range(stream_workers)
+        ]
+
+    def process_futures(blocking: bool) -> None:
+        nonlocal processed, stop_stream
+        if not inflight:
+            return
+        futures = list(inflight.keys())
+        if blocking:
+            done_set, _ = wait(futures, return_when=FIRST_COMPLETED)
         else:
-            items_iter = crossref_search(
-                kw,
-                rows=args.max_per_keyword,
-                mailto=args.mailto,
-                sleep=args.sleep,
-                timeout=args.timeout,
-                max_retries=args.max_retries,
-                family_bias=True,
-            )
-        for it in items_iter:
-            doi = (it.get("DOI") or "").lower()
-            if doi and doi in seen:
+            done_set = [f for f in futures if f.done()]
+        for fut in list(done_set):
+            slot, aid_hint = inflight.pop(fut)
+            free_slots.append(slot)
+            try:
+                result = fut.result()
+            except Exception as exc:
+                msg = safe_console(f"[warn] stream fetch failed: {exc}")
+                if console:
+                    console.log(msg)
+                else:
+                    print(msg)
+                set_worker(slot, "idle", f"{aid_hint} error")
                 continue
-            # build record (as in cmd_search)
-            title_list = it.get("title") or []
-            title = title_list[0] if title_list else ""
-            container = (it.get("container-title") or [""])[0]
-            issued = it.get("issued", {}).get("date-parts", [[None]])[0]
-            year = issued[0] if issued else None
-            url = it.get("URL")
-            abstract = it.get("abstract")
-            epmc = europe_pmc_by_doi(doi, sleep=args.sleep, timeout=args.timeout, max_retries=args.max_retries) if doi else None
-            pmcid = epmc.get("pmcid") if epmc else None
-            abstract_epmc = epmc.get("abstractText") if epmc else None
-            is_oa = bool(epmc.get("isOpenAccess") or pmcid) if epmc else False
-            pmc_url = f"https://pmc.ncbi.nlm.nih.gov/articles/{pmcid}/" if pmcid else None
-            pmid = epmc.get("pmid") if epmc else None
-            authors = format_authors_crossref(it.get("author")) or (epmc.get("authorString") if epmc else "")
-            rec = {
-                "doi": it.get("DOI"),
-                "title": title,
-                "journal": container,
-                "year": year,
-                "url": url,
-                "pmcid": pmcid,
-                "pmc_url": pmc_url,
-                "pmid": pmid,
-                "is_open_access": is_oa,
-                "abstract": abstract_epmc or abstract or "",
-                "authors": authors,
-            }
-            append_jsonl(jsonl_path, rec)
-            if doi:
-                seen.add(doi)
-            # postfetch this article immediately
-            art_url = norm_article_url(url, it.get("DOI"))
-            if art_url:
+            if not result:
+                set_worker(slot, "idle", f"{aid_hint} no-result")
+                continue
+            aid_out, found = result
+            if found > 0:
+                if args.max_articles and processed >= args.max_articles:
+                    base = Path(args.content_out) / aid_out
+                    if base.exists():
+                        shutil.rmtree(base, ignore_errors=True)
+                    set_worker(slot, "idle", f"{aid_out} drop-limit")
+                    stop_stream = True
+                else:
+                    append_processed(processed_file_stream, aid_out)
+                    processed_stream.add(aid_out)
+                    processed += 1
+                    set_worker(slot, "idle", f"{aid_out} ok")
+                    update_fetch_task()
+                    if args.max_articles and processed >= args.max_articles:
+                        stop_stream = True
+            else:
+                set_worker(slot, "idle", f"{aid_out} no-image")
+
+    try:
+        for idx, kw in enumerate(kwds, 1):
+            if stop_stream:
+                break
+            print(f"[stream] Searching: {safe_console(kw)}")
+            if progress is not None and search_task is not None:
+                progress.update(search_task, description=f"keywords {idx}/{total_keywords}")
+            if args.max_per_keyword > 1000:
+                items_iter = crossref_cursor_stream(
+                    kw,
+                    total_max=args.max_per_keyword,
+                    mailto=args.mailto,
+                    sleep=args.sleep,
+                    timeout=args.timeout,
+                    max_retries=args.max_retries,
+                    family_bias=True,
+                    page_rows=1000,
+                )
+            else:
+                items_iter = crossref_search(
+                    kw,
+                    rows=args.max_per_keyword,
+                    mailto=args.mailto,
+                    sleep=args.sleep,
+                    timeout=args.timeout,
+                    max_retries=args.max_retries,
+                    family_bias=True,
+                )
+            for it in items_iter:
+                process_futures(blocking=False)
+                if stop_stream:
+                    break
+                doi = (it.get("DOI") or "").lower()
+                if doi and doi in seen:
+                    continue
+                title_list = it.get("title") or []
+                title = title_list[0] if title_list else ""
+                container = (it.get("container-title") or [""])[0]
+                issued = it.get("issued", {}).get("date-parts", [[None]])[0]
+                year = issued[0] if issued else None
+                url = it.get("URL")
+                abstract = it.get("abstract")
+                epmc = europe_pmc_by_doi(doi, sleep=args.sleep, timeout=args.timeout, max_retries=args.max_retries) if doi else None
+                pmcid = epmc.get("pmcid") if epmc else None
+                abstract_epmc = epmc.get("abstractText") if epmc else None
+                is_oa = bool(epmc.get("isOpenAccess") or pmcid) if epmc else False
+                pmc_url = f"https://pmc.ncbi.nlm.nih.gov/articles/{pmcid}/" if pmcid else None
+                pmid = epmc.get("pmid") if epmc else None
+                authors = format_authors_crossref(it.get("author")) or (epmc.get("authorString") if epmc else "")
+                rec = {
+                    "doi": it.get("DOI"),
+                    "title": title,
+                    "journal": container,
+                    "year": year,
+                    "url": url,
+                    "pmcid": pmcid,
+                    "pmc_url": pmc_url,
+                    "pmid": pmid,
+                    "is_open_access": is_oa,
+                    "abstract": abstract_epmc or abstract or "",
+                    "authors": authors,
+                }
+                append_jsonl(jsonl_path, rec)
+                if doi:
+                    seen.add(doi)
+                art_url = norm_article_url(url, it.get("DOI"))
+                if not art_url:
+                    continue
                 aid2 = parse_article_id(art_url)
                 if aid2 in processed_stream:
                     continue
-                found = postfetch_one(art_url, args.content_out, args.max_figs, args.sleep, args.timeout, args.max_retries, getattr(args, "max_empty_figs", 2))
-                if found > 0:
-                    cmd_source(argparse.Namespace(url=art_url, out=args.content_out, section_id=None, filter=None, sleep=args.sleep, timeout=args.timeout, max_retries=args.max_retries))
-                    append_processed(processed_file_stream, aid2)
-                else:
-                    base2 = Path(args.content_out) / aid2
-                    if base2.exists():
-                        shutil.rmtree(base2, ignore_errors=True)
-                processed += 1
-                if args.max_articles and processed >= args.max_articles:
-                    print("[stream] Reached max-articles limit.")
-                    return
-        # optional small pause between keywords
-        time.sleep(args.sleep)
+                while not free_slots:
+                    process_futures(blocking=True)
+                    if stop_stream:
+                        break
+                if stop_stream:
+                    break
+                slot = free_slots.pop()
+                set_worker(slot, "busy", aid2)
+                future = executor.submit(
+                    postfetch_article,
+                    art_url,
+                    args.content_out,
+                    args.max_figs,
+                    getattr(args, "max_empty_figs", 2),
+                    args.sleep,
+                    args.timeout,
+                    args.max_retries,
+                )
+                inflight[future] = (slot, aid2)
+            if stop_stream:
+                break
+            process_futures(blocking=False)
+            if args.sleep:
+                time.sleep(args.sleep)
+    finally:
+        while inflight:
+            process_futures(blocking=True)
+        executor.shutdown(wait=True)
+        if progress is not None:
+            progress.stop()
+
     print("[done] Streaming search + fetch completed.")
 
 
@@ -1159,6 +1274,7 @@ def build_parser():
     au.add_argument("--workers", type=int, default=1, help="Workers for postfetch in non-stream mode (processes)")
     au.add_argument("--processed-file", default=None, help="Path to processed record file (default: <content-out>/_processed.txt)")
     au.add_argument("--stream", action="store_true", help="Enable streaming mode: per-article immediate fetch (no need to wait for all searches)")
+    au.add_argument("--stream-workers", type=int, default=1, help="Streaming fetch worker threads (>=1)")
     au.set_defaults(func=cmd_auto)
 
     return p
