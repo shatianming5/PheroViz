@@ -33,3 +33,8 @@ Notes on compliance
 Git workflow
 - Each change is committed; pushing requires that `origin` is configured with valid credentials.
 - A simple `VERSION_LOG.md` records versions and change notes.
+
+Figure fetch (authorized)
+- If you have authorization to fetch figure pages directly from nature.com, use:
+- `python scripts/nature_fig_fetch.py --url "https://www.nature.com/articles/<article-id>/figures/1" --out outputs/nature_figs`
+- Saves figure image and `*_caption.txt` plus a small `*_meta.json` with source URL and caption.
