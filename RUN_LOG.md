@@ -17,3 +17,12 @@
 - 环境：Python 3.11.11；Conda 检测（active env: None）
 - 结果：成功，保存 14 条记录；如有 PMC 开放获取文章，图像保存至 outputs/run_cn_imm_1/images/
 
+## 2025-09-24 运行4
+- 命令：python scripts/env_bootstrap.py --query "checkpoint inhibitor" --max 20 --images --out outputs/run_ci_checkpt_1 --sleep 1.0 --timeout 30 --max-retries 3 --append
+- 环境：Python 3.11.11；Conda 检测（active env: None）
+- 结果：成功，保存 20 条记录；如有 PMC 开放获取文章，图像保存至 outputs/run_ci_checkpt_1/images/
+
+## 2025-09-24 运行5
+- 命令：python scripts/env_bootstrap.py --query "单细胞 癌症" --max 20 --images --out outputs/run_cn_scRNA_1 --sleep 1.0 --timeout 30 --max-retries 3 --append
+- 环境：Python 3.11.11；Conda 检测（active env: None）
+- 结果：成功，保存 14 条记录；如有 PMC 开放获取文章，图像保存至 outputs/run_cn_scRNA_1/images/
