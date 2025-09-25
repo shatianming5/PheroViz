@@ -1,15 +1,15 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 Nature family search + authorized content fetch (all-in-one)
 
 Subcommands:
-- search: Crossref + Europe PMC/PMC 合规检索，导出 JSONL/CSV
-- postfetch: 对检索结果逐篇抓取（图像+caption + Source data），始终“抓取全部”
-- fig: 抓取 nature.com 单个图页（已授权前提）
-- source: 抓取 nature.com 文章页 Source data（已授权前提）
-- auto: 多关键词批量搜索并随后 postfetch（已授权前提）
+- search: Crossref + Europe PMC/PMC åˆè§„æ£€ç´¢ï¼Œå¯¼å‡º JSONL/CSV
+- postfetch: å¯¹æ£€ç´¢ç»“æžœé€ç¯‡æŠ“å–ï¼ˆå›¾åƒ+caption + Source dataï¼‰ï¼Œå§‹ç»ˆâ€œæŠ“å–å…¨éƒ¨â€
+- fig: æŠ“å– nature.com å•ä¸ªå›¾é¡µï¼ˆå·²æŽˆæƒå‰æï¼‰
+- source: æŠ“å– nature.com æ–‡ç« é¡µ Source dataï¼ˆå·²æŽˆæƒå‰æï¼‰
+- auto: å¤šå…³é”®è¯æ‰¹é‡æœç´¢å¹¶éšåŽ postfetchï¼ˆå·²æŽˆæƒå‰æï¼‰
 
-输出结构（统一）：<out>/<article-id>/{figures, source_data, meta}
+è¾“å‡ºç»“æž„ï¼ˆç»Ÿä¸€ï¼‰ï¼š<out>/<article-id>/{figures, source_data, meta}
 """
 from __future__ import annotations
 
@@ -588,16 +588,67 @@ DEFAULT_KEYWORDS = [
     "climate change", "carbon", "ocean", "biodiversity", "ecosystem",
     "bioinformatics", "systems biology", "network biology",
     "COVID-19", "vaccination", "rare disease", "drug discovery",
-    "肿瘤免疫", "免疫检查点", "单细胞", "基因编辑", "代谢组学", "微生物组",
+    "è‚¿ç˜¤å…ç–«", "å…ç–«æ£€æŸ¥ç‚¹", "å•ç»†èƒž", "åŸºå› ç¼–è¾‘", "ä»£è°¢ç»„å­¦", "å¾®ç”Ÿç‰©ç»„",
 ]
 
 
-def cmd_auto(args):
+# Expanded built-in keywords (+100)
+DEFAULT_KEYWORDS_EXPANDED = [
+    # Core oncology/immunology
+    "cancer", "tumor microenvironment", "immunotherapy", "checkpoint inhibitor",
+    "PD-1", "CTLA-4", "CAR-T", "tumour biomarker", "precision oncology",
+    # Omics
+    "genomics", "transcriptomics", "single-cell", "scRNA-seq", "epigenomics",
+    "multi-omics", "CRISPR", "gene editing",
+    # AI/methods
+    "machine learning", "deep learning", "foundation model", "graph neural network",
+    # Metabolism/microbiome
+    "metabolism", "metabolomics", "microbiome", "gut microbiota",
+    # Neuroscience
+    "neuroscience", "brain", "neurodegeneration", "Alzheimer",
+    # Materials/physics/chemistry
+    "materials", "quantum", "superconductivity", "perovskite", "catalysis",
+    # Climate/earth/environment
+    "climate change", "carbon", "ocean", "biodiversity", "ecosystem",
+    # Bioinformatics/systems
+    "bioinformatics", "systems biology", "network biology",
+    # Medicine/public health
+    "COVID-19", "vaccination", "rare disease", "drug discovery",
+    # Chinese
+    "肿瘤免疫", "免疫检查点", "单细胞", "基因编辑", "代谢组学", "微生物组",
+    # +100 extended keywords (cross-discipline)
+    "proteomics", "lipidomics", "spatial transcriptomics", "spatial omics",
+    "single-cell ATAC-seq", "multiome", "perturb-seq", "lineage tracing",
+    "organoid", "organoids", "iPSC", "stem cell", "regenerative medicine",
+    "CRISPR screen", "base editing", "prime editing", "epigenetic editing",
+    "long-read sequencing", "nanopore sequencing", "PacBio", "cryo-EM",
+    "X-ray crystallography", "structural biology", "synthetic biology",
+    "metabolic engineering", "systems immunology", "metagenomics", "virome",
+    "phage therapy", "antibiotic resistance", "exosomes",
+    "extracellular vesicles", "liquid biopsy", "circulating tumor DNA",
+    "methylation", "ATAC-seq", "ChIP-seq", "Hi-C", "3D genome", "chromatin",
+    "enhancer", "super-enhancer", "noncoding RNA", "lncRNA", "microRNA",
+    "circRNA", "RNA editing", "m6A", "autophagy", "apoptosis", "ferroptosis",
+    "pyroptosis", "cuproptosis", "cellular senescence", "aging", "longevity",
+    "mitochondria", "metabolic reprogramming", "immunometabolism",
+    "angiogenesis", "metastasis", "epithelial-mesenchymal transition",
+    "tumor heterogeneity", "clonal evolution", "phylogenetics",
+    "network medicine", "drug repurposing", "AI in medicine",
+    "federated learning", "privacy-preserving learning", "causal inference",
+    "Mendelian randomization", "GWAS", "fine-mapping", "polygenic risk score",
+    "rare variant", "structural variant", "copy number variation", "pangenome",
+    "genome assembly", "de novo assembly", "pan-cancer", "AlphaFold",
+    "protein design", "deep mutational scanning", "PROTAC", "degrader",
+    "antibody-drug conjugate", "nanoparticle delivery", "gene therapy", "AAV",
+    "lipid nanoparticles", "mRNA vaccine", "neoantigen", "TCR repertoire",
+    "BCR repertoire", "immunopeptidomics", "single-cell multi-omics", "GeoMx",
+    "CosMx"
+]def cmd_auto(args):
     # keywords
     if args.keywords_file:
         kwds = [ln.strip() for ln in Path(args.keywords_file).read_text(encoding="utf-8").splitlines() if ln.strip()]
     else:
-        kwds = DEFAULT_KEYWORDS
+        kwds = DEFAULT_KEYWORDS_EXPANDED
     print(f"[info] Keywords: {len(kwds)} items")
     # search (append + dedup)
     for kw in kwds:
