@@ -34,3 +34,7 @@
 ## 2025-09-24 运行7（已获授权）
 - 命令：python scripts/nature_source_data_fetch.py --url "https://www.nature.com/articles/s41586-025-09507-9" --out outputs/nature_source_test --sleep 1.0 --timeout 30 --max-retries 3
 - 结果：发现 5 个 Source data 链接（包含 Fig. 4 与 Extended Data Fig. 7）；文件与清单位于 outputs/nature_source_test/s41586-025-09507-9/
+
+## 2025-09-24 运行8（批量后处理，已获授权）
+- 命令：python scripts/nature_post_fetch.py --jsonl outputs/run_ci_checkpt_1/articles.jsonl --out outputs/nature_content --authorized-figs --authorized-source --max-figs 2 --max-articles 2 --sleep 0.8 --timeout 30 --max-retries 2
+- 结果：对前 2 篇 Nature 文章尝试抓取前 2 个图页与整页 Source data；部分文章无可用图像或 Source data，已记录清单与提示。
