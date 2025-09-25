@@ -4,3 +4,4 @@
 - 2025-09-24: Fix Crossref query and dependency handling; update docs. (commit: 0efff81)
 - 2025-09-24: Add environment bootstrap probe/runner. (commit: 9b6a849)
 - 2025-09-24: Windows 控制台字符编码保护；新增一次运行记录（cancer immunotherapy, 15 条）。 (commit: d5f7d6f)
+- 2025-09-24: 中文检索（“肿瘤免疫”，15 条）与 RUN_LOG 重写；中文打印兼容修复。 (commit: 83de425)
