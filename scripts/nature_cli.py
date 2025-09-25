@@ -190,7 +190,7 @@ def main():
     outdir = Path(args.out)
     outdir.mkdir(parents=True, exist_ok=True)
 
-    print(f"[info] Query: {args.query}")
+    print(f"[info] Query: {safe_console(args.query)}")
     print(f"[info] Max: {args.max} | Images: {args.images} | Sleep: {args.sleep}s")
 
     items = crossref_search(args.query, rows=args.max, mailto=args.mailto, sleep=args.sleep)
