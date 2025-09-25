@@ -30,3 +30,7 @@
 ## 2025-09-24 运行6（已获授权）
 - 命令：python scripts/nature_fig_fetch.py --url "https://www.nature.com/articles/s41586-025-09507-9/figures/1" --out outputs/nature_test --sleep 1.0 --timeout 30 --max-retries 2
 - 结果：成功，已保存图片与 caption；输出目录 outputs/nature_test/s41586-025-09507-9/
+
+## 2025-09-24 运行7（已获授权）
+- 命令：python scripts/nature_source_data_fetch.py --url "https://www.nature.com/articles/s41586-025-09507-9" --out outputs/nature_source_test --sleep 1.0 --timeout 30 --max-retries 3
+- 结果：发现 5 个 Source data 链接（包含 Fig. 4 与 Extended Data Fig. 7）；文件与清单位于 outputs/nature_source_test/s41586-025-09507-9/

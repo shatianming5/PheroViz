@@ -38,3 +38,11 @@ Figure fetch (authorized)
 - If you have authorization to fetch figure pages directly from nature.com, use:
 - `python scripts/nature_fig_fetch.py --url "https://www.nature.com/articles/<article-id>/figures/1" --out outputs/nature_figs`
 - Saves figure image and `*_caption.txt` plus a small `*_meta.json` with source URL and caption.
+
+Source data fetch (authorized)
+- If you have authorization to fetch "Source data" attachments directly from nature.com, use:
+- `python scripts/nature_source_data_fetch.py --url "https://www.nature.com/articles/<article-id>#Sec71" --out outputs/nature_source_data`
+- Optional filters:
+  - `--section-id Sec71` only search within a section id
+  - `--filter "Fig. 4"` narrow by label (e.g., Fig. 4, Extended Data Fig. 7)
+- Saves downloaded files and a `_source_data_manifest.json` with labels and URLs.
