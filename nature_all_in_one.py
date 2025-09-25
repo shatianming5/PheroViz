@@ -172,6 +172,12 @@ def write_csv(path: Path, rows: list[dict], fieldnames: list[str]):
             w.writerow({k: r.get(k, "") for k in fieldnames})
 
 
+def append_jsonl(path: Path, obj: dict):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(obj, ensure_ascii=False) + "\n")
+
+
 def format_authors_crossref(author_list) -> str:
     try:
         parts = []
@@ -573,6 +579,18 @@ def cmd_postfetch(args):
     print("[done] Post-fetch complete.")
 
 
+# Helper to postfetch a single article URL
+def postfetch_one(art_url: str, out: str, max_figs: int, sleep: float, timeout: float, max_retries: int):
+    aid = parse_article_id(art_url)
+    print(f"[stream] Fetch: {aid}")
+    for i in range(1, max_figs + 1):
+        fig_url = f"{art_url}/figures/{i}"
+        cmd_fig(argparse.Namespace(url=fig_url, out=out, sleep=sleep, timeout=timeout, max_retries=max_retries))
+        time.sleep(sleep)
+    cmd_source(argparse.Namespace(url=art_url, out=out, section_id=None, filter=None, sleep=sleep, timeout=timeout, max_retries=max_retries))
+    time.sleep(sleep)
+
+
 # ---------- Auto (search multiple -> postfetch) ----------
 
 
@@ -652,32 +670,104 @@ def cmd_auto(args):
     else:
         kwds = DEFAULT_KEYWORDS_EXPANDED
     print(f"[info] Keywords: {len(kwds)} items")
-    # search (append + dedup)
-    for kw in kwds:
-        cmd_search(argparse.Namespace(
-            query=kw,
-            max=args.max_per_keyword,
-            out=args.search_out,
+
+    search_out = Path(args.search_out)
+    jsonl_path = search_out / "articles.jsonl"
+    # load seen DOIs for dedup when streaming
+    seen: set[str] = set()
+    if jsonl_path.exists():
+        try:
+            with jsonl_path.open("r", encoding="utf-8") as f:
+                for line in f:
+                    try:
+                        doi = (json.loads(line).get("doi") or "").lower()
+                        if doi:
+                            seen.add(doi)
+                    except Exception:
+                        continue
+        except Exception:
+            pass
+
+    processed = 0
+    # If not streaming, fallback to 2-phase behavior
+    if not getattr(args, "stream", False):
+        for kw in kwds:
+            cmd_search(argparse.Namespace(
+                query=kw,
+                max=args.max_per_keyword,
+                out=args.search_out,
+                sleep=args.sleep,
+                timeout=args.timeout,
+                max_retries=args.max_retries,
+                mailto=args.mailto,
+                no_family_bias=False,
+                append=True,
+            ))
+        # postfetch (always fetch all)
+        jsonl = str(jsonl_path)
+        cmd_postfetch(argparse.Namespace(
+            jsonl=jsonl,
+            out=args.content_out,
+            max_figs=args.max_figs,
+            max_articles=args.max_articles,
+            sort=args.sort,
             sleep=args.sleep,
             timeout=args.timeout,
             max_retries=args.max_retries,
-            mailto=args.mailto,
-            no_family_bias=False,
-            append=True,
         ))
-    # postfetch (always fetch all)
-    jsonl = str(Path(args.search_out) / "articles.jsonl")
-    cmd_postfetch(argparse.Namespace(
-        jsonl=jsonl,
-        out=args.content_out,
-        max_figs=args.max_figs,
-        max_articles=args.max_articles,
-        sort=args.sort,
-        sleep=args.sleep,
-        timeout=args.timeout,
-        max_retries=args.max_retries,
-    ))
-    print("[done] Search and full-content fetch completed.")
+        print("[done] Search and full-content fetch completed.")
+        return
+
+    # Streaming: per-article postfetch immediately after discovery
+    for kw in kwds:
+        print(f"[stream] Searching: {safe_console(kw)}")
+        items = crossref_search(kw, rows=args.max_per_keyword, mailto=args.mailto, sleep=args.sleep, timeout=args.timeout, max_retries=args.max_retries, family_bias=True)
+        for it in items:
+            doi = (it.get("DOI") or "").lower()
+            if doi and doi in seen:
+                continue
+            # build record (as in cmd_search)
+            title_list = it.get("title") or []
+            title = title_list[0] if title_list else ""
+            container = (it.get("container-title") or [""])[0]
+            issued = it.get("issued", {}).get("date-parts", [[None]])[0]
+            year = issued[0] if issued else None
+            url = it.get("URL")
+            abstract = it.get("abstract")
+            epmc = europe_pmc_by_doi(doi, sleep=args.sleep, timeout=args.timeout, max_retries=args.max_retries) if doi else None
+            pmcid = epmc.get("pmcid") if epmc else None
+            abstract_epmc = epmc.get("abstractText") if epmc else None
+            is_oa = bool(epmc.get("isOpenAccess") or pmcid) if epmc else False
+            pmc_url = f"https://pmc.ncbi.nlm.nih.gov/articles/{pmcid}/" if pmcid else None
+            pmid = epmc.get("pmid") if epmc else None
+            authors = format_authors_crossref(it.get("author")) or (epmc.get("authorString") if epmc else "")
+            rec = {
+                "doi": it.get("DOI"),
+                "title": title,
+                "journal": container,
+                "year": year,
+                "url": url,
+                "pmcid": pmcid,
+                "pmc_url": pmc_url,
+                "pmid": pmid,
+                "is_open_access": is_oa,
+                "abstract": abstract_epmc or abstract or "",
+                "authors": authors,
+            }
+            append_jsonl(jsonl_path, rec)
+            if doi:
+                seen.add(doi)
+            # postfetch this article immediately
+            art_url = norm_article_url(url, it.get("DOI"))
+            if art_url:
+                postfetch_one(art_url, args.content_out, args.max_figs, args.sleep, args.timeout, args.max_retries)
+                processed += 1
+                if args.max_articles and processed >= args.max_articles:
+                    print("[stream] Reached max-articles limit.")
+                    return
+        # optional small pause between keywords
+        time.sleep(args.sleep)
+    print("[done] Streaming search + fetch completed.")
 
 
 def build_parser():
@@ -737,6 +827,7 @@ def build_parser():
     au.add_argument("--max-articles", type=int, default=0)
     au.add_argument("--max-figs", type=int, default=12)
     au.add_argument("--sort", choices=["year_desc", "year_asc", "input"], default="year_desc")
+    au.add_argument("--stream", action="store_true", help="Enable streaming mode: per-article immediate fetch (no need to wait for all searches)")
     au.set_defaults(func=cmd_auto)
 
     return p
