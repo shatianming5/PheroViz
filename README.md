@@ -1,62 +1,65 @@
-Nature 系列检索与内容抓取（合规、可授权扩展）
+﻿Nature ç³»åˆ—æ£€ç´¢ä¸Žå†…å®¹æŠ“å–ï¼ˆåˆè§„ã€å¯æŽˆæƒæ‰©å±•ï¼‰
 
-项目简介
-- 基于官方/允许的 API 完成对 Nature 家族期刊的检索与摘要汇总（Crossref + Europe PMC + PMC）。
-- 在你已确认拥有授权的前提下，可从 nature.com 抓取图像与 caption、Source data 附件（不做任何绕过，明确 UA、限速与重试）。
+é¡¹ç›®ç®€ä»‹
+- åŸºäºŽå®˜æ–¹/å…è®¸çš„ API å®Œæˆå¯¹ Nature å®¶æ—æœŸåˆŠçš„æ£€ç´¢ä¸Žæ‘˜è¦æ±‡æ€»ï¼ˆCrossref + Europe PMC + PMCï¼‰ã€‚
+- åœ¨ä½ å·²ç¡®è®¤æ‹¥æœ‰æŽˆæƒçš„å‰æä¸‹ï¼Œå¯ä»Ž nature.com æŠ“å–å›¾åƒä¸Ž captionã€Source data é™„ä»¶ï¼ˆä¸åšä»»ä½•ç»•è¿‡ï¼Œæ˜Žç¡® UAã€é™é€Ÿä¸Žé‡è¯•ï¼‰ã€‚
 
-能力范围
-- 检索：Crossref 搜索并筛选“Nature 家族”期刊条目；Europe PMC 补全摘要、PMC/PMID 信息；导出 CSV/JSONL。
-- PMC 图像：仅当存在 PMC 开放获取版本时，从 pmc.ncbi.nlm.nih.gov 抓取图像（合规使用）。
-- 授权抓取（需要你确认有权使用）：
-  - 图像 + caption：从 nature.com 的图页抓取图片与说明。
-  - Source data：从 nature.com 文章页抓取“Source data”附件（含 Fig. x、Extended Data Fig. x）。
-- 组织化输出：所有抓取内容按文章分目录，结构清晰、便于后处理。
+èƒ½åŠ›èŒƒå›´
+- æ£€ç´¢ï¼šCrossref æœç´¢å¹¶ç­›é€‰â€œNature å®¶æ—â€æœŸåˆŠæ¡ç›®ï¼›Europe PMC è¡¥å…¨æ‘˜è¦ã€PMC/PMID ä¿¡æ¯ï¼›å¯¼å‡º CSV/JSONLã€‚
+- PMC å›¾åƒï¼šä»…å½“å­˜åœ¨ PMC å¼€æ”¾èŽ·å–ç‰ˆæœ¬æ—¶ï¼Œä»Ž pmc.ncbi.nlm.nih.gov æŠ“å–å›¾åƒï¼ˆåˆè§„ä½¿ç”¨ï¼‰ã€‚
+- æŽˆæƒæŠ“å–ï¼ˆéœ€è¦ä½ ç¡®è®¤æœ‰æƒä½¿ç”¨ï¼‰ï¼š
+  - å›¾åƒ + captionï¼šä»Ž nature.com çš„å›¾é¡µæŠ“å–å›¾ç‰‡ä¸Žè¯´æ˜Žã€‚
+  - Source dataï¼šä»Ž nature.com æ–‡ç« é¡µæŠ“å–â€œSource dataâ€é™„ä»¶ï¼ˆå« Fig. xã€Extended Data Fig. xï¼‰ã€‚
+- ç»„ç»‡åŒ–è¾“å‡ºï¼šæ‰€æœ‰æŠ“å–å†…å®¹æŒ‰æ–‡ç« åˆ†ç›®å½•ï¼Œç»“æž„æ¸…æ™°ã€ä¾¿äºŽåŽå¤„ç†ã€‚
 
-快速开始
-- 推荐 Python 3.9+；脚本会按需自动安装 `requests`、`beautifulsoup4`。
-- 基础检索（合规、无绕过）：
+å¿«é€Ÿå¼€å§‹
+- æŽ¨è Python 3.9+ï¼›è„šæœ¬ä¼šæŒ‰éœ€è‡ªåŠ¨å®‰è£… `requests`ã€`beautifulsoup4`ã€‚
+- åŸºç¡€æ£€ç´¢ï¼ˆåˆè§„ã€æ— ç»•è¿‡ï¼‰ï¼š
   - `python scripts/nature_cli.py --query "cancer" --max 5 --images --out outputs/search_run`
-  - 可选参数：
-    - `--timeout 30`、`--max-retries 3` 稳健重试
-    - `--append` 追加写入 JSONL（按 DOI 去重）
-    - `--no-family-bias` 取消对 `container-title=Nature` 的偏置（扩大范围）
-    - `--mailto you@example.com` 为 Crossref 提供邮箱标识
+  - å¯é€‰å‚æ•°ï¼š
+    - `--timeout 30`ã€`--max-retries 3` ç¨³å¥é‡è¯•
+    - `--append` è¿½åŠ å†™å…¥ JSONLï¼ˆæŒ‰ DOI åŽ»é‡ï¼‰
+    - `--no-family-bias` å–æ¶ˆå¯¹ `container-title=Nature` çš„åç½®ï¼ˆæ‰©å¤§èŒƒå›´ï¼‰
+    - `--mailto you@example.com` ä¸º Crossref æä¾›é‚®ç®±æ ‡è¯†
 
-单文件入口（all‑in‑one，推荐）
-- 本仓库已将功能整合为单一脚本：`nature_all_in_one.py`
-- 子命令与示例：
-  - 自动搜索+抓取全部（图像+caption、Source data）：
-    - 两阶段（先搜后抓）：
+å•æ–‡ä»¶å…¥å£ï¼ˆallâ€‘inâ€‘oneï¼ŒæŽ¨èï¼‰
+- æœ¬ä»“åº“å·²å°†åŠŸèƒ½æ•´åˆä¸ºå•ä¸€è„šæœ¬ï¼š`nature_all_in_one.py`
+- å­å‘½ä»¤ä¸Žç¤ºä¾‹ï¼š
+  - è‡ªåŠ¨æœç´¢+æŠ“å–å…¨éƒ¨ï¼ˆå›¾åƒ+captionã€Source dataï¼‰ï¼š
+    - ä¸¤é˜¶æ®µï¼ˆå…ˆæœåŽæŠ“ï¼‰ï¼š
       - `python nature_all_in_one.py auto --max-per-keyword 50 --max-articles 200 --max-figs 12 --sort year_desc`
-    - 流式（边搜边抓，每发现一篇立即抓取）：
+    - æµå¼ï¼ˆè¾¹æœè¾¹æŠ“ï¼Œæ¯å‘çŽ°ä¸€ç¯‡ç«‹å³æŠ“å–ï¼‰ï¼š
       - `python nature_all_in_one.py auto --stream --max-per-keyword 50 --max-articles 200 --max-figs 12`
-    - 可选：`--keywords-file keywords.txt`（每行一个关键词）、`--mailto you@example.com`、`--sleep 1.0`、`--timeout 30`、`--max-retries 3`
-    - 说明：内置多领域关键词已扩展至约 150+（含中英文）；如需自定义请使用 `--keywords-file`
-  - 仅检索：
+    - å¯é€‰ï¼š`--keywords-file keywords.txt`ï¼ˆæ¯è¡Œä¸€ä¸ªå…³é”®è¯ï¼‰ã€`--mailto you@example.com`ã€`--sleep 1.0`ã€`--timeout 30`ã€`--max-retries 3`
+    - è¯´æ˜Žï¼šå†…ç½®å¤šé¢†åŸŸå…³é”®è¯å·²æ‰©å±•è‡³çº¦ 150+ï¼ˆå«ä¸­è‹±æ–‡ï¼‰ï¼›å¦‚éœ€è‡ªå®šä¹‰è¯·ä½¿ç”¨ `--keywords-file`
+  - ä»…æ£€ç´¢ï¼š
     - `python nature_all_in_one.py search --query "cancer" --max 20 --out outputs/search_run --append`
-  - 仅抓取某图页（需授权）：
+  - ä»…æŠ“å–æŸå›¾é¡µï¼ˆéœ€æŽˆæƒï¼‰ï¼š
     - `python nature_all_in_one.py fig --url "https://www.nature.com/articles/<article-id>/figures/1" --out outputs/nature_content`
-  - 仅抓取某文 Source data（需授权）：
+  - ä»…æŠ“å–æŸæ–‡ Source dataï¼ˆéœ€æŽˆæƒï¼‰ï¼š
     - `python nature_all_in_one.py source --url "https://www.nature.com/articles/<article-id>" --out outputs/nature_content --section-id Sec71 --filter "Fig. 4"`
-  - 对检索结果批量抓取（始终“抓取全部”）：
+  - å¯¹æ£€ç´¢ç»“æžœæ‰¹é‡æŠ“å–ï¼ˆå§‹ç»ˆâ€œæŠ“å–å…¨éƒ¨â€ï¼‰ï¼š
     - `python nature_all_in_one.py postfetch --jsonl outputs/search_run/articles.jsonl --out outputs/nature_content --max-figs 12 --max-articles 200 --sort year_desc`
 
-统一输出结构（直观、便于处理）
-- 所有内容按文章 ID 存放：`<out>/<article-id>/`
-  - `figures/` 存图与同名 caption 文本：
-    - `fig_001.jpg`（或 .png 等）
-    - `fig_001.txt`（对应 caption）
-  - `source_data/` 存放源数据附件：
-    - `Source_Data_Fig_4.xlsx`（示例；基于链接标签清洗并保留扩展名）
-  - `meta/` 元数据与清单：
-    - `figures.json`：每张图的 image_url、caption_file、image_file、figure_no 等
-    - `source_data.json`：每个附件的 label、url、saved_as、orig_name
-    - `_source_data_manifest.json`：本次发现的源数据链接清单
+ç»Ÿä¸€è¾“å‡ºç»“æž„ï¼ˆç›´è§‚ã€ä¾¿äºŽå¤„ç†ï¼‰
+- æ‰€æœ‰å†…å®¹æŒ‰æ–‡ç«  ID å­˜æ”¾ï¼š`<out>/<article-id>/`
+  - `figures/` å­˜å›¾ä¸ŽåŒå caption æ–‡æœ¬ï¼š
+    - `fig_001.jpg`ï¼ˆæˆ– .png ç­‰ï¼‰
+    - `fig_001.txt`ï¼ˆå¯¹åº” captionï¼‰
+  - `source_data/` å­˜æ”¾æºæ•°æ®é™„ä»¶ï¼š
+    - `Source_Data_Fig_4.xlsx`ï¼ˆç¤ºä¾‹ï¼›åŸºäºŽé“¾æŽ¥æ ‡ç­¾æ¸…æ´—å¹¶ä¿ç•™æ‰©å±•åï¼‰
+  - `meta/` å…ƒæ•°æ®ä¸Žæ¸…å•ï¼š
+    - `figures.json`ï¼šæ¯å¼ å›¾çš„ image_urlã€caption_fileã€image_fileã€figure_no ç­‰
+    - `source_data.json`ï¼šæ¯ä¸ªé™„ä»¶çš„ labelã€urlã€saved_asã€orig_name
+    - `_source_data_manifest.json`ï¼šæœ¬æ¬¡å‘çŽ°çš„æºæ•°æ®é“¾æŽ¥æ¸…å•
 
-合规说明
-- 基础检索使用 Crossref 与 Europe PMC/PMC 的公开 API，设置明确 User-Agent 和限速（默认 1 req/s）。
-- 授权抓取脚本仅在你确认拥有相应权限时使用，不做任何反爬绕过；建议保留 UA 与合理限速，避免对站点造成负担。
-- 再利用时请遵守版权与许可条款（开放获取也可能对图片再使用有限制）。
+åˆè§„è¯´æ˜Ž
+- åŸºç¡€æ£€ç´¢ä½¿ç”¨ Crossref ä¸Ž Europe PMC/PMC çš„å…¬å¼€ APIï¼Œè®¾ç½®æ˜Žç¡® User-Agent å’Œé™é€Ÿï¼ˆé»˜è®¤ 1 req/sï¼‰ã€‚
+- æŽˆæƒæŠ“å–è„šæœ¬ä»…åœ¨ä½ ç¡®è®¤æ‹¥æœ‰ç›¸åº”æƒé™æ—¶ä½¿ç”¨ï¼Œä¸åšä»»ä½•åçˆ¬ç»•è¿‡ï¼›å»ºè®®ä¿ç•™ UA ä¸Žåˆç†é™é€Ÿï¼Œé¿å…å¯¹ç«™ç‚¹é€ æˆè´Ÿæ‹…ã€‚
+- å†åˆ©ç”¨æ—¶è¯·éµå®ˆç‰ˆæƒä¸Žè®¸å¯æ¡æ¬¾ï¼ˆå¼€æ”¾èŽ·å–ä¹Ÿå¯èƒ½å¯¹å›¾ç‰‡å†ä½¿ç”¨æœ‰é™åˆ¶ï¼‰ã€‚
 
-Git 与记录
-- 每步修改均提交推送；版本/变更记录见 `VERSION_LOG.md`，运行记录见 `RUN_LOG.md`。
+Git ä¸Žè®°å½•
+- æ¯æ­¥ä¿®æ”¹å‡æäº¤æŽ¨é€ï¼›ç‰ˆæœ¬/å˜æ›´è®°å½•è§ `VERSION_LOG.md`ï¼Œè¿è¡Œè®°å½•è§ `RUN_LOG.md`ã€‚
+
+
+- 加速过滤：通过 --max-empty-figs 指定连续多少空图页即提前停止（默认 2），避免无图文章逐页探测到很大编号。

@@ -506,6 +506,9 @@ def cmd_fig(args):
     entry = {"figure_tag": fig_tag, "figure_no": fno, "image_file": saved_img, "caption_file": saved_cap, "image_url": img_url, "source_url": url}
     upsert_json_list(meta_dir / "figures.json", entry, key="figure_tag")
 
+    # return whether we found useful content
+    return bool(saved_img or saved_cap)
+
 
 # ---------- Authorized nature.com Source data ----------
 
@@ -631,10 +634,7 @@ def cmd_postfetch(args):
             continue
         aid = parse_article_id(art_url)
         print(f"[{idx}] Nature article detected: {aid}")
-        for i in range(1, args.max_figs + 1):
-            fig_url = f"{art_url}/figures/{i}"
-            cmd_fig(argparse.Namespace(url=fig_url, out=args.out, sleep=args.sleep, timeout=args.timeout, max_retries=args.max_retries))
-            time.sleep(args.sleep)
+        postfetch_one(art_url, args.out, args.max_figs, args.sleep, args.timeout, args.max_retries, getattr(args, "max_empty_figs", 2))
         cmd_source(argparse.Namespace(url=art_url, out=args.out, section_id=None, filter=None, sleep=args.sleep, timeout=args.timeout, max_retries=args.max_retries))
         time.sleep(args.sleep)
         taken += 1
@@ -644,7 +644,7 @@ def cmd_postfetch(args):
 
 
 # Helper to postfetch a single article URL
-def postfetch_one(art_url: str, out: str, max_figs: int, sleep: float, timeout: float, max_retries: int):
+def postfetch_one(art_url: str, out: str, max_figs: int, sleep: float, timeout: float, max_retries: int, max_empty_figs: int = 2):
     aid = parse_article_id(art_url)
     print(f"[stream] Fetch: {aid}")
     # verify article page is reachable
@@ -653,10 +653,18 @@ def postfetch_one(art_url: str, out: str, max_figs: int, sleep: float, timeout: 
     except Exception as e:
         print(safe_console(f"[warn] article page not available: {art_url} ({e})"))
         return
+    empty_streak = 0
     for i in range(1, max_figs + 1):
         fig_url = f"{art_url}/figures/{i}"
         try:
-            cmd_fig(argparse.Namespace(url=fig_url, out=out, sleep=sleep, timeout=timeout, max_retries=max_retries))
+            found = cmd_fig(argparse.Namespace(url=fig_url, out=out, sleep=sleep, timeout=timeout, max_retries=max_retries))
+            if not found:
+                empty_streak += 1
+                if empty_streak >= max_empty_figs:
+                    print(f"[info] Stop figures loop for {aid}: consecutive empty pages {empty_streak}")
+                    break
+            else:
+                empty_streak = 0
         except Exception as he:
             # stop on repeated 404
             txt = str(he)
@@ -886,6 +894,7 @@ def build_parser():
     pf.add_argument("--out", default="outputs/nature_content")
     pf.add_argument("--max-figs", type=int, default=12)
     pf.add_argument("--max-articles", type=int, default=0)
+    pf.add_argument("--max-empty-figs", type=int, default=2, help="Max consecutive empty figure pages before stopping")
     pf.add_argument("--sort", choices=["year_desc", "year_asc", "input"], default="year_desc")
     pf.add_argument("--sleep", type=float, default=1.0)
     pf.add_argument("--timeout", type=float, default=30)
@@ -903,6 +912,7 @@ def build_parser():
     au.add_argument("--max-retries", type=int, default=3)
     au.add_argument("--max-articles", type=int, default=0)
     au.add_argument("--max-figs", type=int, default=12)
+    au.add_argument("--max-empty-figs", type=int, default=2)
     au.add_argument("--sort", choices=["year_desc", "year_asc", "input"], default="year_desc")
     au.add_argument("--stream", action="store_true", help="Enable streaming mode: per-article immediate fetch (no need to wait for all searches)")
     au.set_defaults(func=cmd_auto)
@@ -918,5 +928,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
