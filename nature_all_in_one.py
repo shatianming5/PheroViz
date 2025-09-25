@@ -124,6 +124,51 @@ def crossref_search(query: str, rows: int = 20, mailto: str | None = None, sleep
     return [it for it in items if is_nature_family(it.get("container-title"))]
 
 
+def crossref_cursor_stream(
+    query: str,
+    total_max: int,
+    mailto: str | None = None,
+    sleep: float = 1.0,
+    timeout: float = 30,
+    max_retries: int = 3,
+    family_bias: bool = True,
+    page_rows: int = 1000,
+):
+    """
+    Yield items from Crossref using cursor pagination to go beyond single-request limits.
+    """
+    base = "https://api.crossref.org/works"
+    fetched = 0
+    cursor = "*"
+    page_rows = min(max(1, int(page_rows)), 1000)
+    while fetched < total_max:
+        remaining = total_max - fetched
+        rows = min(page_rows, remaining)
+        params = {
+            "query": query,
+            "filter": "type:journal-article",
+            "rows": rows,
+            "cursor": cursor,
+        }
+        if family_bias:
+            params["query.container-title"] = "Nature"
+        if mailto:
+            params["mailto"] = mailto
+        r = polite_get(base, params=params, sleep=sleep, timeout=timeout, max_retries=max_retries)
+        data = r.json()
+        items = data.get("message", {}).get("items", [])
+        for it in items:
+            if is_nature_family(it.get("container-title")):
+                yield it
+                fetched += 1
+                if fetched >= total_max:
+                    break
+        next_cursor = data.get("message", {}).get("next-cursor") or data.get("message", {}).get("next_cursor")
+        if not next_cursor:
+            break
+        cursor = next_cursor
+
+
 def europe_pmc_by_doi(doi: str, sleep=1.0, timeout=30, max_retries=3):
     url = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
     params = {"query": f"DOI:{doi}", "format": "json", "pageSize": 1}
@@ -249,7 +294,29 @@ def merge_append(records: list[dict], existing_path: Path) -> list[dict]:
 def cmd_search(args):
     print(f"[info] Query: {safe_console(args.query)}")
     print(f"[info] Max: {args.max} | Sleep: {args.sleep}s")
-    items = crossref_search(args.query, rows=args.max, mailto=args.mailto, sleep=args.sleep, timeout=args.timeout, max_retries=args.max_retries, family_bias=not args.no_family_bias)
+    # Support cursor pagination when requesting >1000 items
+    if args.max and args.max > 1000:
+        items_iter = crossref_cursor_stream(
+            args.query,
+            total_max=args.max,
+            mailto=args.mailto,
+            sleep=args.sleep,
+            timeout=args.timeout,
+            max_retries=args.max_retries,
+            family_bias=not args.no_family_bias,
+            page_rows=1000,
+        )
+        items = list(items_iter)
+    else:
+        items = crossref_search(
+            args.query,
+            rows=args.max,
+            mailto=args.mailto,
+            sleep=args.sleep,
+            timeout=args.timeout,
+            max_retries=args.max_retries,
+            family_bias=not args.no_family_bias,
+        )
     print(f"[info] Crossref filtered results (Nature family): {len(items)}")
     records: list[dict[str, Any]] = []
     outdir = Path(args.out)
@@ -914,6 +981,7 @@ def cmd_auto(args):
     # If not streaming, fallback to 2-phase behavior
     if not getattr(args, "stream", False):
         for kw in kwds:
+            # Use the same cursor-aware logic as search
             cmd_search(argparse.Namespace(
                 query=kw,
                 max=args.max_per_keyword,
@@ -946,8 +1014,28 @@ def cmd_auto(args):
     processed_stream = load_processed_set(processed_file_stream)
     for kw in kwds:
         print(f"[stream] Searching: {safe_console(kw)}")
-        items = crossref_search(kw, rows=args.max_per_keyword, mailto=args.mailto, sleep=args.sleep, timeout=args.timeout, max_retries=args.max_retries, family_bias=True)
-        for it in items:
+        if args.max_per_keyword > 1000:
+            items_iter = crossref_cursor_stream(
+                kw,
+                total_max=args.max_per_keyword,
+                mailto=args.mailto,
+                sleep=args.sleep,
+                timeout=args.timeout,
+                max_retries=args.max_retries,
+                family_bias=True,
+                page_rows=1000,
+            )
+        else:
+            items_iter = crossref_search(
+                kw,
+                rows=args.max_per_keyword,
+                mailto=args.mailto,
+                sleep=args.sleep,
+                timeout=args.timeout,
+                max_retries=args.max_retries,
+                family_bias=True,
+            )
+        for it in items_iter:
             doi = (it.get("DOI") or "").lower()
             if doi and doi in seen:
                 continue
@@ -1049,6 +1137,8 @@ def build_parser():
     pf.add_argument("--sleep", type=float, default=1.0)
     pf.add_argument("--timeout", type=float, default=300)
     pf.add_argument("--max-retries", type=int, default=3)
+    # Accept but ignore --max-per-keyword for compatibility with auto
+    pf.add_argument("--max-per-keyword", type=int, default=None, help="(compat) accepted but ignored in postfetch; used in auto search")
     pf.add_argument("--workers", type=int, default=1, help="Worker processes for fetching (non-stream mode)")
     pf.add_argument("--processed-file", default=None, help="Path to processed record file (default: <out>/_processed.txt)")
     pf.set_defaults(func=cmd_postfetch)
@@ -1082,6 +1172,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
