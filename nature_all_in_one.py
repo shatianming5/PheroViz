@@ -522,20 +522,23 @@ def cmd_fig(args):
     else:
         print("[warn] No image URL found on the page")
 
+    # Only save caption if image exists; skip caption-only figures
     saved_cap = None
-    if caption:
+    if saved_img and caption:
         out_cap = figures_dir / f"{fig_tag}.txt"
         out_cap.write_text(caption, encoding="utf-8")
         saved_cap = str(out_cap)
         print("[done] Caption saved.")
-    else:
+    elif not caption:
         print("[warn] No caption text found.")
 
-    entry = {"figure_tag": fig_tag, "figure_no": fno, "image_file": saved_img, "caption_file": saved_cap, "image_url": img_url, "source_url": url}
-    upsert_json_list(meta_dir / "figures.json", entry, key="figure_tag")
+    # Only record figures with images
+    if saved_img:
+        entry = {"figure_tag": fig_tag, "figure_no": fno, "image_file": saved_img, "caption_file": saved_cap, "image_url": img_url, "source_url": url}
+        upsert_json_list(meta_dir / "figures.json", entry, key="figure_tag")
 
-    # return whether we found useful content
-    return bool(saved_img or saved_cap)
+    # return whether we found an image (skip caption-only)
+    return bool(saved_img)
 
 
 # ---------- Authorized nature.com Source data ----------
