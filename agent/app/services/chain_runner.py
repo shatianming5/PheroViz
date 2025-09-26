@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import base64
 import json
+import re
+import os
 from typing import Any, Callable, Dict, Mapping, Optional
 
 import pandas as pd
@@ -40,8 +42,15 @@ class LLMClient:
         self.base = (api_base or os.getenv("LLM_API_BASE") or os.getenv("OPENAI_BASE_URL") or "https://api.openai.com/v1").rstrip("/")
         self.key = api_key or os.getenv("LLM_API_KEY") or os.getenv("OPENAI_API_KEY") or ""
         self.model = model or os.getenv("LLM_MODEL") or "gpt-4o-mini"
-        self.timeout = timeout
+        timeout_env = os.getenv("LLM_TIMEOUT")
+        if timeout_env:
+            try:
+                timeout = float(timeout_env)
+            except ValueError:
+                pass
+        self.timeout = max(timeout, 30)
         self._requests = requests
+        self._session = requests.Session()
 
     def chat_json(self, messages: list[dict[str, Any]]) -> Dict[str, Any]:
         headers = {"Authorization": f"Bearer {self.key}", "Content-Type": "application/json"}
@@ -49,17 +58,38 @@ class LLMClient:
             "model": self.model,
             "messages": messages,
             "temperature": 0.2,
-            "response_format": {"type": "json_object"},
         }
-        response = self._requests.post(
+        if os.getenv("LLM_FORCE_JSON", "1") != "0":
+            payload["response_format"] = {"type": "json_object"}
+
+        max_tokens_env = os.getenv("LLM_MAX_TOKENS")
+        if max_tokens_env:
+            try:
+                payload["max_output_tokens"] = int(max_tokens_env)
+            except ValueError:
+                pass
+        response = self._session.post(
             f"{self.base}/chat/completions",
             headers=headers,
             json=payload,
-            timeout=self.timeout,
+            timeout=(10, self.timeout),
         )
         response.raise_for_status()
-        content = response.json()["choices"][0]["message"]["content"]
-        return json.loads(content)
+        data = response.json()
+        # 某些兼容实现会返回 code!=0 作为业务错误
+        if isinstance(data, dict) and data.get("code") not in (None, 0):
+            raise RuntimeError(f"LLM 调用失败: {data.get('code')} {data.get('msg')}")
+        content = data["choices"][0]["message"]["content"]
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError:
+            match = re.search(r'\{.*\}', content, re.S)
+            if match:
+                try:
+                    return json.loads(match.group(0))
+                except json.JSONDecodeError:
+                    pass
+            raise RuntimeError(f"模型未返回合法 JSON: {content}")
 
 
 def render_template(template: str, **kwargs: Any) -> str:

@@ -1,0 +1,249 @@
+[
+  {
+    "level": 1,
+    "etype": "constraint",
+    "delta": {
+      "form": 0.0,
+      "fidelity": 0.0,
+      "cohesion": 0.0
+    },
+    "patch": {
+      "table": "Sheet1",
+      "chart_family": "bar",
+      "dimensions": [
+        "地区"
+      ],
+      "measures": [
+        "销售额"
+      ],
+      "time_granularity": "auto",
+      "constraints": {}
+    },
+    "msg": "",
+    "ts": 1758868367.502476
+  },
+  {
+    "level": 2,
+    "etype": "geom",
+    "delta": {
+      "form": 0.0,
+      "fidelity": 0.0,
+      "cohesion": 0.0
+    },
+    "patch": {
+      "transforms": [
+        {
+          "op": "filter",
+          "expr": {
+            "column": "销售额",
+            "op": ">",
+            "value": 0
+          }
+        },
+        {
+          "op": "derive",
+          "as": "月份",
+          "expr": "to_period(日期, 'M')"
+        },
+        {
+          "op": "aggregate",
+          "group_by": [
+            "地区"
+          ],
+          "measures": [
+            {
+              "col": "销售额",
+              "agg": "sum",
+              "as": "销售额总计"
+            }
+          ]
+        },
+        {
+          "op": "topk",
+          "group_by": [],
+          "order_by": {
+            "col": "销售额总计",
+            "desc": true
+          },
+          "k": 5
+        },
+        {
+          "op": "sort",
+          "by": [
+            {
+              "col": "销售额总计",
+              "asc": false
+            }
+          ]
+        }
+      ],
+      "encoding_plan": {
+        "x": "地区",
+        "y": "销售额总计",
+        "series": null
+      }
+    },
+    "msg": "",
+    "ts": 1758868375.8045695
+  },
+  {
+    "level": 3,
+    "etype": "style",
+    "delta": {
+      "form": 0.0,
+      "fidelity": 0.0,
+      "cohesion": 0.0
+    },
+    "patch": {
+      "scales": {
+        "x": {
+          "type": "ordinal"
+        },
+        "y": {
+          "type": "linear",
+          "nice": true
+        }
+      },
+      "stack": null,
+      "order": {
+        "x": "ascending"
+      },
+      "units": {
+        "y": "销售额"
+      },
+      "legend": false
+    },
+    "msg": "",
+    "ts": 1758868384.4507082
+  },
+  {
+    "level": 4,
+    "etype": "layout",
+    "delta": {
+      "form": 0.0,
+      "fidelity": 0.0,
+      "cohesion": 0.0
+    },
+    "patch": {
+      "title": "各地区销售额排名前五柱状图",
+      "xlabel": "地区",
+      "ylabel": "销售额（元）",
+      "labels": {
+        "show": false
+      },
+      "tick_density": "auto",
+      "theme": {
+        "fontSize": 12,
+        "padding": 6
+      }
+    },
+    "msg": "",
+    "ts": 1758868388.9559362
+  },
+  {
+    "level": 4,
+    "etype": "ref",
+    "delta": {
+      "form": 0.0,
+      "fidelity": 0.0,
+      "cohesion": 0.0
+    },
+    "patch": {
+      "final_spec": {
+        "table_name": "Sheet1",
+        "chart_type": "bar",
+        "dimensions": [
+          "地区"
+        ],
+        "measures": [
+          "销售额"
+        ],
+        "time_granularity": "auto",
+        "encoding": {
+          "x": "地区",
+          "y": "销售额总计",
+          "series": null
+        },
+        "transforms": [
+          {
+            "op": "filter",
+            "expr": {
+              "column": "销售额",
+              "op": ">",
+              "value": 0
+            }
+          },
+          {
+            "op": "derive",
+            "as": "月份",
+            "expr": "to_period(日期, 'M')"
+          },
+          {
+            "op": "aggregate",
+            "group_by": [
+              "地区"
+            ],
+            "measures": [
+              {
+                "col": "销售额",
+                "agg": "sum",
+                "as": "销售额总计"
+              }
+            ]
+          },
+          {
+            "op": "topk",
+            "group_by": [],
+            "order_by": {
+              "col": "销售额总计",
+              "desc": true
+            },
+            "k": 5
+          },
+          {
+            "op": "sort",
+            "by": [
+              {
+                "col": "销售额总计",
+                "asc": false
+              }
+            ]
+          }
+        ],
+        "title": "各地区销售额排名前五柱状图",
+        "xlabel": "地区",
+        "ylabel": "销售额（元）",
+        "labels": {
+          "show": false
+        },
+        "tick_density": "auto",
+        "theme": {
+          "fontSize": 12,
+          "padding": 6
+        },
+        "legend": false,
+        "bins": null,
+        "stack": null,
+        "scales": {
+          "x": {
+            "type": "ordinal"
+          },
+          "y": {
+            "type": "linear",
+            "nice": true
+          }
+        },
+        "order": {
+          "x": "ascending"
+        },
+        "units": {
+          "y": "销售额"
+        },
+        "constraints": {},
+        "agg": "sum"
+      }
+    },
+    "msg": "name 'str' is not defined",
+    "ts": 1758868388.9581633
+  }
+]

@@ -66,6 +66,7 @@ def _safe_builtins() -> Dict[str, Any]:
         "round",
         "set",
         "sorted",
+        "str",
         "sum",
         "zip",
     }

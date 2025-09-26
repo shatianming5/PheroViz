@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -11,6 +12,22 @@ from app.services import ChainRunner, DataProfiler, ExcelLoader, LLMClient
 from app.services.code_templates import render_code_from_spec
 from app.services.sandbox import run_render_chart
 from app.utils.audit import AuditLogger
+
+
+def load_env_file(path: Path = Path('.env')) -> None:
+    if not path.exists():
+        return
+    for raw_line in path.read_text(encoding='utf-8').splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith('#'):
+            continue
+        if '=' not in line:
+            continue
+        key, value = line.split('=', 1)
+        key = key.strip()
+        value = value.strip()
+        if key and value and key not in os.environ:
+            os.environ[key] = value
 
 
 def parse_args() -> argparse.Namespace:
@@ -57,6 +74,9 @@ def build_runner(rounds: Optional[int]) -> tuple[ChainRunner, int]:
 
 
 def main() -> None:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    load_env_file()
     args = parse_args()
     excel_path: Path = args.excel
     if not excel_path.exists():
@@ -72,7 +92,7 @@ def main() -> None:
 
     profiler = DataProfiler()
     profile = profiler.build_profile(tables)
-    profile_json = json.dumps(profile, ensure_ascii=False, indent=2)
+    profile_json = json.dumps(profile, ensure_ascii=False)
 
     results = runner.run_chain(
         profile_json=profile_json,

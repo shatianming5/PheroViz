@@ -1,0 +1,29 @@
+def generate_chart(dataset):
+    df = dataset.copy()
+    if df.empty:
+        raise ValueError('Dataset is empty.')
+    df = df[df["销售额"] > 0]
+    df = df.groupby(["地区"], dropna=False)["销售额"].agg('sum').reset_index()
+    df = df.rename(columns={ "销售额": "销售额" })
+    df = df.sort_values(by=["销售额"], ascending=[True])
+    df = df.sort_values(by="销售额", ascending=False)
+    df = df.head(5)
+    if df.empty:
+        raise ValueError('Dataset is empty after preprocessing.')
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.grid(True, alpha=0.25)
+    df["销售额"] = pd.to_numeric(df["销售额"], errors='coerce')
+    df = df.dropna(subset=["销售额"]).copy()
+    summary = df.groupby("地区", dropna=False)["销售额"].sum().reset_index()
+    ax.bar(summary["地区"], summary["销售额"])
+    ax.set_title("各地区销售额排名前五的柱状图")
+    ax.set_xlabel("地区")
+    ax.set_ylabel("销售额（元）")
+    if False:
+        ax.legend()
+    buf = BytesIO()
+    fig.tight_layout()
+    fig.savefig(buf, format='png', bbox_inches='tight', dpi=150)
+    plt.close(fig)
+    buf.seek(0)
+    return buf.getvalue()

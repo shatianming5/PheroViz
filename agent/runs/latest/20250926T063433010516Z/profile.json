@@ -1,0 +1,150 @@
+{
+  "sheets": [
+    {
+      "sheet_name": "Sheet1",
+      "row_count": 7,
+      "column_count": 3,
+      "columns": [
+        {
+          "name": "日期",
+          "dtype": "datetime64[ns]",
+          "semantic_type": "temporal",
+          "non_nulls": 7,
+          "distinct": 7,
+          "sample_values": [
+            "2024-01-01T00:00:00",
+            "2024-01-02T00:00:00",
+            "2024-01-03T00:00:00",
+            "2024-01-04T00:00:00",
+            "2024-01-05T00:00:00"
+          ],
+          "top_values": [
+            {
+              "value": "2024-01-01T00:00:00",
+              "count": 1
+            },
+            {
+              "value": "2024-01-02T00:00:00",
+              "count": 1
+            },
+            {
+              "value": "2024-01-03T00:00:00",
+              "count": 1
+            },
+            {
+              "value": "2024-01-04T00:00:00",
+              "count": 1
+            },
+            {
+              "value": "2024-01-05T00:00:00",
+              "count": 1
+            }
+          ],
+          "stats": {}
+        },
+        {
+          "name": "地区",
+          "dtype": "object",
+          "semantic_type": "categorical",
+          "non_nulls": 7,
+          "distinct": 4,
+          "sample_values": [
+            "东",
+            "西",
+            "南",
+            "北",
+            "东"
+          ],
+          "top_values": [
+            {
+              "value": "东",
+              "count": 2
+            },
+            {
+              "value": "西",
+              "count": 2
+            },
+            {
+              "value": "南",
+              "count": 2
+            },
+            {
+              "value": "北",
+              "count": 1
+            }
+          ],
+          "stats": {}
+        },
+        {
+          "name": "销售额",
+          "dtype": "int64",
+          "semantic_type": "quantitative",
+          "non_nulls": 7,
+          "distinct": 7,
+          "sample_values": [
+            100,
+            120,
+            115,
+            98,
+            140
+          ],
+          "top_values": [
+            {
+              "value": 100,
+              "count": 1
+            },
+            {
+              "value": 120,
+              "count": 1
+            },
+            {
+              "value": 115,
+              "count": 1
+            },
+            {
+              "value": 98,
+              "count": 1
+            },
+            {
+              "value": 140,
+              "count": 1
+            }
+          ],
+          "stats": {
+            "min": 98.0,
+            "max": 150.0,
+            "mean": 121.85714285714286,
+            "std": 18.06676958577006
+          }
+        }
+      ],
+      "sample_rows": [
+        {
+          "日期": "2024-01-01T00:00:00",
+          "地区": "东",
+          "销售额": 100
+        },
+        {
+          "日期": "2024-01-02T00:00:00",
+          "地区": "西",
+          "销售额": 120
+        },
+        {
+          "日期": "2024-01-03T00:00:00",
+          "地区": "南",
+          "销售额": 115
+        }
+      ]
+    }
+  ],
+  "table_names": [
+    "Sheet1"
+  ],
+  "column_whitelist": {
+    "Sheet1": [
+      "日期",
+      "地区",
+      "销售额"
+    ]
+  }
+}
