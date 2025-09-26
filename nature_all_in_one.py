@@ -686,9 +686,26 @@ def cmd_source(args):
     base = Path(args.out) / art_id
     sd_dir = base / "source_data"
     meta_dir = base / "meta"
+    manifest_path = meta_dir / "_source_data_manifest.json"
+    json_path = meta_dir / "source_data.json"
+
+    def cleanup_empty():
+        if sd_dir.exists():
+            shutil.rmtree(sd_dir, ignore_errors=True)
+        if manifest_path.exists():
+            manifest_path.unlink()
+        if json_path.exists():
+            json_path.unlink()
+
+    if not links:
+        print("[warn] No Source data links present; skip article")
+        cleanup_empty()
+        return False
+
     ensure_dir(sd_dir)
     ensure_dir(meta_dir)
     manifest = []
+    saved_count = 0
     for i, L in enumerate(links, 1):
         label = L["label"]
         file_url = L["url"]
@@ -699,16 +716,23 @@ def cmd_source(args):
         save_to = sd_dir / fname
         print(f"  [{i}/{len(links)}] {safe_console(label)} -> {fname}")
         try:
-            saved = download_binary(file_url, save_to, referer=r.url, timeout=args.timeout, sleep=args.sleep, max_retries=args.max_retries)
+            download_binary(file_url, save_to, referer=r.url, timeout=args.timeout, sleep=args.sleep, max_retries=args.max_retries)
             entry = {"label": label, "url": file_url, "saved_as": str(save_to), "orig_name": fname_url}
             manifest.append(entry)
-            upsert_json_list(meta_dir / "source_data.json", entry, key="label")
+            upsert_json_list(json_path, entry, key="label")
+            saved_count += 1
         except Exception as e:
             entry = {"label": label, "url": file_url, "error": str(e), "orig_name": fname_url}
             manifest.append(entry)
-            upsert_json_list(meta_dir / "source_data.json", entry, key="label")
-    (meta_dir / "_source_data_manifest.json").write_text(json.dumps({"article_url": url, "links": manifest}, ensure_ascii=False, indent=2), encoding="utf-8")
+            upsert_json_list(json_path, entry, key="label")
+    if saved_count == 0:
+        print("[warn] Source data downloads all failed; skip article")
+        cleanup_empty()
+        return False
+
+    manifest_path.write_text(json.dumps({"article_url": url, "links": manifest}, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"[done] Saved manifest and files under {base}")
+    return True
 
 
 # ---------- Post-fetch (always figures + source) ----------
@@ -801,9 +825,16 @@ def cmd_postfetch(args):
             print(f"[{idx}/{total}] Nature article: {aid}")
             found = postfetch_one(u, args.out, args.max_figs, args.sleep, args.timeout, args.max_retries, getattr(args, "max_empty_figs", 2))
             if found > 0:
-                append_processed(processed_file, aid)
-                cmd_source(argparse.Namespace(url=u, out=args.out, section_id=None, filter=None, sleep=args.sleep, timeout=args.timeout, max_retries=args.max_retries))
-            else:
+                ok = cmd_source(argparse.Namespace(url=u, out=args.out, section_id=None, filter=None, sleep=args.sleep, timeout=args.timeout, max_retries=args.max_retries))
+                if ok:
+                    append_processed(processed_file, aid)
+                else:
+                    base = Path(args.out) / aid
+                    if base.exists():
+                        shutil.rmtree(base, ignore_errors=True)
+                time.sleep(args.sleep)
+                continue
+            # figures missing or source failed
                 base = Path(args.out) / aid
                 if base.exists():
                     shutil.rmtree(base, ignore_errors=True)
@@ -850,7 +881,12 @@ def postfetch_article(art_url: str, out: str, max_figs: int, max_empty_figs: int
     aid = parse_article_id(art_url)
     found = postfetch_one(art_url, out, max_figs, sleep, timeout, max_retries, max_empty_figs)
     if found > 0:
-        cmd_source(argparse.Namespace(url=art_url, out=out, section_id=None, filter=None, sleep=sleep, timeout=timeout, max_retries=max_retries))
+        ok = cmd_source(argparse.Namespace(url=art_url, out=out, section_id=None, filter=None, sleep=sleep, timeout=timeout, max_retries=max_retries))
+        if not ok:
+            base = Path(out) / aid
+            if base.exists():
+                shutil.rmtree(base, ignore_errors=True)
+            return (aid, -1)
     else:
         base = Path(out) / aid
         if base.exists():
@@ -1122,6 +1158,8 @@ def cmd_auto(args):
                     update_fetch_task()
                     if args.max_articles and processed >= args.max_articles:
                         stop_stream = True
+            elif found == -1:
+                set_worker(slot, "idle", f"{aid_out} no-source")
             else:
                 set_worker(slot, "idle", f"{aid_out} no-image")
 
