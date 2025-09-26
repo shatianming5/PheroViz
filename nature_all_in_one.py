@@ -636,6 +636,7 @@ def find_source_data_links(soup: BeautifulSoup, base_url: str, section_id: str |
         if sec:
             container = sec
     rx = re.compile(r"source\s*data", re.I)
+    base_parsed = urlparse(base_url)
     for a in container.find_all("a"):
         label = (a.get_text(" ", strip=True) or "").strip()
         if not label:
@@ -648,6 +649,16 @@ def find_source_data_links(soup: BeautifulSoup, base_url: str, section_id: str |
         if not href:
             continue
         abs_url = urljoin(base_url, href)
+        parsed = urlparse(abs_url)
+        # Skip in-page anchors (same article URL with only fragment)
+        if (
+            parsed.fragment
+            and parsed.scheme == base_parsed.scheme
+            and parsed.netloc == base_parsed.netloc
+            and parsed.path == base_parsed.path
+            and not parsed.query
+        ):
+            continue
         links.append({"label": label, "url": abs_url})
     seen = set()
     uniq = []
