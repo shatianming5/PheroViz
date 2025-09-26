@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 Nature family search + authorized content fetch (all-in-one)
 
@@ -17,14 +17,17 @@ import argparse
 import csv
 import importlib
 import json
+import mimetypes
 import os
 import re
 import subprocess
 import sys
 import time
+from email.message import Message
 from pathlib import Path
 from typing import Any
 from urllib.parse import urljoin, urlparse, unquote
+from uuid import uuid4
 import shutil
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed, wait, FIRST_COMPLETED
 
@@ -254,6 +257,16 @@ def append_processed(path: Path, article_id: str):
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as f:
         f.write(article_id + "\n")
+
+
+def append_skipped(path: Path, article_id: str, reason: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    safe_reason = reason.strip() or "unknown"
+    line = f"{article_id}\t{safe_reason}\n"
+    with path.open("a", encoding="utf-8") as f:
+        f.write(line)
+
+
 
 
 def append_jsonl(path: Path, obj: dict):
@@ -527,7 +540,7 @@ def upsert_json_list(path: Path, item: dict, key: str):
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def download_binary(url: str, out_path: Path, referer: str | None = None, timeout=30, sleep=1.0, max_retries=3):
+def download_binary(url: str, out_path: Path, referer: str | None = None, timeout=30, sleep=1.0, max_retries=3, *, return_meta: bool = False):
     headers = {"User-Agent": API_USER_AGENT, "Accept": "*/*", "Connection": "close"}
     if referer:
         headers["Referer"] = referer
@@ -536,10 +549,11 @@ def download_binary(url: str, out_path: Path, referer: str | None = None, timeou
     while True:
         attempt += 1
         try:
-            # Use same timeout for connect and read; allow large files
             resp = requests.get(url, headers=headers, timeout=(timeout, timeout), stream=True)
             resp.raise_for_status()
             expected = resp.headers.get("Content-Length")
+            remote_name = parse_content_disposition_filename(resp.headers.get("Content-Disposition"))
+            content_type = resp.headers.get("Content-Type")
             out_path.parent.mkdir(parents=True, exist_ok=True)
             tmp = out_path.with_suffix(out_path.suffix + ".part")
             total = 0
@@ -551,6 +565,8 @@ def download_binary(url: str, out_path: Path, referer: str | None = None, timeou
             if expected and total != int(expected):
                 raise IOError(f"incomplete download: {total} != {expected}")
             tmp.replace(out_path)
+            if return_meta:
+                return str(out_path), remote_name, content_type
             return str(out_path)
         except Exception as e:
             if attempt >= max_retries:
@@ -675,6 +691,45 @@ def filename_from_url(url: str) -> str:
     return unquote(name) or "source_data.bin"
 
 
+
+def parse_content_disposition_filename(header: str | None) -> str | None:
+    if not header:
+        return None
+    try:
+        msg = Message()
+        msg['content-disposition'] = header
+        filename = msg.get_param('filename', header='content-disposition')
+        if filename:
+            return unquote(filename.strip())
+        filename_star = msg.get_param('filename*', header='content-disposition')
+        if filename_star:
+            parts = filename_star.split("''", 1)
+            if len(parts) == 2:
+                filename_star = parts[1]
+            return unquote(filename_star.strip())
+    except Exception:
+        pass
+    match = re.search(r'filename\*?=\s*"?([^";]+)', header, re.I)
+    if match:
+        candidate = match.group(1)
+        if "''" in candidate:
+            candidate = candidate.split("''", 1)[1]
+        return unquote(candidate.strip())
+    return None
+
+
+def guess_extension_from_type(content_type: str | None) -> str:
+    if not content_type:
+        return ""
+    ctype = content_type.split(';', 1)[0].strip().lower()
+    if not ctype:
+        return ""
+    ext = mimetypes.guess_extension(ctype)
+    if ext in (None, "", ".bin") and ctype.startswith('text/'):
+        return ".txt"
+    return ext or ""
+
+
 def cmd_source(args):
     url = args.url
     art_id = parse_article_id(url)
@@ -706,25 +761,108 @@ def cmd_source(args):
     ensure_dir(meta_dir)
     manifest = []
     saved_count = 0
+    used_names: set[str] = set()
+
+    def allocate_name(candidates: list[tuple[str, str]], fallback_stem: str, ext_hint: str) -> str:
+        for stem, suffix in candidates:
+            suffix = suffix or ext_hint
+            stem = stem or fallback_stem
+            attempt = stem + (suffix or "")
+            counter = 2
+            while attempt.lower() in used_names:
+                attempt = f"{stem}_{counter}{suffix or ''}"
+                counter += 1
+            used_names.add(attempt.lower())
+            return attempt
+        suffix = ext_hint or ""
+        stem = fallback_stem or "source_data"
+        attempt = stem + suffix
+        counter = 2
+        while attempt.lower() in used_names:
+            attempt = f"{stem}_{counter}{suffix}"
+            counter += 1
+        used_names.add(attempt.lower())
+        return attempt
+
     for i, L in enumerate(links, 1):
         label = L["label"]
         file_url = L["url"]
         fname_url = filename_from_url(file_url)
-        ext = Path(fname_url).suffix
-        label_safe = sanitize(label)
-        fname = label_safe + (ext or "")
-        save_to = sd_dir / fname
-        print(f"  [{i}/{len(links)}] {safe_console(label)} -> {fname}")
+        fallback_stem = f"source_data_{i:02d}"
+        tmp_path = sd_dir / f".tmp_{uuid4().hex}"
+        print(f"  [{i}/{len(links)}] {safe_console(label)} -> downloading...")
         try:
-            download_binary(file_url, save_to, referer=r.url, timeout=args.timeout, sleep=args.sleep, max_retries=args.max_retries)
-            entry = {"label": label, "url": file_url, "saved_as": str(save_to), "orig_name": fname_url}
+            saved_tmp, remote_name, content_type = download_binary(
+                file_url,
+                tmp_path,
+                referer=r.url,
+                timeout=args.timeout,
+                sleep=args.sleep,
+                max_retries=args.max_retries,
+                return_meta=True,
+            )
+            tmp_file = Path(saved_tmp)
+            ext_candidates = []
+            for raw in (remote_name, fname_url):
+                if raw:
+                    ext = Path(raw).suffix
+                    if ext:
+                        ext_candidates.append(ext)
+            type_ext = guess_extension_from_type(content_type)
+            if type_ext:
+                ext_candidates.append(type_ext)
+            ext_hint = next((e for e in ext_candidates if e), "")
+            candidate_pairs: list[tuple[str, str]] = []
+            seen_pairs: set[tuple[str, str]] = set()
+
+            def add_candidate(raw: str | None):
+                if not raw:
+                    return
+                cleaned = sanitize(raw)
+                if not cleaned:
+                    return
+                stem, suffix = os.path.splitext(cleaned)
+                if not suffix and ext_hint:
+                    suffix = ext_hint
+                stem = stem or fallback_stem
+                pair = (stem, suffix or "")
+                if pair not in seen_pairs:
+                    seen_pairs.add(pair)
+                    candidate_pairs.append(pair)
+
+            add_candidate(remote_name)
+            add_candidate(fname_url)
+            add_candidate(label)
+
+            if not candidate_pairs:
+                candidate_pairs.append((fallback_stem, ext_hint or ""))
+
+            chosen_name = allocate_name(candidate_pairs, fallback_stem, ext_hint)
+            final_path = sd_dir / chosen_name
+            if final_path.exists():
+                final_path.unlink()
+            tmp_file.replace(final_path)
+            print(f"      saved as {chosen_name}")
+            entry = {"label": label, "url": file_url, "saved_as": str(final_path), "saved_name": chosen_name, "orig_name": fname_url, "content_name": remote_name, "content_type": content_type}
             manifest.append(entry)
             upsert_json_list(json_path, entry, key="label")
             saved_count += 1
         except Exception as e:
-            entry = {"label": label, "url": file_url, "error": str(e), "orig_name": fname_url}
+            if tmp_path.exists():
+                try:
+                    tmp_path.unlink()
+                except Exception:
+                    pass
+            part_path = tmp_path.with_suffix(tmp_path.suffix + ".part")
+            if part_path.exists():
+                try:
+                    part_path.unlink()
+                except Exception:
+                    pass
+            entry = {"label": label, "url": file_url, "error": str(e), "saved_name": None, "orig_name": fname_url, "content_name": None, "content_type": None}
             manifest.append(entry)
             upsert_json_list(json_path, entry, key="label")
+
     if saved_count == 0:
         print("[warn] Source data downloads all failed; skip article")
         cleanup_empty()
@@ -776,6 +914,7 @@ def cmd_postfetch(args):
     processed_file_arg = getattr(args, "processed_file", None)
     processed_file = Path(processed_file_arg) if processed_file_arg else (Path(args.out) / "_processed.txt")
     processed = load_processed_set(processed_file)
+    skipped_file = processed_file.with_name("_skipped.txt")
     tasks: list[str] = []
     for r in rows:
         art_url = norm_article_url(r.get("url"), r.get("doi"))
@@ -804,10 +943,20 @@ def cmd_postfetch(args):
                     for fut in as_completed(futures):
                         try:
                             aid, found = fut.result()
-                            if found > 0:
-                                append_processed(processed_file, aid)
                         except Exception as e:
                             console.log(safe_console(f"[warn] postfetch failed: {e}"))
+                            art = futures.get(fut)
+                            if art:
+                                aid = parse_article_id(art)
+                                append_processed(processed_file, aid)
+                                append_skipped(skipped_file, aid, "fetch-error")
+                            continue
+                        if found > 0:
+                            append_processed(processed_file, aid)
+                        else:
+                            reason = "no-source-data" if found == -1 else "no-figures"
+                            append_processed(processed_file, aid)
+                            append_skipped(skipped_file, aid, reason)
                         progress.advance(t, 1)
         else:
             with ProcessPoolExecutor(max_workers=workers) as ex:
@@ -815,29 +964,42 @@ def cmd_postfetch(args):
                 for fut in as_completed(futures):
                     try:
                         aid, found = fut.result()
-                        if found > 0:
-                            append_processed(processed_file, aid)
                     except Exception as e:
                         print(safe_console(f"[warn] postfetch failed: {e}"))
+                        art = futures.get(fut)
+                        if art:
+                            aid = parse_article_id(art)
+                            append_processed(processed_file, aid)
+                            append_skipped(skipped_file, aid, "fetch-error")
+                        continue
+                    if found > 0:
+                        append_processed(processed_file, aid)
+                    else:
+                        reason = "no-source-data" if found == -1 else "no-figures"
+                        append_processed(processed_file, aid)
+                        append_skipped(skipped_file, aid, reason)
     else:
         for idx, u in enumerate(tasks, 1):
             aid = parse_article_id(u)
             print(f"[{idx}/{total}] Nature article: {aid}")
             found = postfetch_one(u, args.out, args.max_figs, args.sleep, args.timeout, args.max_retries, getattr(args, "max_empty_figs", 2))
-            if found > 0:
+            reason: str | None = None
+            if found is None:
+                reason = "fetch-error"
+            elif found > 0:
                 ok = cmd_source(argparse.Namespace(url=u, out=args.out, section_id=None, filter=None, sleep=args.sleep, timeout=args.timeout, max_retries=args.max_retries))
                 if ok:
                     append_processed(processed_file, aid)
                 else:
-                    base = Path(args.out) / aid
-                    if base.exists():
-                        shutil.rmtree(base, ignore_errors=True)
-                time.sleep(args.sleep)
-                continue
-            # figures missing or source failed
+                    reason = "no-source-data"
+            else:
+                reason = "no-figures"
+            if reason:
                 base = Path(args.out) / aid
                 if base.exists():
                     shutil.rmtree(base, ignore_errors=True)
+                append_processed(processed_file, aid)
+                append_skipped(skipped_file, aid, reason)
             time.sleep(args.sleep)
     print("[done] Post-fetch complete.")
 
@@ -1070,6 +1232,7 @@ def cmd_auto(args):
     # Streaming: per-article postfetch immediately after discovery
     processed_file_stream = Path(args.content_out) / "_processed.txt"
     processed_stream = load_processed_set(processed_file_stream)
+    skipped_file_stream = processed_file_stream.with_name("_skipped.txt")
     stream_workers = max(1, getattr(args, "stream_workers", 1))
     executor = ThreadPoolExecutor(max_workers=stream_workers, thread_name_prefix="stream-fetch")
     inflight: dict[Any, tuple[int, str]] = {}
@@ -1137,9 +1300,16 @@ def cmd_auto(args):
                     console.log(msg)
                 else:
                     print(msg)
+                if aid_hint:
+                    append_processed(processed_file_stream, aid_hint)
+                    append_skipped(skipped_file_stream, aid_hint, "fetch-error")
+                    processed_stream.add(aid_hint)
                 set_worker(slot, "idle", f"{aid_hint} error")
                 continue
             if not result:
+                append_processed(processed_file_stream, aid_hint)
+                append_skipped(skipped_file_stream, aid_hint, "fetch-error")
+                processed_stream.add(aid_hint)
                 set_worker(slot, "idle", f"{aid_hint} no-result")
                 continue
             aid_out, found = result
@@ -1159,8 +1329,14 @@ def cmd_auto(args):
                     if args.max_articles and processed >= args.max_articles:
                         stop_stream = True
             elif found == -1:
+                append_processed(processed_file_stream, aid_out)
+                append_skipped(skipped_file_stream, aid_out, "no-source-data")
+                processed_stream.add(aid_out)
                 set_worker(slot, "idle", f"{aid_out} no-source")
             else:
+                append_processed(processed_file_stream, aid_out)
+                append_skipped(skipped_file_stream, aid_out, "no-figures")
+                processed_stream.add(aid_out)
                 set_worker(slot, "idle", f"{aid_out} no-image")
 
     try:
