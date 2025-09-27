@@ -1,0 +1,18 @@
+﻿weights:
+  visual_form: 0.5
+  data_fidelity: 0.5
+
+visual_checks:
+  need_title: true
+  need_labels: true
+  need_legend_if_multi: true
+  min_contrast: 0.12
+  allow_grid: true
+  broken_axis_mark: true
+
+data_checks:
+  require_columns: true
+  positive_on_log: true
+  y_breaks_reasonable: true
+  colorbar_if_heatmap: true
+  non_empty_plot: true

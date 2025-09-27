@@ -1,0 +1,16 @@
+﻿dense.ticks.x:         { slot: "axes.ticks",        hint: "使用 MaxNLocator(6) 或旋转 30°" }
+dense.ticks.y:         { slot: "axes.ticks",        hint: "减少 y 轴刻度个数" }
+tick.rotate.suggest:   { slot: "axes.tick_rotate",  hint: "ax.tick_params(axis='x', labelrotation=30)" }
+miss.axes.labels:      { slot: "axes.labels",       hint: "设置标题/轴标签并包含单位" }
+title.missing:         { slot: "axes.labels",       hint: "layout.titles.top 并 set_title(..., loc='left')" }
+legend.overlap:        { slot: "legend.apply",      hint: "放到 outside/right 或增加 ncol" }
+grid.missing:          { slot: "grid.apply",        hint: "开启 y 主网格 alpha=0.3" }
+bad.scale.y_right.log: { slot: "scales.y_right.kind", hint: "set_yscale('log') 与正值过滤" }
+range.mismatch:        { slot: "scales.*.range",    hint: "设置合理上下界或自动范围" }
+broken.axis.symbol.missing: { slot: "scales.y_left.breaks", hint: "确认断轴并绘制断口符号" }
+negative.on.log:       { slot: "data.prepare",      hint: "过滤 ≤0 值或改用线性尺度" }
+colorbar.missing:      { slot: "colorbar.apply",    hint: "为 heatmap/hexbin 添加色条" }
+low.contrast.series.2: { slot: "theme.palette",     hint: "改用 ColorBlindSafe 或区分 alpha/线型" }
+empty.plot:            { slot: "data.aggregate",    hint: "检查聚合条件与过滤逻辑" }
+label.collision:       { slot: "annot.text_boxes",  hint: "移动标注或使用 offset points" }
+refline.unlabeled:     { slot: "annot.reference_lines", hint: "在参考线附近加文字" }

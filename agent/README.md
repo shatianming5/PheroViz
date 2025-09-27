@@ -1,87 +1,75 @@
-# PheroViz 单链可视化原型
+﻿# ESS-Pro Ultra 单圈闭环工作流
 
-本仓库实现论文中的 L1→L4 单链流程：Excel 画像 → 规划 → 模板出码 → 沙箱渲染 → Judge 与信息素记录。代码面向**论文复现**与实验，非工业 API 服务。
+ESS-Pro Ultra 将意图 → 规格 → 插槽 → 沙箱 → Judge → FEEDBACK 串成单圈闭环。仓库内提供完整的 JSON Schema、插槽注册表、Ultra 模板、沙箱执行器、Judge++、FEEDBACK 生成器、单圈 Runner、few-shot 片库与示例 slots，可直接驱动 Zhizengzeng Responses API 或其他兼容接口。
 
-## 1. 准备环境
-
-- Python 3.10+（当前在 Python 3.13 验证）
-- 建议创建虚拟环境：
+## 快速开始
 
 ```bash
-python -m venv .venv
-.venv\Scripts\activate        # PowerShell / CMD
-# source .venv/bin/activate     # Git Bash / WSL
-```
-
-## 2. 安装依赖
-
-```bash
-pip install --upgrade pip
+python -m venv .venv && .venv/Scripts/activate   # Windows；或 source .venv/bin/activate
 pip install -r requirements.txt
+python run_chain.py data/sales_demo.csv "季度对比" bar --rounds 2 --intent '{"x":"月份","y":"销量","group":"品类","aesthetics":{"palette":"ColorBlindSafe"}}'
 ```
 
-依赖仅包含 Excel 解析、模板渲染、Matplotlib 绘图、Requests 等论文级组件。
+运行完毕后，`runs/` 下会生成时间戳目录（spec、slots、代码、chart.png、judge.json、迭代日志等）。
 
-## 3. 配置智增增 Zhizengzeng API
-
-脚本直接对接智增增的 Responses API（OpenAI 兼容）。在根目录创建 `.env`，示例：
-
-```
-LLM_API_BASE=https://api.zhizengzeng.com/v1
-LLM_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-LLM_MODEL=gpt-4.1-mini
-LLM_TIMEOUT=180               # 读超时时间，秒
-LLM_MAX_TOKENS=700            # 限制模型输出 token，避免过长
-LLM_FORCE_JSON=0              # 允许模型附带说明文本，内部会提取 JSON
-```
-
-如需强制 JSON（模型原生支持时更稳定），把 `LLM_FORCE_JSON` 设为 `1`。
-
-## 4. 运行单链流程
-
-命令行入口 `run_chain.py`：
+## 直接注入插槽
 
 ```bash
-python run_chain.py data.xlsx "分析各地区销售表现" bar --rounds 1
+python scripts/run_slots.py data/sales_demo.csv examples/slots_bar_scatter_rightlog_ybreaks.json
 ```
 
-参数说明：
+脚本会装配 Ultra 模板、执行沙箱并输出评估分数，方便验证单独的 slots JSON。
 
-- `excel`：输入 Excel 路径
-- `user_goal`：自然语言目标
-- `chart_family`：图形家族（line / bar / stacked_bar / area / pie / scatter / hist / box / heatmap / auto）
-- `--rounds`：链式迭代次数（默认为环境变量 `CHAIN_DEFAULT_ROUNDS`，gz 环境建议 1）
-- `--sheet`：仅加载指定表，可重复
-- `--storage`：结果输出目录（默认 `runs/`）
+## 目录速览
 
-运行完成后，脚本会在 `runs/YYYYMMDDTHHMMSSxxxxxxZ/` 中写出：
+- `contracts/spec_schema.json`：Spec JSON Schema。
+- `app/services/spec_deriver.py` / `spec_validator.py`：意图派生与校验。
+- `app/services/slot_registry.py`：插槽全集、执行 DAG、层级白名单。
+- `app/runtime/scaffold_elements_pro.py.j2`：Ultra 模板（所有插槽位）。
+- `app/services/sandbox_runner.py`：临时目录 + shim + Matplotlib/Agg 沙箱。
+- `configs/judge_rules.yml` / `diagnostics_map.yml`：Judge++ 规则与诊断键映射。
+- `app/services/judge.py`：图像粗评分 + 诊断收敛信号。
+- `app/services/feedback_builder.py`：结构化 FEEDBACK 文本。
+- `app/services/single_chain_runner.py`：单圈 orchestrator（L1→L4→沙箱→Judge→FEEDBACK）。
+- `app/snippets/slots_library.json`：常用插槽片库。
+- `examples/slots_bar_scatter_rightlog_ybreaks.json`：组合图 slots 示例。
 
-- `inputs.json`：入参
-- `profile.json`：Excel 画像
-- `final_spec.json`：合并后的 L1-L4 规范
-- `code.py`：生成的 Python 绘图代码
-- `chart.png`：渲染图像（如需中文字体，建议安装黑体并在模板中设置）
-- `judge.json`：VisualForm / DataFidelity 占位分
-- `iterations.json`：每轮计划与反馈
-- `pheromones.json`：信息素日志（类型、增量、时间戳）
+## FEEDBACK → Prompt 链
 
-## 5. 自测
+单圈 Runner 每轮执行：
+1. derive_spec → validate_spec 得到基础 Spec。
+2. 依次请求 L1/L2/L3/L4（预留 `_llm_generate_slots` 接口对接 Zhizengzeng Responses API）。
+3. assemble_with_slots → sandbox_runner.execute_script。
+4. Judge++ 打分，compose_feedback 汇总诊断与层级守卫。
+5. 分数达标 (VisualForm ≥ 0.75 且 DataFidelity ≥ 0.75) 即收敛，否则进入下一轮直至 round 上限。
+
+层级守卫示例（内置）：
+- L2：`allow=data.*; deny=ax/plt/text/legend/grid/theme`
+- L3：`allow=marks.*,scales.*,colorbar.apply; deny=axes.*,legend.*,grid.*,annot.*,theme.*`
+- L4：`allow=axes.*,legend.*,grid.*,annot.*,theme.*; deny=data.*,marks.*`
+
+## CLI
+
+- CLI：`python run_chain.py <excel_or_csv> <user_goal> <chart_family> [--rounds N] [--sheet NAME] [--intent JSON]`
+
+## few-shot 片库
+
+`app/snippets/slots_library.json` 覆盖 bar.grouped、scatter.main、heatmap+colorbar、axes/legend/grid/annot/scales 等 17 组函数体，均为“只包含函数体”的合法插槽代码，可直接塞入 Ultra 模板。
+
+## 测试
 
 ```bash
-python -m pytest -q
+pytest -q
 ```
 
-包含 Excel 画像、模板出码、沙箱安全的三项单测（警告关于 Matplotlib 图例与 pandas 日期解析，可忽略）。
+包含两个基础冒烟测试：
+- Spec 派生→校验→基本字段验证。
+- 空插槽装配可成功生成 `run` 函数。
 
-## 6. 模块速览
+## 示例数据
 
-- `app/services/excel_loader.py`：检测表头、推断列类型
-- `app/services/data_profile.py`：生成列画像与白名单
-- `app/services/prompts_chain.py`：L1/L2/L3/L4 Prompt 模板（强制 JSON 逻辑由 `LLM_FORCE_JSON` 控制）
-- `app/services/chain_runner.py`：单链 Sense→Plan→Code/Patch→Render→Judge + 信息素写入
-- `app/services/code_templates.py`：将规范转换为 Matplotlib 代码
-- `app/services/sandbox.py`：AST 审计 + 安全执行绘图
-- `app/services/judge.py`：占位 Judge 分
-- `app/utils/audit.py`：落盘输入、输出、信息素
+`data/sales_demo.csv` 提供月度销量与转化率示例，可直接用于运行组合图 slots。
 
-通过 `.env` 配置好智增增 API Key 后，直接执行 `run_chain.py` 即可复现论文中的单链流程，并得到图片、代码与信息素日志等产物。
+---
+
+如需重新生成 Ultra 模板或扩展 slots，请遵守 `task.txt` 中的统一输出契约，并通过 `scripts/run_slots.py` / `pytest` 验证后再接入单圈 Runner。

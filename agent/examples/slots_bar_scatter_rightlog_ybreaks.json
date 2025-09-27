@@ -1,0 +1,17 @@
+{
+  "spec.compose": "return {'canvas': {'width': 960, 'height': 576, 'dpi': 300}, 'overlays': [{'mark': 'bar', 'variant': 'grouped', 'x': '月份', 'y': '销量', 'group': '品类', 'style': {'alpha': 0.9, 'width': 0.8}}, {'mark': 'scatter', 'variant': 'main', 'x': '月份', 'y': '转化率', 'yaxis': 'right', 'style': {'alpha': 0.85, 'size': 36, 'marker': 'o'}}], 'scales': {'x': {'kind': 'categorical'}, 'y_left': {'kind': 'linear', 'range': [0, None], 'breaks': [[140000, 220000]]}, 'y_right': {'kind': 'log', 'range': [0.05, 1.0]}}, 'layout': {'titles': {'top': '各品类销量与转化率'}, 'title_align': 'left', 'legend': {'loc': 'best', 'ncol': 1, 'frame': False}, 'grid': {'x': False, 'y': True, 'minor': True}}, 'theme': {'font': 'Arial', 'fontsize': 9, 'axis_linewidth': 1.0, 'tick_len': 3.0, 'tick_width': 0.8, 'palette_global': 'ColorBlindSafe'}, 'flags': {'safe_log_y': True, 'max_overlays': 2, 'tick_density': 'normal'}}",
+  "data.prepare": "out = df[['月份', '销量', '品类', '转化率']].dropna(); out = out.sort_values('月份'); return out",
+  "data.aggregate": "out = df.groupby(['月份', '品类'], dropna=False, as_index=False).agg({'销量': 'sum', '转化率': 'mean'}); return out",
+  "data.encode": "return df",
+  "marks.bar.grouped": "months = list(df['月份'].unique()); groups = list(df['品类'].unique()); width = 0.8 / max(1, len(groups)); alpha = 0.9; arts = [];\nfor idx, grp in enumerate(groups):\n    sub = df[df['品类'] == grp];\n    xs = np.arange(len(months)) + idx * width;\n    vals = [float(sub[sub['月份'] == month]['销量'].sum()) for month in months];\n    bars = ax.bar(xs, vals, width=width, alpha=alpha, label=str(grp));\n    arts.extend(bars)\nax.set_xticks(np.arange(len(months)) + width * (len(groups) - 1) / 2);\nax.set_xticklabels(months);\nreturn arts",
+  "marks.scatter.main": "months = list(df['月份'].unique()); index = {month: idx for idx, month in enumerate(months)}; xs = np.array([index[value] for value in df['月份']]); sc = ax.scatter(xs, df['转化率'], s=36, alpha=0.85, marker='o', color='#d62728', label='转化率'); ax.set_xticks(np.arange(len(months))); ax.set_xticklabels(months); return [sc]",
+  "scales.y_right.kind": "if ax_right: ax_right.set_yscale('log')",
+  "scales.y_left.breaks": "breaks = ((spec.get('scales') or {}).get('y_left') or {}).get('breaks');\nif breaks:\n    for lo, hi in breaks:\n        ax_left.axhspan(lo, hi, facecolor='white', alpha=1.0, zorder=5)",
+  "axes.labels": "ax_left.set_xlabel('月份'); ax_left.set_ylabel('销量');\nif ax_right: ax_right.set_ylabel('转化率');\ntitle = ((spec.get('layout') or {}).get('titles') or {}).get('top');\nif title: ax_left.set_title(title, loc=(spec.get('layout') or {}).get('title_align', 'left'))",
+  "axes.formatter": "if ax_right: ax_right.yaxis.set_major_formatter(lambda val, _pos: f'{val:.0%}')",
+  "axes.ticks": "ax_left.yaxis.set_major_locator(MaxNLocator(6));\nif ax_right: ax_right.yaxis.set_major_locator(MaxNLocator(6))",
+  "legend.apply": "handles_left, labels_left = ax_left.get_legend_handles_labels(); handles_right, labels_right = (ax_right.get_legend_handles_labels() if ax_right else ([], [])); handles = handles_left + handles_right; labels = labels_left + labels_right;\nif handles:\n    ax_left.legend(handles, labels, loc=(spec.get('layout') or {}).get('legend', {}).get('loc', 'best'), frameon=False)",
+  "grid.apply": "ax_left.grid(True, axis='y', alpha=0.3)",
+  "annot.reference_lines": "ax_left.axhline(200000, linestyle='--', linewidth=0.8, color='gray', alpha=0.6)",
+  "theme.palette": "ax_left.set_prop_cycle(None)"
+}

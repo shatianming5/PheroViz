@@ -1,0 +1,582 @@
+from __future__ import annotations
+
+from typing import Any, Dict, Iterable, List, Tuple
+
+import numpy as np
+import pandas as pd
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from matplotlib.ticker import FuncFormatter, MaxNLocator
+from matplotlib.patches import Rectangle
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _cat_codes(series: pd.Series, categories: Iterable[Any] | None = None) -> Tuple[np.ndarray, List[Any]]:
+    if categories is None:
+        categories = list(series.dropna().unique())
+    cat = pd.Categorical(series, categories=categories, ordered=True)
+    return cat.codes.to_numpy(), list(cat.categories)
+
+
+def _safe_series(values: pd.Series) -> pd.Series:
+    return values.dropna()
+
+
+def _ensure_axis(ax):
+    if ax is None:
+        raise RuntimeError("Right axis requested but not created. Provide yaxis='right' overlay only when enabled.")
+    return ax
+
+
+# ---------------------------------------------------------------------------
+# Slots (each function body can be replaced via Jinja injection)
+# ---------------------------------------------------------------------------
+
+
+def slot_spec_compose(spec: Dict[str, Any], intent: Dict[str, Any], ctx: Dict[str, Any]) -> Dict[str, Any]:
+{% if S_spec_compose is defined and S_spec_compose %}
+{{ S_spec_compose | indent(4, true) }}
+{% else %}
+    return spec
+{% endif %}
+
+
+def slot_spec_theme_defaults(spec: Dict[str, Any], intent: Dict[str, Any], ctx: Dict[str, Any]) -> Dict[str, Any]:
+{% if S_spec_theme_defaults is defined and S_spec_theme_defaults %}
+{{ S_spec_theme_defaults | indent(4, true) }}
+{% else %}
+    return spec
+{% endif %}
+
+
+def slot_data_prepare(df: pd.DataFrame, spec: Dict[str, Any], intent: Dict[str, Any], ctx: Dict[str, Any]) -> pd.DataFrame:
+{% if S_data_prepare is defined and S_data_prepare %}
+{{ S_data_prepare | indent(4, true) }}
+{% else %}
+    return df.copy()
+{% endif %}
+
+
+def slot_data_aggregate(df: pd.DataFrame, spec: Dict[str, Any], intent: Dict[str, Any], ctx: Dict[str, Any]) -> pd.DataFrame:
+{% if S_data_aggregate is defined and S_data_aggregate %}
+{{ S_data_aggregate | indent(4, true) }}
+{% else %}
+    return df
+{% endif %}
+
+
+def slot_data_encode(df: pd.DataFrame, spec: Dict[str, Any], intent: Dict[str, Any], ctx: Dict[str, Any]) -> pd.DataFrame:
+{% if S_data_encode is defined and S_data_encode %}
+{{ S_data_encode | indent(4, true) }}
+{% else %}
+    return df
+{% endif %}
+
+
+def slot_marks_dispatch(fig, ax_left, ax_right, df: pd.DataFrame, spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_marks_dispatch is defined and S_marks_dispatch %}
+{{ S_marks_dispatch | indent(4, true) }}
+{% else %}
+    artists: List[Any] = []
+    overlays = spec.get("overlays") or []
+    for overlay in overlays:
+        axis = ax_right if overlay.get("yaxis") == "right" else ax_left
+        axis = _ensure_axis(axis)
+        mark = overlay.get("mark", "line")
+        variant = overlay.get("variant") or "main"
+        key = f"{mark}.{variant}"
+        fn = MARK_FUNCTIONS.get(key) or MARK_FUNCTIONS.get(mark)
+        if fn:
+            result = fn(axis, df, overlay, spec, ctx)
+            if result:
+                artists.extend(result if isinstance(result, list) else [result])
+    return artists
+{% endif %}
+
+
+# ----- Mark implementations -------------------------------------------------
+
+def slot_marks_bar_grouped(ax, df: pd.DataFrame, overlay: Dict[str, Any], spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_marks_bar_grouped is defined and S_marks_bar_grouped %}
+{{ S_marks_bar_grouped | indent(4, true) }}
+{% else %}
+    return ax.bar(df[overlay.get("x")], df[overlay.get("y")])
+{% endif %}
+
+
+def slot_marks_bar_stacked(ax, df: pd.DataFrame, overlay: Dict[str, Any], spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_marks_bar_stacked is defined and S_marks_bar_stacked %}
+{{ S_marks_bar_stacked | indent(4, true) }}
+{% else %}
+    return []
+{% endif %}
+
+
+def slot_marks_bar_percent(ax, df: pd.DataFrame, overlay: Dict[str, Any], spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_marks_bar_percent is defined and S_marks_bar_percent %}
+{{ S_marks_bar_percent | indent(4, true) }}
+{% else %}
+    return []
+{% endif %}
+
+
+def slot_marks_bar_waterfall(ax, df: pd.DataFrame, overlay: Dict[str, Any], spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_marks_bar_waterfall is defined and S_marks_bar_waterfall %}
+{{ S_marks_bar_waterfall | indent(4, true) }}
+{% else %}
+    return []
+{% endif %}
+
+
+def slot_marks_lollipop_main(ax, df: pd.DataFrame, overlay: Dict[str, Any], spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_marks_lollipop_main is defined and S_marks_lollipop_main %}
+{{ S_marks_lollipop_main | indent(4, true) }}
+{% else %}
+    return []
+{% endif %}
+
+
+def slot_marks_line_main(ax, df: pd.DataFrame, overlay: Dict[str, Any], spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_marks_line_main is defined and S_marks_line_main %}
+{{ S_marks_line_main | indent(4, true) }}
+{% else %}
+    return ax.plot(df[overlay.get("x")], df[overlay.get("y")])
+{% endif %}
+
+
+def slot_marks_line_ci(ax, df: pd.DataFrame, overlay: Dict[str, Any], spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_marks_line_ci is defined and S_marks_line_ci %}
+{{ S_marks_line_ci | indent(4, true) }}
+{% else %}
+    return []
+{% endif %}
+
+
+def slot_marks_line_error(ax, df: pd.DataFrame, overlay: Dict[str, Any], spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_marks_line_error is defined and S_marks_line_error %}
+{{ S_marks_line_error | indent(4, true) }}
+{% else %}
+    return []
+{% endif %}
+
+
+def slot_marks_area_fill(ax, df: pd.DataFrame, overlay: Dict[str, Any], spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_marks_area_fill is defined and S_marks_area_fill %}
+{{ S_marks_area_fill | indent(4, true) }}
+{% else %}
+    return ax.fill_between(df[overlay.get("x")], 0, df[overlay.get("y")], alpha=0.3)
+{% endif %}
+
+
+def slot_marks_scatter_main(ax, df: pd.DataFrame, overlay: Dict[str, Any], spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_marks_scatter_main is defined and S_marks_scatter_main %}
+{{ S_marks_scatter_main | indent(4, true) }}
+{% else %}
+    return ax.scatter(df[overlay.get("x")], df[overlay.get("y")])
+{% endif %}
+
+
+def slot_marks_scatter_error(ax, df: pd.DataFrame, overlay: Dict[str, Any], spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_marks_scatter_error is defined and S_marks_scatter_error %}
+{{ S_marks_scatter_error | indent(4, true) }}
+{% else %}
+    return []
+{% endif %}
+
+
+def slot_marks_hist_main(ax, df: pd.DataFrame, overlay: Dict[str, Any], spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_marks_hist_main is defined and S_marks_hist_main %}
+{{ S_marks_hist_main | indent(4, true) }}
+{% else %}
+    target = overlay.get("y")
+    if target and target in df:
+        return ax.hist(_safe_series(df[target]).to_numpy(), bins=overlay.get("bins", 20))
+    return []
+{% endif %}
+
+
+def slot_marks_hexbin_main(ax, df: pd.DataFrame, overlay: Dict[str, Any], spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_marks_hexbin_main is defined and S_marks_hexbin_main %}
+{{ S_marks_hexbin_main | indent(4, true) }}
+{% else %}
+    x = overlay.get("x")
+    y = overlay.get("y")
+    if x in df and y in df:
+        return ax.hexbin(df[x], df[y], gridsize=overlay.get("gridsize", 20), cmap="viridis")
+    return []
+{% endif %}
+
+
+def slot_marks_boxplot_main(ax, df: pd.DataFrame, overlay: Dict[str, Any], spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_marks_boxplot_main is defined and S_marks_boxplot_main %}
+{{ S_marks_boxplot_main | indent(4, true) }}
+{% else %}
+    target = overlay.get("y")
+    if target in df:
+        return ax.boxplot(_safe_series(df[target]).to_numpy())
+    return []
+{% endif %}
+
+
+def slot_marks_violin_main(ax, df: pd.DataFrame, overlay: Dict[str, Any], spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_marks_violin_main is defined and S_marks_violin_main %}
+{{ S_marks_violin_main | indent(4, true) }}
+{% else %}
+    target = overlay.get("y")
+    if target in df:
+        return ax.violinplot(_safe_series(df[target]).to_numpy())
+    return []
+{% endif %}
+
+
+def slot_marks_heatmap_main(ax, df: pd.DataFrame, overlay: Dict[str, Any], spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_marks_heatmap_main is defined and S_marks_heatmap_main %}
+{{ S_marks_heatmap_main | indent(4, true) }}
+{% else %}
+    rows = overlay.get("x")
+    cols = overlay.get("group") or overlay.get("series")
+    val = overlay.get("y")
+    if rows in df and cols in df and val in df:
+        pivot = df.pivot_table(index=rows, columns=cols, values=val, aggfunc="mean", fill_value=0.0)
+        im = ax.imshow(pivot.values, aspect="auto", cmap="viridis")
+        ax.set_xticks(range(len(pivot.columns)))
+        ax.set_xticklabels([str(c) for c in pivot.columns], rotation=45, ha="right")
+        ax.set_yticks(range(len(pivot.index)))
+        ax.set_yticklabels([str(r) for r in pivot.index])
+        return [im]
+    return []
+{% endif %}
+
+
+# ----- Scales ---------------------------------------------------------------
+
+def slot_scales_x_kind(ax_left, ax_right, df: pd.DataFrame, spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_scales_x_kind is defined and S_scales_x_kind %}
+{{ S_scales_x_kind | indent(4, true) }}
+{% else %}
+    kind = ((spec.get("scales") or {}).get("x") or {}).get("kind")
+    if kind == "log":
+        ax_left.set_xscale("log")
+        if ax_right:
+            ax_right.set_xscale("log")
+    elif kind == "time":
+        ax_left.xaxis.set_major_locator(MaxNLocator(6))
+{% endif %}
+
+
+def slot_scales_x_range(ax_left, ax_right, df: pd.DataFrame, spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_scales_x_range is defined and S_scales_x_range %}
+{{ S_scales_x_range | indent(4, true) }}
+{% else %}
+    rng = ((spec.get("scales") or {}).get("x") or {}).get("range")
+    if isinstance(rng, list) and len(rng) == 2:
+        ax_left.set_xlim(rng[0], rng[1])
+        if ax_right:
+            ax_right.set_xlim(rng[0], rng[1])
+{% endif %}
+
+
+def slot_scales_x_breaks(ax_left, ax_right, df: pd.DataFrame, spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_scales_x_breaks is defined and S_scales_x_breaks %}
+{{ S_scales_x_breaks | indent(4, true) }}
+{% else %}
+    return None
+{% endif %}
+
+
+def slot_scales_y_left_kind(ax_left, df: pd.DataFrame, spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_scales_y_left_kind is defined and S_scales_y_left_kind %}
+{{ S_scales_y_left_kind | indent(4, true) }}
+{% else %}
+    kind = ((spec.get("scales") or {}).get("y_left") or {}).get("kind")
+    if kind == "log":
+        ax_left.set_yscale("log")
+    elif kind == "symlog":
+        ax_left.set_yscale("symlog")
+{% endif %}
+
+
+def slot_scales_y_left_range(ax_left, df: pd.DataFrame, spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_scales_y_left_range is defined and S_scales_y_left_range %}
+{{ S_scales_y_left_range | indent(4, true) }}
+{% else %}
+    rng = ((spec.get("scales") or {}).get("y_left") or {}).get("range")
+    if isinstance(rng, list) and len(rng) == 2:
+        ax_left.set_ylim(rng[0], rng[1])
+{% endif %}
+
+
+def slot_scales_y_left_breaks(ax_left, df: pd.DataFrame, spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_scales_y_left_breaks is defined and S_scales_y_left_breaks %}
+{{ S_scales_y_left_breaks | indent(4, true) }}
+{% else %}
+    return None
+{% endif %}
+
+
+def slot_scales_y_right_kind(ax_right, df: pd.DataFrame, spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_scales_y_right_kind is defined and S_scales_y_right_kind %}
+{{ S_scales_y_right_kind | indent(4, true) }}
+{% else %}
+    if ax_right:
+        kind = ((spec.get("scales") or {}).get("y_right") or {}).get("kind")
+        if kind == "log":
+            ax_right.set_yscale("log")
+        elif kind == "symlog":
+            ax_right.set_yscale("symlog")
+{% endif %}
+
+
+def slot_scales_y_right_range(ax_right, df: pd.DataFrame, spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_scales_y_right_range is defined and S_scales_y_right_range %}
+{{ S_scales_y_right_range | indent(4, true) }}
+{% else %}
+    if ax_right:
+        rng = ((spec.get("scales") or {}).get("y_right") or {}).get("range")
+        if isinstance(rng, list) and len(rng) == 2:
+            ax_right.set_ylim(rng[0], rng[1])
+{% endif %}
+
+
+# ----- Colorbar -------------------------------------------------------------
+
+def slot_colorbar_apply(fig, ax_left, ax_right, df: pd.DataFrame, spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_colorbar_apply is defined and S_colorbar_apply %}
+{{ S_colorbar_apply | indent(4, true) }}
+{% else %}
+    return None
+{% endif %}
+
+
+# ----- Axes -----------------------------------------------------------------
+
+def slot_axes_ticks(ax_left, ax_right, spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_axes_ticks is defined and S_axes_ticks %}
+{{ S_axes_ticks | indent(4, true) }}
+{% else %}
+    ax_left.xaxis.set_major_locator(MaxNLocator(6))
+    ax_left.yaxis.set_major_locator(MaxNLocator(6))
+{% endif %}
+
+
+def slot_axes_formatter(ax_left, ax_right, spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_axes_formatter is defined and S_axes_formatter %}
+{{ S_axes_formatter | indent(4, true) }}
+{% else %}
+    return None
+{% endif %}
+
+
+def slot_axes_labels(ax_left, ax_right, spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_axes_labels is defined and S_axes_labels %}
+{{ S_axes_labels | indent(4, true) }}
+{% else %}
+    titles = (spec.get("layout") or {}).get("titles") or {}
+    if titles.get("top"):
+        ax_left.set_title(titles["top"], loc=(spec.get("layout") or {}).get("title_align", "left"))
+    if titles.get("left") and ax_right:
+        ax_right.set_title(titles["left"], loc="left")
+{% endif %}
+
+
+def slot_axes_spines(ax_left, ax_right, spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_axes_spines is defined and S_axes_spines %}
+{{ S_axes_spines | indent(4, true) }}
+{% else %}
+    return None
+{% endif %}
+
+
+def slot_axes_aspect(ax_left, ax_right, spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_axes_aspect is defined and S_axes_aspect %}
+{{ S_axes_aspect | indent(4, true) }}
+{% else %}
+    aspect = (spec.get("canvas") or {}).get("aspect")
+    if aspect:
+        ax_left.set_aspect(aspect)
+{% endif %}
+
+
+def slot_axes_tick_rotate(ax_left, ax_right, spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_axes_tick_rotate is defined and S_axes_tick_rotate %}
+{{ S_axes_tick_rotate | indent(4, true) }}
+{% else %}
+    return None
+{% endif %}
+
+
+def slot_legend_apply(fig, ax_left, ax_right, artists, spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_legend_apply is defined and S_legend_apply %}
+{{ S_legend_apply | indent(4, true) }}
+{% else %}
+    handles, labels = ax_left.get_legend_handles_labels()
+    if ax_right:
+        h2, l2 = ax_right.get_legend_handles_labels()
+        handles += h2
+        labels += l2
+    if handles:
+        ax_left.legend(handles, labels, loc=(spec.get("layout") or {}).get("legend", {}).get("loc", "best"))
+{% endif %}
+
+
+def slot_grid_apply(ax_left, ax_right, spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_grid_apply is defined and S_grid_apply %}
+{{ S_grid_apply | indent(4, true) }}
+{% else %}
+    grid_cfg = (spec.get("layout") or {}).get("grid") or {}
+    if grid_cfg.get("y", True):
+        ax_left.grid(True, axis="y", alpha=0.3)
+{% endif %}
+
+
+def slot_annot_reference_lines(ax_left, ax_right, df: pd.DataFrame, spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_annot_reference_lines is defined and S_annot_reference_lines %}
+{{ S_annot_reference_lines | indent(4, true) }}
+{% else %}
+    return None
+{% endif %}
+
+
+def slot_annot_bands(ax_left, ax_right, df: pd.DataFrame, spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_annot_bands is defined and S_annot_bands %}
+{{ S_annot_bands | indent(4, true) }}
+{% else %}
+    return None
+{% endif %}
+
+
+def slot_annot_peak_labels(ax_left, ax_right, df: pd.DataFrame, spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_annot_peak_labels is defined and S_annot_peak_labels %}
+{{ S_annot_peak_labels | indent(4, true) }}
+{% else %}
+    return None
+{% endif %}
+
+
+def slot_annot_text_boxes(fig, ax_left, ax_right, df: pd.DataFrame, spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_annot_text_boxes is defined and S_annot_text_boxes %}
+{{ S_annot_text_boxes | indent(4, true) }}
+{% else %}
+    return None
+{% endif %}
+
+
+def slot_annot_inset(fig, ax_left, ax_right, df: pd.DataFrame, spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_annot_inset is defined and S_annot_inset %}
+{{ S_annot_inset | indent(4, true) }}
+{% else %}
+    return None
+{% endif %}
+
+
+def slot_theme_fonts(fig, ax_left, ax_right, spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_theme_fonts is defined and S_theme_fonts %}
+{{ S_theme_fonts | indent(4, true) }}
+{% else %}
+    return None
+{% endif %}
+
+
+def slot_theme_palette(fig, ax_left, ax_right, spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_theme_palette is defined and S_theme_palette %}
+{{ S_theme_palette | indent(4, true) }}
+{% else %}
+    return None
+{% endif %}
+
+
+def slot_theme_misc(fig, ax_left, ax_right, spec: Dict[str, Any], ctx: Dict[str, Any]):
+{% if S_theme_misc is defined and S_theme_misc %}
+{{ S_theme_misc | indent(4, true) }}
+{% else %}
+    return None
+{% endif %}
+
+
+MARK_FUNCTIONS = {
+    "bar.grouped": slot_marks_bar_grouped,
+    "bar.stacked": slot_marks_bar_stacked,
+    "bar.percent": slot_marks_bar_percent,
+    "bar.waterfall": slot_marks_bar_waterfall,
+    "lollipop.main": slot_marks_lollipop_main,
+    "line.main": slot_marks_line_main,
+    "line.ci": slot_marks_line_ci,
+    "line.error": slot_marks_line_error,
+    "area.fill": slot_marks_area_fill,
+    "area.main": slot_marks_area_fill,
+    "area": slot_marks_area_fill,
+    "scatter.main": slot_marks_scatter_main,
+    "scatter.error": slot_marks_scatter_error,
+    "hist.main": slot_marks_hist_main,
+    "hexbin.main": slot_marks_hexbin_main,
+    "boxplot.main": slot_marks_boxplot_main,
+    "violin.main": slot_marks_violin_main,
+    "heatmap.main": slot_marks_heatmap_main,
+}
+
+
+def run(df: pd.DataFrame, intent: Dict[str, Any], ctx: Dict[str, Any], out_png: str) -> None:
+    spec_base = (ctx or {}).get("spec", {})
+    spec = slot_spec_compose(spec_base, intent, ctx)
+    spec = slot_spec_theme_defaults(spec, intent, ctx)
+
+    prep = slot_data_prepare(df.copy(), spec, intent, ctx)
+    agg = slot_data_aggregate(prep, spec, intent, ctx)
+    encoded = slot_data_encode(agg, spec, intent, ctx)
+    if encoded is None or encoded.empty:
+        raise ValueError("Encoded dataframe is empty.")
+
+    canvas = spec.get("canvas", {})
+    dpi = canvas.get("dpi", 300)
+    width = canvas.get("width", 960) / dpi
+    height = canvas.get("height", 576) / dpi
+
+    fig, ax_left = plt.subplots(figsize=(width, height), dpi=dpi)
+    ax_right = None
+    overlays = spec.get("overlays") or []
+    if any((ov.get("yaxis") == "right") for ov in overlays):
+        ax_right = ax_left.twinx()
+
+    slot_scales_x_kind(ax_left, ax_right, encoded, spec, ctx)
+    slot_scales_x_range(ax_left, ax_right, encoded, spec, ctx)
+    slot_scales_x_breaks(ax_left, ax_right, encoded, spec, ctx)
+    slot_scales_y_left_kind(ax_left, encoded, spec, ctx)
+    slot_scales_y_left_range(ax_left, encoded, spec, ctx)
+    slot_scales_y_left_breaks(ax_left, encoded, spec, ctx)
+    slot_scales_y_right_kind(ax_right, encoded, spec, ctx)
+    slot_scales_y_right_range(ax_right, encoded, spec, ctx)
+
+    artists = slot_marks_dispatch(fig, ax_left, ax_right, encoded, spec, ctx) or []
+
+    slot_colorbar_apply(fig, ax_left, ax_right, encoded, spec, ctx)
+
+    slot_axes_ticks(ax_left, ax_right, spec, ctx)
+    slot_axes_formatter(ax_left, ax_right, spec, ctx)
+    slot_axes_labels(ax_left, ax_right, spec, ctx)
+    slot_axes_spines(ax_left, ax_right, spec, ctx)
+    slot_axes_aspect(ax_left, ax_right, spec, ctx)
+    slot_axes_tick_rotate(ax_left, ax_right, spec, ctx)
+
+    slot_grid_apply(ax_left, ax_right, spec, ctx)
+    slot_legend_apply(fig, ax_left, ax_right, artists, spec, ctx)
+
+    slot_annot_reference_lines(ax_left, ax_right, encoded, spec, ctx)
+    slot_annot_bands(ax_left, ax_right, encoded, spec, ctx)
+    slot_annot_peak_labels(ax_left, ax_right, encoded, spec, ctx)
+    slot_annot_text_boxes(fig, ax_left, ax_right, encoded, spec, ctx)
+    slot_annot_inset(fig, ax_left, ax_right, encoded, spec, ctx)
+
+    slot_theme_fonts(fig, ax_left, ax_right, spec, ctx)
+    slot_theme_palette(fig, ax_left, ax_right, spec, ctx)
+    slot_theme_misc(fig, ax_left, ax_right, spec, ctx)
+
+    fig.tight_layout()
+    fig.savefig(out_png, dpi=dpi, bbox_inches="tight")
+    plt.close(fig)
+

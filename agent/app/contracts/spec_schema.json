@@ -1,0 +1,119 @@
+﻿{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ESS-Pro Spec",
+  "type": "object",
+  "required": ["canvas","overlays","scales","layout","theme"],
+  "properties": {
+    "canvas": {
+      "type": "object",
+      "properties": {
+        "width":  { "type": "number", "minimum": 320 },
+        "height": { "type": "number", "minimum": 240 },
+        "dpi":    { "type": "number", "minimum": 72  },
+        "aspect": { "type": "number", "minimum": 0.4 }
+      },
+      "additionalProperties": false
+    },
+    "overlays": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["mark","x","y"],
+        "properties": {
+          "mark":    { "enum": ["bar","line","scatter","area","hist","hexbin","boxplot","violin","heatmap","lollipop"] },
+          "variant": { "enum": ["grouped","stacked","percent","main","error","ci","waterfall",null] },
+          "x": { "type":"string" },
+          "y": { "type":"string" },
+          "group": { "type": ["string","null"] },
+          "yaxis": { "enum": ["left","right",null] },
+          "style": { "type": "object", "additionalProperties": true }
+        },
+        "additionalProperties": false
+      }
+    },
+    "scales": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "object",
+          "properties": {
+            "kind":   { "enum": ["categorical","linear","log","time"] },
+            "range":  { "type": ["array","null"] },
+            "breaks": { "type": ["array","null"] }
+          }
+        },
+        "y_left": {
+          "type": "object",
+          "properties": {
+            "kind":   { "enum": ["linear","log","symlog"] },
+            "range":  { "type": ["array","null"] },
+            "breaks": { "type": ["array","null"] }
+          }
+        },
+        "y_right": {
+          "type": "object",
+          "properties": {
+            "kind":   { "enum": ["linear","log","symlog"] },
+            "range":  { "type": ["array","null"] }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "layout": {
+      "type": "object",
+      "properties": {
+        "titles": {
+          "type": "object",
+          "properties": {
+            "top":    { "type": ["string","null"] },
+            "left":   { "type": ["string","null"] },
+            "right":  { "type": ["string","null"] },
+            "bottom": { "type": ["string","null"] }
+          }
+        },
+        "title_align": { "enum": ["left","center","right"] },
+        "legend": {
+          "type": "object",
+          "properties": {
+            "loc":   { "enum": ["inside","top","right","outside","best","none"] },
+            "ncol":  { "type": "integer", "minimum": 1 },
+            "frame": { "type": "boolean" }
+          }
+        },
+        "grid": {
+          "type": "object",
+          "properties": {
+            "x":     { "type": "boolean" },
+            "y":     { "type": "boolean" },
+            "minor": { "type": "boolean" }
+          }
+        },
+        "panel_labels": { "type": "array", "items": { "type":"string" } }
+      }
+    },
+    "theme": {
+      "type": "object",
+      "properties": {
+        "font":           { "type": "string" },
+        "fontsize":       { "type": "number" },
+        "axis_linewidth": { "type": "number" },
+        "tick_len":       { "type": "number" },
+        "tick_width":     { "type": "number" },
+        "palette_global": { "type": ["string","null"] },
+        "line_width":     { "type": "number" },
+        "marker_size":    { "type": "number" }
+      }
+    },
+    "flags": {
+      "type": "object",
+      "properties": {
+        "inherit_palette": { "type": "boolean" },
+        "legend_outside":  { "enum": ["auto","always","never"] },
+        "safe_log_y":      { "type": "boolean" },
+        "max_overlays":    { "type": "integer", "minimum": 1 },
+        "tick_density":    { "enum": ["compact","normal","dense"] }
+      }
+    }
+  }
+}
