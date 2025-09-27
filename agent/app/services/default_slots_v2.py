@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import textwrap
 
@@ -74,8 +74,8 @@ DEFAULT_STAGE_SLOTS_V2 = {
                 unique_counts = ctx.get('df_unique_counts') or {}
                 row_count = int(ctx.get('row_count', 0))
                 intent = intent or {}
-                time_tokens = ('date', 'time', 'year', 'month', 'week', 'day', 'quarter', 'season', '年', '月', '日', '季度', '周', '季', '时', '小时')
-                ratio_tokens = ('rate', 'ratio', 'share', 'percent', 'pct', '%', '率', '占比', '份额', '渗透', '占用', '百分比')
+                time_tokens = ('date', 'time', 'year', 'month', 'week', 'day', 'quarter', 'season', 'å¹´', 'æœˆ', 'æ—¥', 'å­£åº¦', 'å‘¨', 'å­£', 'æ—¶', 'å°æ—¶')
+                ratio_tokens = ('rate', 'ratio', 'share', 'percent', 'pct', '%', 'çŽ‡', 'å æ¯”', 'ä»½é¢', 'æ¸—é€', 'å ç”¨', 'ç™¾åˆ†æ¯”')
 
                 def _dtype(name: str) -> str:
                     source = str(profile_columns.get(name, "")) or str(dtypes.get(name, ""))
@@ -98,7 +98,7 @@ DEFAULT_STAGE_SLOTS_V2 = {
                         return True
                     if any(token in lower for token in time_tokens):
                         return True
-                    if _is_numeric(name) and _unique(name) <= max(12, row_count // 4 + 1) and any(token in lower for token in ('year', 'quarter', 'week', '月', '周', '季')):
+                    if _is_numeric(name) and _unique(name) <= max(12, row_count // 4 + 1) and any(token in lower for token in ('year', 'quarter', 'week', 'æœˆ', 'å‘¨', 'å­£')):
                         return True
                     return False
 
@@ -190,13 +190,13 @@ DEFAULT_STAGE_SLOTS_V2 = {
                             'range': None,
                             'breaks': None,
                         },
-                        'y_left': {'kind': 'linear', 'range': [0, None], 'breaks': None},
+                        'y_left': {'kind': 'linear', 'range': [None, None], 'breaks': None},
                         'y_right': {'kind': 'linear', 'range': None},
                     },
                     'layout': {
                         'titles': layout_titles,
                         'title_align': 'left',
-                        'legend': {'loc': 'best', 'ncol': 1, 'frame': False},
+                        'legend': {'loc': 'outside right', 'ncol': 1, 'frame': False},
                         'grid': {'x': False, 'y': True, 'minor': True},
                         'panel_labels': [],
                     },
@@ -502,24 +502,36 @@ DEFAULT_STAGE_SLOTS_V2 = {
             ),
             "scales.y_left.range": _slot(
                 """
-                rng = ((spec.get('scales') or {}).get('y_left') or {}).get('range')
-                if isinstance(rng, list) and len(rng) == 2:
-                    ax_left.set_ylim(bottom=rng[0], top=rng[1])
-                else:
-                    ov = (spec.get('overlays') or [{}])[0]
-                    y = ov.get('y')
-                    if y and y in df.columns:
-                        series = pd.to_numeric(df[y], errors='coerce')
-                        if series.notna().any():
-                            lower = min(0.0, float(series.min()))
-                            upper = float(series.max())
-                            upper = upper * 1.1 if upper > 0 else (upper * 0.9 if upper < 0 else upper + 1)
-                            ax_left.set_ylim(bottom=lower, top=upper)
-                            ctx.setdefault('_v2_meta', {})['y_range'] = (lower, upper)
-                """
+rng = ((spec.get('scales') or {}).get('y_left') or {}).get('range')
+if isinstance(rng, list) and len(rng) == 2 and any(val is not None for val in rng):
+    bottom, top = rng
+    ax_left.set_ylim(bottom=bottom, top=top)
+else:
+    ov = (spec.get('overlays') or [{}])[0]
+    y = ov.get('y')
+    if y and y in df.columns:
+        series = pd.to_numeric(df[y], errors='coerce').dropna()
+        if not series.empty:
+            meta = ctx.setdefault('_v2_meta', {})
+            y_is_ratio = bool(meta.get('y_is_ratio'))
+            smin = float(series.min())
+            smax = float(series.max())
+            span = smax - smin
+            if y_is_ratio and smax <= 1.5:
+                pad = max(span * 0.2, 0.02 if smax <= 0.5 else 0.05)
+                lower = max(0.0, smin - pad)
+                upper = min(1.2, smax + pad)
+            else:
+                lower = min(0.0, smin)
+                upper = smax
+                if lower == upper:
+                    upper = lower + (abs(lower) * 0.1 if lower else 1.0)
+            ax_left.set_ylim(bottom=lower, top=upper)
+            meta['y_range'] = (lower, upper)
+"""
             ),
         },
-        "notes": "?????;????;??????;x ???????",
+        "notes": "L3 defaults: marks & scales",
     },
     "L4": {
         "slots": {
@@ -527,17 +539,22 @@ DEFAULT_STAGE_SLOTS_V2 = {
                 """
                 layout = spec.get('layout') or {}
                 titles = layout.get('titles') or {}
+                theme = spec.get('theme') or {}
+                base_font = theme.get('fontsize', 9)
+                title_size = theme.get('title_fontsize', max(10, base_font * 1.35))
+                label_size = theme.get('label_fontsize', max(8, base_font * 1.1))
                 ov = (spec.get('overlays') or [{}])[0]
                 x = ov.get('x')
                 y = ov.get('y')
                 title = titles.get('top') or ctx.get('user_goal') or ''
-                ax_left.set_title(title, loc=layout.get('title_align', 'left'))
-                ax_left.set_xlabel(str(x) if x else '')
-                ax_left.set_ylabel(str(y) if y else '')
+                ax_left.set_title(title, loc=layout.get('title_align', 'left'), fontsize=title_size)
+                ax_left.set_xlabel(str(x) if x else '', fontsize=label_size)
+                ax_left.set_ylabel(str(y) if y else '', fontsize=label_size)
                 """
             ),
             "axes.ticks": _slot(
                 """
+theme = spec.get('theme') or {}
 meta = ctx.get('_v2_meta', {}) or {}
 mode = (spec.get('flags') or {}).get('tick_density', 'normal')
 target = 4 if mode == 'compact' else (6 if mode == 'normal' else 8)
@@ -566,6 +583,10 @@ else:
 ax_left.yaxis.set_major_locator(MaxNLocator(target))
 if ax_right:
     ax_right.yaxis.set_major_locator(MaxNLocator(target))
+tick_size = max(6, theme.get('fontsize', 9) * 0.9)
+ax_left.tick_params(axis='both', labelsize=tick_size)
+if ax_right:
+    ax_right.tick_params(axis='both', labelsize=tick_size)
 """
             ),
             "axes.formatter": _slot(
@@ -625,22 +646,39 @@ if ax_right:
                     seen.add(label)
                 if not combined:
                     return
-                desired = ((spec.get('layout') or {}).get('legend') or {}).get('loc', 'best')
-                if len(combined) >= 8:
+                legend_cfg = (spec.get('layout') or {}).get('legend') or {}
+                desired = legend_cfg.get('loc', 'best')
+                theme = spec.get('theme') or {}
+                legend_font = max(6, theme.get('fontsize', 9) * 0.9)
+                handles = [h for h, _ in combined]
+                labels = [lbl for _, lbl in combined]
+                if desired in {'outside right', 'right outside', 'outside'}:
                     ax_left.legend(
-                        [h for h, _ in combined],
-                        [lbl for _, lbl in combined],
+                        handles,
+                        labels,
+                        loc='center left',
+                        bbox_to_anchor=(1.02, 0.5),
+                        frameon=False,
+                        borderaxespad=0.0,
+                        fontsize=legend_font,
+                    )
+                elif len(combined) >= 8:
+                    ax_left.legend(
+                        handles,
+                        labels,
                         loc='lower center',
                         bbox_to_anchor=(0.5, -0.2),
                         frameon=False,
-                        ncol=2,
+                        ncol=legend_cfg.get('ncol', 2),
+                        fontsize=legend_font,
                     )
                 else:
                     ax_left.legend(
-                        [h for h, _ in combined],
-                        [lbl for _, lbl in combined],
+                        handles,
+                        labels,
                         loc=desired,
                         frameon=False,
+                        fontsize=legend_font,
                     )
                 """
             ),
@@ -653,9 +691,10 @@ if ax_right:
                 """
             ),
         },
-        "notes": "??/??/??;????;SI/???;?????",
+        "notes": "L4 defaults: axes, legend, theme",
     },
 }
+
 
 
 

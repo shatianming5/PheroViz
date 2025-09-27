@@ -10,8 +10,8 @@ _DEFAULTS: Dict[str, Any] = {
     "canvas": {"width": 960, "height": 576, "dpi": 300, "aspect": 1.667},
     "scales": {
         "x": {"kind": "categorical", "range": None, "breaks": None},
-        "y_left": {"kind": "linear", "range": [0, None], "breaks": None},
-        "y_right": {"kind": "linear", "range": None},
+        "y_left": {"kind": "linear", "range": [None, None], "breaks": None},
+        "y_right": {"kind": "linear", "range": [None, None]},
     },
     "layout": {
         "titles": {"top": None, "left": None, "right": None, "bottom": None},
