@@ -82,7 +82,7 @@ def derive_spec(intent: Dict[str, Any], data_profile: Dict[str, Any]) -> Dict[st
             "axis_linewidth": 1.0,
             "tick_len": 3.0,
             "tick_width": 0.8,
-            "palette_global": aesthetics.get("palette", "ColorBlindSafe"),
+            "palette_global": aesthetics.get("palette", "tab10"),
             "line_width": 1.5,
             "marker_size": 36,
         },

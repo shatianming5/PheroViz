@@ -337,7 +337,12 @@ def run_chain(
         {"rows": row_count, "columns": df_columns},
     )
 
-    base_intent = intent or {"chart_family": chart_family, "user_goal": user_goal}
+    base_intent: Dict[str, Any] = {"chart_family": chart_family, "user_goal": user_goal}
+    if intent:
+        merged: Dict[str, Any] = base_intent.copy()
+        merged.update(intent)
+        base_intent = merged
+
     draft_spec = derive_spec(base_intent, profile)
     spec = validate_spec(draft_spec)
 
