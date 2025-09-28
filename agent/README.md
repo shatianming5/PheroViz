@@ -1,75 +1,108 @@
-﻿# ESS-Pro Ultra 单圈闭环工作流
+# PheroViz Agent
 
-ESS-Pro Ultra 将意图 → 规格 → 插槽 → 沙箱 → Judge → FEEDBACK 串成单圈闭环。仓库内提供完整的 JSON Schema、插槽注册表、Ultra 模板、沙箱执行器、Judge++、FEEDBACK 生成器、单圈 Runner、few-shot 片库与示例 slots，可直接驱动 Zhizengzeng Responses API 或其他兼容接口。
+PheroViz Agent 是一个由四个阶段（L1-L4）组成的 Slot Pipeline，可自动生成基于 Matplotlib 的可视化。每一轮流程都会推导基础规格、填充各阶段的 slot 函数、在沙箱内渲染图像，并让 Judge++ 根据视觉表现与数据忠实度给出评分，从而决定是否继续迭代。
 
-## 快速开始
+## 项目结构
 
-```bash
-python -m venv .venv && .venv/Scripts/activate   # Windows；或 source .venv/bin/activate
+- `app/`
+  - `services/`
+    - `default_slots_v2.py`：默认 slot 集（v2），负责多 overlay 推断、数据准备、绘制与版式控制。
+    - `single_chain_runner.py`：主 orchestrator，负责组织 prompt、调用沙箱、记录产物并驱动多轮迭代。
+    - `sandbox_runner.py`：在临时目录落盘 scaffold/shim，调用 Matplotlib/Agg 渲染，并把更新后的上下文写回。
+    - `code_assembler.py`：根据 slot 片段生成最终可执行的 scaffold 脚本。
+    - `judge.py` / `feedback_builder.py`：Judge 评分与诊断、下一轮反馈生成。
+  - `runtime/scaffold_elements_pro.py.j2`：Jinja 模板，提供 slot stub 与运行时代码支撑。
+- `configs/`：Judge 规则与诊断映射配置。
+- `data/`：示例数据集（如 `sales_demo.csv`、`channel_share_dual.csv`、`actual_target_plan.csv`）。
+- `runs/`：每次运行生成的目录，包含 `iteration_*.json`、`figure_round_*.png`、`inputs.json` 等。
+- `scripts/`：用于 slot 回放或批量实验的辅助脚本。
+
+## 环境准备
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate
+# macOS / Linux
+source .venv/bin/activate
 pip install -r requirements.txt
-python run_chain.py data/sales_demo.csv "季度对比" bar --rounds 2 --intent '{"x":"月份","y":"销量","group":"品类","aesthetics":{"palette":"ColorBlindSafe"}}'
 ```
 
-运行完毕后，`runs/` 下会生成时间戳目录（spec、slots、代码、chart.png、judge.json、迭代日志等）。
+> 请在 `.env` 中配置 `LLM_API_KEY`（或兼容的 `OPENAI_API_KEY` / `LLM_API_BASE` / `LLM_MODEL`），以便在默认 slot 之外需要调用 Zhizengzeng Responses API 时能够正常工作。
 
-## 直接注入插槽
+## 运行方式
 
-```bash
-python scripts/run_slots.py data/sales_demo.csv examples/slots_bar_scatter_rightlog_ybreaks.json
+```powershell
+python run_chain.py <data_path> <user_goal> <chart_family> [--rounds N] [--sheet SHEET] [--intent JSON]
 ```
 
-脚本会装配 Ultra 模板、执行沙箱并输出评估分数，方便验证单独的 slots JSON。
+- `data_path`：CSV 或 Excel 文件路径；配合 `--sheet` 可指定 Excel 工作表。
+- `user_goal`：业务/分析目标描述，会写入标题与上下文。
+- `chart_family`：初始图形类型（如 `bar`、`line`、`area`、`scatter`）。
+- `--intent`：JSON 字符串，声明 x / y / group 及其它意图；在 PowerShell 中推荐配合 `--%` 或单引号避免转义问题。
+- `--rounds`：最大迭代次数；若 Judge 评分（`visual_form` 与 `data_fidelity`）均达到 0.75，将提前停止。
 
-## 目录速览
+运行结束后，可在 `runs/<timestamp>/` 中查看：
+- `figure_round_*.png`：各轮渲染出的图像。
+- `iteration_*.json`：记录当轮 spec、接受的 slot、诊断及评分。
+- `inputs.json`：本次任务的数据画像、意图与初始 spec 快照。
 
-- `contracts/spec_schema.json`：Spec JSON Schema。
-- `app/services/spec_deriver.py` / `spec_validator.py`：意图派生与校验。
-- `app/services/slot_registry.py`：插槽全集、执行 DAG、层级白名单。
-- `app/runtime/scaffold_elements_pro.py.j2`：Ultra 模板（所有插槽位）。
-- `app/services/sandbox_runner.py`：临时目录 + shim + Matplotlib/Agg 沙箱。
-- `configs/judge_rules.yml` / `diagnostics_map.yml`：Judge++ 规则与诊断键映射。
-- `app/services/judge.py`：图像粗评分 + 诊断收敛信号。
-- `app/services/feedback_builder.py`：结构化 FEEDBACK 文本。
-- `app/services/single_chain_runner.py`：单圈 orchestrator（L1→L4→沙箱→Judge→FEEDBACK）。
-- `app/snippets/slots_library.json`：常用插槽片库。
-- `examples/slots_bar_scatter_rightlog_ybreaks.json`：组合图 slots 示例。
+## Default Slots v2 摘要
 
-## FEEDBACK → Prompt 链
+默认 slot 覆盖 L1-L4 全链路：
 
-单圈 Runner 每轮执行：
-1. derive_spec → validate_spec 得到基础 Spec。
-2. 依次请求 L1/L2/L3/L4（预留 `_llm_generate_slots` 接口对接 Zhizengzeng Responses API）。
-3. assemble_with_slots → sandbox_runner.execute_script。
-4. Judge++ 打分，compose_feedback 汇总诊断与层级守卫。
-5. 分数达标 (VisualForm ≥ 0.75 且 DataFidelity ≥ 0.75) 即收敛，否则进入下一轮直至 round 上限。
+- **L1（spec.compose / theme_defaults）**
+  - 自动识别时间列、数值列、比例列，推断 x/y/group。
+  - 根据 `chart_family` 和数据特征选择合适的 mark，并为多 overlay 打基础。
+  - 通过关键词（`target`、`plan`、`baseline`、`trend` 等）识别目标、计划、基准、趋势字段，自动添加不同线型样式的参考层。
+  - 比例与绝对值混合时会分配左右轴，右轴系列数量默认上限为 2，并在 `_v2_meta` 中保留角色信息。
+- **L2（data.prepare / aggregate / encode）**
+  - 统一做类型转换、类目排序，保留所有 overlay 所需的列。
+  - `ratio_flag` 针对 `secondary_ratio`、`peer_ratio_metric` 等角色按均值聚合，并为后续百分比格式化提供依据。
+- **L3（marks.* / scales.*）**
+  - 默认实现面积、柱状、折线、散点等 mark，并维护调色板缓存、类别 x jitter、z-order 等细节。
+  - 对比例轴的安全检查、对数轴保护等逻辑均在此层完成。
+- **L4（axes.* / legend.apply / grid.apply / annot.*）**
+  - 统一字体缩放、网格策略，legend 优先外置并区分左右轴标签。
+  - 自动根据比例角色切换百分比刻度，必要时提示断轴信息。
 
-层级守卫示例（内置）：
-- L2：`allow=data.*; deny=ax/plt/text/legend/grid/theme`
-- L3：`allow=marks.*,scales.*,colorbar.apply; deny=axes.*,legend.*,grid.*,annot.*,theme.*`
-- L4：`allow=axes.*,legend.*,grid.*,annot.*,theme.*; deny=data.*,marks.*`
+所有阶段都会把推断结果写入 `ctx['_v2_meta']`，供后续 slot 共享（例如 legend 策略、聚合方式、字体缩放等）。
 
-## CLI
+## 多 Overlay 示例
 
-- CLI：`python run_chain.py <excel_or_csv> <user_goal> <chart_family> [--rounds N] [--sheet NAME] [--intent JSON]`
+```powershell
+# 面积图 + 右轴折线
+python --% run_chain.py data/channel_share_dual.csv "渠道占比与收入对比" area --rounds 1 --intent "{"x":"month","y":"share","group":"channel"}"
 
-## few-shot 片库
+# 散点图（按品类着色）
+python --% run_chain.py data/product_scatter.csv "价格 vs 销量" scatter --rounds 1 --intent "{"x":"price","y":"units","group":"category"}"
 
-`app/snippets/slots_library.json` 覆盖 bar.grouped、scatter.main、heatmap+colorbar、axes/legend/grid/annot/scales 等 17 组函数体，均为“只包含函数体”的合法插槽代码，可直接塞入 Ultra 模板。
+# 实际 vs 目标 / 计划 / 基准线
+python --% run_chain.py data/actual_target_plan.csv "实际与目标对比" line --rounds 1 --intent "{"x":"month","y":"actual"}"
+```
+
+查看 `runs/<timestamp>/iteration_1.json` 可确认多 overlay 已写入 spec，并与图像保持一致。
+
+## 调试建议
+
+- `debug_default_slots.py`：快速渲染当前默认 slot 组合，适用于排查语法或缩进问题。
+- 若 Judge 诊断 `empty.plot`，优先检查 `data.prepare` / `data.aggregate` 是否过滤掉所有行。
+- 每次运行的临时 scaffold 会拷贝到对应的 `runs/<timestamp>/` 目录中，便于分析生成代码。
+- `run.txt` 记录了近期 CLI 命令，方便复现任务。
 
 ## 测试
 
-```bash
+```powershell
 pytest -q
 ```
 
-包含两个基础冒烟测试：
-- Spec 派生→校验→基本字段验证。
-- 空插槽装配可成功生成 `run` 函数。
+现有测试覆盖 spec 推导、验证器、Judge 合约等逻辑；图像层面仍建议通过示例运行进行回归。
 
-## 示例数据
+## 后续工作建议
 
-`data/sales_demo.csv` 提供月度销量与转化率示例，可直接用于运行组合图 slots。
+1. 为新增的 `target` / `forecast` / `baseline` 等角色补充单元测试或回归脚本，确保聚合与 legend 逻辑稳定。
+2. 清理无用调试产物（如 `debug_*.png`），并视情况更新 `.gitignore`。
+3. 若计划继续扩展 overlay 规则，可在 L1 中向 `_v2_meta` 写入更多标记，并在 L2/L3/L4 中消费这些元数据。
 
 ---
 
-如需重新生成 Ultra 模板或扩展 slots，请遵守 `task.txt` 中的统一输出契约，并通过 `scripts/run_slots.py` / `pytest` 验证后再接入单圈 Runner。
+更多细节可直接阅读 `app/services/default_slots_v2.py` 及其 `_v2_meta` 注释，或查看近期 `runs/<timestamp>/iteration_*.json` 获取完整上下文。

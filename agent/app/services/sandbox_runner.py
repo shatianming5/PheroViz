@@ -54,6 +54,7 @@ def execute_script(
                 intent = json.loads(p_int.read_text(encoding="utf-8"))
                 ctx = json.loads(p_ctx.read_text(encoding="utf-8"))
                 scaffold.run(df, intent, ctx, str(out_png))
+                p_ctx.write_text(json.dumps(ctx, ensure_ascii=False), encoding='utf-8')
                 """
             ).strip(),
             encoding="utf-8",
@@ -89,9 +90,17 @@ def execute_script(
             ok = False
             stderr = f"Execution timed out after {timeout_s}s: {exc}"
 
+        updated_ctx = {}
+        if p_ctx.exists():
+            try:
+                updated_ctx = json.loads(p_ctx.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                updated_ctx = {}
+
         return {
             "ok": ok,
             "png_path": str(out_png_path) if ok else None,
             "stderr": stderr,
+            "ctx": updated_ctx,
         }
 

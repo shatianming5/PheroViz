@@ -474,6 +474,10 @@ def run_chain(
 
         emit("execution_start", {"round": round_idx, "output": out_png})
         exec_result = execute_script(py_code, df, base_intent, ctx, out_png)
+        updated_ctx = exec_result.get("ctx")
+        if isinstance(updated_ctx, dict):
+            ctx.update(updated_ctx)
+            spec = updated_ctx.get("spec", spec)
         stderr_preview = (exec_result.get("stderr") or "").strip()
         emit(
             "execution_end",

@@ -525,6 +525,7 @@ def run(df: pd.DataFrame, intent: Dict[str, Any], ctx: Dict[str, Any], out_png: 
     spec_base = (ctx or {}).get("spec", {})
     spec = slot_spec_compose(spec_base, intent, ctx)
     spec = slot_spec_theme_defaults(spec, intent, ctx)
+    ctx['spec'] = spec
 
     prep = slot_data_prepare(df.copy(), spec, intent, ctx)
     agg = slot_data_aggregate(prep, spec, intent, ctx)
@@ -579,4 +580,5 @@ def run(df: pd.DataFrame, intent: Dict[str, Any], ctx: Dict[str, Any], out_png: 
     fig.tight_layout()
     fig.savefig(out_png, dpi=dpi, bbox_inches="tight")
     plt.close(fig)
+
 
