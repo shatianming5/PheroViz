@@ -1112,24 +1112,32 @@ compressed_width = width * compress
 shift = width - compressed_width
 if compressed_width <= 0 or shift <= 0:
     return
+display_bottom = gap_start
+display_top = gap_start + compressed_width
 def _forward(values):
-    arr = np.asarray(values, dtype=float)
-    mask_gap = (arr > gap_start) & (arr < gap_end)
+    base = np.asarray(values, dtype=float)
+    if not base.size:
+        return base
+    arr = base.copy()
+    mask_gap = (base > gap_start) & (base < gap_end)
     if mask_gap.any():
-        arr[mask_gap] = gap_start + (arr[mask_gap] - gap_start) * (compressed_width / width)
-    mask_high = arr >= gap_end
+        arr[mask_gap] = gap_start + (base[mask_gap] - gap_start) * (compressed_width / width)
+    mask_high = base >= gap_end
     if mask_high.any():
-        arr[mask_high] = arr[mask_high] - shift
+        arr[mask_high] = base[mask_high] - shift
     return arr
 def _inverse(values):
-    arr = np.asarray(values, dtype=float)
-    threshold = gap_start + compressed_width
-    mask_high = arr >= threshold
+    base = np.asarray(values, dtype=float)
+    if not base.size:
+        return base
+    arr = base.copy()
+    threshold = display_top
+    mask_high = base >= threshold
     if mask_high.any():
-        arr[mask_high] = arr[mask_high] + shift
-    mask_gap = (arr > gap_start) & (arr < threshold)
+        arr[mask_high] = base[mask_high] + shift
+    mask_gap = (base > gap_start) & (base < threshold)
     if mask_gap.any():
-        arr[mask_gap] = gap_start + (arr[mask_gap] - gap_start) * (width / compressed_width)
+        arr[mask_gap] = gap_start + (base[mask_gap] - gap_start) * (width / compressed_width)
     return arr
 ax_left.set_yscale('function', functions=(_forward, _inverse))
 visual_bottom = min(min_val, gap_start - 0.05 * max(1.0, gap_start - min_val))
@@ -1139,9 +1147,20 @@ scales = spec.setdefault('scales', {})
 y_left = scales.setdefault('y_left', {})
 y_left['breaks'] = [[float(gap_start), float(gap_end)]]
 meta.setdefault('y_breaks', []).append((float(gap_start), float(gap_end)))
+meta['y_break_info'] = {
+    'start': float(gap_start),
+    'end': float(gap_end),
+    'display_top': float(display_top),
+    'shift': float(shift),
+    'compressed_width': float(compressed_width),
+    'visual_bottom': float(visual_bottom),
+    'visual_top': float(visual_top)
+}
 trans = matplotlib.transforms.blended_transform_factory(ax_left.transAxes, ax_left.transData)
-ax_left.plot((-0.02, 0.02), (gap_start, gap_start), transform=trans, color='#333333', linewidth=1.0, clip_on=False)
-ax_left.plot((-0.02, 0.02), (gap_start + compressed_width, gap_start + compressed_width), transform=trans, color='#333333', linewidth=1.0, clip_on=False)
+face_color = ax_left.get_facecolor()
+ax_left.add_patch(Rectangle((0.0, display_bottom), 1.0, display_top - display_bottom, transform=trans, facecolor=face_color, edgecolor='none', zorder=50))
+ax_left.plot((-0.02, 0.02), (gap_start, gap_start), transform=trans, color='#333333', linewidth=1.0, clip_on=False, zorder=51)
+ax_left.plot((-0.02, 0.02), (display_top, display_top), transform=trans, color='#333333', linewidth=1.0, clip_on=False, zorder=51)
 return
                 """
             ),
@@ -1205,7 +1224,29 @@ else:
                 if len(text) > 16:
                     chunks = [text[i:i + 16] for i in range(0, len(text), 16)]
                     tick.set_text(chr(10).join(chunks))
-ax_left.yaxis.set_major_locator(MaxNLocator(target))
+break_info = meta.get('y_break_info')
+if break_info:
+    start = break_info.get('start')
+    display_top = break_info.get('display_top')
+    lower_lim, upper_lim = ax_left.get_ylim()
+    n_lower = max(2, target // 2)
+    n_upper = max(2, target - n_lower + 1)
+    lower_ticks = np.linspace(lower_lim, start, n_lower)
+    upper_ticks = np.linspace(display_top, upper_lim, n_upper)
+    ticks = []
+    for val in lower_ticks:
+        if val <= start + 1e-9:
+            ticks.append(float(val))
+    for val in upper_ticks:
+        if val >= display_top - 1e-9:
+            ticks.append(float(val))
+    ticks = sorted(set(ticks))
+    ax_left.set_yticks(ticks)
+    ax_left.yaxis.set_minor_locator(AutoMinorLocator())
+    meta['y_break_tick_positions'] = ticks
+else:
+    ax_left.yaxis.set_major_locator(MaxNLocator(target))
+    ax_left.yaxis.set_minor_locator(AutoMinorLocator())
 if ax_right:
     ax_right.yaxis.set_major_locator(MaxNLocator(target))
 font_scale = meta.get('font_scaling') or {}
@@ -1239,13 +1280,22 @@ if ax_right:
                         return f"{int(value)}"
                     return f"{value:.2f}"
 
+                break_info = meta.get('y_break_info')
+                shift = float(break_info.get('shift', 0.0)) if break_info else 0.0
+                display_top = float(break_info.get('display_top', 0.0)) if break_info else None
+
+                def _restore(value: float) -> float:
+                    if break_info and display_top is not None and value >= display_top - 1e-9:
+                        return value + shift
+                    return value
+
                 left_ratio = bool(meta.get('y_is_ratio')) or any(ratio_flags.get(i) for i in left_ids)
                 right_ratio = any(ratio_flags.get(i) for i in right_ids)
 
                 if left_ratio:
-                    ax_left.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:.1%}"))
+                    ax_left.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{(_restore(v)):.1%}"))
                 else:
-                    ax_left.yaxis.set_major_formatter(FuncFormatter(lambda v, _: _fmt_si(v)))
+                    ax_left.yaxis.set_major_formatter(FuncFormatter(lambda v, _: _fmt_si(_restore(v))))
 
                 if ax_right:
                     if right_ratio:
