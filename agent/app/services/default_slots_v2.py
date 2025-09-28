@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import textwrap
 
@@ -127,8 +127,8 @@ intent = intent or {}
 meta = ctx.setdefault('_v2_meta', {})
 meta.clear()
 meta['row_count'] = row_count
-time_tokens = ('date', 'time', 'year', 'month', 'week', 'day', 'quarter', 'season', '年', '月', '日', '季度', '周', '季', '时', '小时')
-ratio_tokens = ('rate', 'ratio', 'share', 'percent', 'pct', '%', '率', '占比', '份额', '渗透', '占用', '百分比')
+time_tokens = ('date', 'time', 'year', 'month', 'week', 'day', 'quarter', 'season', '?', '?', '?', '??', '?', '?', '?', '??')
+ratio_tokens = ('rate', 'ratio', 'share', 'percent', 'pct', '%', '?', '??', '??', '??', '??', '???')
 
 def _dtype(name: str) -> str:
     source = str(profile_columns.get(name, "")) or str(dtypes.get(name, ""))
@@ -169,7 +169,7 @@ def _is_time_like(name: str) -> bool:
         except Exception:
             meta.setdefault('debug_unique_lists', {})[name] = 'fallback_is_time'
             unique_val = row_count
-        if unique_val <= max(12, row_count // 4 + 1) and any(token in lower for token in ('year', 'quarter', 'week', '月', '周', '季')):
+        if unique_val <= max(12, row_count // 4 + 1) and any(token in lower for token in ('year', 'quarter', 'week', '?', '?', '?')):
             return True
     return False
 
@@ -239,11 +239,11 @@ elif family in {'scatter', 'bubble'}:
 elif family in {'stacked_bar', 'stacked'}:
     mark = 'bar'
     variant = 'stacked'
-    style = {'alpha': 0.85}
+    style = {'alpha': 1.0}
 elif family in {'bar', 'column'}:
     mark = 'bar'
     variant = 'grouped' if group else 'main'
-    style = {'alpha': 0.85}
+    style = {'alpha': 1.0}
 elif family == 'line':
     mark = 'line'
 else:
@@ -256,7 +256,7 @@ else:
     elif group:
         mark = 'bar'
         variant = 'grouped'
-        style = {'alpha': 0.85}
+        style = {'alpha': 1.0}
     else:
         mark = 'scatter' if y and _is_numeric(y) else 'line'
         if mark == 'scatter':
@@ -350,10 +350,10 @@ extra_numeric = [c for c in num_cols if c not in {y}]
 extra_ratio = [c for c in extra_numeric if _is_ratio_like(c)]
 extra_abs = [c for c in extra_numeric if not _is_ratio_like(c)]
 
-target_tokens = ('target', 'goal', 'quota', 'kpi', 'objective', '目标', '指标', '达成')
-forecast_tokens = ('plan', 'budget', 'forecast', 'proj', 'projection', 'estimate', 'expected', '预估', '预计', '计划', '预算')
-baseline_tokens = ('baseline', 'bench', 'benchmark', 'avg', 'average', 'mean', 'median', 'industry', 'reference', 'ref', '对标', '基准', '均值', '平均', '去年', '上年', '往年', 'prev', 'previous', 'prior', 'last', '同比')
-trend_tokens = ('trend', 'rolling', 'ma', 'moving', 'smooth', 'ema', 'sma', '移动', '趋势', '滑动', '平滑')
+target_tokens = ('target', 'goal', 'quota', 'kpi', 'objective', '??', '??', '??')
+forecast_tokens = ('plan', 'budget', 'forecast', 'proj', 'projection', 'estimate', 'expected', '??', '??', '??', '??')
+baseline_tokens = ('baseline', 'bench', 'benchmark', 'avg', 'average', 'mean', 'median', 'industry', 'reference', 'ref', '??', '??', '??', '??', '??', '??', '??', 'prev', 'previous', 'prior', 'last', '??')
+trend_tokens = ('trend', 'rolling', 'ma', 'moving', 'smooth', 'ema', 'sma', '??', '??', '??', '??')
 
 def _has_token(name, tokens):
     lower = str(name).lower()
@@ -624,7 +624,7 @@ return spec_out
                 data = df.copy()
                 overlays = spec.get('overlays') or []
                 meta = ctx.setdefault('_v2_meta', {})
-                ratio_tokens = ('rate', 'ratio', 'share', 'percent', 'pct', '%', '率', '占比', '份额', '渗透', '占用', '百分比')
+                ratio_tokens = ('rate', 'ratio', 'share', 'percent', 'pct', '%', '?', '??', '??', '??', '??', '???')
                 ratio_flags = {}
                 overlay_roles = {role.get('id'): role for role in (meta.get('overlay_roles') or [])}
                 if overlays and not meta.get('x_categories'):
@@ -1389,6 +1389,7 @@ if ax_right:
         "notes": "L4 defaults: axes, legend, theme",
     },
 }
+
 
 
 

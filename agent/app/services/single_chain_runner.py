@@ -1,6 +1,7 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
+import copy
 import os
 import re
 import time
@@ -49,28 +50,52 @@ def _load_env_file() -> None:
             os.environ[key] = value
     _ENV_LOADED = True
 
-_FORBIDDEN_APIS = "os、sys、subprocess、pathlib、shutil、socket、requests、open、eval、exec、__import__ 及任何 I/O/网络 操作"
+_FORBIDDEN_APIS = "os/sys/subprocess/pathlib/shutil/socket/requests/open/eval/exec/__import__ and any I/O or network access"
 
-OUTPUT_CONTRACT = """【输出格式（必须 JSON，严禁多余文本）】\n{\n  \"slots\": { \"<slot.key>\": \"<仅函数体代码，不含 def/导入/I/O/网络>\" },\n  \"notes\": \"<设计要点/风险/回退方案>\"\n}\n【强约束】\n- 仅输出 JSON 字符串，不得附加解释或 Markdown。\n- 允许使用的库：pandas、numpy、matplotlib.pyplot、matplotlib.ticker、matplotlib.patches、matplotlib.transforms、mpl_toolkits.axes_grid1.inset_locator。\n- 禁止导入或调用 %s。\n- 函数体必须是可直接放入模板的 Python 语句，需以 `return ...` 或等价语句结束，不得包含 def/class/with/try 等顶层结构。\n""" % _FORBIDDEN_APIS
+OUTPUT_CONTRACT = """Output must be JSON (no extra commentary).
+{
+  \"slots\": { \"<slot.key>\": \"<Python statements only; no def/import/I-O/network>\" },
+  \"notes\": \"<design intent / risks / fallback>\"
+}
+Rules:
+- JSON only; do not add Markdown or plain text.
+- Allowed libs: pandas, numpy, matplotlib.pyplot, matplotlib.ticker, matplotlib.patches, matplotlib.transforms, mpl_toolkits.axes_grid1.inset_locator.
+- Forbidden APIs: %s.
+- Function bodies must end with `return ...` (or equivalent) and avoid def/class/with/try blocks.
+""" % _FORBIDDEN_APIS
 
 SYSTEM_PROMPT = (
-    "你是资深可视化编排工程师，负责根据不同层级（L1-L4）生成 Matplotlib 插槽代码。"
-    "所有回复必须严格遵守输出契约，只能返回合法 JSON；任何违规键、文本或解释都将被视为错误。"
+    "You are a visualization assembly expert who emits Matplotlib slot bodies for stages L1-L4."
+    "Always obey the output contract and respond with valid JSON only."
 )
 
 _STAGE_NAMES = {
-    "L1": "规格与主题设计师",
-    "L2": "数据编排工程师",
-    "L3": "几何与标度工程师",
-    "L4": "微排版设计师",
+    "L1": "Spec & Theme Designer",
+    "L2": "Data Preparation Engineer",
+    "L3": "Geometry & Scale Engineer",
+    "L4": "Micro-layout Designer",
+}
+_STAGE_SLOT_HINT = {
+    "L1": "Allowed: spec.compose, spec.theme_defaults",
+    "L2": "Allowed: data.prepare, data.aggregate, data.encode",
+    "L3": "Allowed: marks.*, scales.*, colorbar.apply",
+    "L4": "Allowed: axes.*, legend.apply, grid.apply, annot.*, theme.*",
 }
 
-_STAGE_SLOT_HINT = {
-    "L1": "只允许 slots: spec.compose, spec.theme_defaults",
-    "L2": "只允许 slots: data.prepare, data.aggregate, data.encode",
-    "L3": "只允许 slots: marks.*, scales.*, colorbar.apply",
-    "L4": "只允许 slots: axes.*, legend.apply, grid.apply, annot.*, theme.*",
-}
+_FORBIDDEN_SLOT_PATTERNS = [
+    (re.compile(r'^\s*import\s+\w+', re.MULTILINE), 'import statements are forbidden'),
+    (re.compile(r'^\s*from\s+\w+', re.MULTILINE), 'import statements are forbidden'),
+    (re.compile(r'plt\.'), 'plt.* is unavailable inside scaffold'),
+    (re.compile(r'matplotlib\.'), 'matplotlib is unavailable'),
+    (re.compile(r'sns\.'), 'seaborn is unavailable'),
+    (re.compile(r'__import__'), 'dynamic import is forbidden'),
+    (re.compile(r'\beval\s*\('), 'eval is forbidden'),
+    (re.compile(r'\bexec\s*\('), 'exec is forbidden'),
+    (re.compile(r'\bopen\s*\('), 'file I/O is forbidden'),
+    (re.compile(r'os\.'), 'os module is forbidden'),
+    (re.compile(r'sys\.'), 'sys module is forbidden'),
+    (re.compile(r'requests\.'), 'network access is forbidden'),
+]
 
 
 def _snapshot(data: Any) -> Any:
@@ -94,7 +119,7 @@ class SlotLLMClient:
         self.base = base.rstrip("/")
         self.key = api_key or os.getenv("LLM_API_KEY") or os.getenv("OPENAI_API_KEY") or ""
         if not self.key:
-            raise RuntimeError("Missing LLM_API_KEY; 请先在 .env 中配置 Zhizengzeng/OpenAI Key")
+            raise RuntimeError("Missing LLM_API_KEY; ??? .env ??? Zhizengzeng/OpenAI Key")
         self.model = model or os.getenv("LLM_MODEL") or "gpt-4.1-mini"
         timeout_env = os.getenv("LLM_TIMEOUT")
         if timeout_env:
@@ -103,6 +128,19 @@ class SlotLLMClient:
             except ValueError:
                 pass
         self.timeout = max(timeout, 30.0)
+        connect_env = os.getenv("LLM_CONNECT_TIMEOUT")
+        if connect_env:
+            try:
+                self.connect_timeout = max(float(connect_env), 1.0)
+            except ValueError:
+                self.connect_timeout = 30.0
+        else:
+            self.connect_timeout = 30.0
+        retry_env = os.getenv("LLM_RETRY")
+        try:
+            self.retries = max(int(retry_env), 0) if retry_env is not None else 2
+        except ValueError:
+            self.retries = 2
         self._session = requests.Session()
 
     def chat_json(self, messages: list[dict[str, Any]]) -> Dict[str, Any]:
@@ -120,16 +158,27 @@ class SlotLLMClient:
                 payload["max_output_tokens"] = int(max_tokens_env)
             except ValueError:
                 pass
-        response = self._session.post(
-            f"{self.base}/chat/completions",
-            headers=headers,
-            json=payload,
-            timeout=(10, self.timeout),
-        )
-        response.raise_for_status()
-        data = response.json()
+        last_error = None
+        for attempt in range(self.retries + 1):
+            try:
+                response = self._session.post(
+                    f"{self.base}/chat/completions",
+                    headers=headers,
+                    json=payload,
+                    timeout=(self.connect_timeout, self.timeout),
+                )
+                response.raise_for_status()
+                data = response.json()
+                break
+            except requests.RequestException as exc:
+                last_error = exc
+                if attempt == self.retries:
+                    raise
+                time.sleep(min(2 ** attempt, 5.0))
+        else:
+            raise last_error
         if isinstance(data, dict) and data.get("code") not in (None, 0):
-            raise RuntimeError(f"LLM 调用失败: {data.get('code')} {data.get('msg')}")
+            raise RuntimeError(f"LLM ????: {data.get('code')} {data.get('msg')}")
         content = data["choices"][0]["message"].get("content", "{}").strip()
         try:
             return json.loads(content)
@@ -137,7 +186,7 @@ class SlotLLMClient:
             match = re.search(r"\{.*\}", content, re.S)
             if match:
                 return json.loads(match.group(0))
-            raise RuntimeError("模型未返回可解析的 JSON")
+            raise RuntimeError("????????? JSON")
 
 
 _LLM_CLIENT: Optional[SlotLLMClient] = None
@@ -179,71 +228,261 @@ def _format_table(data: Dict[str, Any]) -> str:
 
 
 def _build_stage_prompt(stage: str, payload: Dict[str, Any]) -> str:
-    feedback = payload.get("feedback") or payload.get("feedback_text") or "无"
-    intro = f"【角色】{_STAGE_NAMES.get(stage, stage)}（{stage}）。{_STAGE_SLOT_HINT.get(stage, '')}\n"
+    stage_name = _STAGE_NAMES.get(stage, stage)
+    slot_keys = ", ".join(payload.get("slot_keys") or [])
+    feedback = payload.get("feedback") or payload.get("feedback_text") or ""
+    header_items = [
+        f"Stage: {stage_name} ({stage})",
+        f"Allowed slots: {slot_keys}",
+        _STAGE_SLOT_HINT.get(stage, ""),
+    ]
+    forbidden_notes = payload.get("forbidden_notes") or ""
+    if forbidden_notes:
+        header_items.append(f"Recent forbidden issues: {forbidden_notes}")
+    header_text = '\n'.join(item for item in header_items if item)
+    global_rules = textwrap.dedent(
+        """Global rules:
+- Follow the JSON output contract strictly.
+- Never emit `import`, `from`, `plt.*`, `matplotlib.*`, `sns.*`, `open`, file I/O, or network calls.
+- Access nested dictionaries with `.get(...)` and defaults, e.g. `layout = spec.get('layout') or {}`.
+- Guard optional objects (`if ax_right:`) before using them.
+- Always define `theme = spec.get('theme') or {}` before using theme[...] inside axes/legend/theme slots.
+- Keep the overlay-based spec schema; never remove `spec['overlays']` or add top-level Vega-Lite fields like `mark`/`encoding`/`layer`.
+- Preserve ctx metadata via `meta = ctx.setdefault('_v2_meta', {})` and update keys incrementally.
+"""
+    )
 
     if stage == "L1":
         data_profile = _format_json(payload.get("data_profile", {}))
         intent = _format_json(payload.get("intent", {}))
-        spec = _format_json(payload.get("spec", {}))
-        task = (
-            "- 基于数据画像与业务意图完善 canvas/overlays/scales/layout/theme/flags，并可组合多 overlay（如 bar+scatter/line）。\n"
-            "- 支持右轴（overlays[i].yaxis='right'）与断轴/范围控制（scales.y_left.breaks / range），必要时写明理由。\n"
-            "- `spec.compose` 必须返回完整 dict；`spec.theme_defaults` 提供字体/字号/色板/线宽/刻度策略等默认值（可 `{}`）。\n"
-            "- 优先增量调整，保持兼容性。\n"
+        spec_json = _format_json(payload.get("spec", {}))
+        tasks = textwrap.dedent(
+            """L1 duties:
+- Return a full spec dict via `spec.compose`; preserve existing fields unless you intentionally override them.
+- Keep the overlays/canvas/scales/layout/theme/flags schema; never introduce Vega-Lite style `mark`/`encoding`/`layer` keys or replace the top-level structure.
+- Do not assign `spec = {...}` or delete/clear `spec['overlays']`; adjust overlays in place by editing elements within the existing list.
+- Derive overlays/layout/theme defaults that respect the intent (x/y/group, chart_family) and update ctx['_v2_meta'] accordingly.
+- `spec.theme_defaults` should be `{}` when no additions are needed.
+- Always fetch nested keys safely, e.g. `layout = spec.get('layout') or {}`.
+Allowed variables: spec, intent, ctx, meta = ctx.setdefault('_v2_meta', {}), profile data.
+"""
         )
-        body = (
-            f"【数据画像】\n{data_profile}\n\n"
-            f"【意图】\n{intent}\n\n"
-            f"【当前 spec】\n{spec}\n\n"
-            f"【上一轮反馈】\n{feedback}\n\n"
-            f"【任务】\n{task}"
-        )
+        body_lines = [
+            header_text,
+            "",
+            "Data profile:",
+            data_profile,
+            "",
+            "Intent:",
+            intent,
+            "",
+            "Current spec:",
+            spec_json,
+            "",
+            "Previous feedback:",
+            feedback,
+            "",
+            tasks,
+            global_rules,
+        ]
+        body = '\n'.join(body_lines)
     elif stage == "L2":
         df_preview = _format_table(payload.get("df_head", {}))
-        spec = _format_json(payload.get("spec", {}))
-        task = (
-            "- `data.prepare` 负责清洗/缺失处理/类型转换（如 to_datetime）、派生列与过滤，必须返回 DataFrame。\n"
-            "- `data.aggregate` 仅在需要聚合或 topK 时使用；否则直接 `return df`。\n"
-            "- `data.encode` 输出绘图编码所需列（颜色/尺寸等），若无需额外处理可 `return df`。\n"
-            "- 禁止出现轴/图例/注释/主题或 Matplotlib 绘图指令。\n"
+        spec_json = _format_json(payload.get("spec", {}))
+        tasks = textwrap.dedent(
+            """L2 duties:
+- `data.prepare` cleans/derives columns and must return a DataFrame.
+- `data.aggregate` only executes when aggregation/top-k is required; otherwise `return df`.
+- `data.encode` exposes plotting columns; return df when no extra encoding is needed.
+- Absolutely no plotting, axes manipulation, or forbidden libraries.
+- Use safe dictionary access (`cfg = spec.get('layout') or {}`).
+Allowed variables: df, spec, ctx, pd, np.
+"""
         )
-        body = (
-            f"【数据预览（head）】\n{df_preview}\n\n"
-            f"【当前 spec】\n{spec}\n\n"
-            f"【上一轮反馈】\n{feedback}\n\n"
-            f"【任务】\n{task}"
-        )
+        body_lines = [
+            header_text,
+            "",
+            "Data preview (head):",
+            df_preview,
+            "",
+            "Current spec:",
+            spec_json,
+            "",
+            "Previous feedback:",
+            feedback,
+            "",
+            tasks,
+            global_rules,
+        ]
+        body = '\n'.join(body_lines)
     elif stage == "L3":
         df_preview = _format_table(payload.get("dff_head", {}))
-        spec = _format_json(payload.get("spec", {}))
-        task = (
-            "- 为 overlays 生成 marks.*，负责几何绘制/调色/图例标签，可按需输出误差棒、CI、回归或密度等增强。\n"
-            "- 合理设置 scales.* 与 colorbar.apply，正确处理对数轴、安全断轴、双轴范围与色条。\n"
-            "- 禁止调用轴/图例/注释/主题相关函数。\n"
+        spec_json = _format_json(payload.get("spec", {}))
+        tasks = textwrap.dedent(
+            """L3 duties:
+- Provide marks.* bodies for overlays: draw geometries, manage color/ordering, and respect ctx['_v2_meta'].
+- Use the provided axis argument `ax` to draw (e.g., `ax.bar`, `ax.plot`, `ax.scatter`); do not return raw data structures without plotting.
+- Keep the overlays list intact; operate on overlay dictionaries without rewriting spec['overlays'] or introducing new top-level mark/encoding keys.
+- Configure scales.* or colorbar.apply when needed (log scale, dual axis limits, palettes).
+- Do not touch axes/legend/grid/theme slots.
+- Reuse palette via `meta = ctx.setdefault('_v2_meta', {})`; never call plt.get_cmap.
+- Access spec/ctx with `.get(...)` and fallbacks.
+Allowed variables: df, spec, ctx, meta = ctx.setdefault('_v2_meta', {}), ax_left, ax_right, fig, np, pd, theme.
+"""
         )
-        body = (
-            f"【数据预览（encoded head）】\n{df_preview}\n\n"
-            f"【当前 spec】\n{spec}\n\n"
-            f"【上一轮反馈】\n{feedback}\n\n"
-            f"【任务】\n{task}"
+        l3_example = textwrap.dedent(
+            """Example:
+meta = ctx.setdefault('_v2_meta', {})
+overlays = spec.get('overlays') or []
+overlay_cfg = overlays[0] if overlays else {}
+style_cfg = overlay_cfg.get('style') or {}
+"""
         )
+        body_lines = [
+            header_text,
+            "",
+            "Encoded data preview:",
+            df_preview,
+            "",
+            "Current spec:",
+            spec_json,
+            "",
+            "Previous feedback:",
+            feedback,
+            "",
+            tasks,
+            l3_example,
+            global_rules,
+        ]
+        body = '\n'.join(body_lines)
     elif stage == "L4":
-        spec = _format_json(payload.get("spec", {}))
-        task = (
-            "- 设置标题四向、轴标签/单位、刻度密度与旋转，整理 legend/grid/spines。\n"
-            "- 可添加 annot.reference_lines/bands/text/inset 等注释，及 theme.* 字体/配色/背景微调。\n"
-            "- 禁止操作 data.* 或 marks.*。\n"
+        spec_json = _format_json(payload.get("spec", {}))
+        tasks = textwrap.dedent(
+            """L4 duties:
+- Manage titles, axis labels, tick density/rotation, legend placement, grids, and spines.
+- You may add annotations (reference lines/bands/text) and theme adjustments for readability.
+- Do not invoke data.* or marks.* functions.
+- Treat missing layout safely: `layout = spec.get('layout') or {}` / `grid_cfg = layout.get('grid') or {}`.
+- Start with `theme = spec.get('theme') or {}` when you need theme-driven styling.
+- Check axis objects exist before mutating (`if ax_right:`).
+Allowed variables: ax_left, ax_right, fig, spec, ctx, meta = ctx.setdefault('_v2_meta', {}), theme.
+"""
         )
-        body = (
-            f"【当前 spec】\n{spec}\n\n"
-            f"【上一轮反馈】\n{feedback}\n\n"
-            f"【任务】\n{task}"
+        example = textwrap.dedent(
+            """Sample snippet:
+layout = spec.get('layout') or {}
+grid_cfg = layout.get('grid') or {}
+theme = spec.get('theme') or {}
+ax_left.grid(bool(grid_cfg.get('y', True)), which='major', axis='y', linestyle='-', alpha=0.3)
+if ax_right:
+    ax_right.grid(bool(grid_cfg.get('y', True)), which='major', axis='y', linestyle='-', alpha=0.3)
+"""
         )
+        body_lines = [
+            header_text,
+            "",
+            "Current spec:",
+            spec_json,
+            "",
+            "Previous feedback:",
+            feedback,
+            "",
+            tasks,
+            example,
+            global_rules,
+        ]
+        body = '\n'.join(body_lines)
     else:
-        body = f"【上下文】\n{_format_json(payload)}\n\n【上一轮反馈】\n{feedback}\n"
+        payload_json = _format_json(payload)
+        body_lines = [
+            header_text,
+            "",
+            "Context:",
+            payload_json,
+            "",
+            "Previous feedback:",
+            feedback,
+            "",
+            global_rules,
+        ]
+        body = '\n'.join(body_lines)
 
-    return f"{intro}{body}\n\n{OUTPUT_CONTRACT}"
+    return f"{body}\n\n{OUTPUT_CONTRACT}"
+
+def _filter_forbidden_slot_content(stage: str, slots: Dict[str, str]) -> Tuple[Dict[str, str], Dict[str, str], Dict[str, str]]:
+    filtered: Dict[str, str] = {}
+    forbidden: Dict[str, str] = {}
+    autofix: Dict[str, str] = {}
+    for key, body in (slots or {}).items():
+        if not isinstance(body, str):
+            continue
+        reasons = []
+        for pattern, message in _FORBIDDEN_SLOT_PATTERNS:
+            if pattern.search(body):
+                reasons.append(message)
+        if stage == "L1" and key == "spec.compose":
+            if re.search(r"\bspec\s*=\s*\{", body):
+                reasons.append("spec.compose must update the existing spec dict instead of rebuilding it.")
+            normalized = re.sub(r"\s+", "", body)
+            top_level_tokens = (
+                "spec.get('mark'",
+                "spec.get(\"mark\"",
+                "spec.get('encoding'",
+                "spec.get(\"encoding\"",
+                "spec.get('layer'",
+                "spec.get(\"layer\"",
+                "spec['mark']",
+                "spec[\"mark\"]",
+                "spec['encoding']",
+                "spec[\"encoding\"]",
+                "spec['layer']",
+                "spec[\"layer\"]",
+            )
+            if any(token in body for token in top_level_tokens):
+                reasons.append("spec.compose must not introduce Vega-Lite style top-level keys (mark/encoding/layer).")
+            if ("spec.pop('overlays')" in normalized or 'spec.pop("overlays")' in normalized or "delspec['overlays']" in normalized or 'delspec["overlays"]' in normalized):
+                reasons.append("spec.compose must keep spec['overlays'] and modify it in place.")
+            if ("spec['overlays']=[]" in normalized or "spec[\"overlays\"]=[]" in normalized):
+                reasons.append("spec.compose must not assign an empty overlays list.")
+        if stage == "L3" and key.startswith("marks."):
+            if 'ax.' not in body and 'axis.' not in body:
+                reasons.append("marks.* must draw using the provided axis (ax).")
+        if reasons:
+            forbidden[key] = '; '.join(sorted(set(reasons)))
+            continue
+        new_body = body
+        if stage == "L4" and _needs_theme_guard(body):
+            new_body = "theme = spec.get('theme') or {}\n" + body
+            autofix[key] = 'theme_guard'
+        # Autofix: legend.apply bodies that use `legend` without defining it
+        if stage == "L4" and key == "legend.apply":
+            uses_legend_obj = bool(re.search(r"\blegend\s*\.\w+|\bif\s+legend\b", new_body))
+            has_legend_assign = bool(re.search(r"\blegend\s*=", new_body))
+            if uses_legend_obj and not has_legend_assign:
+                prefix = (
+                    "legend = ax_left.legend() if ax_left else None\n"
+                )
+                new_body = prefix + new_body
+                autofix[key] = (autofix.get(key, '') + (';' if autofix.get(key) else '') + 'legend_guard').strip(';')
+            # Normalize API: drop unsupported legend._set_ncol / legend.set_ncol in favor of passing ncol to creation
+            # Remove fragile calls that cause AttributeError on some Matplotlib versions
+            new_body = re.sub(r"legend\._set_ncol\s*\(.*?\)\s*", "", new_body)
+            new_body = re.sub(r"legend\.set_ncol\s*\(.*?\)\s*", "", new_body)
+        filtered[key] = new_body
+    return filtered, forbidden, autofix
+
+
+def _needs_theme_guard(body: str) -> bool:
+    if not re.search(r"\btheme\b", body):
+        return False
+    if re.search(r"\btheme\s*=", body):
+        return False
+    if re.search(r'spec\.get\(\s*["\']theme["\']', body):
+        return False
+    if re.search(r'ctx\.get\(\s*["\']theme["\']', body):
+        return False
+    return bool(re.search(r"theme\s*\[|theme\.get", body))
+
 
 def _llm_generate_slots(stage: str, payload: Dict[str, Any]) -> Dict[str, Any]:
     prompt = _build_stage_prompt(stage, payload)
@@ -265,10 +504,24 @@ def _llm_generate_slots(stage: str, payload: Dict[str, Any]) -> Dict[str, Any]:
     for key, value in slots.items():
         if isinstance(key, str) and isinstance(value, str) and value.strip():
             clean_slots[key.strip()] = value.strip()
+    filtered_slots, forbidden_map, autofix_map = _filter_forbidden_slot_content(stage, clean_slots)
     notes = response_dict.get("notes", "")
     if not isinstance(notes, str):
         notes = ""
-    return {"slots": clean_slots, "notes": notes, "prompt": prompt, "response": raw_response}
+    if forbidden_map:
+        summary = ", ".join(f"{k}: {reason}" for k, reason in forbidden_map.items())
+        extra = f"filtered_forbidden[{summary}]"
+        notes = f"{notes} {extra}".strip() if notes else extra
+    if autofix_map:
+        summary_autofix = ", ".join(f"{k}: {label}" for k, label in autofix_map.items())
+        extra_autofix = f"autofix[{summary_autofix}]"
+        notes = f"{notes} {extra_autofix}".strip() if notes else extra_autofix
+    result = {"slots": filtered_slots, "notes": notes, "prompt": prompt, "response": raw_response}
+    if forbidden_map:
+        result["forbidden"] = forbidden_map
+    if autofix_map:
+        result["autofix"] = autofix_map
+    return result
 
 
 def _layer_guard(layer: str, slots: Optional[Dict[str, str]]) -> Tuple[Dict[str, str], Dict[str, str]]:
@@ -369,6 +622,12 @@ def run_chain(
         "df_unique_counts": df_unique_counts,
         "row_count": row_count,
     }
+    # Debug toggle propagated into scaffold for richer diagnostics/overlays
+    debug_env = os.getenv("DEBUG_RUN", "").strip().lower()
+    ctx["debug"] = debug_env not in {"", "0", "false", "no"}
+    force_all_rounds_raw = os.getenv("FORCE_ALL_ROUNDS", "")
+    force_all_rounds = force_all_rounds_raw.strip().lower() not in {"", "0", "false", "no"}
+    ctx["force_all_rounds"] = force_all_rounds
 
     emit(
         "context_ready",
@@ -406,6 +665,19 @@ def run_chain(
             },
         }
 
+        forbidden_history = ctx.get('_forbidden_history', {})
+        for _layer_key, _payload in stage_payloads.items():
+            history_list = forbidden_history.get(_layer_key, [])
+            if history_list:
+                recent_entries = history_list[-2:]
+                summary = " | ".join(
+                    f"round {entry.get('round')}: {entry.get('summary')}"
+                    for entry in recent_entries
+                    if entry.get('summary')
+                )
+                if summary:
+                    _payload["forbidden_notes"] = summary
+
         ok_by_layer: Dict[str, Dict[str, str]] = {}
         for layer, payload in stage_payloads.items():
             stage_name = _STAGE_NAMES.get(layer, layer)
@@ -428,28 +700,86 @@ def run_chain(
                     "prompt": "DEFAULT_V2",
                     "response": {"source": "default_v2", "notes": notes_default},
                 }
+                forbidden_map: Dict[str, str] = {}
+                autofix_map: Dict[str, str] = {}
             else:
                 out = _llm_generate_slots(layer, payload)
+                forbidden_map = (out.get("forbidden") if isinstance(out, dict) else {}) or {}
+                autofix_map = (out.get("autofix") if isinstance(out, dict) else {}) or {}
+            history_ref = ctx.setdefault('_forbidden_history', {}).setdefault(layer, [])
+            summary_text = ""
+            if forbidden_map:
+                summary_entries = [f"{slot}: {reason}" for slot, reason in forbidden_map.items()]
+                summary_text = '; '.join(summary_entries)
+                history_ref.append({"round": round_idx, "summary": summary_text})
+            elif autofix_map:
+                summary_autofix = '; '.join(f"{slot}: {label}" for slot, label in autofix_map.items())
+                if summary_autofix:
+                    history_ref.append({"round": round_idx, "summary": f"autofix {summary_autofix}"})
             emit(
                 "llm_io",
                 {
                     "round": round_idx,
                     "stage": layer,
                     "stage_name": stage_name,
-                    "prompt": out.get("prompt", ""),
-                    "response": out.get("response"),
+                    "prompt": out.get("prompt", "") if isinstance(out, dict) else "",
+                    "response": out.get("response") if isinstance(out, dict) else None,
                 },
             )
-            ok_layer, rej_layer = _layer_guard(layer, out.get("slots"))
+            out_dict = out if isinstance(out, dict) else {"slots": {}, "notes": "", "prompt": None, "response": None}
+            llm_slots = out_dict.get("slots", {}) or {}
+            ok_layer, rej_layer = _layer_guard(layer, llm_slots)
+            fallback_used: Optional[str] = None
+            fallback_slots: Dict[str, str] = {}
+            notes_text = out_dict.get("notes", "")
+            if not ok_layer and forbidden_map and layer in DEFAULT_STAGE_SLOTS_V2:
+                default_bundle = DEFAULT_STAGE_SLOTS_V2[layer]
+                fallback_slots = dict(default_bundle.get("slots", {}))
+                ok_layer, rej_default = _layer_guard(layer, fallback_slots)
+                fallback_used = "default_after_forbidden"
+                if rej_layer:
+                    rej_layer = {**rej_layer, **{f"default::{k}": v for k, v in rej_default.items()}}
+                else:
+                    rej_layer = rej_default
+                extra_note = "fallback: default_v2 (forbidden content removed)"
+                notes_text = f"{notes_text} {extra_note}".strip() if notes_text else extra_note
+                fallback_summary = f"{summary_text} (fallback: default_v2)" if summary_text else "fallback: default_v2 applied"
+                if history_ref:
+                    history_ref[-1]["summary"] = fallback_summary
+                else:
+                    history_ref.append({"round": round_idx, "summary": fallback_summary})
+            if layer == "L3" and not any(key.startswith("marks.") for key in ok_layer) and layer in DEFAULT_STAGE_SLOTS_V2:
+                default_bundle = DEFAULT_STAGE_SLOTS_V2[layer]
+                default_mark_candidates = dict(default_bundle.get("slots", {}))
+                default_ok, _ = _layer_guard(layer, default_mark_candidates)
+                default_marks = {k: v for k, v in default_ok.items() if k.startswith("marks.")}
+                if default_marks:
+                    ok_layer = {**default_marks, **ok_layer}
+                    fallback_slots.update(default_marks)
+                    extra_note = "fallback: default_v2 marks added"
+                    notes_text = f"{notes_text} {extra_note}".strip() if notes_text else extra_note
+                    fallback_used = f"{fallback_used},default_marks".strip(',') if fallback_used else "default_marks"
+                    fallback_summary = "fallback default_marks -> please draw using ax.* functions"
+                    if history_ref and history_ref[-1].get("round") == round_idx:
+                        summary_prev = history_ref[-1].get("summary") or ""
+                        combined = f"{summary_prev}; {fallback_summary}".strip('; ')
+                        history_ref[-1]["summary"] = combined
+                    else:
+                        history_ref.append({"round": round_idx, "summary": fallback_summary})
             stage_logs[layer] = {
-                "prompt": out.get("prompt"),
-                "response": _snapshot(out.get("response")),
+                "prompt": out_dict.get("prompt"),
+                "response": _snapshot(out_dict.get("response")),
                 "payload": _snapshot(payload),
-                "notes": out.get("notes", ""),
-                "raw_slots": out.get("slots", {}),
+                "notes": notes_text,
+                "raw_slots": llm_slots,
                 "accepted_slots": ok_layer,
                 "rejected_slots": rej_layer,
+                "forbidden_slots": forbidden_map,
+                "autofix_slots": autofix_map,
+                "fallback": fallback_used,
             }
+            if fallback_used:
+                stage_logs[layer]["fallback_slots"] = fallback_slots
             ok_by_layer[layer] = ok_layer
             emit(
                 "stage_complete",
@@ -460,6 +790,9 @@ def run_chain(
                     "accepted": list(ok_layer.keys()),
                     "rejected": list(rej_layer.keys()),
                     "notes": stage_logs[layer]["notes"],
+                    "fallback": fallback_used,
+                    "forbidden": list(forbidden_map.keys()),
+                    "autofix": list(autofix_map.keys()),
                 },
             )
 
@@ -470,14 +803,44 @@ def run_chain(
         emit("slots_assembled", {"round": round_idx, "slot_count": len(slots)})
 
         py_code = assemble_with_slots(slots)
+        # Persist assembled scaffold for this round to aid debugging
+        try:
+            (run_dir / f"code_round_{round_idx}.py").write_text(py_code, encoding="utf-8")
+            # Also persist accepted slots for this round
+            (run_dir / f"slots_round_{round_idx}.json").write_text(
+                json.dumps(slots, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+        except Exception:
+            pass
         out_png = str(run_dir / f"figure_round_{round_idx}.png")
 
         emit("execution_start", {"round": round_idx, "output": out_png})
+        prev_spec = copy.deepcopy(spec)
         exec_result = execute_script(py_code, df, base_intent, ctx, out_png)
         updated_ctx = exec_result.get("ctx")
         if isinstance(updated_ctx, dict):
             ctx.update(updated_ctx)
-            spec = updated_ctx.get("spec", spec)
+            new_spec = updated_ctx.get("spec")
+            if isinstance(new_spec, dict):
+                try:
+                    validated_spec = validate_spec(new_spec)
+                except Exception as exc:
+                    spec = prev_spec
+                    ctx["spec"] = spec
+                    fallback_note = f"spec_validation_failed: {exc}"
+                    stage_log = stage_logs.get("L1") if isinstance(stage_logs, dict) else None
+                    if isinstance(stage_log, dict):
+                        existing = stage_log.get("notes") or ""
+                        stage_log["notes"] = f"{existing} {fallback_note}".strip() if existing else fallback_note
+                        stage_log["fallback"] = stage_log.get("fallback") or "spec_validation"
+                    history = ctx.setdefault('_forbidden_history', {}).setdefault('L1', [])
+                    if not history or history[-1].get("round") != round_idx or history[-1].get("summary") != fallback_note:
+                        history.append({"round": round_idx, "summary": fallback_note})
+                else:
+                    spec = validated_spec
+                    ctx["spec"] = spec
+            else:
+                ctx["spec"] = spec
         stderr_preview = (exec_result.get("stderr") or "").strip()
         emit(
             "execution_end",
@@ -504,6 +867,11 @@ def run_chain(
             },
         )
 
+        # Extract compact debug info from ctx (if scaffold provided it)
+        debug_ctx = {}
+        if isinstance(ctx.get("_debug"), dict):
+            debug_ctx = ctx.get("_debug")
+
         selected = {
             "round": round_idx,
             "png_path": exec_result.get("png_path"),
@@ -513,6 +881,7 @@ def run_chain(
             "slots": slots,
             "stderr": exec_result.get("stderr", ""),
             "stages": stage_logs,
+            "debug": debug_ctx,
         }
 
         emit(
@@ -531,7 +900,7 @@ def run_chain(
         )
         emit("artifact_written", {"round": round_idx, "path": str(artifact_path)})
 
-        if last_scores["visual_form"] >= 0.75 and last_scores["data_fidelity"] >= 0.75:
+        if (not force_all_rounds) and last_scores["visual_form"] >= 0.75 and last_scores["data_fidelity"] >= 0.75:
             emit("round_success", {"round": round_idx, "scores": last_scores})
             break
 
@@ -555,6 +924,18 @@ def run_chain(
         },
     )
     return selected or {}
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

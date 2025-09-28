@@ -527,6 +527,47 @@ def run(df: pd.DataFrame, intent: Dict[str, Any], ctx: Dict[str, Any], out_png: 
     spec = slot_spec_theme_defaults(spec, intent, ctx)
     ctx['spec'] = spec
 
+    # Sanitize overlays/x/y/group to ensure they reference real df columns
+    try:
+        df_cols = set(map(str, list(df.columns)))
+        overlays_fix = spec.get("overlays") or []
+        if not overlays_fix:
+            ix = intent.get("x"); iy = intent.get("y"); ig = intent.get("group")
+            if isinstance(ix, str) and ix in df_cols and isinstance(iy, str) and iy in df_cols:
+                spec["overlays"] = [{
+                    "id": "bar",
+                    "mark": "bar",
+                    "variant": "grouped" if (isinstance(ig, str) and ig in df_cols) else "main",
+                    "x": ix,
+                    "y": iy,
+                    "group": ig if (isinstance(ig, str) and ig in df_cols) else None,
+                    "yaxis": "left",
+                    "style": {"alpha": 1.0, "width": 0.8},
+                }]
+        else:
+            for ov in overlays_fix:
+                if not isinstance(ov, dict):
+                    continue
+                x = ov.get("x"); y = ov.get("y"); g = ov.get("group")
+                if (not isinstance(x, str)) or (x not in df_cols):
+                    if isinstance(intent.get("x"), str) and intent.get("x") in df_cols:
+                        ov["x"] = intent.get("x")
+                if (not isinstance(y, str)) or (y not in df_cols):
+                    if isinstance(intent.get("y"), str) and intent.get("y") in df_cols:
+                        ov["y"] = intent.get("y")
+                if g and ((not isinstance(g, str)) or (g not in df_cols)):
+                    if isinstance(intent.get("group"), str) and intent.get("group") in df_cols:
+                        ov["group"] = intent.get("group")
+                    else:
+                        ov["group"] = None
+                # Adjust variant based on presence of group
+                if ov.get("mark") == "bar":
+                    ov["variant"] = "grouped" if (isinstance(ov.get("group"), str) and ov.get("group") in df_cols) else (ov.get("variant") or "main")
+        # Ensure overlays is a list for downstream use
+        overlays_fix = spec.get("overlays") or []
+    except Exception:
+        overlays_fix = spec.get("overlays") or []
+
     prep = slot_data_prepare(df.copy(), spec, intent, ctx)
     agg = slot_data_aggregate(prep, spec, intent, ctx)
     encoded = slot_data_encode(agg, spec, intent, ctx)
@@ -540,7 +581,7 @@ def run(df: pd.DataFrame, intent: Dict[str, Any], ctx: Dict[str, Any], out_png: 
 
     fig, ax_left = plt.subplots(figsize=(width, height), dpi=dpi)
     ax_right = None
-    overlays = spec.get("overlays") or []
+    overlays = overlays_fix
     if any((ov.get("yaxis") == "right") for ov in overlays):
         ax_right = ax_left.twinx()
 
@@ -554,6 +595,38 @@ def run(df: pd.DataFrame, intent: Dict[str, Any], ctx: Dict[str, Any], out_png: 
     slot_scales_y_right_range(ax_right, encoded, spec, ctx)
 
     artists = slot_marks_dispatch(fig, ax_left, ax_right, encoded, spec, ctx) or []
+
+    # --- Debug section -----------------------------------------------------
+    try:
+        debug_on = bool((ctx or {}).get("debug"))
+    except Exception:
+        debug_on = False
+    if debug_on:
+        try:
+            rep = {
+                "artists_n": int(len(artists)),
+                "overlays_n": int(len(overlays)),
+                "overlay_ids": [str((ov or {}).get("id")) for ov in overlays],
+                "has_right_axis": bool(ax_right is not None),
+                "axes_count": int(len(fig.axes)),
+            }
+            dbg = ctx.setdefault("_debug", {})
+            dbg_key = str(Path(out_png).name) if 'Path' in globals() else str(out_png)
+            dbg[dbg_key] = rep
+        except Exception:
+            pass
+        # Draw visible guides to ensure axes are noticeable in debug
+        try:
+            ax_left.axhline(0, color="#cc0000", linewidth=0.6, alpha=0.4)
+            ax_left.axvline(0, color="#cc0000", linewidth=0.6, alpha=0.4)
+            for spine in ax_left.spines.values():
+                spine.set_color("#333333")
+                spine.set_linewidth(max(1.0, spine.get_linewidth()))
+            if ax_right is not None:
+                for spine in ax_right.spines.values():
+                    spine.set_color("#666666")
+        except Exception:
+            pass
 
     slot_colorbar_apply(fig, ax_left, ax_right, encoded, spec, ctx)
 
