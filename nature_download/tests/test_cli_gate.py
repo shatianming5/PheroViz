@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+import nature_download.nature_all_in_one as module
 from nature_download.corpus.cli import LicenseGateError, authorize_direct_download
 from nature_download.nature_all_in_one import build_parser, cmd_auto, cmd_postfetch
 
@@ -94,3 +95,23 @@ def test_postfetch_rejects_non_cc_by_before_download(workdir: Path) -> None:
     )
     assert rejection["download_status"] == "rejected"
     assert "license-disallowed-variant:by-nc" in rejection["rejection_reason"]
+
+
+def test_unreachable_article_returns_zero_not_none(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def unavailable(*args, **kwargs):
+        raise RuntimeError("offline")
+
+    monkeypatch.setattr(module, "polite_get", unavailable)
+    assert (
+        module.postfetch_one(
+            "https://www.nature.com/articles/s41467-025-00000-0",
+            "unused",
+            3,
+            0,
+            1,
+            1,
+        )
+        == 0
+    )

@@ -1145,7 +1145,7 @@ def postfetch_one(art_url: str, out: str, max_figs: int, sleep: float, timeout: 
         polite_get(art_url, timeout=timeout, sleep=sleep, max_retries=1)
     except Exception as e:
         print(safe_console(f"[warn] article page not available: {art_url} ({e})"))
-        return
+        return 0
     empty_streak = 0
     found_count = 0
     for i in range(1, max_figs + 1):
