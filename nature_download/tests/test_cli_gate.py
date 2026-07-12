@@ -61,6 +61,25 @@ def test_new_corpus_commands_enable_gate_by_default() -> None:
             "judge-b",
         ]
     )
+    benchmark = parser.parse_args(
+        [
+            "assemble-benchmark",
+            "--candidates",
+            "batch-a.jsonl",
+            "--candidates",
+            "batch-b.jsonl",
+            "--evidence",
+            "evidence.json",
+            "--proposed",
+            "proposed.jsonl",
+            "--reviews",
+            "reviews.jsonl",
+            "--seed",
+            "17",
+            "--out",
+            "benchmark",
+        ]
+    )
     assert discover.require_cc_by is True
     assert validate.require_cc_by is True
     assert manifest.require_cc_by is True
@@ -70,6 +89,9 @@ def test_new_corpus_commands_enable_gate_by_default() -> None:
     assert reviews.judge_model == ["judge-a", "judge-b"]
     assert reviews.resume is False
     assert reviews.allow_dirty is False
+    assert benchmark.candidates == ["batch-a.jsonl", "batch-b.jsonl"]
+    assert benchmark.train_ratio == 0.8
+    assert benchmark.seed == 17
 
 
 def test_legacy_download_commands_require_explicit_gate() -> None:

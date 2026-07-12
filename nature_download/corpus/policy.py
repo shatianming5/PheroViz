@@ -7,7 +7,7 @@ from datetime import date, datetime, timezone
 from html.parser import HTMLParser
 import re
 from typing import Any, Iterable
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse, urlsplit
 
 
 SCHEMA_VERSION = "1.0"
@@ -30,10 +30,25 @@ def utc_now() -> str:
 def normalize_doi(value: Any) -> str | None:
     if not value:
         return None
-    doi = str(value).strip()
-    doi = re.sub(r"^https?://(?:dx\.)?doi\.org/", "", doi, flags=re.I)
-    doi = re.sub(r"^doi:\s*", "", doi, flags=re.I)
-    return doi.lower() or None
+    text = unquote(str(value)).strip()
+    text = re.sub(r"^doi:\s*", "", text, flags=re.I)
+    parsed = urlsplit(text)
+    if parsed.scheme or parsed.netloc:
+        if parsed.scheme.casefold() not in {"http", "https"} or (
+            parsed.hostname or ""
+        ).casefold() not in {"doi.org", "dx.doi.org"}:
+            return None
+        text = parsed.path.lstrip("/")
+    else:
+        text = re.split(r"[?#]", text, maxsplit=1)[0]
+    doi = text.strip().casefold()
+    if (
+        not doi.startswith("10.")
+        or "/" not in doi
+        or any(character.isspace() for character in doi)
+    ):
+        return None
+    return doi
 
 
 def normalize_journal(value: Any) -> str:

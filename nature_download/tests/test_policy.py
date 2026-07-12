@@ -11,6 +11,7 @@ from nature_download.corpus.policy import (
     evaluate_record,
     is_allowed_journal,
     normalize_cc_by_url,
+    normalize_doi,
 )
 
 
@@ -22,6 +23,19 @@ def fixture_items() -> dict[str, dict]:
         (FIXTURES / "crossref_licenses.json").read_text(encoding="utf-8")
     )
     return {item["fixture_id"]: item for item in payload["items"]}
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "10.1038/example",
+        "doi:10.1038/EXAMPLE",
+        "https://doi.org/10.1038/example?utm_source=test#fragment",
+        "https%3A%2F%2Fdoi.org%2F10.1038%2Fexample%3Futm%3D1",
+    ],
+)
+def test_doi_aliases_have_one_canonical_identity(value: str) -> None:
+    assert normalize_doi(value) == "10.1038/example"
 
 
 @pytest.mark.parametrize(

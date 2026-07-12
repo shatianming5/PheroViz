@@ -246,7 +246,10 @@ class ExternalBaselineProvider:
 
     def _case(self, request: GenerationRequest) -> DatasetCase:
         try:
-            cases = load_dataset_manifest(request.dataset_manifest_path)
+            cases = load_dataset_manifest(
+                request.dataset_manifest_path,
+                dataset_mode=request.spec.dataset_mode,
+            )
             case = select_case(cases, request.spec.case_id)
             verify_case_metadata(
                 case,

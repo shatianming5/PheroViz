@@ -9,7 +9,17 @@ import pytest
 
 from nature_download.corpus.cases import _load_evidence
 from nature_download.corpus.provenance import sha256_file
-from nature_download.corpus.reviews import ReviewError, review_proposals
+from nature_download.corpus.proposals import (
+    DEFAULT_MAX_COLUMNS,
+    DEFAULT_MAX_FILE_BYTES,
+    DEFAULT_MAX_ROWS,
+    propose_single_candidate,
+)
+from nature_download.corpus.reviews import (
+    ReviewError,
+    review_proposals,
+    validate_review_artifacts,
+)
 
 
 MODELS = ("judge-a", "judge-b")
@@ -237,7 +247,14 @@ def factory_for(
 
 
 def test_all_models_agree_generates_case_builder_evidence(workdir: Path) -> None:
-    proposal = make_single(workdir)
+    proposal = propose_single_candidate(
+        make_single(workdir),
+        input_candidates_sha256="f" * 64,
+        code_commit="a" * 40,
+        max_file_bytes=DEFAULT_MAX_FILE_BYTES,
+        max_rows=DEFAULT_MAX_ROWS,
+        max_columns=DEFAULT_MAX_COLUMNS,
+    )
     source = workdir / "proposed.jsonl"
     output = workdir / "reviews"
     write_proposed(source, [proposal])
@@ -274,6 +291,13 @@ def test_all_models_agree_generates_case_builder_evidence(workdir: Path) -> None
         "input_tokens": 10,
         "output_tokens": 5,
     }
+    validated = validate_review_artifacts(
+        proposed_path=source,
+        reviews_path=output / "reviews.jsonl",
+        evidence_path=output / "evidence.json",
+    )
+    assert validated["evidence"] == result["evidence"]
+    assert validated["summary"] == result["summary"]
 
 
 def test_disagreement_and_correction_are_recorded_not_adopted(

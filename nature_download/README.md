@@ -59,7 +59,9 @@
     --content-root outputs/nature_content \
     --out outputs/benchmark_candidates
   ```
-  输出 `candidates.jsonl`、`ambiguous.jsonl`、`summary.json`。未提供有效
+  输出 `candidates.jsonl`、`ambiguous.jsonl`、`summary.json` 与
+  `summary.sha256`，并绑定 builder commit、dirty=false、corpus/evidence
+  hashes。未提供有效
   `--evidence` 时所有候选均为 `unverified` 且
   `eligible_for_experiment=false`。ZIP 默认最多 1,000 个文件、512 MiB
   总展开大小，并拒绝绝对路径、zip-slip、symlink、特殊文件和加密成员。
@@ -90,6 +92,30 @@
   `rejected.jsonl`、`summary.json` 与 `summary.sha256`。默认拒绝 dirty
   worktree；`--resume` 仅复用与输入、资产、rubric、模型和代码 hash
   完全绑定的 sidecar。
+- 重新运行 `build-cases --evidence ...` 后，将一个或多个重建的
+  `candidates.jsonl` 组装为 DOI-disjoint 实验 manifest：
+  ```bash
+  python nature_all_in_one.py assemble-benchmark \
+    --candidates outputs/batch_a/verified_cases/candidates.jsonl \
+    --candidates outputs/batch_b/verified_cases/candidates.jsonl \
+    --evidence outputs/case_reviews/evidence.json \
+    --proposed outputs/case_proposals/proposed.jsonl \
+    --reviews outputs/case_reviews/reviews.jsonl \
+    --seed 20260712 \
+    --out outputs/verified_benchmark
+  ```
+  该命令默认拒绝 dirty worktree，并重新计算 raw review/model/prompt/asset
+  bindings、deterministic expectation、case-builder seals 与每个数据文件
+  checksum。同一 DOI 的全部 cases 只会进入同一个 split；multi-panel
+  case 仅从全部已重建 verified 的 source singles 重新构造。
+  生产实验 matrix 必须显式绑定输出 manifest：
+  ```yaml
+  dataset_mode: sealed_benchmark
+  dataset_manifest: outputs/verified_benchmark/benchmark_manifest.json
+  dataset_manifest_sha256: "<summary.json 中的 benchmark_manifest_sha256>"
+  ```
+  provider 会在每次生成前再次核对实际 Source Data SHA-256；sealed
+  multi-panel case 禁止改走外部 `multi_panel_manifest`。
 - 基础检索（合规、不抓取）：
   ```bash
   python nature_all_in_one.py search \

@@ -281,14 +281,21 @@ def expand_matrix(
         )
     repo_root = (repo_root or Path(__file__).resolve().parents[2]).resolve()
     git_commit, git_dirty = _git_provenance(repo_root)
+    dataset_mode = matrix.get("dataset_mode", "legacy")
+    if dataset_mode not in {"legacy", "sealed_benchmark"}:
+        raise MatrixError("dataset_mode must be legacy or sealed_benchmark")
 
     manifest_path = _resolve_file(
         matrix.get("dataset_manifest"),
         base_dir=base_dir,
         name="dataset_manifest",
     )
+    manifest_object = load_structured_file(manifest_path)
     try:
-        manifest_cases = load_dataset_manifest(manifest_path)
+        manifest_cases = load_dataset_manifest(
+            manifest_path,
+            dataset_mode=dataset_mode,
+        )
     except ManifestError as exc:
         raise MatrixError(str(exc)) from exc
     selected_cases = _select_cases(manifest_cases, matrix)
@@ -303,6 +310,28 @@ def expand_matrix(
             )
         case_slugs[slug_key] = case.case_id
     manifest_hash = sha256_file(manifest_path)
+    expected_manifest_hash = matrix.get("dataset_manifest_sha256")
+    has_benchmark_provenance = (
+        isinstance(manifest_object, Mapping)
+        and manifest_object.get("provenance") is not None
+    )
+    if dataset_mode == "sealed_benchmark" and not has_benchmark_provenance:
+        raise MatrixError(
+            "sealed_benchmark mode requires benchmark provenance"
+        )
+    if dataset_mode == "legacy" and has_benchmark_provenance:
+        raise MatrixError(
+            "A sealed benchmark manifest requires dataset_mode=sealed_benchmark"
+        )
+    if dataset_mode == "sealed_benchmark" and expected_manifest_hash is None:
+        raise MatrixError(
+            "Sealed benchmark matrices require dataset_manifest_sha256"
+        )
+    if expected_manifest_hash is not None and (
+        not isinstance(expected_manifest_hash, str)
+        or expected_manifest_hash != manifest_hash
+    ):
+        raise MatrixError("dataset_manifest_sha256 does not match the manifest")
 
     metric_config, metric_hash, metric_version = _metric_details(
         matrix,
@@ -394,6 +423,7 @@ def expand_matrix(
                 metric_version=metric_version,
                 method_config=method["method_config"],
                 provider_options=method["provider_options"],
+                dataset_mode=dataset_mode,
             )
         )
     return specs

@@ -1002,6 +1002,7 @@ def build_cases(
         "corpus_manifest": str(manifest_path.resolve()),
         "corpus_manifest_sha256": manifest_hash,
         "content_root": str(content),
+        "output_root": str(output),
         "articles_total": len(records),
         "articles_eligible": eligible_articles,
         "articles_skipped": skipped_articles,
@@ -1034,12 +1035,38 @@ def write_case_outputs(
     candidates: list[dict[str, Any]],
     ambiguous: list[dict[str, Any]],
     summary: dict[str, Any],
-) -> None:
+    *,
+    code_commit: str | None = None,
+    code_dirty: bool | None = None,
+) -> dict[str, Any]:
     output = Path(output_root)
     output.mkdir(parents=True, exist_ok=True)
-    _write_jsonl(output / "candidates.jsonl", candidates)
-    _write_jsonl(output / "ambiguous.jsonl", ambiguous)
+    candidates_path = output / "candidates.jsonl"
+    ambiguous_path = output / "ambiguous.jsonl"
+    _write_jsonl(candidates_path, candidates)
+    _write_jsonl(ambiguous_path, ambiguous)
+    sealed_summary = {
+        **summary,
+        "candidates_sha256": sha256_file(candidates_path),
+        "ambiguous_sha256": sha256_file(ambiguous_path),
+    }
+    if code_commit is not None:
+        sealed_summary["code_commit"] = code_commit
+    if code_dirty is not None:
+        sealed_summary["code_dirty"] = code_dirty
+    sealed_summary["summary_hash"] = _canonical_json_sha256(sealed_summary)
     (output / "summary.json").write_text(
-        json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        json.dumps(
+            sealed_summary,
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
         encoding="utf-8",
     )
+    (output / "summary.sha256").write_text(
+        sealed_summary["summary_hash"] + "\n",
+        encoding="utf-8",
+    )
+    return sealed_summary

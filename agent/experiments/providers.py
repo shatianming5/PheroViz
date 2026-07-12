@@ -15,6 +15,7 @@ from .manifest import (
     ManifestError,
     load_dataset_manifest,
     select_case,
+    verify_case_data_files,
     verify_case_metadata,
 )
 from .models import ExperimentSpec
@@ -250,7 +251,10 @@ class SingleChainProvider:
 
         manifest_path = request.dataset_manifest_path
         try:
-            manifest_cases = load_dataset_manifest(manifest_path)
+            manifest_cases = load_dataset_manifest(
+                manifest_path,
+                dataset_mode=request.spec.dataset_mode,
+            )
             selected_case = select_case(
                 manifest_cases,
                 request.spec.case_id,
@@ -270,6 +274,15 @@ class SingleChainProvider:
                 f"{selected_case.panel_count}; SingleChainProvider cannot run "
                 "multi-panel cases, use a multi-panel provider"
             )
+        try:
+            verify_case_data_files(
+                selected_case,
+                manifest_path=manifest_path,
+            )
+        except ManifestError as exc:
+            raise ProviderExecutionError(
+                f"Cannot verify case data files: {exc}"
+            ) from exc
         case = selected_case.payload
         evaluation_expectation = case.get("evaluation_expectation")
         if not isinstance(evaluation_expectation, Mapping):
@@ -502,15 +515,31 @@ class MultiPanelProvider:
         from app.services.multi_panel_runner import run_multi_panel
         from app.services import single_chain_runner
 
-        manifest_cases = load_dataset_manifest(request.dataset_manifest_path)
+        manifest_cases = load_dataset_manifest(
+            request.dataset_manifest_path,
+            dataset_mode=request.spec.dataset_mode,
+        )
         selected_case = select_case(manifest_cases, request.spec.case_id)
         verify_case_metadata(
             selected_case,
             panel_count=request.spec.panel_count,
             split=request.spec.split,
         )
+        try:
+            verify_case_data_files(
+                selected_case,
+                manifest_path=request.dataset_manifest_path,
+            )
+        except ManifestError as exc:
+            raise ProviderExecutionError(
+                f"Cannot verify case data files: {exc}"
+            ) from exc
         case = selected_case.payload
         raw_manifest = case.get("multi_panel_manifest")
+        if case.get("eligible_for_experiment") is True and raw_manifest is not None:
+            raise ProviderExecutionError(
+                "Eligible multi-panel cases must use the verified inline panels"
+            )
         manifest_base_dir = Path(request.spec.dataset_manifest_path).parent
         if raw_manifest is None:
             if not isinstance(case.get("panels"), list):

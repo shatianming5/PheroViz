@@ -73,7 +73,10 @@ def _freeze_dataset_manifest(
             if temporary.exists():
                 temporary.unlink()
 
-    cases = load_dataset_manifest(destination)
+    cases = load_dataset_manifest(
+        destination,
+        dataset_mode=spec.dataset_mode,
+    )
     selected = select_case(cases, spec.case_id)
     verify_case_metadata(
         selected,

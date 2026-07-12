@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import hashlib
+import json
 from pathlib import Path
 
 import pytest
@@ -114,6 +116,110 @@ def test_single_chain_selects_case_and_rejects_multi_panel() -> None:
             match="use a multi-panel provider",
         ):
             SingleChainProvider().generate(request)
+
+
+def test_single_chain_rejects_source_data_changed_after_manifest() -> None:
+    with experiment_workspace("single-chain-data-hash") as workspace:
+        data = workspace / "case.csv"
+        data.write_text("x,y\n0,1\n", encoding="utf-8")
+        manifest = write_manifest(
+            workspace,
+            [
+                {
+                    "case_id": "case-001",
+                    "panel_count": 1,
+                    "split": "test",
+                    "data_path": str(data),
+                    "data_sha256": hashlib.sha256(data.read_bytes()).hexdigest(),
+                    "eligible_for_experiment": True,
+                }
+            ],
+        )
+        spec = make_spec(
+            workspace,
+            run_name="single-chain-data-hash",
+            budget_value=1,
+        )
+        output_dir = workspace / "provider-output"
+        output_dir.mkdir()
+        request = GenerationRequest(
+            spec=spec,
+            dataset_manifest_path=manifest,
+            output_dir=output_dir,
+            call_index=1,
+            remaining_renders=1,
+            remaining_seconds=None,
+            deadline_monotonic=None,
+            history=(),
+            previous_candidate=None,
+        )
+        data.write_text("x,y\n0,999\n", encoding="utf-8")
+
+        with pytest.raises(ProviderExecutionError, match="SHA-256 changed"):
+            SingleChainProvider().generate(request)
+
+
+def test_eligible_multi_panel_case_rejects_external_manifest_bypass() -> None:
+    with experiment_workspace("multi-inline-only") as workspace:
+        panels = []
+        for panel_id in ("a", "b"):
+            data = workspace / f"{panel_id}.csv"
+            data.write_text("x,y\n0,1\n", encoding="utf-8")
+            panels.append(
+                {
+                    "id": panel_id,
+                    "data_path": str(data),
+                    "data_sha256": hashlib.sha256(
+                        data.read_bytes()
+                    ).hexdigest(),
+                    "user_goal": f"Panel {panel_id}",
+                    "chart_family": "line",
+                    "intent": {"x": "x", "y": "y"},
+                }
+            )
+        external = workspace / "external.json"
+        external.write_text(
+            json.dumps({"panels": panels}),
+            encoding="utf-8",
+        )
+        manifest = write_manifest(
+            workspace,
+            [
+                {
+                    "case_id": "multi-case",
+                    "panel_count": 2,
+                    "split": "test",
+                    "panels": panels,
+                    "multi_panel_manifest": str(external),
+                    "eligible_for_experiment": True,
+                }
+            ],
+        )
+        spec = make_spec(
+            workspace,
+            run_name="multi-inline-only",
+            case_id="multi-case",
+            panel_count=2,
+            budget_value=2,
+        )
+        output_dir = workspace / "provider-output"
+        output_dir.mkdir()
+        request = GenerationRequest(
+            spec=spec,
+            dataset_manifest_path=manifest,
+            output_dir=output_dir,
+            call_index=1,
+            remaining_renders=2,
+            remaining_seconds=None,
+            deadline_monotonic=None,
+            history=(),
+            previous_candidate=None,
+        )
+        with pytest.raises(
+            ProviderExecutionError,
+            match="verified inline panels",
+        ):
+            MultiPanelProvider().generate(request)
 
 
 def test_resume_skips_completed_run_without_provider_call() -> None:

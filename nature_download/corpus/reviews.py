@@ -19,6 +19,12 @@ except ImportError:
     load_workbook = None
 
 from .provenance import sha256_file
+from .proposals import (
+    DEFAULT_MAX_COLUMNS,
+    DEFAULT_MAX_FILE_BYTES,
+    DEFAULT_MAX_ROWS,
+    propose_single_candidate,
+)
 
 
 SCHEMA_VERSION = "1.0"
@@ -965,6 +971,247 @@ def review_proposals(
         "evidence": evidence_payload,
         "rejected": rejected,
         "summary": summary_payload,
+    }
+
+
+def validate_review_artifacts(
+    *,
+    proposed_path: str | Path,
+    reviews_path: str | Path,
+    evidence_path: str | Path,
+) -> dict[str, Any]:
+    """Recompute the complete proposal-review trust chain without model calls."""
+
+    proposed_file = Path(proposed_path).expanduser().resolve(strict=True)
+    reviews_file = Path(reviews_path).expanduser().resolve(strict=True)
+    evidence_file = Path(evidence_path).expanduser().resolve(strict=True)
+    if reviews_file.parent != evidence_file.parent:
+        raise ReviewError("review-artifacts-must-share-directory")
+    input_hash = sha256_file(proposed_file)
+    proposals_list = _read_jsonl(proposed_file)
+    proposals: dict[str, dict[str, Any]] = {}
+    for proposal in proposals_list:
+        candidate_id = str(proposal.get("candidate_id") or "").strip()
+        if not candidate_id or candidate_id in proposals:
+            raise ReviewError("validation-proposal-candidate-invalid")
+        proposals[candidate_id] = proposal
+
+    review_list = _read_jsonl(reviews_file)
+    reviews: dict[str, dict[str, Any]] = {}
+    for review in review_list:
+        _validate_review_hash(review)
+        candidate_id = str(review.get("candidate_id") or "").strip()
+        if not candidate_id or candidate_id in reviews:
+            raise ReviewError("validation-review-candidate-invalid")
+        reviews[candidate_id] = review
+    if set(reviews) != set(proposals):
+        raise ReviewError("validation-review-proposal-set-mismatch")
+
+    try:
+        evidence_payload = json.loads(evidence_file.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ReviewError("validation-evidence-invalid") from exc
+    if not isinstance(evidence_payload, dict):
+        raise ReviewError("validation-evidence-invalid")
+    evidence_hash = evidence_payload.get("evidence_hash")
+    unhashed_evidence = dict(evidence_payload)
+    unhashed_evidence.pop("evidence_hash", None)
+    if (
+        not isinstance(evidence_hash, str)
+        or _sha256_json(unhashed_evidence) != evidence_hash
+    ):
+        raise ReviewError("validation-evidence-hash-mismatch")
+    if (
+        evidence_payload.get("input_proposed_sha256") != input_hash
+        or evidence_payload.get("rubric_hash") != REVIEW_RUBRIC_HASH
+        or evidence_payload.get("code_dirty") is not False
+        or evidence_payload.get("human_claims") != 0
+    ):
+        raise ReviewError("validation-evidence-binding-mismatch")
+    models = _validate_models(evidence_payload.get("judge_models") or [])
+    commit = str(evidence_payload.get("code_commit") or "")
+    if not GIT_COMMIT_PATTERN.fullmatch(commit):
+        raise ReviewError("validation-evidence-code-commit-invalid")
+    git_state = GitState(commit=commit, dirty=False)
+
+    accepted_single_ids: set[str] = set()
+    single_reviews: dict[str, dict[str, Any]] = {}
+    for candidate_id, proposal in proposals.items():
+        review = reviews[candidate_id]
+        proposal_type = proposal.get("proposal_type")
+        if review.get("proposal_type") != proposal_type:
+            raise ReviewError("validation-review-proposal-type-mismatch")
+        if proposal_type != "single_panel":
+            continue
+        binding, preflight_reasons, _, _, expected = _single_binding(
+            proposal,
+            input_hash=input_hash,
+            models=models,
+            git_state=git_state,
+        )
+        if review.get("binding") != binding:
+            raise ReviewError("validation-single-binding-mismatch")
+        recomputed_proposal = propose_single_candidate(
+            deepcopy_json(proposal),
+            input_candidates_sha256=str(
+                proposal.get("input_candidates_sha256") or ""
+            ),
+            code_commit=str(proposal.get("code_commit") or ""),
+            max_file_bytes=DEFAULT_MAX_FILE_BYTES,
+            max_rows=DEFAULT_MAX_ROWS,
+            max_columns=DEFAULT_MAX_COLUMNS,
+        )
+        semantic_fields = (
+            "case_id",
+            "panel_count",
+            "sheet",
+            "panel_id",
+            "user_goal",
+            "chart_family",
+            "intent",
+            "evaluation_expectation",
+        )
+        original_case = proposal.get("experiment_case") or {}
+        recomputed_case = recomputed_proposal.get("experiment_case") or {}
+        if any(
+            original_case.get(key) != recomputed_case.get(key)
+            for key in semantic_fields
+        ):
+            raise ReviewError("validation-single-canonical-case-mismatch")
+        single_reviews[candidate_id] = review
+        if review.get("status") != "accepted":
+            continue
+        if preflight_reasons or expected is None:
+            raise ReviewError("validation-accepted-single-preflight-failed")
+        if review.get("rejection_reasons"):
+            raise ReviewError("validation-accepted-single-has-rejections")
+        model_reviews = review.get("model_reviews")
+        if not isinstance(model_reviews, list) or len(model_reviews) != len(models):
+            raise ReviewError("validation-single-model-review-count")
+        request_models: list[str] = []
+        served_models: list[str] = []
+        for model_review in model_reviews:
+            if not isinstance(model_review, Mapping):
+                raise ReviewError("validation-single-model-review-invalid")
+            if (
+                model_review.get("status") != "completed"
+                or str(model_review.get("stop_reason") or "").casefold()
+                not in COMPLETED_STOP_REASONS
+                or model_review.get("failure_code") is not None
+            ):
+                raise ReviewError("validation-single-model-not-completed")
+            output = _strict_output(model_review.get("output"))
+            if (
+                not output["valid"]
+                or output["chart_family"] != expected["chart_family"]
+                or output["x"] != expected["x"]
+                or set(output["y"]) != set(expected["y"])
+            ):
+                raise ReviewError("validation-single-model-output-mismatch")
+            request_model = str(model_review.get("request_model") or "")
+            served_model = str(model_review.get("served_model") or "")
+            if not request_model or not served_model:
+                raise ReviewError("validation-single-model-identity-missing")
+            request_models.append(request_model)
+            served_models.append(served_model)
+        if tuple(request_models) != models or len(set(served_models)) != len(models):
+            raise ReviewError("validation-single-model-identities-invalid")
+        accepted_single_ids.add(candidate_id)
+
+    known_single_ids = set(single_reviews)
+    for candidate_id, proposal in proposals.items():
+        if proposal.get("proposal_type") != "multi_panel":
+            continue
+        expected_binding = _multi_binding(
+            proposal,
+            input_hash=input_hash,
+            models=models,
+            git_state=git_state,
+        )
+        review = reviews[candidate_id]
+        if review.get("binding") != expected_binding:
+            raise ReviewError("validation-multi-binding-mismatch")
+        expected_review = _multi_review(
+            proposal,
+            binding=expected_binding,
+            accepted_single_ids=accepted_single_ids,
+            known_single_ids=known_single_ids,
+            single_reviews=single_reviews,
+        )
+        if review != expected_review:
+            raise ReviewError("validation-multi-review-mismatch")
+
+    accepted_reviews = [
+        reviews[candidate_id]
+        for candidate_id in sorted(reviews)
+        if reviews[candidate_id].get("status") == "accepted"
+    ]
+    expected_verifications = [
+        _evidence_record(proposals[review["candidate_id"]], review)
+        for review in accepted_reviews
+    ]
+    expected_evidence = {
+        "schema_version": SCHEMA_VERSION,
+        "evidence_type": "external_validation",
+        "human_claims": 0,
+        "input_proposed_sha256": input_hash,
+        "rubric_hash": REVIEW_RUBRIC_HASH,
+        "code_commit": commit,
+        "code_dirty": False,
+        "judge_models": list(models),
+        "verifications": expected_verifications,
+    }
+    expected_evidence = _seal(expected_evidence, "evidence_hash")
+    if evidence_payload != expected_evidence:
+        raise ReviewError("validation-evidence-records-mismatch")
+
+    summary_path = reviews_file.parent / "summary.json"
+    summary_digest_path = reviews_file.parent / "summary.sha256"
+    try:
+        summary = json.loads(summary_path.read_text(encoding="utf-8"))
+        declared_summary_hash = summary_digest_path.read_text(
+            encoding="utf-8"
+        ).strip()
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ReviewError("validation-summary-invalid") from exc
+    if not isinstance(summary, dict):
+        raise ReviewError("validation-summary-invalid")
+    summary_hash = summary.get("summary_hash")
+    unhashed_summary = dict(summary)
+    unhashed_summary.pop("summary_hash", None)
+    if (
+        not isinstance(summary_hash, str)
+        or _sha256_json(unhashed_summary) != summary_hash
+        or declared_summary_hash != summary_hash
+    ):
+        raise ReviewError("validation-summary-hash-mismatch")
+    expected_review_hashes = {
+        candidate_id: reviews[candidate_id]["review_hash"]
+        for candidate_id in sorted(reviews)
+    }
+    summary_bindings = {
+        "input_proposed_sha256": input_hash,
+        "rubric_hash": REVIEW_RUBRIC_HASH,
+        "code_commit": commit,
+        "code_dirty": False,
+        "judge_models": list(models),
+        "input_count": len(proposals),
+        "review_hashes": expected_review_hashes,
+        "evidence_hash": evidence_hash,
+        "evidence_records": len(expected_verifications),
+        "human_claims": 0,
+    }
+    if any(summary.get(key) != value for key, value in summary_bindings.items()):
+        raise ReviewError("validation-summary-binding-mismatch")
+    return {
+        "proposals": proposals,
+        "reviews": reviews,
+        "evidence": evidence_payload,
+        "summary": summary,
+        "input_proposed_sha256": input_hash,
+        "reviews_sha256": sha256_file(reviews_file),
+        "evidence_sha256": sha256_file(evidence_file),
+        "summary_sha256": sha256_file(summary_path),
     }
 
 

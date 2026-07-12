@@ -120,7 +120,12 @@ def verify_frozen_manifest(record: RunRecord, run_dir: Path) -> Path:
         raise AggregationError(
             f"Frozen dataset manifest hash mismatch: {record.run_name}"
         )
-    cases = load_dataset_manifest(frozen)
+    cases = load_dataset_manifest(
+        frozen,
+        dataset_mode=str(
+            record.experiment_spec.get("dataset_mode", "legacy")
+        ),
+    )
     selected = select_case(cases, record.case_id)
     verify_case_metadata(
         selected,

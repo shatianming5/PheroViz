@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from pathlib import Path
 
 import pytest
@@ -29,6 +30,188 @@ def _minimal_matrix(manifest: Path, artifact_root: Path) -> dict:
             }
         },
     }
+
+
+def _seal(value: dict, field: str) -> dict:
+    sealed = dict(value)
+    sealed[field] = hashlib.sha256(
+        json.dumps(
+            value,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    return sealed
+
+
+def _sealed_source_binding(
+    workspace: Path,
+    candidate_ids: list[str],
+) -> tuple[dict, str, dict[str, dict]]:
+    proposed_path = workspace / "proposed.jsonl"
+    proposed_path.write_text(
+        "".join(
+            json.dumps({"candidate_id": candidate_id}) + "\n"
+            for candidate_id in candidate_ids
+        ),
+        encoding="utf-8",
+    )
+    proposed_hash = hashlib.sha256(proposed_path.read_bytes()).hexdigest()
+    reviews = []
+    verifications = []
+    verification_summaries = {}
+    for candidate_id in candidate_ids:
+        review = _seal(
+            {
+                "candidate_id": candidate_id,
+                "proposal_type": "single_panel",
+                "status": "accepted",
+                "rejection_reasons": [],
+                "binding": {},
+                "model_reviews": [],
+            },
+            "review_hash",
+        )
+        reviews.append(review)
+        verification = {
+            "candidate_id": candidate_id,
+            "status": "verified",
+            "curation_status": "verified",
+            "evidence_type": "external_validation",
+            "evidence_ref": f"review:{review['review_hash']}",
+            "reviewer_or_source": "judge-a+judge-b",
+            "review_hash": review["review_hash"],
+            "review_models": ["judge-a", "judge-b"],
+            "experiment_case": {},
+        }
+        verifications.append(verification)
+        verification_summaries[candidate_id] = {
+            key: verification[key]
+            for key in (
+                "evidence_type",
+                "evidence_ref",
+                "review_hash",
+                "review_models",
+            )
+        }
+    reviews_path = workspace / "reviews.jsonl"
+    reviews_path.write_text(
+        "".join(json.dumps(review, sort_keys=True) + "\n" for review in reviews),
+        encoding="utf-8",
+    )
+    evidence = _seal(
+        {
+            "schema_version": "1.0",
+            "evidence_type": "external_validation",
+            "human_claims": 0,
+            "input_proposed_sha256": proposed_hash,
+            "rubric_hash": "a" * 64,
+            "code_commit": "b" * 40,
+            "code_dirty": False,
+            "judge_models": ["judge-a", "judge-b"],
+            "verifications": verifications,
+        },
+        "evidence_hash",
+    )
+    evidence_path = workspace / "evidence.json"
+    evidence_path.write_text(
+        json.dumps(evidence, sort_keys=True),
+        encoding="utf-8",
+    )
+    review_summary = _seal(
+        {
+            "code_dirty": False,
+            "evidence_hash": evidence["evidence_hash"],
+            "review_hashes": {
+                review["candidate_id"]: review["review_hash"]
+                for review in reviews
+            },
+        },
+        "summary_hash",
+    )
+    review_summary_path = workspace / "review_summary.json"
+    review_summary_path.write_text(
+        json.dumps(review_summary, sort_keys=True),
+        encoding="utf-8",
+    )
+    candidates_path = workspace / "candidates.jsonl"
+    candidates_path.write_text(
+        "".join(
+            json.dumps(
+                {
+                    "candidate_id": verification["candidate_id"],
+                    "curation_status": "verified",
+                    "eligible_for_experiment": True,
+                    "verification_evidence": verification,
+                },
+                sort_keys=True,
+            )
+            + "\n"
+            for verification in verifications
+        ),
+        encoding="utf-8",
+    )
+    corpus_path = workspace / "corpus.jsonl"
+    corpus_path.write_text('{"download_eligible":true}\n', encoding="utf-8")
+    candidates_hash = hashlib.sha256(candidates_path.read_bytes()).hexdigest()
+    corpus_hash = hashlib.sha256(corpus_path.read_bytes()).hexdigest()
+    case_summary = _seal(
+        {
+            "candidates_sha256": candidates_hash,
+            "corpus_manifest_sha256": corpus_hash,
+            "code_dirty": False,
+            "eligible_for_experiment": len(candidate_ids),
+        },
+        "summary_hash",
+    )
+    case_summary_path = workspace / "case_summary.json"
+    case_summary_path.write_text(
+        json.dumps(case_summary, sort_keys=True),
+        encoding="utf-8",
+    )
+    binding = {
+        "candidate_inputs": [
+            {
+                "candidates_path": str(candidates_path),
+                "candidates_sha256": candidates_hash,
+                "summary_path": str(case_summary_path),
+                "summary_sha256": hashlib.sha256(
+                    case_summary_path.read_bytes()
+                ).hexdigest(),
+                "summary_hash": case_summary["summary_hash"],
+                "code_commit": "b" * 40,
+                "corpus_manifest": str(corpus_path),
+                "corpus_manifest_sha256": corpus_hash,
+                "content_root": str(workspace),
+                "output_root": str(workspace),
+            }
+        ],
+        "evidence": {
+            "path": str(evidence_path),
+            "sha256": hashlib.sha256(evidence_path.read_bytes()).hexdigest(),
+            "evidence_hash": evidence["evidence_hash"],
+        },
+        "proposed": {
+            "path": str(proposed_path),
+            "sha256": proposed_hash,
+        },
+        "reviews": {
+            "path": str(reviews_path),
+            "sha256": hashlib.sha256(reviews_path.read_bytes()).hexdigest(),
+            "summary_path": str(review_summary_path),
+            "summary_sha256": hashlib.sha256(
+                review_summary_path.read_bytes()
+            ).hexdigest(),
+        },
+    }
+    digest = hashlib.sha256(
+        json.dumps(
+            binding,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    return binding, digest, verification_summaries
 
 
 @pytest.mark.parametrize("suffix", [".json", ".yaml"])
@@ -227,4 +410,111 @@ def test_combined_case_filters_cannot_select_empty_set() -> None:
         path.write_text(json.dumps(matrix), encoding="utf-8")
 
         with pytest.raises(MatrixError, match="selected no dataset cases"):
+            load_and_expand_matrix(path)
+
+
+def test_sealed_benchmark_requires_expected_manifest_hash() -> None:
+    with experiment_workspace("sealed-benchmark") as workspace:
+        data = workspace / "case.csv"
+        data.write_text("x,y\n0,1\n", encoding="utf-8")
+        data_hash = hashlib.sha256(data.read_bytes()).hexdigest()
+        source_binding, source_binding_hash, verifications = (
+            _sealed_source_binding(workspace, ["verified-case"])
+        )
+        manifest = workspace / "manifest.json"
+        manifest.write_text(
+            json.dumps(
+                {
+                    "schema_version": "1.0",
+                    "provenance": {
+                        "code_commit": "b" * 40,
+                        "code_dirty": False,
+                        "source_binding": source_binding,
+                        "source_binding_hash": source_binding_hash,
+                    },
+                    "cases": [
+                        {
+                            "case_id": "verified-case",
+                            "candidate_id": "verified-case",
+                            "doi": "10.1038/example",
+                            "panel_count": 1,
+                            "split": "test",
+                            "data_path": str(data),
+                            "data_sha256": data_hash,
+                            "curation_status": "verified",
+                            "eligible_for_experiment": True,
+                            "verification_evidence": verifications[
+                                "verified-case"
+                            ],
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        matrix = _minimal_matrix(manifest, workspace / "runs")
+        matrix["dataset_mode"] = "sealed_benchmark"
+        path = workspace / "matrix.json"
+        path.write_text(json.dumps(matrix), encoding="utf-8")
+        with pytest.raises(MatrixError, match="dataset_manifest_sha256"):
+            load_and_expand_matrix(path)
+
+        matrix["dataset_manifest_sha256"] = hashlib.sha256(
+            manifest.read_bytes()
+        ).hexdigest()
+        path.write_text(json.dumps(matrix), encoding="utf-8")
+        specs = load_and_expand_matrix(path)
+        assert len(specs) == 1
+        assert specs[0].case_id == "verified-case"
+
+
+def test_sealed_benchmark_rejects_same_doi_across_splits() -> None:
+    with experiment_workspace("doi-overlap") as workspace:
+        source_binding, source_binding_hash, verifications = (
+            _sealed_source_binding(
+                workspace,
+                ["case-train", "case-test"],
+            )
+        )
+        cases = [
+            {
+                "case_id": f"case-{split}",
+                "candidate_id": f"case-{split}",
+                "doi": doi,
+                "panel_count": 1,
+                "split": split,
+                "data_path": str(workspace / f"{split}.csv"),
+                "data_sha256": "a" * 64,
+                "curation_status": "verified",
+                "eligible_for_experiment": True,
+                "verification_evidence": verifications[f"case-{split}"],
+            }
+            for split, doi in (
+                ("train", "10.1038/same-paper"),
+                ("test", "https://doi.org/10.1038/same-paper"),
+            )
+        ]
+        manifest = workspace / "manifest.json"
+        manifest.write_text(
+            json.dumps(
+                {
+                    "provenance": {
+                        "code_commit": "b" * 40,
+                        "code_dirty": False,
+                        "source_binding": source_binding,
+                        "source_binding_hash": source_binding_hash,
+                    },
+                    "cases": cases,
+                }
+            ),
+            encoding="utf-8",
+        )
+        matrix = _minimal_matrix(manifest, workspace / "runs")
+        matrix["dataset_mode"] = "sealed_benchmark"
+        matrix["dataset_manifest_sha256"] = hashlib.sha256(
+            manifest.read_bytes()
+        ).hexdigest()
+        path = workspace / "matrix.json"
+        path.write_text(json.dumps(matrix), encoding="utf-8")
+        with pytest.raises(MatrixError, match="multiple benchmark splits"):
             load_and_expand_matrix(path)

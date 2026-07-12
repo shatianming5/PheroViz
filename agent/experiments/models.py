@@ -189,6 +189,7 @@ class ExperimentSpec:
     metric_version: str
     method_config: Dict[str, Any] = field(default_factory=dict)
     provider_options: Dict[str, Any] = field(default_factory=dict)
+    dataset_mode: str = "legacy"
     schema_version: str = SCHEMA_VERSION
 
     def __post_init__(self) -> None:
@@ -232,6 +233,10 @@ class ExperimentSpec:
         if self.budget_type not in _BUDGET_TYPES:
             raise ProvenanceError(
                 f"budget_type must be one of {sorted(_BUDGET_TYPES)}"
+            )
+        if self.dataset_mode not in {"legacy", "sealed_benchmark"}:
+            raise ProvenanceError(
+                "dataset_mode must be legacy or sealed_benchmark"
             )
         if not math.isfinite(float(self.budget_value)) or self.budget_value <= 0:
             raise ProvenanceError("budget_value must be a positive finite number")

@@ -9,6 +9,7 @@ from pathlib import Path
 import re
 from typing import Any, Iterable
 
+from .benchmark import assemble_verified_benchmark, write_benchmark_outputs
 from .cases import (
     DEFAULT_MAX_ZIP_FILES,
     DEFAULT_MAX_ZIP_UNCOMPRESSED_BYTES,
@@ -31,7 +32,7 @@ from .proposals import (
     propose_cases,
     write_proposal_outputs,
 )
-from .reviews import review_proposals
+from .reviews import _resolve_git_state, review_proposals
 from .provenance import (
     ProvenanceError,
     build_article_manifest,
@@ -209,6 +210,7 @@ def cmd_split(args: argparse.Namespace) -> None:
 
 
 def cmd_build_cases(args: argparse.Namespace) -> None:
+    code_state = _resolve_git_state(None, allow_dirty=False)
     candidates, ambiguous, summary = build_cases(
         corpus_manifest=args.corpus_manifest,
         content_root=args.content_root,
@@ -218,7 +220,14 @@ def cmd_build_cases(args: argparse.Namespace) -> None:
         max_zip_uncompressed_bytes=args.max_zip_uncompressed_bytes,
         max_xlsx_sheets=args.max_xlsx_sheets,
     )
-    write_case_outputs(args.out, candidates, ambiguous, summary)
+    summary = write_case_outputs(
+        args.out,
+        candidates,
+        ambiguous,
+        summary,
+        code_commit=code_state.commit,
+        code_dirty=code_state.dirty,
+    )
     print(
         f"[done] Cases: candidates={summary['candidates']} "
         f"ambiguous={summary['ambiguous']} verified={summary['verified']} "
@@ -262,6 +271,30 @@ def cmd_review_proposals(args: argparse.Namespace) -> None:
         f"{summary['single_reviewed']} multi={summary['multi_accepted']}/"
         f"{summary['multi_reviewed']} rejected={summary['rejected']} "
         f"evidence={summary['evidence_records']} out={args.out}"
+    )
+
+
+def cmd_assemble_benchmark(args: argparse.Namespace) -> None:
+    code_state = _resolve_git_state(None, allow_dirty=False)
+    result = assemble_verified_benchmark(
+        candidate_paths=args.candidates,
+        evidence_path=args.evidence,
+        proposed_path=args.proposed,
+        reviews_path=args.reviews,
+        seed=args.seed,
+        train_ratio=args.train_ratio,
+        val_ratio=args.val_ratio,
+        test_ratio=args.test_ratio,
+        code_commit=code_state.commit,
+        code_dirty=code_state.dirty,
+    )
+    summary = write_benchmark_outputs(args.out, result)
+    print(
+        f"[done] Benchmark: cases={summary['cases']} "
+        f"single={summary['single_cases']} "
+        f"multi={summary['multi_panel_cases']} "
+        f"dois={summary['unique_dois']} "
+        f"sha256={summary['benchmark_manifest_sha256']} out={args.out}"
     )
 
 
@@ -522,3 +555,23 @@ def add_corpus_subcommands(subparsers: argparse._SubParsersAction) -> None:
         help="Permit dirty code only when explicitly requested",
     )
     reviews.set_defaults(func=cmd_review_proposals)
+
+    benchmark = subparsers.add_parser(
+        "assemble-benchmark",
+        help="Assemble verified cases into a DOI-disjoint experiment manifest",
+    )
+    benchmark.add_argument(
+        "--candidates",
+        action="append",
+        required=True,
+        help="Repeat for each rebuilt case-builder candidates.jsonl",
+    )
+    benchmark.add_argument("--evidence", required=True)
+    benchmark.add_argument("--proposed", required=True)
+    benchmark.add_argument("--reviews", required=True)
+    benchmark.add_argument("--out", required=True)
+    benchmark.add_argument("--seed", type=int, required=True)
+    benchmark.add_argument("--train-ratio", type=float, default=0.8)
+    benchmark.add_argument("--val-ratio", type=float, default=0.1)
+    benchmark.add_argument("--test-ratio", type=float, default=0.1)
+    benchmark.set_defaults(func=cmd_assemble_benchmark)
