@@ -19,10 +19,11 @@ class FakeResponse:
     def __init__(self, payload: dict[str, Any], *, status: int = 200) -> None:
         self._payload = payload
         self.status_code = status
+        self.text = json.dumps(payload)
 
     def raise_for_status(self) -> None:
         if self.status_code >= 400:
-            raise requests.HTTPError(f"status={self.status_code}")
+            raise requests.HTTPError(f"status={self.status_code}", response=self)
 
     def json(self) -> dict[str, Any]:
         return self._payload
@@ -94,6 +95,30 @@ def test_generate_json_parses_fenced_json() -> None:
     assert result.value == {"value": 4}
 
 
+def test_sampling_parameters_are_model_compatible() -> None:
+    session = FakeSession(
+        [
+            FakeResponse(
+                {
+                    "choices": [{"message": {"content": '{"ok": true}'}}],
+                    "copilot_usage": {"total_nano_aiu": 12},
+                }
+            )
+        ]
+    )
+    result = ModelClient(config(), session=session).generate_json(
+        [{"role": "user", "content": "json"}],
+        model="gpt-4o-mini",
+        temperature=0.7,
+        seed=3,
+    )
+    payload = session.calls[0]["json"]
+    assert payload["temperature"] == 0.7
+    assert payload["seed"] == 3
+    assert "reasoning_effort" not in payload
+    assert result.usage == {"total_nano_aiu": 12}
+
+
 def test_vision_uses_anthropic_image_format(tmp_path: Path) -> None:
     image = tmp_path / "sample.png"
     Image.new("RGB", (4, 4), (255, 0, 0)).save(image)
@@ -134,7 +159,7 @@ def test_invalid_json_fails_explicitly() -> None:
 
 def test_http_failure_is_not_success() -> None:
     session = FakeSession([FakeResponse({"error": "denied"}, status=401)])
-    with pytest.raises(ModelClientError, match="failed"):
+    with pytest.raises(ModelClientError, match="HTTP 401.*denied"):
         ModelClient(config(), session=session).generate_json(
             [{"role": "user", "content": "json"}]
         )

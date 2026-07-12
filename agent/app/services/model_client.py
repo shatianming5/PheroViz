@@ -155,6 +155,8 @@ class ModelClient:
         model: str | None = None,
         max_tokens: int | None = None,
         reasoning_effort: str | None = None,
+        temperature: float | None = None,
+        seed: int | None = None,
     ) -> ModelResponse:
         selected_model = model or self.config.model
         payload: dict[str, Any] = {
@@ -164,8 +166,12 @@ class ModelClient:
             "response_format": {"type": "json_object"},
         }
         effort = reasoning_effort or self.config.reasoning_effort
-        if effort:
+        if effort and selected_model.startswith("gpt-5"):
             payload["reasoning_effort"] = effort
+        if temperature is not None and not selected_model.startswith("gpt-5"):
+            payload["temperature"] = temperature
+        if seed is not None:
+            payload["seed"] = seed
 
         started = time.monotonic()
         data = self._post_json(
@@ -190,7 +196,7 @@ class ModelClient:
             value=_parse_json_text(content),
             model=str(data.get("model") or selected_model),
             request_id=_optional_str(data.get("id")),
-            usage=dict(data.get("usage") or {}),
+            usage=dict(data.get("usage") or data.get("copilot_usage") or {}),
             latency_seconds=time.monotonic() - started,
         )
 
@@ -246,7 +252,7 @@ class ModelClient:
             value=_parse_json_text(text),
             model=str(data.get("model") or selected_model),
             request_id=_optional_str(data.get("id")),
-            usage=dict(data.get("usage") or {}),
+            usage=dict(data.get("usage") or data.get("copilot_usage") or {}),
             latency_seconds=time.monotonic() - started,
         )
 
@@ -270,17 +276,30 @@ class ModelClient:
                     timeout=(self.config.connect_timeout, self.config.timeout),
                 )
                 response.raise_for_status()
-                data = response.json()
+            except requests.HTTPError as exc:
+                status = getattr(response, "status_code", None)
+                detail = _response_detail(response)
+                error = ModelClientError(
+                    f"Model endpoint HTTP {status or 'error'}: {detail}"
+                )
+                if status is not None and 400 <= status < 500 and status != 429:
+                    raise error from exc
+                last_error = error
+            except requests.RequestException as exc:
+                last_error = exc
+            else:
+                try:
+                    data = response.json()
+                except ValueError as exc:
+                    raise ModelClientError("Model endpoint returned invalid JSON") from exc
                 if not isinstance(data, dict):
                     raise ModelClientError("Model endpoint returned non-object JSON")
                 if data.get("error"):
                     raise ModelClientError(f"Model endpoint error: {data['error']}")
                 return data
-            except (requests.RequestException, ValueError, ModelClientError) as exc:
-                last_error = exc
-                if attempt >= self.config.retries:
-                    break
-                time.sleep(min(2**attempt, 5))
+            if attempt >= self.config.retries:
+                break
+            time.sleep(min(2**attempt, 5))
         raise ModelClientError(f"Model request failed: {last_error}") from last_error
 
 
@@ -301,3 +320,13 @@ def _image_media_type(path: Path) -> str:
 
 def _optional_str(value: Any) -> str | None:
     return None if value is None else str(value)
+
+
+def _response_detail(response: requests.Response) -> str:
+    try:
+        payload = response.json()
+        text = json.dumps(payload, ensure_ascii=False)
+    except (ValueError, TypeError):
+        text = str(getattr(response, "text", "") or "")
+    text = re.sub(r"\s+", " ", text).strip()
+    return text[:1000] or "no response body"
