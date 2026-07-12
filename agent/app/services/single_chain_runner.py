@@ -482,6 +482,7 @@ def _llm_generate_slots(
     if not isinstance(slots, dict):
         slots = {}
     clean_slots: Dict[str, str] = {}
+    normalization_map: Dict[str, str] = {}
     for key, value in slots.items():
         if isinstance(key, str) and isinstance(value, str) and value.strip():
             normalized_body = value.strip()
@@ -497,7 +498,14 @@ def _llm_generate_slots(
             and key == "spec.compose"
             and isinstance(value, dict)
         ):
-            clean_slots[key] = f"return {value!r}"
+            structured_spec = value
+            if (
+                set(value) == {"spec"}
+                and isinstance(value.get("spec"), dict)
+            ):
+                structured_spec = value["spec"]
+                normalization_map[key] = "unwrap_single_spec_key"
+            clean_slots[key] = f"return {structured_spec!r}"
         elif (
             stage == "L1"
             and key == "spec.theme_defaults"
@@ -514,6 +522,7 @@ def _llm_generate_slots(
             f"{stage} model response contained no non-empty slot bodies"
         )
     filtered_slots, forbidden_map, autofix_map = _filter_forbidden_slot_content(stage, clean_slots)
+    autofix_map = {**normalization_map, **autofix_map}
     notes = response_dict.get("notes", "")
     if not isinstance(notes, str):
         notes = ""
@@ -1527,6 +1536,38 @@ def iter_chain(
                 try:
                     validated_spec = validate_spec(new_spec)
                 except (TypeError, ValueError) as exc:
+                    if (
+                        round_idx == 1
+                        and generation_mode in {"model", "model_spec"}
+                    ):
+                        stage_log = stage_logs.get("L1") or {}
+                        failure_path = (
+                            active_run_dir
+                            / f"model_failure_round_{round_idx}_L1_validation.json"
+                        )
+                        failure_path.write_text(
+                            json.dumps(
+                                {
+                                    "round": round_idx,
+                                    "stage": "L1",
+                                    "prompt": stage_log.get("prompt"),
+                                    "response": stage_log.get("response"),
+                                    "model_metadata": stage_log.get("model_metadata"),
+                                    "accepted_slots": stage_log.get("accepted_slots"),
+                                    "candidate_spec": _snapshot(new_spec),
+                                    "validation_error": str(exc),
+                                },
+                                ensure_ascii=False,
+                                indent=2,
+                                sort_keys=True,
+                            )
+                            + "\n",
+                            encoding="utf-8",
+                        )
+                        raise ValueError(
+                            "L1 model initial generation produced an invalid spec; "
+                            f"evidence={failure_path}"
+                        ) from exc
                     spec = prev_spec
                     ctx["spec"] = spec
                     fallback_note = f"spec_validation_failed: {exc}"

@@ -532,6 +532,50 @@ def test_l1_structured_slots_are_compiled_without_eval() -> None:
     assert "theme.update" in result["slots"]["spec.theme_defaults"]
 
 
+def test_l1_single_spec_wrapper_is_normalized_with_raw_response_preserved() -> None:
+    wrapped_spec = {
+        "canvas": {"width": 640, "height": 480, "dpi": 100},
+        "theme": {"palette_global": "tab10"},
+        "layout": {},
+        "scales": {},
+        "overlays": [],
+    }
+
+    class WrappedL1Client:
+        def generate_json(self, messages, **kwargs):
+            del messages, kwargs
+            return ModelResponse(
+                value={
+                    "slots": {
+                        "spec.compose": {"spec": wrapped_spec},
+                        "spec.theme_defaults": {},
+                    },
+                    "notes": "wrapped structured L1",
+                },
+                model="fake",
+                request_id="wrapped-l1",
+                usage={},
+                stop_reason="end_turn",
+                latency_seconds=0.0,
+            )
+
+    result = single_runner._llm_generate_slots(
+        "L1",
+        {
+            "slot_keys": ["spec.compose", "spec.theme_defaults"],
+            "data_profile": {},
+            "intent": {},
+            "spec": {},
+            "memory_context": {},
+        },
+        model_client=WrappedL1Client(),  # type: ignore[arg-type]
+    )
+
+    assert result["slots"]["spec.compose"] == f"return {wrapped_spec!r}"
+    assert result["autofix"]["spec.compose"] == "unwrap_single_spec_key"
+    assert result["response"]["slots"]["spec.compose"] == {"spec": wrapped_spec}
+
+
 def test_l1_empty_theme_string_preserves_spec() -> None:
     class EmptyThemeClient:
         def generate_json(self, messages, **kwargs):
@@ -684,6 +728,76 @@ def test_model_spec_initial_generation_calls_only_l1(
         result["stages"][layer]["prompt"] == "DEFAULT_V2"
         for layer in ("L2", "L3", "L4")
     )
+
+
+def test_model_spec_invalid_executed_spec_fails_with_evidence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _disable_network(monkeypatch)
+    data_path = tmp_path / "panel.csv"
+    _write_csv(data_path, "category", "value")
+    run_dir = tmp_path / "invalid-model-spec"
+
+    class InvalidSpecClient:
+        def generate_json(self, messages, **kwargs):
+            del messages, kwargs
+            return ModelResponse(
+                value={
+                    "slots": {
+                        "spec.compose": "return {'spec': {}}",
+                        "spec.theme_defaults": "return spec",
+                    }
+                },
+                model="fake",
+                request_id="invalid-model-spec",
+                usage={},
+                stop_reason="end_turn",
+                latency_seconds=0.0,
+            )
+
+    def invalid_execute(
+        py_code: str,
+        df: Any,
+        intent: dict[str, Any],
+        ctx: dict[str, Any],
+        out_png: str,
+        timeout_s: int,
+    ) -> dict[str, Any]:
+        del py_code, df, intent, timeout_s
+        output = Path(out_png)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        Image.new("RGB", (16, 16), (255, 255, 255)).save(output)
+        invalid_ctx = dict(ctx)
+        invalid_ctx["spec"] = {"spec": {}}
+        return {
+            "ok": True,
+            "png_path": str(output),
+            "stderr": "",
+            "ctx": invalid_ctx,
+        }
+
+    monkeypatch.setattr(single_runner, "execute_script", invalid_execute)
+    with pytest.raises(ValueError, match="initial generation produced an invalid spec"):
+        single_runner.run_chain(
+            str(data_path),
+            "invalid model spec",
+            "bar",
+            rounds=1,
+            run_dir=run_dir,
+            model_client=InvalidSpecClient(),  # type: ignore[arg-type]
+            initial_generation="model_spec",
+            memory_mode="none",
+        )
+
+    evidence = json.loads(
+        (run_dir / "model_failure_round_1_L1_validation.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert evidence["validation_error"] == "missing top-level field 'canvas'"
+    assert evidence["candidate_spec"] == {"spec": {}}
+    assert evidence["model_metadata"]["request_id"] == "invalid-model-spec"
 
 
 @pytest.mark.parametrize(
