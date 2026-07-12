@@ -77,6 +77,19 @@
   100,000 行和 64 列。输出 `proposed.jsonl`、`rejected.jsonl`、
   `summary.json`。proposal 始终为 `curation_status=proposed`、
   `eligible_for_experiment=false`，必须经外部或人工验证后才能进入实验。
+- 提交并确认工作树干净后，使用至少两个不同模型做外部验证：
+  ```bash
+  python nature_all_in_one.py review-proposals \
+    --proposed outputs/case_proposals/proposed.jsonl \
+    --judge-model "<judge-model-a>" \
+    --judge-model "<judge-model-b>" \
+    --out outputs/case_reviews
+  ```
+  模型连接从既有 `MODEL_API_BASE` / `MODEL_API_KEY`（或兼容环境变量）
+  读取，secret 不写入产物。输出 `evidence.json`、`reviews.jsonl`、
+  `rejected.jsonl`、`summary.json` 与 `summary.sha256`。默认拒绝 dirty
+  worktree；`--resume` 仅复用与输入、资产、rubric、模型和代码 hash
+  完全绑定的 sidecar。
 - 基础检索（合规、不抓取）：
   ```bash
   python nature_all_in_one.py search \

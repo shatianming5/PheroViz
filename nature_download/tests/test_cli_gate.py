@@ -48,12 +48,28 @@ def test_new_corpus_commands_enable_gate_by_default() -> None:
             "proposals",
         ]
     )
+    reviews = parser.parse_args(
+        [
+            "review-proposals",
+            "--proposed",
+            "proposed.jsonl",
+            "--out",
+            "reviews",
+            "--judge-model",
+            "judge-a",
+            "--judge-model",
+            "judge-b",
+        ]
+    )
     assert discover.require_cc_by is True
     assert validate.require_cc_by is True
     assert manifest.require_cc_by is True
     assert cases.max_xlsx_sheets == 256
     assert proposals.max_rows == 100_000
     assert proposals.max_columns == 64
+    assert reviews.judge_model == ["judge-a", "judge-b"]
+    assert reviews.resume is False
+    assert reviews.allow_dirty is False
 
 
 def test_legacy_download_commands_require_explicit_gate() -> None:

@@ -31,6 +31,7 @@ from .proposals import (
     propose_cases,
     write_proposal_outputs,
 )
+from .reviews import review_proposals
 from .provenance import (
     ProvenanceError,
     build_article_manifest,
@@ -244,6 +245,23 @@ def cmd_propose_cases(args: argparse.Namespace) -> None:
         f"[done] Proposals: single={summary['single_proposals']} "
         f"multi={summary['multi_panel_proposals']} "
         f"rejected={summary['rejected']} eligible=0 out={output_path}"
+    )
+
+
+def cmd_review_proposals(args: argparse.Namespace) -> None:
+    result = review_proposals(
+        proposed_path=args.proposed,
+        output_root=args.out,
+        judge_models=args.judge_model,
+        resume=args.resume,
+        allow_dirty=args.allow_dirty,
+    )
+    summary = result["summary"]
+    print(
+        f"[done] Reviews: single={summary['single_accepted']}/"
+        f"{summary['single_reviewed']} multi={summary['multi_accepted']}/"
+        f"{summary['multi_reviewed']} rejected={summary['rejected']} "
+        f"evidence={summary['evidence_records']} out={args.out}"
     )
 
 
@@ -484,3 +502,23 @@ def add_corpus_subcommands(subparsers: argparse._SubParsersAction) -> None:
         default=DEFAULT_MAX_COLUMNS,
     )
     proposals.set_defaults(func=cmd_propose_cases)
+
+    reviews = subparsers.add_parser(
+        "review-proposals",
+        help="Externally validate proposals with at least two distinct models",
+    )
+    reviews.add_argument("--proposed", required=True)
+    reviews.add_argument("--out", required=True)
+    reviews.add_argument(
+        "--judge-model",
+        action="append",
+        required=True,
+        help="Repeat for at least two distinct judge models",
+    )
+    reviews.add_argument("--resume", action="store_true")
+    reviews.add_argument(
+        "--allow-dirty",
+        action="store_true",
+        help="Permit dirty code only when explicitly requested",
+    )
+    reviews.set_defaults(func=cmd_review_proposals)
