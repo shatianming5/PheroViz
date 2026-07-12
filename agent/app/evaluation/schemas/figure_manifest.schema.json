@@ -1,0 +1,170 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pheroviz.local/schemas/evaluation/figure-manifest-1.1.0.json",
+  "title": "PheroViz Matplotlib figure manifest",
+  "type": "object",
+  "required": ["schema_version", "figure", "axes", "figure_legends"],
+  "properties": {
+    "schema_version": {"const": "1.1.0"},
+    "figure": {
+      "type": "object",
+      "required": ["size_inches", "dpi", "facecolor"],
+      "properties": {
+        "size_inches": {
+          "type": "array",
+          "prefixItems": [{"type": "number"}, {"type": "number"}],
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "dpi": {"type": "number"},
+        "facecolor": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "axes": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/axis"}
+    },
+    "figure_legends": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/legend"}
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "axis_properties": {
+      "type": "object",
+      "required": ["label", "unit", "scale", "limits", "tick_labels", "offset_text"],
+      "properties": {
+        "label": {"type": "string"},
+        "unit": {"type": ["string", "null"]},
+        "scale": {"type": "string"},
+        "limits": {
+          "type": "array",
+          "prefixItems": [
+            {"type": ["number", "null"]},
+            {"type": ["number", "null"]}
+          ],
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "tick_labels": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "offset_text": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "legend_entry": {
+      "type": "object",
+      "required": ["label", "color", "linestyle", "marker"],
+      "properties": {
+        "label": {"type": "string"},
+        "color": {"type": ["string", "null"]},
+        "linestyle": {"type": ["string", "null"]},
+        "marker": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "legend": {
+      "type": "object",
+      "required": ["present", "location", "entries"],
+      "properties": {
+        "present": {"type": "boolean"},
+        "location": {},
+        "entries": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/legend_entry"}
+        }
+      },
+      "additionalProperties": false
+    },
+    "series": {
+      "type": "object",
+      "required": [
+        "series_id", "kind", "axis_slot", "label", "x", "y", "value", "color",
+        "colors", "style", "metadata", "x_labels"
+      ],
+      "properties": {
+        "series_id": {"type": "string"},
+        "kind": {"type": "string"},
+        "axis_slot": {
+          "type": ["string", "null"],
+          "enum": ["primary", "secondary", null]
+        },
+        "label": {"type": ["string", "null"]},
+        "x": {"type": "array"},
+        "y": {"type": "array"},
+        "value": {},
+        "color": {"type": ["string", "null"]},
+        "colors": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "style": {"type": "object"},
+        "metadata": {"type": "object"},
+        "x_labels": {
+          "type": "array",
+          "items": {"type": ["string", "null"]}
+        }
+      },
+      "additionalProperties": false
+    },
+    "axis": {
+      "type": "object",
+      "required": [
+        "axis_id", "panel_id", "parent_axis_id", "axis_slot", "index",
+        "source_index", "role", "bbox", "title", "x_axis", "y_axis",
+        "legend", "series", "annotations"
+      ],
+      "properties": {
+        "axis_id": {"type": "string"},
+        "panel_id": {"type": ["string", "null"]},
+        "parent_axis_id": {"type": ["string", "null"]},
+        "axis_slot": {
+          "type": ["string", "null"],
+          "enum": ["primary", "secondary", null]
+        },
+        "index": {"type": "integer", "minimum": 0},
+        "source_index": {"type": "integer", "minimum": 0},
+        "role": {"enum": ["panel", "secondary", "colorbar", "auxiliary"]},
+        "bbox": {
+          "type": "array",
+          "items": {"type": "number"},
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "title": {"type": "string"},
+        "x_axis": {"$ref": "#/$defs/axis_properties"},
+        "y_axis": {"$ref": "#/$defs/axis_properties"},
+        "legend": {"$ref": "#/$defs/legend"},
+        "series": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/series"}
+        },
+        "annotations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "annotation_id", "kind", "classification", "label",
+              "x", "y", "metadata"
+            ],
+            "properties": {
+              "annotation_id": {"type": "string"},
+              "kind": {"type": "string"},
+              "classification": {"type": "string"},
+              "label": {"type": ["string", "null"]},
+              "x": {"type": "array"},
+              "y": {"type": "array"},
+              "metadata": {"type": "object"}
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

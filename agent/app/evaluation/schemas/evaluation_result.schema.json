@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pheroviz.local/schemas/evaluation/result-1.1.0.json",
+  "title": "PheroViz programmatic evaluation result",
+  "type": "object",
+  "required": [
+    "schema_version", "metric_config", "figure_manifest", "fidelity", "cohesion"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.1.0"},
+    "metric_config": {
+      "type": "object",
+      "required": [
+        "schema_version", "metric_version", "numeric_tolerance",
+        "limit_tolerance", "float_precision", "case_sensitive_labels",
+        "allow_missing_shared_units", "unit_aliases"
+      ]
+    },
+    "figure_manifest": {
+      "type": "object"
+    },
+    "fidelity": {
+      "$ref": "#/$defs/metric"
+    },
+    "cohesion": {
+      "$ref": "#/$defs/metric"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "mismatch": {
+      "type": "object",
+      "required": [
+        "code", "message", "panel_id", "series_id", "location", "expected", "observed"
+      ],
+      "properties": {
+        "code": {"type": "string"},
+        "message": {"type": "string"},
+        "panel_id": {"type": ["string", "null"]},
+        "series_id": {"type": ["string", "null"]},
+        "location": {"type": "object"},
+        "expected": {},
+        "observed": {}
+      },
+      "additionalProperties": false
+    },
+    "check": {
+      "type": "object",
+      "required": [
+        "name", "applicable", "status", "numerator", "denominator",
+        "ratio", "items", "mismatches", "details"
+      ],
+      "properties": {
+        "name": {"type": "string"},
+        "applicable": {"type": "boolean"},
+        "status": {"enum": ["pass", "fail", "na"]},
+        "numerator": {"type": "integer", "minimum": 0},
+        "denominator": {"type": "integer", "minimum": 0},
+        "ratio": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "items": {"type": "array"},
+        "mismatches": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/mismatch"}
+        },
+        "details": {"type": "object"}
+      },
+      "additionalProperties": false
+    },
+    "metric": {
+      "type": "object",
+      "required": [
+        "name", "applicable", "status", "aggregation", "numerator", "denominator",
+        "ratio", "checks", "mismatches"
+      ],
+      "properties": {
+        "name": {"type": "string"},
+        "applicable": {"type": "boolean"},
+        "status": {"enum": ["pass", "fail", "na"]},
+        "aggregation": {"const": "sum_applicable_check_counts"},
+        "numerator": {"type": "integer", "minimum": 0},
+        "denominator": {"type": "integer", "minimum": 0},
+        "ratio": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "checks": {
+          "type": "object",
+          "additionalProperties": {"$ref": "#/$defs/check"}
+        },
+        "mismatches": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/mismatch"}
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

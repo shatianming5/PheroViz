@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pheroviz.local/schemas/evaluation/expectation-1.1.0.json",
+  "title": "PheroViz programmatic evaluation expectation",
+  "type": "object",
+  "required": ["schema_version", "panels"],
+  "properties": {
+    "schema_version": {
+      "const": "1.1.0"
+    },
+    "panels": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/panel"
+      }
+    },
+    "panel_groups": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/panel_group"
+      },
+      "default": []
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "data_ref": {
+      "oneOf": [
+        {"type": "string"},
+        {"type": "array"},
+        {
+          "type": "object",
+          "properties": {
+            "column": {"type": "string"},
+            "values": {"type": "array"}
+          },
+          "minProperties": 1,
+          "additionalProperties": false
+        }
+      ]
+    },
+    "series": {
+      "type": "object",
+      "required": ["series_id", "kind"],
+      "anyOf": [
+        {"required": ["x"]},
+        {"required": ["y"]},
+        {"required": ["value"]}
+      ],
+      "properties": {
+        "series_id": {"type": "string", "minLength": 1},
+        "kind": {
+          "enum": ["line", "scatter", "bar", "image", "poly", "errorbar"]
+        },
+        "label": {"type": ["string", "null"]},
+        "y_axis": {"enum": ["primary", "secondary"]},
+        "x": {"$ref": "#/$defs/data_ref"},
+        "y": {"$ref": "#/$defs/data_ref"},
+        "value": {"$ref": "#/$defs/data_ref"},
+        "where": {
+          "type": "object",
+          "additionalProperties": {
+            "oneOf": [
+              {"type": ["string", "number", "integer", "boolean", "null"]},
+              {"type": "array"}
+            ]
+          }
+        },
+        "sort_by": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      },
+      "additionalProperties": false
+    },
+    "panel": {
+      "type": "object",
+      "required": ["panel_id", "series"],
+      "properties": {
+        "panel_id": {"type": "string", "minLength": 1},
+        "axis_index": {"type": "integer", "minimum": 0},
+        "source_key": {"type": "string"},
+        "xlabel": {"type": ["string", "null"]},
+        "ylabel": {"type": ["string", "null"]},
+        "x_unit": {"type": ["string", "null"]},
+        "y_unit": {"type": ["string", "null"]},
+        "x_scale": {"type": ["string", "null"]},
+        "y_scale": {"type": ["string", "null"]},
+        "secondary_y": {"$ref": "#/$defs/y_axis_expectation"},
+        "series": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/series"}
+        }
+      },
+      "additionalProperties": false
+    },
+    "y_axis_expectation": {
+      "type": "object",
+      "minProperties": 1,
+      "properties": {
+        "ylabel": {"type": ["string", "null"]},
+        "y_unit": {"type": ["string", "null"]},
+        "y_scale": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "panel_group": {
+      "type": "object",
+      "required": ["group_id", "panels", "checks"],
+      "properties": {
+        "group_id": {"type": "string", "minLength": 1},
+        "panels": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": {"type": "string"}
+        },
+        "series": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string"}
+        },
+        "checks": {
+          "type": "object",
+          "properties": {
+            "shared_x_scale": {"type": "boolean"},
+            "shared_y_scale": {"type": "boolean"},
+            "shared_x_limits": {"type": "boolean"},
+            "shared_y_limits": {"type": "boolean"},
+            "shared_x_unit": {"type": "boolean"},
+            "shared_y_unit": {"type": "boolean"},
+            "legend_deduplicated": {"type": "boolean"},
+            "palette_consistent": {"type": "boolean"}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

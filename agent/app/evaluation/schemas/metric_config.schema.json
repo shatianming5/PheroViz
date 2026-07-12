@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pheroviz.local/schemas/evaluation/metric-config-1.0.0.json",
+  "title": "PheroViz versioned programmatic metric configuration",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "metric_version",
+    "numeric_tolerance",
+    "limit_tolerance",
+    "float_precision",
+    "case_sensitive_labels",
+    "allow_missing_shared_units",
+    "unit_aliases"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "metric_version": {"type": "string", "minLength": 1},
+    "numeric_tolerance": {"$ref": "#/$defs/tolerance"},
+    "limit_tolerance": {"$ref": "#/$defs/tolerance"},
+    "float_precision": {"type": "integer", "minimum": 0, "maximum": 15},
+    "case_sensitive_labels": {"type": "boolean"},
+    "allow_missing_shared_units": {"type": "boolean"},
+    "unit_aliases": {
+      "type": "object",
+      "additionalProperties": {"type": "string"}
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "tolerance": {
+      "type": "object",
+      "required": ["absolute", "relative"],
+      "properties": {
+        "absolute": {"type": "number", "minimum": 0},
+        "relative": {"type": "number", "minimum": 0}
+      },
+      "additionalProperties": false
+    }
+  }
+}
