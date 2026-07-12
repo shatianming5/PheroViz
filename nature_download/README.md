@@ -108,6 +108,9 @@
   bindings、deterministic expectation、case-builder seals 与每个数据文件
   checksum。同一 DOI 的全部 cases 只会进入同一个 split；multi-panel
   case 仅从全部已重建 verified 的 source singles 重新构造。
+  若 cases 来自多个独立审核批次，可按相同顺序重复 `--proposed`、
+  `--reviews`、`--evidence` 三个参数；每个 bundle 会单独重算完整
+  trust chain，且 candidate ID 不得跨 bundle 重复。
   生产实验 matrix 必须显式绑定输出 manifest：
   ```yaml
   dataset_mode: sealed_benchmark

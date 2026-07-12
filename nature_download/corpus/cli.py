@@ -276,11 +276,20 @@ def cmd_review_proposals(args: argparse.Namespace) -> None:
 
 def cmd_assemble_benchmark(args: argparse.Namespace) -> None:
     code_state = _resolve_git_state(None, allow_dirty=False)
+    if not (
+        len(args.proposed) == len(args.reviews) == len(args.evidence)
+    ):
+        raise ValueError(
+            "--proposed, --reviews, and --evidence counts must match"
+        )
     result = assemble_verified_benchmark(
         candidate_paths=args.candidates,
-        evidence_path=args.evidence,
-        proposed_path=args.proposed,
-        reviews_path=args.reviews,
+        review_bundles=zip(
+            args.proposed,
+            args.reviews,
+            args.evidence,
+            strict=True,
+        ),
         seed=args.seed,
         train_ratio=args.train_ratio,
         val_ratio=args.val_ratio,
@@ -566,9 +575,9 @@ def add_corpus_subcommands(subparsers: argparse._SubParsersAction) -> None:
         required=True,
         help="Repeat for each rebuilt case-builder candidates.jsonl",
     )
-    benchmark.add_argument("--evidence", required=True)
-    benchmark.add_argument("--proposed", required=True)
-    benchmark.add_argument("--reviews", required=True)
+    benchmark.add_argument("--evidence", action="append", required=True)
+    benchmark.add_argument("--proposed", action="append", required=True)
+    benchmark.add_argument("--reviews", action="append", required=True)
     benchmark.add_argument("--out", required=True)
     benchmark.add_argument("--seed", type=int, required=True)
     benchmark.add_argument("--train-ratio", type=float, default=0.8)

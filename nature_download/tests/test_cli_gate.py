@@ -90,6 +90,9 @@ def test_new_corpus_commands_enable_gate_by_default() -> None:
     assert reviews.resume is False
     assert reviews.allow_dirty is False
     assert benchmark.candidates == ["batch-a.jsonl", "batch-b.jsonl"]
+    assert benchmark.proposed == ["proposed.jsonl"]
+    assert benchmark.reviews == ["reviews.jsonl"]
+    assert benchmark.evidence == ["evidence.json"]
     assert benchmark.train_ratio == 0.8
     assert benchmark.seed == 17
 

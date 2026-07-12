@@ -518,3 +518,86 @@ def test_sealed_benchmark_rejects_same_doi_across_splits() -> None:
         path.write_text(json.dumps(matrix), encoding="utf-8")
         with pytest.raises(MatrixError, match="multiple benchmark splits"):
             load_and_expand_matrix(path)
+
+
+def test_sealed_benchmark_accepts_multiple_review_bundles() -> None:
+    with experiment_workspace("multiple-review-bundles") as workspace:
+        source_bindings = []
+        verifications = {}
+        for suffix in ("a", "b"):
+            root = workspace / suffix
+            root.mkdir()
+            binding, _, bundle_verifications = _sealed_source_binding(
+                root,
+                [f"case-{suffix}"],
+            )
+            source_bindings.append(binding)
+            verifications.update(bundle_verifications)
+        source_binding = {
+            "candidate_inputs": [
+                item
+                for binding in source_bindings
+                for item in binding["candidate_inputs"]
+            ],
+            "review_bundles": [
+                {
+                    "evidence": binding["evidence"],
+                    "proposed": binding["proposed"],
+                    "reviews": binding["reviews"],
+                }
+                for binding in source_bindings
+            ],
+        }
+        source_binding_hash = hashlib.sha256(
+            json.dumps(
+                source_binding,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest()
+        cases = []
+        for suffix, split in (("a", "train"), ("b", "test")):
+            data = workspace / f"{suffix}.csv"
+            data.write_text("x,y\n0,1\n", encoding="utf-8")
+            cases.append(
+                {
+                    "case_id": f"case-{suffix}",
+                    "candidate_id": f"case-{suffix}",
+                    "doi": f"10.1038/article-{suffix}",
+                    "panel_count": 1,
+                    "split": split,
+                    "data_path": str(data),
+                    "data_sha256": hashlib.sha256(
+                        data.read_bytes()
+                    ).hexdigest(),
+                    "curation_status": "verified",
+                    "eligible_for_experiment": True,
+                    "verification_evidence": verifications[f"case-{suffix}"],
+                }
+            )
+        manifest = workspace / "manifest.json"
+        manifest.write_text(
+            json.dumps(
+                {
+                    "provenance": {
+                        "code_commit": "b" * 40,
+                        "code_dirty": False,
+                        "source_binding": source_binding,
+                        "source_binding_hash": source_binding_hash,
+                    },
+                    "cases": cases,
+                }
+            ),
+            encoding="utf-8",
+        )
+        matrix = _minimal_matrix(manifest, workspace / "runs")
+        matrix["dataset_mode"] = "sealed_benchmark"
+        matrix["dataset_manifest_sha256"] = hashlib.sha256(
+            manifest.read_bytes()
+        ).hexdigest()
+        path = workspace / "matrix.json"
+        path.write_text(json.dumps(matrix), encoding="utf-8")
+
+        specs = load_and_expand_matrix(path)
+        assert {spec.case_id for spec in specs} == {"case-a", "case-b"}
+        assert {spec.dataset_mode for spec in specs} == {"sealed_benchmark"}

@@ -119,15 +119,155 @@ def _verify_object_seal(
     return declared
 
 
+def _validate_review_bundle_binding(
+    bundle: Mapping[str, Any],
+    *,
+    label: str,
+) -> dict[str, dict[str, Any]]:
+    if set(bundle) != {"evidence", "proposed", "reviews"}:
+        raise ManifestError(f"Benchmark {label} has unexpected fields")
+    evidence = bundle.get("evidence")
+    proposed = bundle.get("proposed")
+    reviews = bundle.get("reviews")
+    if not all(
+        isinstance(item, Mapping)
+        for item in (evidence, proposed, reviews)
+    ):
+        raise ManifestError(f"Benchmark {label} artifacts are invalid")
+    _verify_binding_file(evidence, f"{label}.evidence")
+    _verify_binding_file(proposed, f"{label}.proposed")
+    _verify_binding_file(reviews, f"{label}.reviews")
+    _verify_binding_file(
+        {
+            "path": reviews.get("summary_path"),
+            "sha256": reviews.get("summary_sha256"),
+        },
+        f"{label}.summary",
+    )
+    if not _SHA256_RE.fullmatch(str(evidence.get("evidence_hash") or "")):
+        raise ManifestError(f"Benchmark {label} evidence hash is invalid")
+    evidence_payload = _read_json_object(
+        Path(str(evidence["path"])),
+        f"{label}.evidence",
+    )
+    evidence_hash = _verify_object_seal(
+        evidence_payload,
+        "evidence_hash",
+        f"{label}.evidence",
+    )
+    if (
+        evidence_hash != evidence.get("evidence_hash")
+        or evidence_payload.get("code_dirty") is not False
+        or evidence_payload.get("human_claims") != 0
+        or evidence_payload.get("input_proposed_sha256")
+        != proposed.get("sha256")
+    ):
+        raise ManifestError(f"Benchmark {label} evidence is inconsistent")
+    proposed_records = _read_jsonl_objects(
+        Path(str(proposed["path"])),
+        f"{label}.proposed",
+    )
+    proposed_ids = [
+        str(record.get("candidate_id") or "")
+        for record in proposed_records
+    ]
+    if (
+        any(not candidate_id for candidate_id in proposed_ids)
+        or len(set(proposed_ids)) != len(proposed_ids)
+    ):
+        raise ManifestError(f"Benchmark {label} proposed IDs are invalid")
+    review_records = _read_jsonl_objects(
+        Path(str(reviews["path"])),
+        f"{label}.reviews",
+    )
+    reviews_by_id: dict[str, dict[str, Any]] = {}
+    for review in review_records:
+        candidate_id = str(review.get("candidate_id") or "")
+        _verify_object_seal(
+            review,
+            "review_hash",
+            f"{label}.review:{candidate_id}",
+        )
+        if not candidate_id or candidate_id in reviews_by_id:
+            raise ManifestError(f"Benchmark {label} review IDs are invalid")
+        reviews_by_id[candidate_id] = review
+    if set(reviews_by_id) != set(proposed_ids):
+        raise ManifestError(f"Benchmark {label} review/proposal sets differ")
+    review_summary = _read_json_object(
+        Path(str(reviews["summary_path"])),
+        f"{label}.summary",
+    )
+    _verify_object_seal(
+        review_summary,
+        "summary_hash",
+        f"{label}.summary",
+    )
+    expected_review_hashes = {
+        candidate_id: review["review_hash"]
+        for candidate_id, review in sorted(reviews_by_id.items())
+    }
+    if (
+        review_summary.get("review_hashes") != expected_review_hashes
+        or review_summary.get("evidence_hash") != evidence_hash
+        or review_summary.get("code_dirty") is not False
+    ):
+        raise ManifestError(f"Benchmark {label} summary is inconsistent")
+    verifications = evidence_payload.get("verifications")
+    if not isinstance(verifications, list) or not verifications:
+        raise ManifestError(f"Benchmark {label} verifications are empty")
+    evidence_by_id: dict[str, dict[str, Any]] = {}
+    for verification in verifications:
+        if not isinstance(verification, dict):
+            raise ManifestError(f"Benchmark {label} verification is invalid")
+        candidate_id = str(verification.get("candidate_id") or "")
+        review = reviews_by_id.get(candidate_id)
+        if (
+            not candidate_id
+            or candidate_id in evidence_by_id
+            or review is None
+            or review.get("status") != "accepted"
+            or verification.get("review_hash") != review.get("review_hash")
+            or verification.get("status") != "verified"
+            or verification.get("curation_status") != "verified"
+        ):
+            raise ManifestError(
+                f"Benchmark {label} verification/review binding is inconsistent"
+            )
+        evidence_by_id[candidate_id] = verification
+    accepted_ids = {
+        candidate_id
+        for candidate_id, review in reviews_by_id.items()
+        if review.get("status") == "accepted"
+    }
+    if set(evidence_by_id) != accepted_ids:
+        raise ManifestError(f"Benchmark {label} accepted set is incomplete")
+    return evidence_by_id
+
+
 def _validate_source_binding(
     source_binding: Mapping[str, Any],
 ) -> dict[str, dict[str, Any]]:
-    if set(source_binding) != {
-        "candidate_inputs",
-        "evidence",
-        "proposed",
-        "reviews",
-    }:
+    binding_keys = set(source_binding)
+    legacy_keys = {"candidate_inputs", "evidence", "proposed", "reviews"}
+    multi_keys = {"candidate_inputs", "review_bundles"}
+    if binding_keys == legacy_keys:
+        review_bundles: list[Mapping[str, Any]] = [
+            {
+                "evidence": source_binding["evidence"],
+                "proposed": source_binding["proposed"],
+                "reviews": source_binding["reviews"],
+            }
+        ]
+    elif binding_keys == multi_keys:
+        raw_bundles = source_binding.get("review_bundles")
+        if (
+            not isinstance(raw_bundles, list)
+            or not raw_bundles
+            or not all(isinstance(bundle, Mapping) for bundle in raw_bundles)
+        ):
+            raise ManifestError("Benchmark review bundle bindings are empty")
+        review_bundles = list(raw_bundles)
+    else:
         raise ManifestError("Benchmark source binding has unexpected fields")
     candidate_inputs = source_binding.get("candidate_inputs")
     if not isinstance(candidate_inputs, list) or not candidate_inputs:
@@ -189,110 +329,18 @@ def _validate_source_binding(
             != binding.get("corpus_manifest_sha256")
         ):
             raise ManifestError("Benchmark corpus manifest binding changed")
-    evidence = source_binding.get("evidence")
-    proposed = source_binding.get("proposed")
-    reviews = source_binding.get("reviews")
-    if not all(
-        isinstance(item, Mapping)
-        for item in (evidence, proposed, reviews)
-    ):
-        raise ManifestError("Benchmark review artifact bindings are invalid")
-    _verify_binding_file(evidence, "evidence")
-    _verify_binding_file(proposed, "proposed")
-    _verify_binding_file(reviews, "reviews")
-    _verify_binding_file(
-        {
-            "path": reviews.get("summary_path"),
-            "sha256": reviews.get("summary_sha256"),
-        },
-        "review summary",
-    )
-    if not _SHA256_RE.fullmatch(str(evidence.get("evidence_hash") or "")):
-        raise ManifestError("Benchmark evidence hash is invalid")
-    evidence_payload = _read_json_object(
-        Path(str(evidence["path"])),
-        "evidence",
-    )
-    evidence_hash = _verify_object_seal(
-        evidence_payload,
-        "evidence_hash",
-        "evidence",
-    )
-    if (
-        evidence_hash != evidence.get("evidence_hash")
-        or evidence_payload.get("code_dirty") is not False
-        or evidence_payload.get("human_claims") != 0
-        or evidence_payload.get("input_proposed_sha256")
-        != proposed.get("sha256")
-    ):
-        raise ManifestError("Benchmark evidence binding is inconsistent")
-    proposed_records = _read_jsonl_objects(
-        Path(str(proposed["path"])),
-        "proposed",
-    )
-    proposed_ids = [str(record.get("candidate_id") or "") for record in proposed_records]
-    if (
-        any(not candidate_id for candidate_id in proposed_ids)
-        or len(set(proposed_ids)) != len(proposed_ids)
-    ):
-        raise ManifestError("Benchmark proposed candidate IDs are invalid")
-    review_records = _read_jsonl_objects(
-        Path(str(reviews["path"])),
-        "reviews",
-    )
-    reviews_by_id: dict[str, dict[str, Any]] = {}
-    for review in review_records:
-        candidate_id = str(review.get("candidate_id") or "")
-        _verify_object_seal(review, "review_hash", f"review:{candidate_id}")
-        if not candidate_id or candidate_id in reviews_by_id:
-            raise ManifestError("Benchmark review candidate IDs are invalid")
-        reviews_by_id[candidate_id] = review
-    if set(reviews_by_id) != set(proposed_ids):
-        raise ManifestError("Benchmark review/proposal candidate sets differ")
-    review_summary = _read_json_object(
-        Path(str(reviews["summary_path"])),
-        "review summary",
-    )
-    _verify_object_seal(review_summary, "summary_hash", "review summary")
-    expected_review_hashes = {
-        candidate_id: review["review_hash"]
-        for candidate_id, review in sorted(reviews_by_id.items())
-    }
-    if (
-        review_summary.get("review_hashes") != expected_review_hashes
-        or review_summary.get("evidence_hash") != evidence_hash
-        or review_summary.get("code_dirty") is not False
-    ):
-        raise ManifestError("Benchmark review summary binding is inconsistent")
-    verifications = evidence_payload.get("verifications")
-    if not isinstance(verifications, list) or not verifications:
-        raise ManifestError("Benchmark evidence verifications are empty")
     evidence_by_id: dict[str, dict[str, Any]] = {}
-    for verification in verifications:
-        if not isinstance(verification, dict):
-            raise ManifestError("Benchmark verification record is invalid")
-        candidate_id = str(verification.get("candidate_id") or "")
-        review = reviews_by_id.get(candidate_id)
-        if (
-            not candidate_id
-            or candidate_id in evidence_by_id
-            or review is None
-            or review.get("status") != "accepted"
-            or verification.get("review_hash") != review.get("review_hash")
-            or verification.get("status") != "verified"
-            or verification.get("curation_status") != "verified"
-        ):
+    for bundle_index, bundle in enumerate(review_bundles):
+        bundle_evidence = _validate_review_bundle_binding(
+            bundle,
+            label=f"review_bundles[{bundle_index}]",
+        )
+        duplicates = set(evidence_by_id) & set(bundle_evidence)
+        if duplicates:
             raise ManifestError(
-                "Benchmark verification/review binding is inconsistent"
+                "Benchmark review bundles contain duplicate candidates"
             )
-        evidence_by_id[candidate_id] = verification
-    accepted_ids = {
-        candidate_id
-        for candidate_id, review in reviews_by_id.items()
-        if review.get("status") == "accepted"
-    }
-    if set(evidence_by_id) != accepted_ids:
-        raise ManifestError("Benchmark evidence accepted set is incomplete")
+        evidence_by_id.update(bundle_evidence)
     for index, binding in enumerate(candidate_inputs):
         candidates = _read_jsonl_objects(
             Path(str(binding["candidates_path"])),

@@ -403,3 +403,53 @@ def test_multi_case_requires_all_sources_and_rebinds_checked_paths(
             code_commit="c" * 40,
             code_dirty=False,
         )
+
+
+def test_multiple_review_bundles_merge_without_rejudging(
+    tmp_path: Path,
+) -> None:
+    candidate_paths = []
+    review_bundles = []
+    for suffix in ("a", "b"):
+        root = tmp_path / f"bundle-{suffix}"
+        root.mkdir()
+        corpus_manifest = _manifest_fixture(root)
+        proposal = _canonical_single(
+            root,
+            candidate_id=f"case-{suffix}",
+            panel_id="a",
+            doi=f"10.1038/article-{suffix}",
+            corpus_manifest_sha256=sha256_file(corpus_manifest),
+        )
+        proposed, reviews, evidence_path, evidence = _review_bundle(
+            root,
+            [proposal],
+        )
+        evidence_sha256 = sha256_file(evidence_path)
+        record = _candidate_from_proposal(
+            proposal,
+            verification=evidence[proposal["candidate_id"]],
+            evidence_sha256=evidence_sha256,
+        )
+        candidate_paths.append(
+            _write_case_batch(
+                root / "cases",
+                records=[record],
+                evidence_sha256=evidence_sha256,
+                corpus_manifest=corpus_manifest,
+            )
+        )
+        review_bundles.append((proposed, reviews, evidence_path))
+
+    result = assemble_verified_benchmark(
+        candidate_paths=candidate_paths,
+        review_bundles=review_bundles,
+        seed=19,
+        code_commit="d" * 40,
+        code_dirty=False,
+    )
+    assert result["summary"]["cases"] == 2
+    assert result["summary"]["unique_dois"] == 2
+    assert len(
+        result["manifest"]["provenance"]["source_binding"]["review_bundles"]
+    ) == 2

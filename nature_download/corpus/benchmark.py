@@ -71,7 +71,7 @@ def _read_jsonl(path: Path) -> list[dict[str, Any]]:
 def _load_case_summary(
     candidate_path: Path,
     *,
-    evidence_file_hash: str,
+    evidence_file_hashes: set[str],
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     summary_path = candidate_path.parent / "summary.json"
     digest_path = candidate_path.parent / "summary.sha256"
@@ -93,7 +93,7 @@ def _load_case_summary(
         raise BenchmarkBuildError("case-builder-summary-hash-mismatch")
     if (
         summary.get("candidates_sha256") != sha256_file(candidate_path)
-        or summary.get("evidence_file_sha256") != evidence_file_hash
+        or summary.get("evidence_file_sha256") not in evidence_file_hashes
         or summary.get("code_dirty") is not False
         or not GIT_COMMIT_PATTERN.fullmatch(
             str(summary.get("code_commit") or "")
@@ -376,7 +376,7 @@ def _validated_single_cases(
     candidate_paths: Sequence[Path],
     *,
     evidence: Mapping[str, dict[str, Any]],
-    evidence_file_hash: str,
+    evidence_file_hashes: Mapping[str, str],
     proposals: Mapping[str, dict[str, Any]],
 ) -> tuple[
     dict[str, dict[str, Any]],
@@ -389,7 +389,7 @@ def _validated_single_cases(
     for path in candidate_paths:
         case_summary, binding = _load_case_summary(
             path,
-            evidence_file_hash=evidence_file_hash,
+            evidence_file_hashes=set(evidence_file_hashes.values()),
         )
         bindings.append(binding)
         eligible_in_file = 0
@@ -413,7 +413,9 @@ def _validated_single_cases(
                 or expected_verification is None
                 or verification != expected_verification
                 or record.get("verification_evidence_file_sha256")
-                != evidence_file_hash
+                != evidence_file_hashes.get(candidate_id)
+                or record.get("verification_evidence_file_sha256")
+                != case_summary.get("evidence_file_sha256")
             ):
                 raise BenchmarkBuildError(
                     f"candidate-evidence-binding-mismatch:{candidate_id}"
@@ -716,15 +718,18 @@ def _materialize_multi_case(
 def assemble_verified_benchmark(
     *,
     candidate_paths: Iterable[str | Path],
-    evidence_path: str | Path,
-    proposed_path: str | Path,
-    reviews_path: str | Path,
     seed: int,
+    code_commit: str,
+    code_dirty: bool,
+    evidence_path: str | Path | None = None,
+    proposed_path: str | Path | None = None,
+    reviews_path: str | Path | None = None,
+    review_bundles: Iterable[
+        tuple[str | Path, str | Path, str | Path]
+    ] | None = None,
     train_ratio: float = 0.8,
     val_ratio: float = 0.1,
     test_ratio: float = 0.1,
-    code_commit: str,
-    code_dirty: bool,
 ) -> dict[str, Any]:
     """Return a sealed benchmark manifest, split bundle, and summary."""
 
@@ -739,42 +744,101 @@ def assemble_verified_benchmark(
     )
     if not resolved_candidates:
         raise BenchmarkBuildError("candidate-inputs-empty")
-    evidence_file = Path(evidence_path).expanduser().resolve(strict=True)
-    proposal_file = Path(proposed_path).expanduser().resolve(strict=True)
-    reviews_file = Path(reviews_path).expanduser().resolve(strict=True)
-    try:
-        review_bundle = validate_review_artifacts(
-            proposed_path=proposal_file,
-            reviews_path=reviews_file,
-            evidence_path=evidence_file,
+    raw_review_bundles = list(review_bundles or ())
+    legacy_values = (proposed_path, reviews_path, evidence_path)
+    if any(value is not None for value in legacy_values):
+        if any(value is None for value in legacy_values):
+            raise BenchmarkBuildError(
+                "proposed-reviews-evidence-must-be-specified-together"
+            )
+        raw_review_bundles.append(
+            (proposed_path, reviews_path, evidence_path)  # type: ignore[arg-type]
         )
-    except ReviewError as exc:
-        raise BenchmarkBuildError(f"review-artifact-validation:{exc}") from exc
-    evidence_payload = review_bundle["evidence"]
-    evidence = {
-        record["candidate_id"]: record
-        for record in evidence_payload["verifications"]
-    }
-    evidence_file_hash = review_bundle["evidence_sha256"]
-    proposals = review_bundle["proposals"]
-    canonical_multi = {
-        proposal["candidate_id"]: proposal
-        for proposal in _multi_panel_proposals(
-            [
-                proposal
-                for proposal in proposals.values()
-                if proposal.get("proposal_type") == "single_panel"
-            ],
-            input_candidates_sha256=review_bundle[
-                "input_proposed_sha256"
-            ],
-            code_commit=code_commit,
+    if not raw_review_bundles:
+        raise BenchmarkBuildError("review-bundles-empty")
+
+    evidence: dict[str, dict[str, Any]] = {}
+    evidence_file_hashes: dict[str, str] = {}
+    proposals: dict[str, dict[str, Any]] = {}
+    canonical_multi: dict[str, dict[str, Any]] = {}
+    review_bindings: list[dict[str, Any]] = []
+    for bundle_index, (raw_proposed, raw_reviews, raw_evidence) in enumerate(
+        raw_review_bundles
+    ):
+        proposal_file = Path(raw_proposed).expanduser().resolve(strict=True)
+        reviews_file = Path(raw_reviews).expanduser().resolve(strict=True)
+        evidence_file = Path(raw_evidence).expanduser().resolve(strict=True)
+        try:
+            review_bundle = validate_review_artifacts(
+                proposed_path=proposal_file,
+                reviews_path=reviews_file,
+                evidence_path=evidence_file,
+            )
+        except ReviewError as exc:
+            raise BenchmarkBuildError(
+                f"review-artifact-validation[{bundle_index}]:{exc}"
+            ) from exc
+        bundle_proposals = review_bundle["proposals"]
+        bundle_evidence = {
+            record["candidate_id"]: record
+            for record in review_bundle["evidence"]["verifications"]
+        }
+        duplicate_ids = (
+            set(proposals) & set(bundle_proposals)
+        ) | (set(evidence) & set(bundle_evidence))
+        if duplicate_ids:
+            raise BenchmarkBuildError(
+                "review-bundle-candidate-duplicate:"
+                + ",".join(sorted(duplicate_ids))
+            )
+        proposals.update(bundle_proposals)
+        evidence.update(bundle_evidence)
+        evidence_file_hashes.update(
+            {
+                candidate_id: review_bundle["evidence_sha256"]
+                for candidate_id in bundle_evidence
+            }
         )
-    }
+        bundle_canonical_multi = {
+            proposal["candidate_id"]: proposal
+            for proposal in _multi_panel_proposals(
+                [
+                    proposal
+                    for proposal in bundle_proposals.values()
+                    if proposal.get("proposal_type") == "single_panel"
+                ],
+                input_candidates_sha256=review_bundle[
+                    "input_proposed_sha256"
+                ],
+                code_commit=code_commit,
+            )
+        }
+        if set(canonical_multi) & set(bundle_canonical_multi):
+            raise BenchmarkBuildError("canonical-multi-candidate-duplicate")
+        canonical_multi.update(bundle_canonical_multi)
+        review_bindings.append(
+            {
+                "evidence": {
+                    "path": str(evidence_file),
+                    "sha256": review_bundle["evidence_sha256"],
+                    "evidence_hash": review_bundle["evidence"]["evidence_hash"],
+                },
+                "proposed": {
+                    "path": str(proposal_file),
+                    "sha256": review_bundle["input_proposed_sha256"],
+                },
+                "reviews": {
+                    "path": str(reviews_file),
+                    "sha256": review_bundle["reviews_sha256"],
+                    "summary_path": str(reviews_file.parent / "summary.json"),
+                    "summary_sha256": review_bundle["summary_sha256"],
+                },
+            }
+        )
     singles, single_dois, candidate_bindings = _validated_single_cases(
         resolved_candidates,
         evidence=evidence,
-        evidence_file_hash=evidence_file_hash,
+        evidence_file_hashes=evidence_file_hashes,
         proposals=proposals,
     )
 
@@ -816,26 +880,15 @@ def assemble_verified_benchmark(
 
     if set(evidence) != set(cases):
         raise BenchmarkBuildError("evidence-case-set-mismatch")
+    review_bindings.sort(
+        key=lambda binding: binding["proposed"]["path"]
+    )
     source_binding: dict[str, Any] = {
         "candidate_inputs": sorted(
             candidate_bindings,
             key=lambda item: item["candidates_path"],
         ),
-        "evidence": {
-            "path": str(evidence_file),
-            "sha256": evidence_file_hash,
-            "evidence_hash": evidence_payload["evidence_hash"],
-        },
-        "proposed": {
-            "path": str(proposal_file),
-            "sha256": review_bundle["input_proposed_sha256"],
-        },
-        "reviews": {
-            "path": str(reviews_file),
-            "sha256": review_bundle["reviews_sha256"],
-            "summary_path": str(reviews_file.parent / "summary.json"),
-            "summary_sha256": review_bundle["summary_sha256"],
-        },
+        "review_bundles": review_bindings,
     }
     source_binding_hash = _sha256_json(source_binding)
     split_bundle = generate_split_bundle(
