@@ -527,7 +527,7 @@ class MatPlotAgentProvider(ExternalBaselineProvider):
         )
         driver = _write_driver(request.output_dir, _MATPLOT_DRIVER)
         api_key = self.environ.get("MATPLOTAGENT_API_KEY", "")
-        base_url = self.environ["MATPLOTAGENT_BASE_URL"]
+        base_url = self.environ["MATPLOTAGENT_BASE_URL"].rstrip("/") + "/"
         environment = {
             "PYTHONPATH": str(self.repo_path),
             "PHEROVIZ_BASELINE_API_KEY": api_key,

@@ -252,7 +252,7 @@ def test_matplotagent_injects_standard_openai_environment() -> None:
         assert invocation.environment["OPENAI_API_KEY"] == "test-key"
         assert (
             invocation.environment["OPENAI_BASE_URL"]
-            == "https://example.test/v1"
+            == "https://example.test/v1/"
         )
 
 
