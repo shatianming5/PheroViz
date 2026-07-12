@@ -1,26 +1,18 @@
 #!/usr/bin/env python3
-"""
-Nature family search + authorized content fetch (all-in-one)
+"""CC-BY discovery and gated content retrieval for Nature-Vis2000.
 
-Subcommands:
-- search: Crossref + Europe PMC/PMC åˆè§„æ£€ç´¢ï¼Œå¯¼å‡º JSONL/CSV
-- postfetch: å¯¹æ£€ç´¢ç»“æžœé€ç¯‡æŠ“å–ï¼ˆå›¾åƒ+caption + Source dataï¼‰ï¼Œå§‹ç»ˆâ€œæŠ“å–å…¨éƒ¨â€
-- fig: æŠ“å– nature.com å•ä¸ªå›¾é¡µï¼ˆå·²æŽˆæƒå‰æï¼‰
-- source: æŠ“å– nature.com æ–‡ç« é¡µ Source dataï¼ˆå·²æŽˆæƒå‰æï¼‰
-- auto: å¤šå…³é”®è¯æ‰¹é‡æœç´¢å¹¶éšåŽ postfetchï¼ˆå·²æŽˆæƒå‰æï¼‰
-
-è¾“å‡ºç»“æž„ï¼ˆç»Ÿä¸€ï¼‰ï¼š<out>/<article-id>/{figures, source_data, meta}
+Only Nature Communications, Scientific Reports, and npj journals can pass the
+journal policy. Every download command additionally requires verified CC BY
+3.0/4.0 evidence and an enabled ``--require-cc-by`` gate.
 """
 from __future__ import annotations
 
 import argparse
 import csv
-import importlib
 import json
 import mimetypes
 import os
 import re
-import subprocess
 import sys
 import time
 from email.message import Message
@@ -32,29 +24,50 @@ import shutil
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed, wait, FIRST_COMPLETED
 
 
-def ensure_package(module_name: str, pip_name: str | None = None):
-    try:
-        return importlib.import_module(module_name)
-    except ImportError:
-        to_install = pip_name or module_name
-        print(f"[setup] Installing missing dependency: {to_install} ...", flush=True)
-        subprocess.check_call([sys.executable, "-m", "pip", "install", to_install])
-        return importlib.import_module(module_name)
-
-
-requests = ensure_package("requests")
-bs4 = ensure_package("bs4", "beautifulsoup4")
-from bs4 import BeautifulSoup  # type: ignore
 try:
-    ensure_package("rich")
+    import requests
+except ImportError as exc:
+    raise SystemExit(
+        "Missing required dependency 'requests'. "
+        "Install nature_download/requirements.txt before running this CLI."
+    ) from exc
+
+try:
+    from bs4 import BeautifulSoup  # type: ignore
+except ImportError as exc:
+    raise SystemExit(
+        "Missing required dependency 'beautifulsoup4'. "
+        "Install nature_download/requirements.txt before running this CLI."
+    ) from exc
+
+try:
     from rich.console import Console
     from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
     console = Console()
-except Exception:
+except ImportError:
     console = None
 
+try:
+    from .corpus.cli import (
+        LicenseGateError,
+        add_corpus_subcommands,
+        authorize_direct_download,
+        require_record_download_eligibility,
+        write_article_provenance,
+    )
+    from .corpus.policy import evaluate_crossref_item, is_allowed_journal
+except ImportError:
+    from corpus.cli import (
+        LicenseGateError,
+        add_corpus_subcommands,
+        authorize_direct_download,
+        require_record_download_eligibility,
+        write_article_provenance,
+    )
+    from corpus.policy import evaluate_crossref_item, is_allowed_journal
 
-API_USER_AGENT = "PheroViz-NatureAllInOne/1.0 (+compliant; authorized when required)"
+
+API_USER_AGENT = "PheroViz-NatureVis2000/2.0 (+CC-BY-gated corpus tooling)"
 
 
 def safe_console(text: str) -> str:
@@ -97,7 +110,7 @@ def polite_get(url: str, params=None, timeout=30, sleep=1.0, max_retries=3, head
 # ---------- Search (Crossref + Europe PMC) ----------
 
 
-def is_nature_family(container_titles) -> bool:
+def is_corpus_journal(container_titles) -> bool:
     if not container_titles:
         return False
     titles = [container_titles] if isinstance(container_titles, str) else container_titles
@@ -105,9 +118,13 @@ def is_nature_family(container_titles) -> bool:
         if not t:
             continue
         tt = t.strip()
-        if tt == "Nature" or tt.lower().startswith("nature "):
+        if is_allowed_journal(tt):
             return True
     return False
+
+
+# Backward-compatible name; semantics are now the strict corpus allowlist.
+is_nature_family = is_corpus_journal
 
 
 def crossref_search(query: str, rows: int = 20, mailto: str | None = None, sleep=1.0, timeout=30, max_retries=3, family_bias=True):
@@ -124,7 +141,7 @@ def crossref_search(query: str, rows: int = 20, mailto: str | None = None, sleep
     r = polite_get(base, params=params, sleep=sleep, timeout=timeout, max_retries=max_retries)
     data = r.json()
     items = data.get("message", {}).get("items", [])
-    return [it for it in items if is_nature_family(it.get("container-title"))]
+    return [it for it in items if is_corpus_journal(it.get("container-title"))]
 
 
 def crossref_cursor_stream(
@@ -172,7 +189,7 @@ def crossref_cursor_stream(
         data = r.json()
         items = data.get("message", {}).get("items", [])
         for it in items:
-            if is_nature_family(it.get("container-title")):
+            if is_corpus_journal(it.get("container-title")):
                 yield it
                 fetched += 1
                 if fetched >= total_max:
@@ -341,8 +358,9 @@ def cmd_search(args):
             max_retries=args.max_retries,
             family_bias=not args.no_family_bias,
         )
-    print(f"[info] Crossref filtered results (Nature family): {len(items)}")
+    print(f"[info] Crossref allowlisted-journal results: {len(items)}")
     records: list[dict[str, Any]] = []
+    require_cc_by = bool(getattr(args, "require_cc_by", False))
     outdir = Path(args.out)
     outdir.mkdir(parents=True, exist_ok=True)
     for i, it in enumerate(items, 1):
@@ -354,6 +372,10 @@ def cmd_search(args):
         year = issued[0] if issued else None
         url = it.get("URL")
         abstract = it.get("abstract")
+        decision = evaluate_crossref_item(
+            it,
+            require_cc_by=require_cc_by,
+        )
 
         epmc = europe_pmc_by_doi(doi, sleep=args.sleep, timeout=args.timeout, max_retries=args.max_retries)
         pmcid = epmc.get("pmcid") if epmc else None
@@ -365,20 +387,28 @@ def cmd_search(args):
         final_abstract = abstract_epmc or abstract or ""
         authors = format_authors_crossref(it.get("author")) or (epmc.get("authorString") if epmc else "")
         rec = {
+            **decision,
             "doi": doi,
             "title": title,
             "journal": container,
             "year": year,
             "url": url,
+            "article_url": decision.get("article_url") or url,
             "pmcid": pmcid,
             "pmc_url": pmc_url,
             "pmid": pmid,
             "is_open_access": is_oa,
             "abstract": final_abstract,
             "authors": authors,
+            "license_url": (decision.get("license") or {}).get("normalized_url"),
+            "license_source": (decision.get("license") or {}).get("source"),
+            "license_version": (decision.get("license") or {}).get("version"),
         }
         print(f"[{i}/{len(items)}] {safe_console(title)[:80]}...")
-        print(f"      DOI: {doi} | Journal: {safe_console(container)} | Year: {year}")
+        print(
+            f"      DOI: {doi} | Journal: {safe_console(container)} | Year: {year} "
+            f"| CC-BY eligible: {decision['download_eligible']}"
+        )
         records.append(rec)
 
     jsonl_path = outdir / "articles.jsonl"
@@ -386,7 +416,26 @@ def cmd_search(args):
         write_jsonl(jsonl_path, merge_append(records, jsonl_path))
     else:
         write_jsonl(jsonl_path, records)
-    fields = ["doi", "title", "journal", "year", "url", "pmcid", "pmc_url", "pmid", "is_open_access", "abstract", "authors"]
+    fields = [
+        "doi",
+        "title",
+        "journal",
+        "year",
+        "url",
+        "license_url",
+        "license_source",
+        "license_version",
+        "policy_accepted",
+        "require_cc_by",
+        "download_eligible",
+        "reject_reasons",
+        "pmcid",
+        "pmc_url",
+        "pmid",
+        "is_open_access",
+        "abstract",
+        "authors",
+    ]
     write_csv(outdir / "articles.csv", records, fields)
     print(f"[done] Saved {len(records)} records to {outdir}")
 
@@ -585,6 +634,17 @@ def parse_article_id_and_fig(url: str):
 
 def cmd_fig(args):
     url = args.url
+    provenance_record = getattr(args, "_provenance_record", None)
+    if not getattr(args, "_license_prevalidated", False):
+        provenance_record = authorize_direct_download(
+            url=url,
+            doi=getattr(args, "doi", None),
+            require_cc_by=bool(getattr(args, "require_cc_by", False)),
+            mailto=getattr(args, "mailto", None),
+            timeout=args.timeout,
+            max_retries=args.max_retries,
+            sleep=args.sleep,
+        )
     aid, fno = parse_article_id_and_fig(url)
     print(f"[info] Article: {aid} | Figure: {fno if fno else 'all/unknown'}")
     try:
@@ -631,6 +691,14 @@ def cmd_fig(args):
     if saved_img:
         entry = {"figure_tag": fig_tag, "figure_no": fno, "image_file": saved_img, "caption_file": saved_cap, "image_url": img_url, "source_url": url}
         upsert_json_list(meta_dir / "figures.json", entry, key="figure_tag")
+
+    if provenance_record:
+        write_article_provenance(
+            provenance_record,
+            args.out,
+            download_status="partial" if saved_img else "empty",
+            rejection_reason=None if saved_img else "no-figure",
+        )
 
     # return whether we found an image (skip caption-only)
     return bool(saved_img)
@@ -732,6 +800,17 @@ def guess_extension_from_type(content_type: str | None) -> str:
 
 def cmd_source(args):
     url = args.url
+    provenance_record = getattr(args, "_provenance_record", None)
+    if not getattr(args, "_license_prevalidated", False):
+        provenance_record = authorize_direct_download(
+            url=url,
+            doi=getattr(args, "doi", None),
+            require_cc_by=bool(getattr(args, "require_cc_by", False)),
+            mailto=getattr(args, "mailto", None),
+            timeout=args.timeout,
+            max_retries=args.max_retries,
+            sleep=args.sleep,
+        )
     art_id = parse_article_id(url)
     print(f"[info] Article: {art_id} | section: {args.section_id or 'all'} | filter: {args.filter or 'none'}")
     r = polite_get(url, timeout=args.timeout, sleep=args.sleep, max_retries=args.max_retries)
@@ -755,6 +834,13 @@ def cmd_source(args):
     if not links:
         print("[warn] No Source data links present; skip article")
         cleanup_empty()
+        if provenance_record:
+            write_article_provenance(
+                provenance_record,
+                args.out,
+                download_status="partial",
+                rejection_reason="no-source-data",
+            )
         return False
 
     ensure_dir(sd_dir)
@@ -870,6 +956,12 @@ def cmd_source(args):
 
     manifest_path.write_text(json.dumps({"article_url": url, "links": manifest}, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"[done] Saved manifest and files under {base}")
+    if provenance_record:
+        write_article_provenance(
+            provenance_record,
+            args.out,
+            download_status="previously_processed",
+        )
     return True
 
 
@@ -889,6 +981,10 @@ def norm_article_url(url: str | None, doi: str | None) -> str | None:
 
 
 def cmd_postfetch(args):
+    if not bool(getattr(args, "require_cc_by", False)):
+        raise LicenseGateError(
+            "postfetch refused: --require-cc-by is mandatory"
+        )
     rows = []
     with Path(args.jsonl).open("r", encoding="utf-8") as f:
         for line in f:
@@ -915,15 +1011,39 @@ def cmd_postfetch(args):
     processed_file = Path(processed_file_arg) if processed_file_arg else (Path(args.out) / "_processed.txt")
     processed = load_processed_set(processed_file)
     skipped_file = processed_file.with_name("_skipped.txt")
-    tasks: list[str] = []
+    tasks: list[tuple[str, dict[str, Any]]] = []
+    license_rejections = Path(args.out) / "_license_rejections.jsonl"
     for r in rows:
+        try:
+            decision = require_record_download_eligibility(
+                r,
+                require_cc_by=True,
+            )
+        except LicenseGateError as exc:
+            append_jsonl(
+                license_rejections,
+                {
+                    "doi": r.get("doi") or r.get("DOI"),
+                    "journal": r.get("journal"),
+                    "download_status": "rejected",
+                    "rejection_reason": str(exc),
+                },
+            )
+            continue
         art_url = norm_article_url(r.get("url"), r.get("doi"))
         if not art_url:
             continue
         aid = parse_article_id(art_url)
         if aid in processed:
+            write_article_provenance(
+                decision,
+                args.out,
+                download_status="previously_processed",
+            )
             continue
-        tasks.append(art_url)
+        decision["article_url"] = art_url
+        decision["url"] = art_url
+        tasks.append((art_url, decision))
         if args.max_articles and len(tasks) >= args.max_articles:
             break
 
@@ -939,47 +1059,57 @@ def cmd_postfetch(args):
             with Progress(SpinnerColumn(spinner_name="line"), TextColumn("[progress.description]{task.description}"), BarColumn(), TextColumn("{task.completed}/{task.total}"), TimeElapsedColumn(), console=console) as progress:
                 t = progress.add_task("Postfetch", total=total)
                 with ProcessPoolExecutor(max_workers=workers) as ex:
-                    futures = {ex.submit(postfetch_article, u, args.out, args.max_figs, getattr(args, "max_empty_figs", 2), args.sleep, args.timeout, args.max_retries): u for u in tasks}
+                    futures = {ex.submit(postfetch_article, u, args.out, args.max_figs, getattr(args, "max_empty_figs", 2), args.sleep, args.timeout, args.max_retries): (u, record) for u, record in tasks}
                     for fut in as_completed(futures):
                         try:
                             aid, found = fut.result()
                         except Exception as e:
                             console.log(safe_console(f"[warn] postfetch failed: {e}"))
-                            art = futures.get(fut)
-                            if art:
+                            queued = futures.get(fut)
+                            if queued:
+                                art, record = queued
                                 aid = parse_article_id(art)
                                 append_processed(processed_file, aid)
                                 append_skipped(skipped_file, aid, "fetch-error")
+                                write_article_provenance(record, args.out, download_status="failed", rejection_reason="fetch-error")
                             continue
+                        _, record = futures[fut]
                         if found > 0:
                             append_processed(processed_file, aid)
+                            write_article_provenance(record, args.out, download_status="downloaded")
                         else:
                             reason = "no-source-data" if found == -1 else "no-figures"
                             append_processed(processed_file, aid)
                             append_skipped(skipped_file, aid, reason)
+                            write_article_provenance(record, args.out, download_status="empty", rejection_reason=reason)
                         progress.advance(t, 1)
         else:
             with ProcessPoolExecutor(max_workers=workers) as ex:
-                futures = {ex.submit(postfetch_article, u, args.out, args.max_figs, getattr(args, "max_empty_figs", 2), args.sleep, args.timeout, args.max_retries): u for u in tasks}
+                futures = {ex.submit(postfetch_article, u, args.out, args.max_figs, getattr(args, "max_empty_figs", 2), args.sleep, args.timeout, args.max_retries): (u, record) for u, record in tasks}
                 for fut in as_completed(futures):
                     try:
                         aid, found = fut.result()
                     except Exception as e:
                         print(safe_console(f"[warn] postfetch failed: {e}"))
-                        art = futures.get(fut)
-                        if art:
+                        queued = futures.get(fut)
+                        if queued:
+                            art, record = queued
                             aid = parse_article_id(art)
                             append_processed(processed_file, aid)
                             append_skipped(skipped_file, aid, "fetch-error")
+                            write_article_provenance(record, args.out, download_status="failed", rejection_reason="fetch-error")
                         continue
+                    _, record = futures[fut]
                     if found > 0:
                         append_processed(processed_file, aid)
+                        write_article_provenance(record, args.out, download_status="downloaded")
                     else:
                         reason = "no-source-data" if found == -1 else "no-figures"
                         append_processed(processed_file, aid)
                         append_skipped(skipped_file, aid, reason)
+                        write_article_provenance(record, args.out, download_status="empty", rejection_reason=reason)
     else:
-        for idx, u in enumerate(tasks, 1):
+        for idx, (u, record) in enumerate(tasks, 1):
             aid = parse_article_id(u)
             print(f"[{idx}/{total}] Nature article: {aid}")
             found = postfetch_one(u, args.out, args.max_figs, args.sleep, args.timeout, args.max_retries, getattr(args, "max_empty_figs", 2))
@@ -987,9 +1117,10 @@ def cmd_postfetch(args):
             if found is None:
                 reason = "fetch-error"
             elif found > 0:
-                ok = cmd_source(argparse.Namespace(url=u, out=args.out, section_id=None, filter=None, sleep=args.sleep, timeout=args.timeout, max_retries=args.max_retries))
+                ok = cmd_source(argparse.Namespace(url=u, out=args.out, section_id=None, filter=None, sleep=args.sleep, timeout=args.timeout, max_retries=args.max_retries, _license_prevalidated=True))
                 if ok:
                     append_processed(processed_file, aid)
+                    write_article_provenance(record, args.out, download_status="downloaded")
                 else:
                     reason = "no-source-data"
             else:
@@ -1000,6 +1131,7 @@ def cmd_postfetch(args):
                     shutil.rmtree(base, ignore_errors=True)
                 append_processed(processed_file, aid)
                 append_skipped(skipped_file, aid, reason)
+                write_article_provenance(record, args.out, download_status="empty", rejection_reason=reason)
             time.sleep(args.sleep)
     print("[done] Post-fetch complete.")
 
@@ -1019,7 +1151,7 @@ def postfetch_one(art_url: str, out: str, max_figs: int, sleep: float, timeout: 
     for i in range(1, max_figs + 1):
         fig_url = f"{art_url}/figures/{i}"
         try:
-            found = cmd_fig(argparse.Namespace(url=fig_url, out=out, sleep=sleep, timeout=timeout, max_retries=max_retries))
+            found = cmd_fig(argparse.Namespace(url=fig_url, out=out, sleep=sleep, timeout=timeout, max_retries=max_retries, _license_prevalidated=True))
             if not found:
                 empty_streak += 1
                 if empty_streak >= max_empty_figs:
@@ -1043,7 +1175,7 @@ def postfetch_article(art_url: str, out: str, max_figs: int, max_empty_figs: int
     aid = parse_article_id(art_url)
     found = postfetch_one(art_url, out, max_figs, sleep, timeout, max_retries, max_empty_figs)
     if found > 0:
-        ok = cmd_source(argparse.Namespace(url=art_url, out=out, section_id=None, filter=None, sleep=sleep, timeout=timeout, max_retries=max_retries))
+        ok = cmd_source(argparse.Namespace(url=art_url, out=out, section_id=None, filter=None, sleep=sleep, timeout=timeout, max_retries=max_retries, _license_prevalidated=True))
         if not ok:
             base = Path(out) / aid
             if base.exists():
@@ -1173,6 +1305,10 @@ def build_default_keywords(min_count: int = 500) -> list[str]:
 
     return base
 def cmd_auto(args):
+    if not bool(getattr(args, "require_cc_by", False)):
+        raise LicenseGateError(
+            "auto download refused: --require-cc-by is mandatory"
+        )
     # keywords
     if args.keywords_file:
         kwds = [ln.strip() for ln in Path(args.keywords_file).read_text(encoding="utf-8").splitlines() if ln.strip()]
@@ -1212,6 +1348,7 @@ def cmd_auto(args):
                 mailto=args.mailto,
                 no_family_bias=False,
                 append=True,
+                require_cc_by=True,
             ))
         # postfetch (always fetch all)
         jsonl = str(jsonl_path)
@@ -1227,15 +1364,17 @@ def cmd_auto(args):
             max_retries=args.max_retries,
             workers=getattr(args, "workers", 1),
             processed_file=(args.processed_file or str(Path(args.content_out) / "_processed.txt")),
+            require_cc_by=True,
         )
         cmd_postfetch(ns)
+        return
     # Streaming: per-article postfetch immediately after discovery
     processed_file_stream = Path(args.content_out) / "_processed.txt"
     processed_stream = load_processed_set(processed_file_stream)
     skipped_file_stream = processed_file_stream.with_name("_skipped.txt")
     stream_workers = max(1, getattr(args, "stream_workers", 1))
     executor = ThreadPoolExecutor(max_workers=stream_workers, thread_name_prefix="stream-fetch")
-    inflight: dict[Any, tuple[int, str]] = {}
+    inflight: dict[Any, tuple[int, str, dict[str, Any]]] = {}
     free_slots = list(range(stream_workers))
     stop_stream = False
     total_keywords = len(kwds)
@@ -1290,7 +1429,7 @@ def cmd_auto(args):
         else:
             done_set = [f for f in futures if f.done()]
         for fut in list(done_set):
-            slot, aid_hint = inflight.pop(fut)
+            slot, aid_hint, record = inflight.pop(fut)
             free_slots.append(slot)
             try:
                 result = fut.result()
@@ -1304,12 +1443,14 @@ def cmd_auto(args):
                     append_processed(processed_file_stream, aid_hint)
                     append_skipped(skipped_file_stream, aid_hint, "fetch-error")
                     processed_stream.add(aid_hint)
+                    write_article_provenance(record, args.content_out, download_status="failed", rejection_reason="fetch-error")
                 set_worker(slot, "idle", f"{aid_hint} error")
                 continue
             if not result:
                 append_processed(processed_file_stream, aid_hint)
                 append_skipped(skipped_file_stream, aid_hint, "fetch-error")
                 processed_stream.add(aid_hint)
+                write_article_provenance(record, args.content_out, download_status="failed", rejection_reason="fetch-error")
                 set_worker(slot, "idle", f"{aid_hint} no-result")
                 continue
             aid_out, found = result
@@ -1318,12 +1459,14 @@ def cmd_auto(args):
                     base = Path(args.content_out) / aid_out
                     if base.exists():
                         shutil.rmtree(base, ignore_errors=True)
+                    write_article_provenance(record, args.content_out, download_status="discarded", rejection_reason="max-articles-limit")
                     set_worker(slot, "idle", f"{aid_out} drop-limit")
                     stop_stream = True
                 else:
                     append_processed(processed_file_stream, aid_out)
                     processed_stream.add(aid_out)
                     processed += 1
+                    write_article_provenance(record, args.content_out, download_status="downloaded")
                     set_worker(slot, "idle", f"{aid_out} ok")
                     update_fetch_task()
                     if args.max_articles and processed >= args.max_articles:
@@ -1332,11 +1475,13 @@ def cmd_auto(args):
                 append_processed(processed_file_stream, aid_out)
                 append_skipped(skipped_file_stream, aid_out, "no-source-data")
                 processed_stream.add(aid_out)
+                write_article_provenance(record, args.content_out, download_status="empty", rejection_reason="no-source-data")
                 set_worker(slot, "idle", f"{aid_out} no-source")
             else:
                 append_processed(processed_file_stream, aid_out)
                 append_skipped(skipped_file_stream, aid_out, "no-figures")
                 processed_stream.add(aid_out)
+                write_article_provenance(record, args.content_out, download_status="empty", rejection_reason="no-figures")
                 set_worker(slot, "idle", f"{aid_out} no-image")
 
     try:
@@ -1381,6 +1526,15 @@ def cmd_auto(args):
                 year = issued[0] if issued else None
                 url = it.get("URL")
                 abstract = it.get("abstract")
+                decision = evaluate_crossref_item(
+                    it,
+                    require_cc_by=True,
+                )
+                if doi:
+                    seen.add(doi)
+                if not decision.get("download_eligible"):
+                    append_jsonl(jsonl_path, decision)
+                    continue
                 epmc = europe_pmc_by_doi(doi, sleep=args.sleep, timeout=args.timeout, max_retries=args.max_retries) if doi else None
                 pmcid = epmc.get("pmcid") if epmc else None
                 abstract_epmc = epmc.get("abstractText") if epmc else None
@@ -1389,6 +1543,7 @@ def cmd_auto(args):
                 pmid = epmc.get("pmid") if epmc else None
                 authors = format_authors_crossref(it.get("author")) or (epmc.get("authorString") if epmc else "")
                 rec = {
+                    **decision,
                     "doi": it.get("DOI"),
                     "title": title,
                     "journal": container,
@@ -1400,15 +1555,24 @@ def cmd_auto(args):
                     "is_open_access": is_oa,
                     "abstract": abstract_epmc or abstract or "",
                     "authors": authors,
+                    "license_url": (decision.get("license") or {}).get("normalized_url"),
+                    "license_source": (decision.get("license") or {}).get("source"),
+                    "license_version": (decision.get("license") or {}).get("version"),
                 }
-                append_jsonl(jsonl_path, rec)
-                if doi:
-                    seen.add(doi)
                 art_url = norm_article_url(url, it.get("DOI"))
                 if not art_url:
+                    append_jsonl(jsonl_path, rec)
                     continue
+                rec["article_url"] = art_url
+                rec["url"] = art_url
+                append_jsonl(jsonl_path, rec)
                 aid2 = parse_article_id(art_url)
                 if aid2 in processed_stream:
+                    write_article_provenance(
+                        rec,
+                        args.content_out,
+                        download_status="downloaded",
+                    )
                     continue
                 while not free_slots:
                     process_futures(blocking=True)
@@ -1428,7 +1592,7 @@ def cmd_auto(args):
                     args.timeout,
                     args.max_retries,
                 )
-                inflight[future] = (slot, aid2)
+                inflight[future] = (slot, aid2, rec)
             if stop_stream:
                 break
             process_futures(blocking=False)
@@ -1445,10 +1609,11 @@ def cmd_auto(args):
 
 
 def build_parser():
-    p = argparse.ArgumentParser(description="Nature family search + authorized content fetch (all-in-one)")
+    p = argparse.ArgumentParser(description="CC-BY-gated Nature-Vis2000 corpus tools")
     sub = p.add_subparsers(dest="cmd", required=True)
+    add_corpus_subcommands(sub)
 
-    s = sub.add_parser("search", help="Search Nature family via Crossref + Europe PMC")
+    s = sub.add_parser("search", help="Search allowlisted journals via Crossref + Europe PMC")
     s.add_argument("--query", required=True)
     s.add_argument("--max", type=int, default=10)
     s.add_argument("--out", default="outputs/search_run")
@@ -1458,6 +1623,11 @@ def build_parser():
     s.add_argument("--max-retries", type=int, default=3)
     s.add_argument("--append", action="store_true")
     s.add_argument("--no-family-bias", action="store_true")
+    s.add_argument(
+        "--require-cc-by",
+        action="store_true",
+        help="Mark only verified CC BY 3.0/4.0 records download-eligible",
+    )
     s.set_defaults(func=cmd_search)
 
     f = sub.add_parser("fig", help="Fetch image+caption from a nature.com figure page (authorized)")
@@ -1466,6 +1636,9 @@ def build_parser():
     f.add_argument("--sleep", type=float, default=1.0)
     f.add_argument("--timeout", type=float, default=300)
     f.add_argument("--max-retries", type=int, default=3)
+    f.add_argument("--doi", default=None)
+    f.add_argument("--mailto", default=None)
+    f.add_argument("--require-cc-by", action="store_true")
     f.set_defaults(func=cmd_fig)
 
     sd = sub.add_parser("source", help="Fetch Source data from a nature.com article page (authorized)")
@@ -1476,6 +1649,9 @@ def build_parser():
     sd.add_argument("--sleep", type=float, default=1.0)
     sd.add_argument("--timeout", type=float, default=300)
     sd.add_argument("--max-retries", type=int, default=3)
+    sd.add_argument("--doi", default=None)
+    sd.add_argument("--mailto", default=None)
+    sd.add_argument("--require-cc-by", action="store_true")
     sd.set_defaults(func=cmd_source)
 
     pf = sub.add_parser("postfetch", help="Fetch ALL (figures + source data) for articles in JSONL")
@@ -1492,6 +1668,11 @@ def build_parser():
     pf.add_argument("--max-per-keyword", type=int, default=None, help="(compat) accepted but ignored in postfetch; used in auto search")
     pf.add_argument("--workers", type=int, default=1, help="Worker processes for fetching (non-stream mode)")
     pf.add_argument("--processed-file", default=None, help="Path to processed record file (default: <out>/_processed.txt)")
+    pf.add_argument(
+        "--require-cc-by",
+        action="store_true",
+        help="Mandatory hard gate for entering the download queue",
+    )
     pf.set_defaults(func=cmd_postfetch)
 
     au = sub.add_parser("auto", help="Search multiple keywords then fetch ALL content")
@@ -1511,6 +1692,11 @@ def build_parser():
     au.add_argument("--processed-file", default=None, help="Path to processed record file (default: <content-out>/_processed.txt)")
     au.add_argument("--stream", action="store_true", help="Enable streaming mode: per-article immediate fetch (no need to wait for all searches)")
     au.add_argument("--stream-workers", type=int, default=1, help="Streaming fetch worker threads (>=1)")
+    au.add_argument(
+        "--require-cc-by",
+        action="store_true",
+        help="Mandatory hard gate for every discovered download",
+    )
     au.set_defaults(func=cmd_auto)
 
     return p
@@ -1519,13 +1705,11 @@ def build_parser():
 def main():
     parser = build_parser()
     args = parser.parse_args()
-    args.func(args)
+    try:
+        args.func(args)
+    except LicenseGateError as exc:
+        parser.error(str(exc))
 
 
 if __name__ == "__main__":
     main()
-
-
-
-
-

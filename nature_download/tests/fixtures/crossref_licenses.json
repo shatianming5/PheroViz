@@ -1,0 +1,84 @@
+{
+  "items": [
+    {
+      "fixture_id": "nature_comm_cc_by_4",
+      "DOI": "10.1038/s41467-024-00001-1",
+      "title": ["Accepted Nature Communications article"],
+      "container-title": ["Nature Communications"],
+      "issued": {"date-parts": [[2024, 1, 2]]},
+      "URL": "https://www.nature.com/articles/s41467-024-00001-1",
+      "license": [
+        {
+          "URL": "http://creativecommons.org/licenses/by/4.0/",
+          "start": {"date-parts": [[2024, 1, 2]]},
+          "content-version": "vor"
+        }
+      ]
+    },
+    {
+      "fixture_id": "scientific_reports_cc_by_3",
+      "DOI": "10.1038/s41598-023-00002-2",
+      "title": ["Accepted Scientific Reports article"],
+      "container-title": ["Scientific Reports"],
+      "issued": {"date-parts": [[2023, 3, 4]]},
+      "URL": "https://www.nature.com/articles/s41598-023-00002-2",
+      "license": [{"URL": "https://creativecommons.org/licenses/by/3.0"}]
+    },
+    {
+      "fixture_id": "cc_by_nc",
+      "DOI": "10.1038/s41467-024-00003-3",
+      "container-title": ["Nature Communications"],
+      "issued": {"date-parts": [[2024]]},
+      "license": [{"URL": "https://creativecommons.org/licenses/by-nc/4.0/"}]
+    },
+    {
+      "fixture_id": "cc_by_sa",
+      "DOI": "10.1038/s41598-024-00004-4",
+      "container-title": ["Scientific Reports"],
+      "issued": {"date-parts": [[2024]]},
+      "license": [{"URL": "https://creativecommons.org/licenses/by-sa/4.0/"}]
+    },
+    {
+      "fixture_id": "cc_by_nd",
+      "DOI": "10.1038/s41540-024-00005-5",
+      "container-title": ["npj Computational Materials"],
+      "issued": {"date-parts": [[2024]]},
+      "license": [{"URL": "https://creativecommons.org/licenses/by-nd/4.0/"}]
+    },
+    {
+      "fixture_id": "oa_only",
+      "DOI": "10.1038/s41467-024-00006-6",
+      "container-title": ["Nature Communications"],
+      "issued": {"date-parts": [[2024]]},
+      "is_open_access": true,
+      "license": []
+    },
+    {
+      "fixture_id": "missing_license",
+      "DOI": "10.1038/s41598-024-00007-7",
+      "container-title": ["Scientific Reports"],
+      "issued": {"date-parts": [[2024]]}
+    },
+    {
+      "fixture_id": "nature_main",
+      "DOI": "10.1038/nature00008",
+      "container-title": ["Nature"],
+      "issued": {"date-parts": [[2020]]},
+      "license": [{"URL": "https://creativecommons.org/licenses/by/4.0/"}]
+    },
+    {
+      "fixture_id": "npj_cc_by_4",
+      "DOI": "10.1038/s41534-024-00009-9",
+      "container-title": ["npj Quantum Information"],
+      "issued": {"date-parts": [[2024]]},
+      "license": [{"URL": "https://creativecommons.org/licenses/by/4.0/legalcode"}]
+    },
+    {
+      "fixture_id": "unknown_journal",
+      "DOI": "10.5555/unknown",
+      "container-title": [],
+      "issued": {"date-parts": [[2024]]},
+      "license": [{"URL": "https://creativecommons.org/licenses/by/4.0/"}]
+    }
+  ]
+}
