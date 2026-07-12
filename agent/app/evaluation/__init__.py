@@ -1,5 +1,5 @@
 from .evaluator import evaluate_cohesion, evaluate_fidelity, evaluate_figure
-from .manifest import extract_figure_manifest
+from .manifest import combine_figure_manifests, extract_figure_manifest
 from .models import (
     EVALUATION_RESULT_SCHEMA_VERSION,
     EXPECTATION_SCHEMA_VERSION,
@@ -49,6 +49,7 @@ __all__ = [
     "evaluate_fidelity",
     "evaluate_figure",
     "extract_figure_manifest",
+    "combine_figure_manifests",
     "coerce_metric_config",
     "stable_json_dumps",
     "validate_evaluation_result",

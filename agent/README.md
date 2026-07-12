@@ -27,12 +27,20 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-> 请在 `.env` 中配置 `LLM_API_KEY`（或兼容的 `OPENAI_API_KEY` / `LLM_API_BASE` / `LLM_MODEL`），以便在默认 slot 之外需要调用 Zhizengzeng Responses API 时能够正常工作。
+> 请在被 Git 忽略的 `.env` 中配置模型网关。统一客户端支持
+> `ANTHROPIC_BASE_URL` + `ANTHROPIC_AUTH_TOKEN`，也兼容
+> `LLM_API_BASE` + `LLM_API_KEY`。模型名由 `LLM_MODEL` 指定，视觉
+> judge 可单独使用 `VLM_MODEL`。密钥不得写入实验 spec 或提交到 Git。
 
 ## 运行方式
 
 ```powershell
-python run_chain.py <data_path> <user_goal> <chart_family> [--rounds N] [--sheet SHEET] [--intent JSON]
+python run_chain.py <data_path> <user_goal> <chart_family> \
+  [--rounds N] [--sheet SHEET] [--intent JSON] \
+  [--initial-generation defaults|model] \
+  [--memory-mode none|ephemeral|untyped|constraints|patches|full] \
+  [--seed N] [--temperature T] \
+  [--expectation expectation.json] [--metric-config metrics.json]
 ```
 
 - `data_path`：CSV 或 Excel 文件路径；配合 `--sheet` 可指定 Excel 工作表。
@@ -40,11 +48,50 @@ python run_chain.py <data_path> <user_goal> <chart_family> [--rounds N] [--sheet
 - `chart_family`：初始图形类型（如 `bar`、`line`、`area`、`scatter`）。
 - `--intent`：JSON 字符串，声明 x / y / group 及其它意图；在 PowerShell 中推荐配合 `--%` 或单引号避免转义问题。
 - `--rounds`：最大迭代次数；若 Judge 评分（`visual_form` 与 `data_fidelity`）均达到 0.75，将提前停止。
+- `--initial-generation model`：首轮 L1--L4 也调用模型；正式
+  generation-only、best-of-N 和 iterative 实验必须使用该模式。
+- `--memory-mode`：选择无记忆、轮间清空的 typed memory、untyped log、
+  constraint-only、patch-only 或完整双层 memory。每种模式控制真实读写，
+  不是结果标签。
+- `--expectation`：启用基于 Matplotlib Figure/Axes/Artist 的程序化
+  fidelity；有该输入时，主 `data_fidelity` 来自 source-table 对拍，而不是
+  VLM。
 
 运行结束后，可在 `runs/<timestamp>/` 中查看：
 - `figure_round_*.png`：各轮渲染出的图像。
 - `iteration_*.json`：记录当轮 spec、接受的 slot、诊断及评分。
 - `inputs.json`：本次任务的数据画像、意图与初始 spec 快照。
+- `programmatic_evaluation_round_*.json`：版本化 fidelity/cohesion
+  计数、比例与定位到 panel/series 的 mismatch。
+- `memory_snapshot*.json` / `memory_trace.json`：typed constraint/patch
+  memory 与冲突、复用、清理事件。
+
+## Multi-panel 运行
+
+`run_multi_panel.py` 使用确定性 round-robin 调度，各 panel 独立渲染，
+高作用域 constraint/patch memory 共享；最终写出组合图、共享 memory、
+调度 trace 和跨 panel cohesion：
+
+```bash
+python run_multi_panel.py multi_panel_case.json \
+  --initial-generation model --memory-mode full --rounds 3 --seed 0
+```
+
+manifest 至少包含 `panels`；正式评测还应提供
+`evaluation_expectation`（schema 见
+`app/evaluation/schemas/expectation.schema.json`）。每个 panel 必须给唯一
+`id`、`data_path`、`user_goal` 和 `chart_family`。输出目录包含
+`combined_figure.png`、`programmatic_evaluation.json`、
+`shared_memory_snapshot.json` 与 `schedule_trace.json`。
+
+## 可追溯实验
+
+实验矩阵由 `python -m experiments run <matrix.yaml>` 执行。每个
+case/method/backbone/seed/budget 都有独立 run 名和冻结的数据 manifest；
+聚合器拒绝 dirty worktree、旧 run、test-only provider、缺 artifact hash
+或 case 集不配对的比较。外部 ChartCoder、MatPlotAgent、nvAgent 只从固定
+commit 的外部 checkout 运行，审计记录位于
+`experiments/baseline_audits/`。
 
 ## Default Slots v2 摘要
 

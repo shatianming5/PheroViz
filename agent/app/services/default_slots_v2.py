@@ -215,9 +215,11 @@ if y not in cols or y == x:
 group = intent.get('group')
 if group not in cols:
     limit = max(3, min(12, int(row_count / 10) + 1)) if row_count else 12
-    group_candidates = [c for c in cat_cols if c != x and _nunique(c) <= limit]
+    group_candidates = [
+        c for c in cat_cols if c not in {x, y} and _nunique(c) <= limit
+    ]
     if not group_candidates:
-        group_candidates = [c for c in raw_cat_cols if c != x]
+        group_candidates = [c for c in raw_cat_cols if c not in {x, y}]
     group = group_candidates[0] if group_candidates else None
 
 is_ratio_y = bool(y and _is_ratio_like(y))
@@ -1389,7 +1391,6 @@ if ax_right:
         "notes": "L4 defaults: axes, legend, theme",
     },
 }
-
 
 
 

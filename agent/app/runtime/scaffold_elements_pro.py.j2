@@ -8,6 +8,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from app.evaluation import evaluate_figure
 from matplotlib.ticker import FuncFormatter, MaxNLocator, AutoMinorLocator
 from matplotlib.patches import Rectangle
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
@@ -500,6 +501,8 @@ def slot_theme_misc(fig, ax_left, ax_right, spec: Dict[str, Any], ctx: Dict[str,
 
 
 MARK_FUNCTIONS = {
+    "bar": slot_marks_bar_grouped,
+    "bar.main": slot_marks_bar_grouped,
     "bar.grouped": slot_marks_bar_grouped,
     "bar.stacked": slot_marks_bar_stacked,
     "bar.percent": slot_marks_bar_percent,
@@ -580,6 +583,9 @@ def run(df: pd.DataFrame, intent: Dict[str, Any], ctx: Dict[str, Any], out_png: 
     height = canvas.get("height", 576) / dpi
 
     fig, ax_left = plt.subplots(figsize=(width, height), dpi=dpi)
+    panel_id = str((ctx or {}).get("panel_id") or "").strip()
+    if panel_id:
+        ax_left.set_gid(panel_id)
     ax_right = None
     overlays = overlays_fix
     if any((ov.get("yaxis") == "right") for ov in overlays):
@@ -651,7 +657,20 @@ def run(df: pd.DataFrame, intent: Dict[str, Any], ctx: Dict[str, Any], out_png: 
     slot_theme_misc(fig, ax_left, ax_right, spec, ctx)
 
     fig.tight_layout()
+    evaluation_request = (ctx or {}).get("_evaluation_request")
+    if evaluation_request:
+        expectation = evaluation_request.get("expectation")
+        if not isinstance(expectation, dict):
+            raise ValueError("evaluation expectation must be an object")
+        result = evaluate_figure(
+            fig,
+            df,
+            expectation,
+            evaluation_request.get("metric_config"),
+        )
+        ctx["_programmatic_evaluation"] = result.to_dict()
+        ctx["_programmatic_evaluation_round_token"] = evaluation_request.get(
+            "round_token"
+        )
     fig.savefig(out_png, dpi=dpi, bbox_inches="tight")
     plt.close(fig)
-
-

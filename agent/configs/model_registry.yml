@@ -1,0 +1,45 @@
+schema_version: "1.0"
+
+generators:
+  frontier:
+    request_model: gpt-5.6-sol
+    protocol: openai_chat_completions
+    base_url_env: ANTHROPIC_BASE_URL
+    api_key_env: ANTHROPIC_AUTH_TOKEN
+    reasoning_effort: max
+    response_format: json_object
+    model_cutoff: null
+  mid_tier:
+    request_model: gpt-4o-mini
+    protocol: openai_chat_completions
+    base_url_env: ANTHROPIC_BASE_URL
+    api_key_env: ANTHROPIC_AUTH_TOKEN
+    temperature: 0.2
+    seed_supported: true
+    response_format: json_object
+    model_cutoff: null
+  open_weight:
+    request_model: Qwen/Qwen2.5-Coder-7B-Instruct
+    revision: c03e6d358207e414f1eca0bb1891e29f1db0e242
+    protocol: openai_chat_completions
+    base_url_env: OPEN_MODEL_BASE_URL
+    api_key_env: OPEN_MODEL_API_KEY
+    license: Apache-2.0
+    parameter_count: 7615616512
+    model_cutoff: null
+
+visual_judges:
+  primary:
+    request_model: claude-sonnet-4.6
+    protocol: anthropic_messages
+    base_url_env: ANTHROPIC_BASE_URL
+    api_key_env: ANTHROPIC_AUTH_TOKEN
+    max_tokens: 1024
+    model_cutoff: null
+  secondary:
+    request_model: gemini-3.5-flash
+    protocol: anthropic_messages
+    base_url_env: ANTHROPIC_BASE_URL
+    api_key_env: ANTHROPIC_AUTH_TOKEN
+    max_tokens: 1024
+    model_cutoff: null

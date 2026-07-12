@@ -2,6 +2,7 @@
 import json
 import sys
 from collections import deque
+from pathlib import Path
 from typing import Any, Deque, Dict, List, Optional
 
 from dotenv import load_dotenv
@@ -214,6 +215,19 @@ def _parse_intent(raw: Optional[str]) -> Dict[str, Any]:
         raise SystemExit(f"Invalid JSON for --intent: {exc}") from exc
 
 
+def _load_json_object(path: Optional[str], *, label: str) -> Dict[str, Any] | None:
+    if path is None:
+        return None
+    source = Path(path)
+    try:
+        value = json.loads(source.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise SystemExit(f"Invalid {label} JSON at {source}: {exc}") from exc
+    if not isinstance(value, dict):
+        raise SystemExit(f"{label} JSON must contain an object: {source}")
+    return value
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("excel_path")
@@ -222,9 +236,39 @@ def main() -> None:
     parser.add_argument("--rounds", type=int, default=3)
     parser.add_argument("--sheet", default=None)
     parser.add_argument("--intent", default=None, help="JSON string of intent")
+    parser.add_argument(
+        "--expectation",
+        default=None,
+        help="Path to a programmatic evaluation expectation JSON",
+    )
+    parser.add_argument(
+        "--metric-config",
+        default=None,
+        help="Path to a programmatic metric config JSON",
+    )
+    parser.add_argument(
+        "--initial-generation",
+        choices=("defaults", "model"),
+        default="defaults",
+    )
+    parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument("--temperature", type=float, default=None)
+    parser.add_argument(
+        "--memory-mode",
+        choices=("none", "ephemeral", "untyped", "constraints", "patches", "full"),
+        default="full",
+    )
     args = parser.parse_args()
 
     intent_payload = _parse_intent(args.intent)
+    evaluation_expectation = _load_json_object(
+        args.expectation,
+        label="expectation",
+    )
+    metric_config = _load_json_object(
+        args.metric_config,
+        label="metric config",
+    )
 
     state: Dict[str, Any] = {
         "phase": "等待启动",
@@ -281,6 +325,12 @@ def main() -> None:
                 sheet=args.sheet,
                 intent=intent_payload,
                 progress_callback=handle_progress,
+                initial_generation=args.initial_generation,
+                seed=args.seed,
+                temperature=args.temperature,
+                memory_mode=args.memory_mode,
+                evaluation_expectation=evaluation_expectation,
+                metric_config=metric_config,
             )
         except Exception as exc:  # pragma: no cover - propagate but prettify
             error = exc

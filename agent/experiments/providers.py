@@ -190,13 +190,20 @@ class SingleChainProvider:
         wall_clock_rounds: Optional[int] = None,
     ) -> None:
         self.api_key_envs = tuple(
-            api_key_envs or ("LLM_API_KEY", "OPENAI_API_KEY")
+            api_key_envs
+            or (
+                "MODEL_API_KEY",
+                "ANTHROPIC_AUTH_TOKEN",
+                "LLM_API_KEY",
+                "OPENAI_API_KEY",
+            )
         )
         self.wall_clock_rounds = wall_clock_rounds
 
     def check_available(self) -> None:
         try:
             from app.services import single_chain_runner
+            from app.services.model_client import ModelConfig, ModelClientError
         except ImportError as exc:
             raise ProviderUnavailableError(
                 "SingleChainProvider must run with agent/ on PYTHONPATH"
@@ -207,21 +214,26 @@ class SingleChainProvider:
             raise ProviderUnavailableError(
                 f"No model credentials found in {joined}; run recorded as failed"
             )
+        try:
+            ModelConfig.from_env()
+        except ModelClientError as exc:
+            raise ProviderUnavailableError(str(exc)) from exc
 
     def generate(
         self,
         request: GenerationRequest,
     ) -> ProviderBatch:
-        if request.spec.schedule != "iterative":
-            raise ProviderExecutionError(
-                "SingleChainProvider cannot claim independent best-of-N samples"
-            )
-        if request.previous_candidate is not None:
+        if (
+            request.spec.schedule == "iterative"
+            and request.previous_candidate is not None
+        ):
             raise ProviderExecutionError(
                 "SingleChainProvider cannot resume an iterative trajectory across calls"
             )
 
-        if request.remaining_renders is not None:
+        if request.spec.schedule == "best_of_n":
+            rounds = 1
+        elif request.remaining_renders is not None:
             rounds = request.remaining_renders
         else:
             configured = request.spec.method_config.get(
@@ -259,6 +271,12 @@ class SingleChainProvider:
                 "multi-panel cases, use a multi-panel provider"
             )
         case = selected_case.payload
+        evaluation_expectation = case.get("evaluation_expectation")
+        if not isinstance(evaluation_expectation, Mapping):
+            raise ProviderExecutionError(
+                "SingleChainProvider requires evaluation_expectation; "
+                "judge-only fidelity is not accepted for production runs"
+            )
 
         data_path_value = case.get("data_path")
         user_goal = case.get("user_goal")
@@ -295,6 +313,7 @@ class SingleChainProvider:
 
         old_runs_dir = single_chain_runner.RUNS_DIR
         old_client = single_chain_runner._LLM_CLIENT
+        old_model_client = single_chain_runner._MODEL_CLIENT
         random.seed(request.spec.seed)
         try:
             import numpy as np
@@ -313,6 +332,7 @@ class SingleChainProvider:
         try:
             single_chain_runner.RUNS_DIR = core_runs_root
             single_chain_runner._LLM_CLIENT = None
+            single_chain_runner._MODEL_CLIENT = None
             with _temporary_environment(environment):
                 single_chain_runner.run_chain(
                     str(data_path),
@@ -322,10 +342,31 @@ class SingleChainProvider:
                     sheet=sheet,
                     intent=dict(intent or {}),
                     progress_callback=capture_progress,
+                    initial_generation=str(
+                        request.spec.method_config.get(
+                            "initial_generation",
+                            "model",
+                        )
+                    ),
+                    seed=request.spec.seed + request.call_index - 1,
+                    temperature=request.spec.method_config.get("temperature"),
+                    memory_mode=str(
+                        request.spec.method_config.get(
+                            "memory_mode",
+                            "none"
+                            if request.spec.schedule == "best_of_n"
+                            else "full",
+                        )
+                    ),
+                    evaluation_expectation=case.get(
+                        "evaluation_expectation"
+                    ),
+                    metric_config=request.spec.metric_config.get("evaluator"),
                 )
         finally:
             single_chain_runner.RUNS_DIR = old_runs_dir
             single_chain_runner._LLM_CLIENT = old_client
+            single_chain_runner._MODEL_CLIENT = old_model_client
 
         if discovered_run_dir is None or not discovered_run_dir.is_dir():
             raise ProviderExecutionError(
@@ -375,6 +416,16 @@ class SingleChainProvider:
                 raise ProviderExecutionError(
                     f"Core iteration has no measured scores: {iteration_path}"
                 )
+            if not iteration.get("png_path"):
+                raise ProviderExecutionError(
+                    f"Core iteration produced no render: {iteration_path}"
+                )
+            programmatic = iteration.get("programmatic_evaluation")
+            if not isinstance(programmatic, Mapping):
+                raise ProviderExecutionError(
+                    f"Core iteration has no programmatic evaluation: "
+                    f"{iteration_path}"
+                )
             metrics = {
                 str(name): float(value)
                 for name, value in raw_metrics.items()
@@ -387,6 +438,13 @@ class SingleChainProvider:
                     ("render", f"figure_round_{round_number}.png"),
                     ("code", f"code_round_{round_number}.py"),
                     ("slots", f"slots_round_{round_number}.json"),
+                    (
+                        "programmatic_evaluation",
+                        f"programmatic_evaluation_round_{round_number}.json",
+                    ),
+                    ("memory_snapshot", "memory_snapshot.json"),
+                    ("memory_trace", "memory_trace.json"),
+                    ("memory_compatibility", "pheromones.json"),
                 ):
                     artifact = discovered_run_dir / pattern
                     if artifact.is_file():
@@ -399,7 +457,256 @@ class SingleChainProvider:
                     metadata={
                         "core_round": round_number,
                         "core_run_dir": str(discovered_run_dir),
+                        "model_calls": {
+                            str(stage_name): dict(
+                                stage.get("model_metadata") or {}
+                            )
+                            for stage_name, stage in stages.items()
+                            if isinstance(stage, Mapping)
+                            and stage.get("model_metadata")
+                        },
                     },
                 )
             )
-        return ProviderBatch(candidates=candidates, stop=True)
+        return ProviderBatch(
+            candidates=candidates,
+            stop=request.spec.schedule == "iterative",
+        )
+
+
+class MultiPanelProvider:
+    name = "phero_viz_multi_panel"
+    test_only = False
+
+    def __init__(self, wall_clock_rounds: Optional[int] = None) -> None:
+        self.wall_clock_rounds = wall_clock_rounds
+
+    def check_available(self) -> None:
+        SingleChainProvider().check_available()
+
+    def generate(
+        self,
+        request: GenerationRequest,
+    ) -> CandidateResult | ProviderBatch:
+        from app.services.multi_panel_runner import run_multi_panel
+        from app.services import single_chain_runner
+
+        manifest_cases = load_dataset_manifest(request.dataset_manifest_path)
+        selected_case = select_case(manifest_cases, request.spec.case_id)
+        verify_case_metadata(
+            selected_case,
+            panel_count=request.spec.panel_count,
+            split=request.spec.split,
+        )
+        case = selected_case.payload
+        raw_manifest = case.get("multi_panel_manifest")
+        manifest_base_dir = Path(request.spec.dataset_manifest_path).parent
+        if raw_manifest is None:
+            if not isinstance(case.get("panels"), list):
+                raise ProviderExecutionError(
+                    "MultiPanelProvider requires multi_panel_manifest or panels"
+                )
+            panel_manifest = dict(case)
+        elif isinstance(raw_manifest, Mapping):
+            panel_manifest = dict(raw_manifest)
+        elif isinstance(raw_manifest, str) and raw_manifest.strip():
+            path = Path(raw_manifest).expanduser()
+            if not path.is_absolute():
+                path = (
+                    Path(request.spec.dataset_manifest_path).parent / path
+                )
+            resolved_manifest = path.resolve()
+            try:
+                panel_manifest = json.loads(
+                    resolved_manifest.read_text(encoding="utf-8")
+                )
+            except (OSError, json.JSONDecodeError) as exc:
+                raise ProviderExecutionError(
+                    f"Cannot read multi-panel manifest: {exc}"
+                ) from exc
+            if not isinstance(panel_manifest, dict):
+                raise ProviderExecutionError(
+                    "Multi-panel manifest must contain an object"
+                )
+            manifest_base_dir = resolved_manifest.parent
+        else:
+            raise ProviderExecutionError(
+                "multi_panel_manifest must be a path or object"
+            )
+
+        if "evaluation_expectation" not in panel_manifest:
+            panel_manifest["evaluation_expectation"] = case.get(
+                "evaluation_expectation"
+            )
+        if not isinstance(
+            panel_manifest.get("evaluation_expectation"),
+            Mapping,
+        ):
+            raise ProviderExecutionError(
+                "MultiPanelProvider requires evaluation_expectation; "
+                "judge-only fidelity is not accepted for production runs"
+            )
+        evaluator_config = request.spec.metric_config.get("evaluator")
+        if evaluator_config is not None:
+            panel_manifest["metric_config"] = evaluator_config
+
+        panel_count = len(panel_manifest.get("panels") or [])
+        if panel_count < 2:
+            raise ProviderExecutionError(
+                "MultiPanelProvider requires at least two panels"
+            )
+        if (
+            request.spec.panel_count is not None
+            and request.spec.panel_count != panel_count
+        ):
+            raise ProviderExecutionError(
+                f"panel_count mismatch: spec={request.spec.panel_count}, "
+                f"manifest={panel_count}"
+            )
+        if request.remaining_renders is not None and (
+            request.remaining_renders < panel_count
+            or int(request.spec.budget_value) % panel_count
+        ):
+            raise ProviderExecutionError(
+                "Render budget must contain an integer number of complete "
+                "multi-panel candidates"
+            )
+
+        if request.spec.schedule == "best_of_n":
+            rounds = 1
+            memory_mode = "none"
+        elif request.remaining_renders is not None:
+            if request.remaining_renders % panel_count:
+                raise ProviderExecutionError(
+                    "Render budget must be divisible by panel_count for "
+                    "round-robin multi-panel runs"
+                )
+            rounds = request.remaining_renders // panel_count
+            memory_mode = str(
+                request.spec.method_config.get("memory_mode", "full")
+            )
+        else:
+            configured = request.spec.method_config.get(
+                "rounds",
+                self.wall_clock_rounds,
+            )
+            if isinstance(configured, bool) or not isinstance(configured, int):
+                raise ProviderExecutionError(
+                    "Wall-clock multi-panel runs require integer "
+                    "method_config.rounds"
+                )
+            rounds = configured
+            memory_mode = str(
+                request.spec.method_config.get("memory_mode", "full")
+            )
+        if rounds < 1:
+            raise ProviderExecutionError("Multi-panel rounds must be positive")
+
+        output_dir = request.output_dir / "multi_panel"
+        environment = {
+            "LLM_MODEL": request.spec.backbone,
+            "FORCE_ALL_ROUNDS": "1",
+        }
+        if request.remaining_seconds is not None:
+            environment["LLM_TIMEOUT"] = str(
+                max(request.remaining_seconds, 1.0)
+            )
+        old_model_client = single_chain_runner._MODEL_CLIENT
+        old_compat_client = single_chain_runner._LLM_CLIENT
+        try:
+            single_chain_runner._MODEL_CLIENT = None
+            single_chain_runner._LLM_CLIENT = None
+            with _temporary_environment(environment):
+                result = run_multi_panel(
+                    panel_manifest,
+                    output_dir=output_dir,
+                    rounds=rounds,
+                    initial_generation=str(
+                        request.spec.method_config.get(
+                            "initial_generation",
+                            "model",
+                        )
+                    ),
+                    seed=request.spec.seed + request.call_index - 1,
+                    temperature=request.spec.method_config.get("temperature"),
+                    memory_mode=memory_mode,
+                    base_dir=manifest_base_dir,
+                )
+        finally:
+            single_chain_runner._MODEL_CLIENT = old_model_client
+            single_chain_runner._LLM_CLIENT = old_compat_client
+        programmatic = result.get("programmatic_evaluation")
+        if not isinstance(programmatic, Mapping):
+            raise ProviderExecutionError(
+                "Multi-panel run produced no programmatic evaluation"
+            )
+        panel_fidelity = programmatic.get("panel_fidelity") or {}
+        numerator = sum(
+            int(item.get("numerator", 0))
+            for item in panel_fidelity.values()
+            if isinstance(item, Mapping)
+        )
+        denominator = sum(
+            int(item.get("denominator", 0))
+            for item in panel_fidelity.values()
+            if isinstance(item, Mapping)
+        )
+        if denominator <= 0:
+            raise ProviderExecutionError(
+                "Multi-panel run has no applicable fidelity checks"
+            )
+        metrics: Dict[str, float] = {
+            "data_fidelity": numerator / denominator,
+            "execution_success": 1.0,
+        }
+        cohesion_ratio = (programmatic.get("cohesion") or {}).get("ratio")
+        if isinstance(cohesion_ratio, (int, float)):
+            metrics["series_cohesion"] = float(cohesion_ratio)
+        visual_scores = [
+            float((panel["result"].get("scores") or {}).get("visual_form", 0.0))
+            for panel in result["panels"].values()
+            if isinstance(panel.get("result"), Mapping)
+        ]
+        if visual_scores:
+            metrics["visual_form"] = sum(visual_scores) / len(visual_scores)
+
+        artifacts = {
+            "output": str(output_dir),
+            "render": str(result["combined_figure_path"]),
+            "result": str(result["result_path"]),
+            "programmatic_evaluation": str(
+                result["programmatic_evaluation_path"]
+            ),
+            "memory_snapshot": str(result["shared_memory_snapshot_path"]),
+            "memory_trace": str(result["shared_memory_trace_path"]),
+            "schedule_trace": str(result["schedule_trace_path"]),
+        }
+        candidate = CandidateResult(
+            metrics=metrics,
+            render_count=sum(int(value) for value in result["render_counts"].values()),
+            artifacts=artifacts,
+            metadata={
+                "panel_count": panel_count,
+                "rounds": rounds,
+                "memory_mode": memory_mode,
+                "seed": request.spec.seed + request.call_index - 1,
+                "served_models": sorted(
+                    {
+                        str(
+                            metadata.get("model")
+                        )
+                        for panel in result["panels"].values()
+                        if isinstance(panel.get("result"), Mapping)
+                        for stage in (
+                            panel["result"].get("stages") or {}
+                        ).values()
+                        if isinstance(stage, Mapping)
+                        for metadata in [stage.get("model_metadata") or {}]
+                        if metadata.get("model")
+                    }
+                ),
+            },
+        )
+        if request.spec.schedule == "best_of_n":
+            return candidate
+        return ProviderBatch(candidates=(candidate,), stop=True)

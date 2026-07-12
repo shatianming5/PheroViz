@@ -242,7 +242,12 @@ def _call_vlm_judge(spec: Dict[str, Any], df_cols: List[str], png_path: str, exe
 def _image_nonempty_score(png_path: str) -> float:
     try:
         im = Image.open(png_path).convert('RGB')
-        pixels = list(im.getdata())
+        pixel_source = (
+            im.get_flattened_data()
+            if hasattr(im, "get_flattened_data")
+            else im.getdata()
+        )
+        pixels = list(pixel_source)
         step = max(1, len(pixels) // 5000)
         score = 0
         for idx in range(0, len(pixels) - 100, step):
@@ -328,5 +333,4 @@ def judge(png_path: str, exec_log: str, df, spec: Dict[str, Any]) -> Dict[str, A
 
     diagnostics = _diagnose(spec, df_cols, overlays_n, png_path)
     return {'visual_form': vf, 'data_fidelity': fid, 'diagnostics': diagnostics}
-
 

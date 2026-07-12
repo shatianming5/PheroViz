@@ -126,6 +126,10 @@ class SeriesManifest:
     def to_dict(self) -> Dict[str, Any]:
         return _to_plain(self)
 
+    @classmethod
+    def from_dict(cls, value: Mapping[str, Any]) -> "SeriesManifest":
+        return cls(**dict(value))
+
 
 @dataclass(frozen=True)
 class AxisProperties:
@@ -139,6 +143,10 @@ class AxisProperties:
     def to_dict(self) -> Dict[str, Any]:
         return _to_plain(self)
 
+    @classmethod
+    def from_dict(cls, value: Mapping[str, Any]) -> "AxisProperties":
+        return cls(**dict(value))
+
 
 @dataclass(frozen=True)
 class LegendEntry:
@@ -149,6 +157,10 @@ class LegendEntry:
 
     def to_dict(self) -> Dict[str, Any]:
         return _to_plain(self)
+
+    @classmethod
+    def from_dict(cls, value: Mapping[str, Any]) -> "LegendEntry":
+        return cls(**dict(value))
 
 
 @dataclass(frozen=True)
@@ -163,6 +175,14 @@ class LegendManifest:
             "location": _to_plain(self.location),
             "entries": [entry.to_dict() for entry in self.entries],
         }
+
+    @classmethod
+    def from_dict(cls, value: Mapping[str, Any]) -> "LegendManifest":
+        payload = dict(value)
+        payload["entries"] = [
+            LegendEntry.from_dict(entry) for entry in payload.get("entries") or []
+        ]
+        return cls(**payload)
 
 
 @dataclass(frozen=True)
@@ -200,6 +220,17 @@ class AxisManifest:
             "annotations": _to_plain(self.annotations),
         }
 
+    @classmethod
+    def from_dict(cls, value: Mapping[str, Any]) -> "AxisManifest":
+        payload = dict(value)
+        payload["x_axis"] = AxisProperties.from_dict(payload["x_axis"])
+        payload["y_axis"] = AxisProperties.from_dict(payload["y_axis"])
+        payload["legend"] = LegendManifest.from_dict(payload["legend"])
+        payload["series"] = [
+            SeriesManifest.from_dict(series) for series in payload.get("series") or []
+        ]
+        return cls(**payload)
+
 
 @dataclass(frozen=True)
 class FigureManifest:
@@ -218,6 +249,18 @@ class FigureManifest:
 
     def to_json(self) -> str:
         return stable_json_dumps(self.to_dict())
+
+    @classmethod
+    def from_dict(cls, value: Mapping[str, Any]) -> "FigureManifest":
+        payload = dict(value)
+        payload["axes"] = [
+            AxisManifest.from_dict(axis) for axis in payload.get("axes") or []
+        ]
+        payload["figure_legends"] = [
+            LegendManifest.from_dict(legend)
+            for legend in payload.get("figure_legends") or []
+        ]
+        return cls(**payload)
 
 
 @dataclass(frozen=True)

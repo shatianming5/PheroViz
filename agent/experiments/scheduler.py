@@ -208,10 +208,6 @@ def run_schedule(
                     "best_of_n providers must return exactly one independent candidate "
                     "per call"
                 )
-            if batch.candidates[0].render_count != 1:
-                raise ProviderExecutionError(
-                    "Each best_of_n candidate must consume exactly one render"
-                )
 
         batch_render_count = sum(
             candidate.render_count for candidate in batch.candidates

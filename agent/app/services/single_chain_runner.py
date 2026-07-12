@@ -7,15 +7,24 @@ import re
 import time
 import textwrap
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, Iterator, Mapping, Optional, Tuple
 
 import pandas as pd
-import requests
 
 from app.services.code_assembler import assemble_with_slots
 from app.services.default_slots_v2 import DEFAULT_STAGE_SLOTS_V2
 from app.services.feedback_builder import compose_feedback
 from app.services.judge import judge
+from app.services.model_client import ModelClient
+from app.services.pheromones import (
+    ConstraintRecord,
+    InvariantDecision,
+    PatchTemplate,
+    PersistentMemory,
+    SafetyPredicate,
+    Scope,
+    chart_meta_class,
+)
 from app.services.sandbox_runner import execute_script
 from app.services.slot_registry import ALLOWED_BY_LAYER
 from app.services.spec_deriver import derive_spec
@@ -105,91 +114,8 @@ def _snapshot(data: Any) -> Any:
         return json.loads(json.dumps(data, ensure_ascii=False, default=lambda o: str(o)))
 
 
-class SlotLLMClient:
-    """Minimal JSON-only client for the Zhizengzeng Responses API."""
-
-    def __init__(
-        self,
-        api_base: Optional[str] = None,
-        api_key: Optional[str] = None,
-        model: Optional[str] = None,
-        timeout: float = 60.0,
-    ) -> None:
-        base = api_base or os.getenv("LLM_API_BASE") or os.getenv("OPENAI_BASE_URL") or "https://api.openai.com/v1"
-        self.base = base.rstrip("/")
-        self.key = api_key or os.getenv("LLM_API_KEY") or os.getenv("OPENAI_API_KEY") or ""
-        if not self.key:
-            raise RuntimeError("Missing LLM_API_KEY; ??? .env ??? Zhizengzeng/OpenAI Key")
-        self.model = model or os.getenv("LLM_MODEL") or "gpt-4.1-mini"
-        timeout_env = os.getenv("LLM_TIMEOUT")
-        if timeout_env:
-            try:
-                timeout = float(timeout_env)
-            except ValueError:
-                pass
-        self.timeout = max(timeout, 30.0)
-        connect_env = os.getenv("LLM_CONNECT_TIMEOUT")
-        if connect_env:
-            try:
-                self.connect_timeout = max(float(connect_env), 1.0)
-            except ValueError:
-                self.connect_timeout = 30.0
-        else:
-            self.connect_timeout = 30.0
-        retry_env = os.getenv("LLM_RETRY")
-        try:
-            self.retries = max(int(retry_env), 0) if retry_env is not None else 2
-        except ValueError:
-            self.retries = 2
-        self._session = requests.Session()
-
-    def chat_json(self, messages: list[dict[str, Any]]) -> Dict[str, Any]:
-        headers = {"Authorization": f"Bearer {self.key}", "Content-Type": "application/json"}
-        payload: Dict[str, Any] = {
-            "model": self.model,
-            "messages": messages,
-            "temperature": 0.2,
-        }
-        if os.getenv("LLM_FORCE_JSON", "1") != "0":
-            payload["response_format"] = {"type": "json_object"}
-        max_tokens_env = os.getenv("LLM_MAX_TOKENS")
-        if max_tokens_env:
-            try:
-                payload["max_output_tokens"] = int(max_tokens_env)
-            except ValueError:
-                pass
-        last_error = None
-        for attempt in range(self.retries + 1):
-            try:
-                response = self._session.post(
-                    f"{self.base}/chat/completions",
-                    headers=headers,
-                    json=payload,
-                    timeout=(self.connect_timeout, self.timeout),
-                )
-                response.raise_for_status()
-                data = response.json()
-                break
-            except requests.RequestException as exc:
-                last_error = exc
-                if attempt == self.retries:
-                    raise
-                time.sleep(min(2 ** attempt, 5.0))
-        else:
-            raise last_error
-        if isinstance(data, dict) and data.get("code") not in (None, 0):
-            raise RuntimeError(f"LLM ????: {data.get('code')} {data.get('msg')}")
-        content = data["choices"][0]["message"].get("content", "{}").strip()
-        try:
-            return json.loads(content)
-        except json.JSONDecodeError:
-            match = re.search(r"\{.*\}", content, re.S)
-            if match:
-                return json.loads(match.group(0))
-            raise RuntimeError("????????? JSON")
-
-
-_LLM_CLIENT: Optional[SlotLLMClient] = None
+_MODEL_CLIENT: Optional[ModelClient] = None
+_LLM_CLIENT: Optional[ModelClient] = None
 
 
 def _profile_df(df: pd.DataFrame) -> Dict[str, Any]:
@@ -205,11 +131,12 @@ def _profile_df(df: pd.DataFrame) -> Dict[str, Any]:
     return {"columns": columns, "n": int(df.shape[0])}
 
 
-def _get_llm_client() -> SlotLLMClient:
+def _get_model_client() -> ModelClient:
     _load_env_file()
-    global _LLM_CLIENT
+    global _LLM_CLIENT, _MODEL_CLIENT
     if _LLM_CLIENT is None:
-        _LLM_CLIENT = SlotLLMClient()
+        _LLM_CLIENT = ModelClient.from_env()
+    _MODEL_CLIENT = _LLM_CLIENT
     return _LLM_CLIENT
 
 
@@ -223,7 +150,7 @@ def _format_table(data: Dict[str, Any]) -> str:
     try:
         frame = pd.DataFrame(data)
         return frame.head(8).to_string(index=False)
-    except Exception:
+    except (TypeError, ValueError):
         return _format_json(data)
 
 
@@ -407,6 +334,14 @@ if ax_right:
         ]
         body = '\n'.join(body_lines)
 
+    memory_context = payload.get("memory_context")
+    if isinstance(memory_context, dict) and memory_context:
+        body = (
+            f"{body}\n\nPersistent memory context:\n"
+            f"{_format_json(memory_context)}\n"
+            "Apply hard constraints exactly. Treat eligible patch templates as guarded "
+            "examples only; adapt them to the current anchors and never use a rejected template."
+        )
     return f"{body}\n\n{OUTPUT_CONTRACT}"
 
 def _filter_forbidden_slot_content(stage: str, slots: Dict[str, str]) -> Tuple[Dict[str, str], Dict[str, str], Dict[str, str]]:
@@ -484,19 +419,26 @@ def _needs_theme_guard(body: str) -> bool:
     return bool(re.search(r"theme\s*\[|theme\.get", body))
 
 
-def _llm_generate_slots(stage: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+def _llm_generate_slots(
+    stage: str,
+    payload: Dict[str, Any],
+    *,
+    model_client: ModelClient | None = None,
+    seed: int | None = None,
+    temperature: float | None = None,
+) -> Dict[str, Any]:
     prompt = _build_stage_prompt(stage, payload)
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": prompt},
     ]
-    try:
-        response = _get_llm_client().chat_json(messages)
-    except Exception as exc:  # noqa: BLE001
-        return {"slots": {}, "notes": f"llm_error: {exc}", "prompt": prompt, "response": {"error": str(exc)}}
-
-    raw_response = _snapshot(response)
-    response_dict = response if isinstance(response, dict) else {}
+    model_response = (model_client or _get_model_client()).generate_json(
+        messages,
+        seed=seed,
+        temperature=temperature,
+    )
+    response_dict = model_response.value
+    raw_response = _snapshot(response_dict)
     slots = response_dict.get("slots", {})
     if not isinstance(slots, dict):
         slots = {}
@@ -504,6 +446,10 @@ def _llm_generate_slots(stage: str, payload: Dict[str, Any]) -> Dict[str, Any]:
     for key, value in slots.items():
         if isinstance(key, str) and isinstance(value, str) and value.strip():
             clean_slots[key.strip()] = value.strip()
+    if not clean_slots:
+        raise ValueError(
+            f"{stage} model response contained no non-empty slot bodies"
+        )
     filtered_slots, forbidden_map, autofix_map = _filter_forbidden_slot_content(stage, clean_slots)
     notes = response_dict.get("notes", "")
     if not isinstance(notes, str):
@@ -516,7 +462,21 @@ def _llm_generate_slots(stage: str, payload: Dict[str, Any]) -> Dict[str, Any]:
         summary_autofix = ", ".join(f"{k}: {label}" for k, label in autofix_map.items())
         extra_autofix = f"autofix[{summary_autofix}]"
         notes = f"{notes} {extra_autofix}".strip() if notes else extra_autofix
-    result = {"slots": filtered_slots, "notes": notes, "prompt": prompt, "response": raw_response}
+    result = {
+        "slots": filtered_slots,
+        "notes": notes,
+        "prompt": prompt,
+        "response": raw_response,
+        "model_metadata": {
+            "model": model_response.model,
+            "request_id": model_response.request_id,
+            "usage": _snapshot(model_response.usage),
+            "stop_reason": model_response.stop_reason,
+            "latency_seconds": model_response.latency_seconds,
+            "seed": seed,
+            "temperature": temperature,
+        },
+    }
     if forbidden_map:
         result["forbidden"] = forbidden_map
     if autofix_map:
@@ -544,7 +504,445 @@ def _load_tabular(excel_path: str, sheet: Optional[str]) -> pd.DataFrame:
     return pd.read_csv(path)
 
 
-def run_chain(
+_STAGE_LEVEL = {"L1": 1, "L2": 2, "L3": 3, "L4": 4}
+MEMORY_MODES = (
+    "none",
+    "ephemeral",
+    "untyped",
+    "constraints",
+    "patches",
+    "full",
+)
+_MEMORY_FEATURES = {
+    "none": (False, False, False, False),
+    "ephemeral": (True, True, True, True),
+    "untyped": (False, False, False, False),
+    "constraints": (True, False, True, False),
+    "patches": (False, True, False, True),
+    "full": (True, True, True, True),
+}
+_SHARED_SPEC_PATHS: tuple[tuple[str, ...], ...] = (
+    ("canvas", "width"),
+    ("canvas", "height"),
+    ("canvas", "dpi"),
+    ("theme", "font"),
+    ("theme", "palette_global"),
+    ("layout", "legend", "loc"),
+    ("layout", "legend", "ncol"),
+    ("layout", "legend", "frame"),
+    ("layout", "grid", "x"),
+    ("layout", "grid", "y"),
+    ("layout", "grid", "minor"),
+)
+_PANEL_SPEC_PATHS: tuple[tuple[str, ...], ...] = (
+    ("scales", "x", "kind"),
+    ("scales", "y_left", "kind"),
+    ("scales", "y_right", "kind"),
+)
+
+
+def _normalize_initial_generation(value: str) -> str:
+    normalized = str(value).strip().lower()
+    if normalized in {"default", "defaults"}:
+        return "defaults"
+    if normalized == "model":
+        return "model"
+    raise ValueError("initial_generation must be 'defaults' or 'model'")
+
+
+def _normalize_memory_mode(value: str) -> str:
+    normalized = str(value).strip().lower()
+    if normalized not in MEMORY_MODES:
+        raise ValueError(
+            f"memory_mode must be one of {', '.join(MEMORY_MODES)}, got {value!r}"
+        )
+    return normalized
+
+
+def _path_slot(path: tuple[str, ...]) -> str:
+    return ".".join(path)
+
+
+def _read_path(data: Mapping[str, Any], path: tuple[str, ...]) -> Any:
+    current: Any = data
+    for key in path:
+        if not isinstance(current, Mapping) or key not in current:
+            return None
+        current = current[key]
+    return copy.deepcopy(current)
+
+
+def _write_path(data: Dict[str, Any], path: tuple[str, ...], value: Any) -> None:
+    current = data
+    for key in path[:-1]:
+        nested = current.get(key)
+        if not isinstance(nested, dict):
+            nested = {}
+            current[key] = nested
+        current = nested
+    current[path[-1]] = copy.deepcopy(value)
+
+
+def _intent_overrides_path(intent: Mapping[str, Any], path: tuple[str, ...]) -> bool:
+    aesthetics = intent.get("aesthetics")
+    if not isinstance(aesthetics, Mapping):
+        aesthetics = {}
+    explicit = {
+        ("theme", "font"): "font_pref",
+        ("theme", "palette_global"): "palette",
+        ("layout", "legend", "loc"): "legend_policy",
+        ("layout", "title_align"): "title_align",
+    }
+    intent_key = explicit.get(path)
+    return bool(intent_key and intent_key in aesthetics)
+
+
+def _apply_shared_memory_constraints(
+    spec: Dict[str, Any],
+    *,
+    memory: PersistentMemory,
+    panel_id: str,
+    panel_group: str,
+    intent: Mapping[str, Any],
+) -> tuple[Dict[str, Any], list[str]]:
+    resolution = memory.constraint_projection(
+        panel_id=panel_id,
+        panel_group=panel_group,
+    )
+    updated = copy.deepcopy(spec)
+    reused_ids: list[str] = []
+    supported = {_path_slot(path): path for path in _SHARED_SPEC_PATHS}
+    for slot, record in sorted(resolution.selected.items()):
+        path = supported.get(slot)
+        if path is None or _intent_overrides_path(intent, path):
+            continue
+        _write_path(updated, path, record.value)
+        reused_ids.append(record.id)
+    return updated, reused_ids
+
+
+def _memory_context_for_stage(
+    *,
+    memory: PersistentMemory,
+    stage: str,
+    chart_class: str,
+    slot_keys: list[str],
+    df_columns: list[str],
+    panel_id: str,
+    panel_group: str,
+    include_constraints: bool,
+    include_patches: bool,
+    untyped_log: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    if untyped_log is not None:
+        return {"untyped_log": copy.deepcopy(untyped_log[-12:])}
+    if not include_constraints and not include_patches:
+        return {}
+    context = memory.reuse_context(
+        chart_meta_class=chart_class,
+        target_level=_STAGE_LEVEL[stage],
+        available_anchors=[*slot_keys, *df_columns],
+        writable_slots=slot_keys,
+        panel_id=panel_id,
+        panel_group=panel_group,
+        include_constraints=include_constraints,
+        include_patches=include_patches,
+    )
+    return context.to_prompt_dict()
+
+
+def _constraint_candidates_from_render(
+    *,
+    spec: Mapping[str, Any],
+    profile: Mapping[str, Any],
+    panel_id: str,
+    panel_group: str,
+    chart_class: str,
+    round_idx: int,
+    png_path: str,
+) -> list[ConstraintRecord]:
+    provenance_base = {
+        "source": "validated_render",
+        "grounding": "executable",
+        "panel_id": panel_id,
+        "round": round_idx,
+        "render_path": png_path,
+    }
+    records: list[ConstraintRecord] = []
+    for path in _SHARED_SPEC_PATHS:
+        value = _read_path(spec, path)
+        if value is None:
+            continue
+        records.append(
+            ConstraintRecord(
+                scope=Scope.PANEL_GROUP,
+                scope_key=panel_group,
+                level=1 if path[0] in {"canvas", "theme"} else 2,
+                slot=_path_slot(path),
+                value=value,
+                hard=False,
+                provenance={**provenance_base, "spec_path": list(path)},
+                support=1,
+                validated_executable=True,
+                chart_meta_class=chart_class,
+            )
+        )
+    for path in _PANEL_SPEC_PATHS:
+        value = _read_path(spec, path)
+        if value is None:
+            continue
+        records.append(
+            ConstraintRecord(
+                scope=Scope.PANEL,
+                scope_key=panel_id,
+                level=3,
+                slot=_path_slot(path),
+                value=value,
+                hard=False,
+                provenance={**provenance_base, "spec_path": list(path)},
+                support=1,
+                validated_executable=True,
+                chart_meta_class=chart_class,
+            )
+        )
+
+    overlays = spec.get("overlays")
+    first_overlay = overlays[0] if isinstance(overlays, list) and overlays else {}
+    if isinstance(first_overlay, Mapping):
+        for role in ("x", "y", "group"):
+            value = first_overlay.get(role)
+            if value is None:
+                continue
+            records.append(
+                ConstraintRecord(
+                    scope=Scope.PANEL,
+                    scope_key=panel_id,
+                    level=2,
+                    slot=f"encoding.{role}",
+                    value=value,
+                    hard=True,
+                    provenance={
+                        **provenance_base,
+                        "source_checked": str(value) in (profile.get("columns") or {}),
+                        "grounding": "source",
+                    },
+                    support=1,
+                    validated_executable=True,
+                    chart_meta_class=chart_class,
+                )
+            )
+    for column, dtype in sorted(dict(profile.get("columns") or {}).items()):
+        records.append(
+            ConstraintRecord(
+                scope=Scope.PANEL,
+                scope_key=panel_id,
+                level=2,
+                slot=f"data.dtype.{column}",
+                value=dtype,
+                hard=True,
+                provenance={
+                    **provenance_base,
+                    "source_checked": True,
+                    "grounding": "source",
+                },
+                support=1,
+                validated_executable=True,
+                chart_meta_class=chart_class,
+            )
+        )
+    return records
+
+
+def _patch_templates_from_render(
+    *,
+    ok_by_layer: Mapping[str, Mapping[str, str]],
+    df_columns: list[str],
+    panel_id: str,
+    panel_group: str,
+    chart_class: str,
+    round_idx: int,
+    png_path: str,
+    constraint_ids_by_level: Mapping[int, list[str]],
+) -> list[PatchTemplate]:
+    templates: list[PatchTemplate] = []
+    for layer in ("L1", "L2", "L3", "L4"):
+        level = _STAGE_LEVEL[layer]
+        scope = Scope.PANEL_GROUP if level <= 2 else Scope.PANEL
+        scope_key = panel_group if level <= 2 else panel_id
+        for slot, body in sorted(dict(ok_by_layer.get(layer) or {}).items()):
+            column_anchors = [column for column in df_columns if column in body]
+            anchors = tuple([slot, *column_anchors])
+            templates.append(
+                PatchTemplate(
+                    scope=scope,
+                    scope_key=scope_key,
+                    level=level,
+                    slot=slot,
+                    patch={"slots": {slot: body}},
+                    chart_meta_class=chart_class,
+                    required_anchors=anchors,
+                    anchor_coverage_threshold=1.0,
+                    safety=SafetyPredicate(allowed_slots=(slot,)),
+                    provenance={
+                        "source": "validated_render",
+                        "grounding": "executable",
+                        "panel_id": panel_id,
+                        "round": round_idx,
+                        "render_path": png_path,
+                    },
+                    touched_slots=(slot,),
+                    constraint_ids=tuple(constraint_ids_by_level.get(level, [])),
+                    support=1,
+                    validated_executable=True,
+                )
+            )
+    return templates
+
+
+def _write_memory_from_render(
+    *,
+    memory: PersistentMemory,
+    spec: Mapping[str, Any],
+    profile: Mapping[str, Any],
+    ok_by_layer: Mapping[str, Mapping[str, str]],
+    df_columns: list[str],
+    panel_id: str,
+    panel_group: str,
+    chart_class: str,
+    round_idx: int,
+    png_path: str,
+    score_deltas: Mapping[str, float],
+    write_constraints: bool,
+    write_patches: bool,
+) -> dict[str, Any]:
+    candidates = (
+        _constraint_candidates_from_render(
+            spec=spec,
+            profile=profile,
+            panel_id=panel_id,
+            panel_group=panel_group,
+            chart_class=chart_class,
+            round_idx=round_idx,
+            png_path=png_path,
+        )
+        if write_constraints
+        else []
+    )
+    accepted_constraints: list[ConstraintRecord] = []
+    rejected: list[dict[str, Any]] = []
+    raise_scope_slots: list[str] = []
+    for record in candidates:
+        metric = "data_fidelity" if record.level in {2, 3} else "visual_form"
+        decision = memory.check_oscillation(
+            slot=record.slot,
+            proposed_value=record.value,
+            improvement=float(score_deltas.get(metric, 0.0)),
+            scope_key=record.scope_key,
+        )
+        if not decision.allowed:
+            rejected.append(
+                {
+                    "slot": record.slot,
+                    "record_id": record.id,
+                    "decision": decision.to_dict(),
+                }
+            )
+            if decision.raise_scope:
+                raise_scope_slots.append(record.slot)
+            continue
+        stored = memory.add_constraint(record)
+        memory.record_slot_commit(
+            slot=record.slot,
+            value=record.value,
+            scope_key=record.scope_key,
+        )
+        accepted_constraints.append(stored)
+
+    constraint_ids_by_level: dict[int, list[str]] = {}
+    for record in accepted_constraints:
+        constraint_ids_by_level.setdefault(record.level, []).append(record.id)
+    accepted_patches: list[PatchTemplate] = []
+    if write_patches and not rejected:
+        for template in _patch_templates_from_render(
+            ok_by_layer=ok_by_layer,
+            df_columns=df_columns,
+            panel_id=panel_id,
+            panel_group=panel_group,
+            chart_class=chart_class,
+            round_idx=round_idx,
+            png_path=png_path,
+            constraint_ids_by_level=constraint_ids_by_level,
+        ):
+            accepted_patches.append(memory.add_patch(template))
+
+    return {
+        "constraint_ids": [record.id for record in accepted_constraints],
+        "patch_ids": [record.id for record in accepted_patches],
+        "rejected": rejected,
+        "raise_scope_slots": sorted(set(raise_scope_slots)),
+    }
+
+
+def _write_memory_artifacts(
+    *,
+    memory: PersistentMemory,
+    run_dir: Path,
+    round_idx: int,
+) -> dict[str, str]:
+    round_snapshot = memory.write_snapshot(
+        run_dir / f"memory_snapshot_round_{round_idx}.json"
+    )
+    latest_snapshot = memory.write_snapshot(run_dir / "memory_snapshot.json")
+    trace_path = memory.write_trace(run_dir / "memory_trace.json")
+    compatibility_path = memory.write_compatibility(run_dir / "pheromones.json")
+    return {
+        "round_snapshot_path": str(round_snapshot),
+        "snapshot_path": str(latest_snapshot),
+        "trace_path": str(trace_path),
+        "compatibility_path": str(compatibility_path),
+    }
+
+
+def _append_untyped_memory(
+    log: list[dict[str, Any]],
+    *,
+    panel_id: str,
+    round_idx: int,
+    stage_logs: Mapping[str, Mapping[str, Any]],
+    png_path: str,
+) -> None:
+    for stage in ("L1", "L2", "L3", "L4"):
+        stage_log = stage_logs.get(stage) or {}
+        slots = sorted(dict(stage_log.get("accepted_slots") or {}))
+        notes = str(stage_log.get("notes") or "").strip()
+        text = (
+            f"validated render {png_path}; stage={stage}; "
+            f"accepted_slots={', '.join(slots) or 'none'}"
+        )
+        if notes:
+            text = f"{text}; notes={notes}"
+        log.append(
+            {
+                "panel_id": panel_id,
+                "round": round_idx,
+                "text": text,
+            }
+        )
+
+
+def _write_untyped_memory(
+    log: list[dict[str, Any]], path: str | Path
+) -> Path:
+    output = Path(path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(
+        json.dumps(log, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return output
+
+
+def iter_chain(
     excel_path: str,
     user_goal: str,
     chart_family: str,
@@ -552,14 +950,49 @@ def run_chain(
     sheet: Optional[str] = None,
     intent: Optional[Dict[str, Any]] = None,
     progress_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None,
-) -> Dict[str, Any]:
+    *,
+    memory: PersistentMemory | None = None,
+    model_client: ModelClient | None = None,
+    panel_id: str = "panel-0",
+    panel_group: str = "default",
+    run_dir: str | Path | None = None,
+    initial_generation: str = "defaults",
+    seed: int | None = None,
+    temperature: float | None = None,
+    memory_mode: str = "full",
+    untyped_memory: list[dict[str, Any]] | None = None,
+    manage_ephemeral_reset: bool = True,
+    evaluation_expectation: Mapping[str, Any] | None = None,
+    metric_config: Mapping[str, Any] | None = None,
+) -> Iterator[Dict[str, Any]]:
     def emit(event: str, payload: Optional[Dict[str, Any]] = None) -> None:
-        if progress_callback is None:
-            return
-        try:
+        if progress_callback is not None:
             progress_callback(event, payload or {})
-        except Exception:
-            return
+
+    generation_mode = _normalize_initial_generation(initial_generation)
+    normalized_memory_mode = _normalize_memory_mode(memory_mode)
+    (
+        read_constraints,
+        read_patches,
+        write_constraints,
+        write_patches,
+    ) = _MEMORY_FEATURES[normalized_memory_mode]
+    typed_memory_active = normalized_memory_mode in {
+        "ephemeral",
+        "constraints",
+        "patches",
+        "full",
+    }
+    if normalized_memory_mode in {"none", "untyped"}:
+        memory_store = PersistentMemory()
+    elif normalized_memory_mode == "ephemeral":
+        memory_store = memory or PersistentMemory()
+    else:
+        memory_store = memory or PersistentMemory()
+    untyped_log = (
+        untyped_memory if untyped_memory is not None else []
+    ) if normalized_memory_mode == "untyped" else []
+    chart_class = chart_meta_class(chart_family)
 
     emit(
         "startup",
@@ -568,15 +1001,25 @@ def run_chain(
             "rounds": rounds,
             "sheet": sheet,
             "chart_family": chart_family,
+            "chart_meta_class": chart_class,
+            "panel_id": panel_id,
+            "panel_group": panel_group,
+            "initial_generation": generation_mode,
+            "seed": seed,
+            "temperature": temperature,
+            "memory_mode": normalized_memory_mode,
         },
     )
 
-    RUNS_DIR.mkdir(exist_ok=True)
-    timestamp = time.strftime("%Y%m%dT%H%M%S")
-    run_dir = RUNS_DIR / timestamp
-    run_dir.mkdir(parents=True, exist_ok=True)
+    if run_dir is None:
+        RUNS_DIR.mkdir(exist_ok=True)
+        timestamp = f"{time.strftime('%Y%m%dT%H%M%S')}_{time.time_ns() % 1_000_000_000:09d}"
+        active_run_dir = RUNS_DIR / timestamp
+    else:
+        active_run_dir = Path(run_dir)
+    active_run_dir.mkdir(parents=True, exist_ok=True)
 
-    emit("run_directory_ready", {"path": str(run_dir)})
+    emit("run_directory_ready", {"path": str(active_run_dir), "panel_id": panel_id})
 
     df = _load_tabular(excel_path, sheet)
     profile = _profile_df(df)
@@ -597,11 +1040,26 @@ def run_chain(
         base_intent = merged
 
     draft_spec = derive_spec(base_intent, profile)
-    spec = validate_spec(draft_spec)
+    if read_constraints:
+        inherited_spec, inherited_constraint_ids = _apply_shared_memory_constraints(
+            draft_spec,
+            memory=memory_store,
+            panel_id=panel_id,
+            panel_group=panel_group,
+            intent=base_intent,
+        )
+    else:
+        inherited_spec, inherited_constraint_ids = draft_spec, []
+    spec = validate_spec(inherited_spec)
 
     emit(
         "spec_ready",
-        {"keys": list(spec.keys()), "intent_keys": list(base_intent.keys())},
+        {
+            "keys": list(spec.keys()),
+            "intent_keys": list(base_intent.keys()),
+            "inherited_constraint_ids": inherited_constraint_ids,
+            "panel_id": panel_id,
+        },
     )
 
     last_scores: Dict[str, float] = {"visual_form": 0.0, "data_fidelity": 0.0}
@@ -615,19 +1073,34 @@ def run_chain(
         "chart_family": chart_family,
         "data_profile": profile,
         "feedback_text": feedback_text,
-        "run_dir": str(run_dir),
+        "run_dir": str(active_run_dir),
+        "panel_id": panel_id,
+        "panel_group": panel_group,
         "spec": spec,
         "df_columns": df_columns,
         "df_dtypes": df_dtypes,
         "df_unique_counts": df_unique_counts,
         "row_count": row_count,
     }
+    if evaluation_expectation is not None:
+        from app.evaluation import validate_expectation
+
+        expectation_payload = dict(evaluation_expectation)
+        validate_expectation(expectation_payload)
+        ctx["_evaluation_request"] = {
+            "expectation": expectation_payload,
+            "metric_config": dict(metric_config or {}),
+        }
     # Debug toggle propagated into scaffold for richer diagnostics/overlays
     debug_env = os.getenv("DEBUG_RUN", "").strip().lower()
     ctx["debug"] = debug_env not in {"", "0", "false", "no"}
     force_all_rounds_raw = os.getenv("FORCE_ALL_ROUNDS", "")
     force_all_rounds = force_all_rounds_raw.strip().lower() not in {"", "0", "false", "no"}
     ctx["force_all_rounds"] = force_all_rounds
+    try:
+        render_timeout = max(1, int(os.getenv("PHEROVIZ_RENDER_TIMEOUT", "30")))
+    except ValueError as exc:
+        raise ValueError("PHEROVIZ_RENDER_TIMEOUT must be an integer") from exc
 
     emit(
         "context_ready",
@@ -635,6 +1108,24 @@ def run_chain(
     )
 
     for round_idx in range(1, max(1, rounds) + 1):
+        if (
+            normalized_memory_mode == "ephemeral"
+            and manage_ephemeral_reset
+            and round_idx > 1
+        ):
+            memory_store.clear_records(reason=f"single_panel_round_{round_idx}")
+        if read_constraints:
+            spec, round_inherited_ids = _apply_shared_memory_constraints(
+                spec,
+                memory=memory_store,
+                panel_id=panel_id,
+                panel_group=panel_group,
+                intent=base_intent,
+            )
+        else:
+            round_inherited_ids = []
+        spec = validate_spec(spec)
+        ctx["spec"] = spec
         emit("round_start", {"round": round_idx, "feedback": feedback_text})
         stage_logs: Dict[str, Any] = {}
 
@@ -664,6 +1155,25 @@ def run_chain(
                 "slot_keys": ["axes.*", "legend.apply", "grid.apply", "annot.*", "theme.*"],
             },
         }
+        round_reuse_ids = set(round_inherited_ids)
+        for layer, payload in stage_payloads.items():
+            memory_context = _memory_context_for_stage(
+                memory=memory_store,
+                stage=layer,
+                chart_class=chart_class,
+                slot_keys=list(payload["slot_keys"]),
+                df_columns=df_columns,
+                panel_id=panel_id,
+                panel_group=panel_group,
+                include_constraints=read_constraints,
+                include_patches=read_patches,
+                untyped_log=(
+                    untyped_log
+                    if normalized_memory_mode == "untyped"
+                    else None
+                ),
+            )
+            payload["memory_context"] = memory_context
 
         forbidden_history = ctx.get('_forbidden_history', {})
         for _layer_key, _payload in stage_payloads.items():
@@ -679,6 +1189,9 @@ def run_chain(
                     _payload["forbidden_notes"] = summary
 
         ok_by_layer: Dict[str, Dict[str, str]] = {}
+        allow_default_fallback = not (
+            round_idx == 1 and generation_mode == "model"
+        )
         for layer, payload in stage_payloads.items():
             stage_name = _STAGE_NAMES.get(layer, layer)
             emit(
@@ -690,7 +1203,11 @@ def run_chain(
                     "hint": _STAGE_SLOT_HINT.get(layer, ""),
                 },
             )
-            if round_idx == 1 and layer in DEFAULT_STAGE_SLOTS_V2:
+            if (
+                round_idx == 1
+                and generation_mode == "defaults"
+                and layer in DEFAULT_STAGE_SLOTS_V2
+            ):
                 default_bundle = DEFAULT_STAGE_SLOTS_V2[layer]
                 raw_slots = dict(default_bundle.get("slots", {}))
                 notes_default = default_bundle.get("notes", "")
@@ -703,7 +1220,13 @@ def run_chain(
                 forbidden_map: Dict[str, str] = {}
                 autofix_map: Dict[str, str] = {}
             else:
-                out = _llm_generate_slots(layer, payload)
+                out = _llm_generate_slots(
+                    layer,
+                    payload,
+                    model_client=model_client,
+                    seed=seed,
+                    temperature=temperature,
+                )
                 forbidden_map = (out.get("forbidden") if isinstance(out, dict) else {}) or {}
                 autofix_map = (out.get("autofix") if isinstance(out, dict) else {}) or {}
             history_ref = ctx.setdefault('_forbidden_history', {}).setdefault(layer, [])
@@ -732,7 +1255,12 @@ def run_chain(
             fallback_used: Optional[str] = None
             fallback_slots: Dict[str, str] = {}
             notes_text = out_dict.get("notes", "")
-            if not ok_layer and forbidden_map and layer in DEFAULT_STAGE_SLOTS_V2:
+            if (
+                allow_default_fallback
+                and not ok_layer
+                and forbidden_map
+                and layer in DEFAULT_STAGE_SLOTS_V2
+            ):
                 default_bundle = DEFAULT_STAGE_SLOTS_V2[layer]
                 fallback_slots = dict(default_bundle.get("slots", {}))
                 ok_layer, rej_default = _layer_guard(layer, fallback_slots)
@@ -748,7 +1276,12 @@ def run_chain(
                     history_ref[-1]["summary"] = fallback_summary
                 else:
                     history_ref.append({"round": round_idx, "summary": fallback_summary})
-            if layer == "L3" and not any(key.startswith("marks.") for key in ok_layer) and layer in DEFAULT_STAGE_SLOTS_V2:
+            if (
+                allow_default_fallback
+                and layer == "L3"
+                and not any(key.startswith("marks.") for key in ok_layer)
+                and layer in DEFAULT_STAGE_SLOTS_V2
+            ):
                 default_bundle = DEFAULT_STAGE_SLOTS_V2[layer]
                 default_mark_candidates = dict(default_bundle.get("slots", {}))
                 default_ok, _ = _layer_guard(layer, default_mark_candidates)
@@ -766,9 +1299,37 @@ def run_chain(
                         history_ref[-1]["summary"] = combined
                     else:
                         history_ref.append({"round": round_idx, "summary": fallback_summary})
+            if (
+                round_idx == 1
+                and generation_mode == "model"
+                and not ok_layer
+            ):
+                raise ValueError(
+                    f"{layer} model initial generation produced no admissible slots"
+                )
+            if read_constraints:
+                freeze_decision = memory_store.check_invariant_freeze(
+                    target_level=_STAGE_LEVEL[layer],
+                    touched_slots=ok_layer,
+                    panel_id=panel_id,
+                    panel_group=panel_group,
+                )
+            else:
+                freeze_decision = InvariantDecision(
+                    allowed=True,
+                    frozen={},
+                    violations=(),
+                )
+            for frozen_slot in freeze_decision.violations:
+                rejected_body = ok_layer.pop(frozen_slot, None)
+                if rejected_body is not None:
+                    rej_layer[frozen_slot] = (
+                        "higher_scope_invariant_frozen"
+                    )
             stage_logs[layer] = {
                 "prompt": out_dict.get("prompt"),
                 "response": _snapshot(out_dict.get("response")),
+                "model_metadata": _snapshot(out_dict.get("model_metadata")),
                 "payload": _snapshot(payload),
                 "notes": notes_text,
                 "raw_slots": llm_slots,
@@ -777,6 +1338,7 @@ def run_chain(
                 "forbidden_slots": forbidden_map,
                 "autofix_slots": autofix_map,
                 "fallback": fallback_used,
+                "invariant_freeze": freeze_decision.to_dict(),
             }
             if fallback_used:
                 stage_logs[layer]["fallback_slots"] = fallback_slots
@@ -803,20 +1365,38 @@ def run_chain(
         emit("slots_assembled", {"round": round_idx, "slot_count": len(slots)})
 
         py_code = assemble_with_slots(slots)
-        # Persist assembled scaffold for this round to aid debugging
-        try:
-            (run_dir / f"code_round_{round_idx}.py").write_text(py_code, encoding="utf-8")
-            # Also persist accepted slots for this round
-            (run_dir / f"slots_round_{round_idx}.json").write_text(
-                json.dumps(slots, ensure_ascii=False, indent=2), encoding="utf-8"
-            )
-        except Exception:
-            pass
-        out_png = str(run_dir / f"figure_round_{round_idx}.png")
+        (active_run_dir / f"code_round_{round_idx}.py").write_text(
+            py_code, encoding="utf-8"
+        )
+        (active_run_dir / f"slots_round_{round_idx}.json").write_text(
+            json.dumps(slots, ensure_ascii=False, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+        out_png = str(active_run_dir / f"figure_round_{round_idx}.png")
 
         emit("execution_start", {"round": round_idx, "output": out_png})
         prev_spec = copy.deepcopy(spec)
-        exec_result = execute_script(py_code, df, base_intent, ctx, out_png)
+        previous_scores = dict(last_scores)
+        ctx.pop("_programmatic_evaluation", None)
+        ctx.pop("_programmatic_evaluation_round_token", None)
+        evaluation_request = ctx.get("_evaluation_request")
+        if isinstance(evaluation_request, dict):
+            evaluation_request["round_token"] = round_idx
+        exec_result = execute_script(
+            py_code,
+            df,
+            base_intent,
+            ctx,
+            out_png,
+            timeout_s=render_timeout,
+        )
+        if typed_memory_active:
+            memory_store.advance_step()
+            for record_id in sorted(round_reuse_ids):
+                memory_store.mark_reuse(
+                    record_id,
+                    successful=bool(exec_result.get("ok")),
+                )
         updated_ctx = exec_result.get("ctx")
         if isinstance(updated_ctx, dict):
             ctx.update(updated_ctx)
@@ -824,7 +1404,7 @@ def run_chain(
             if isinstance(new_spec, dict):
                 try:
                     validated_spec = validate_spec(new_spec)
-                except Exception as exc:
+                except (TypeError, ValueError) as exc:
                     spec = prev_spec
                     ctx["spec"] = spec
                     fallback_note = f"spec_validation_failed: {exc}"
@@ -850,19 +1430,139 @@ def run_chain(
                 "png_path": exec_result.get("png_path"),
             },
         )
+        current_programmatic = ctx.get("_programmatic_evaluation")
+        current_round_token = ctx.get("_programmatic_evaluation_round_token")
+        if evaluation_expectation is not None and (
+            not exec_result.get("ok")
+            or not isinstance(current_programmatic, dict)
+            or current_round_token != round_idx
+        ):
+            raise RuntimeError(
+                "Programmatic evaluation was requested but the sandbox did not "
+                f"produce a result: {stderr_preview[:500]}"
+            )
 
         png_for_judge = exec_result.get("png_path") or out_png
         emit("judging_start", {"round": round_idx, "png_path": png_for_judge})
         judge_result = judge(png_for_judge, exec_result.get("stderr", ""), df, spec)
+        programmatic_result = ctx.get("_programmatic_evaluation")
+        programmatic_path: Path | None = None
+        fidelity_ratio: float | None = None
+        cohesion_ratio: float | None = None
+        if isinstance(programmatic_result, dict):
+            programmatic_path = (
+                active_run_dir / f"programmatic_evaluation_round_{round_idx}.json"
+            )
+            programmatic_path.write_text(
+                json.dumps(
+                    programmatic_result,
+                    ensure_ascii=False,
+                    indent=2,
+                    sort_keys=True,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            raw_fidelity = (programmatic_result.get("fidelity") or {}).get("ratio")
+            raw_cohesion = (programmatic_result.get("cohesion") or {}).get("ratio")
+            if isinstance(raw_fidelity, (int, float)):
+                fidelity_ratio = float(raw_fidelity)
+            if isinstance(raw_cohesion, (int, float)):
+                cohesion_ratio = float(raw_cohesion)
         last_scores = {
             "visual_form": judge_result.get("visual_form", 0.0),
-            "data_fidelity": judge_result.get("data_fidelity", 0.0),
+            "data_fidelity": (
+                fidelity_ratio
+                if fidelity_ratio is not None
+                else judge_result.get("data_fidelity", 0.0)
+            ),
         }
+        if cohesion_ratio is not None:
+            last_scores["series_cohesion"] = cohesion_ratio
+        score_deltas = {
+            key: float(last_scores[key]) - float(previous_scores.get(key, 0.0))
+            for key in last_scores
+        }
+        if (
+            exec_result.get("ok")
+            and exec_result.get("png_path")
+            and (write_constraints or write_patches)
+        ):
+            memory_write = _write_memory_from_render(
+                memory=memory_store,
+                spec=spec,
+                profile=profile,
+                ok_by_layer=ok_by_layer,
+                df_columns=df_columns,
+                panel_id=panel_id,
+                panel_group=panel_group,
+                chart_class=chart_class,
+                round_idx=round_idx,
+                png_path=str(exec_result["png_path"]),
+                score_deltas=score_deltas,
+                write_constraints=write_constraints,
+                write_patches=write_patches,
+            )
+        elif (
+            exec_result.get("ok")
+            and exec_result.get("png_path")
+            and normalized_memory_mode == "untyped"
+        ):
+            before = len(untyped_log)
+            _append_untyped_memory(
+                untyped_log,
+                panel_id=panel_id,
+                round_idx=round_idx,
+                stage_logs=stage_logs,
+                png_path=str(exec_result["png_path"]),
+            )
+            memory_write = {
+                "constraint_ids": [],
+                "patch_ids": [],
+                "rejected": [],
+                "raise_scope_slots": [],
+                "untyped_entries_written": len(untyped_log) - before,
+            }
+        else:
+            memory_write = {
+                "constraint_ids": [],
+                "patch_ids": [],
+                "rejected": [],
+                "raise_scope_slots": [],
+                "reason": (
+                    "render_failed"
+                    if not exec_result.get("ok")
+                    else "memory_writes_disabled"
+                ),
+            }
+        memory_paths = _write_memory_artifacts(
+            memory=memory_store,
+            run_dir=active_run_dir,
+            round_idx=round_idx,
+        )
+        if normalized_memory_mode == "untyped":
+            memory_paths["untyped_path"] = str(
+                _write_untyped_memory(
+                    untyped_log,
+                    active_run_dir / "untyped_memory.json",
+                )
+            )
         emit(
             "judging_complete",
             {
                 "round": round_idx,
                 "scores": last_scores,
+                "judge_scores": {
+                    "visual_form": judge_result.get("visual_form", 0.0),
+                    "data_fidelity": judge_result.get("data_fidelity", 0.0),
+                },
+                "programmatic_fidelity": fidelity_ratio,
+                "programmatic_cohesion": cohesion_ratio,
+                "programmatic_evaluation_path": (
+                    str(programmatic_path)
+                    if programmatic_path is not None
+                    else None
+                ),
                 "diagnostics": len(judge_result.get("diagnostics", [])),
             },
         )
@@ -876,12 +1576,36 @@ def run_chain(
             "round": round_idx,
             "png_path": exec_result.get("png_path"),
             "scores": last_scores,
+            "judge_scores": {
+                "visual_form": judge_result.get("visual_form", 0.0),
+                "data_fidelity": judge_result.get("data_fidelity", 0.0),
+            },
+            "programmatic_evaluation": programmatic_result,
+            "programmatic_evaluation_path": (
+                str(programmatic_path) if programmatic_path is not None else None
+            ),
             "diagnostics": judge_result.get("diagnostics", []),
             "spec": spec,
             "slots": slots,
             "stderr": exec_result.get("stderr", ""),
             "stages": stage_logs,
             "debug": debug_ctx,
+            "panel_id": panel_id,
+            "panel_group": panel_group,
+            "chart_meta_class": chart_class,
+            "render_count": round_idx,
+            "run_config": {
+                "initial_generation": generation_mode,
+                "seed": seed,
+                "temperature": temperature,
+                "memory_mode": normalized_memory_mode,
+            },
+            "memory": {
+                **memory_paths,
+                "mode": normalized_memory_mode,
+                "write": memory_write,
+                "reused_record_ids": sorted(round_reuse_ids),
+            },
         }
 
         emit(
@@ -893,12 +1617,15 @@ def run_chain(
             },
         )
 
-        artifact_path = run_dir / f"iteration_{round_idx}.json"
+        artifact_path = active_run_dir / f"iteration_{round_idx}.json"
+        selected["artifact_path"] = str(artifact_path)
         artifact_path.write_text(
-            json.dumps(selected, ensure_ascii=False, indent=2),
+            json.dumps(selected, ensure_ascii=False, indent=2, sort_keys=True),
             encoding="utf-8",
         )
         emit("artifact_written", {"round": round_idx, "path": str(artifact_path)})
+
+        yield copy.deepcopy(selected)
 
         if (not force_all_rounds) and last_scores["visual_form"] >= 0.75 and last_scores["data_fidelity"] >= 0.75:
             emit("round_success", {"round": round_idx, "scores": last_scores})
@@ -912,6 +1639,11 @@ def run_chain(
         feedback_text = compose_feedback(
             round_idx, last_scores, judge_result.get("diagnostics", []), layer_guards
         )
+        if memory_write["raise_scope_slots"]:
+            feedback_text = (
+                f"{feedback_text}\nMemory oscillation guard requests a higher scope for: "
+                f"{', '.join(memory_write['raise_scope_slots'])}"
+            )
         ctx["feedback_text"] = feedback_text
         emit("feedback_ready", {"round": round_idx, "feedback": feedback_text})
 
@@ -920,29 +1652,60 @@ def run_chain(
         {
             "round": selected["round"] if selected else 0,
             "scores": last_scores,
-            "run_dir": str(run_dir),
+            "run_dir": str(active_run_dir),
+            "panel_id": panel_id,
         },
     )
-    return selected or {}
+    _write_memory_artifacts(
+        memory=memory_store,
+        run_dir=active_run_dir,
+        round_idx=selected["round"] if selected else 0,
+    )
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+def run_chain(
+    excel_path: str,
+    user_goal: str,
+    chart_family: str,
+    rounds: int = 3,
+    sheet: Optional[str] = None,
+    intent: Optional[Dict[str, Any]] = None,
+    progress_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None,
+    *,
+    memory: PersistentMemory | None = None,
+    model_client: ModelClient | None = None,
+    panel_id: str = "panel-0",
+    panel_group: str = "default",
+    run_dir: str | Path | None = None,
+    initial_generation: str = "defaults",
+    seed: int | None = None,
+    temperature: float | None = None,
+    memory_mode: str = "full",
+    untyped_memory: list[dict[str, Any]] | None = None,
+    evaluation_expectation: Mapping[str, Any] | None = None,
+    metric_config: Mapping[str, Any] | None = None,
+) -> Dict[str, Any]:
+    selected: Dict[str, Any] = {}
+    for result in iter_chain(
+        excel_path,
+        user_goal,
+        chart_family,
+        rounds=rounds,
+        sheet=sheet,
+        intent=intent,
+        progress_callback=progress_callback,
+        memory=memory,
+        model_client=model_client,
+        panel_id=panel_id,
+        panel_group=panel_group,
+        run_dir=run_dir,
+        initial_generation=initial_generation,
+        seed=seed,
+        temperature=temperature,
+        memory_mode=memory_mode,
+        untyped_memory=untyped_memory,
+        evaluation_expectation=evaluation_expectation,
+        metric_config=metric_config,
+    ):
+        selected = result
+    return selected

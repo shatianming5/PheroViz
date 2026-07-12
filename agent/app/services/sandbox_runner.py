@@ -1,6 +1,7 @@
 ﻿from __future__ import annotations
 
 import json
+import os
 import pickle
 import subprocess
 import sys
@@ -72,10 +73,22 @@ def execute_script(
             str(out_png_path),
         ]
         try:
+            environment = dict(os.environ)
+            project_root = str(Path(__file__).resolve().parents[2])
+            existing_pythonpath = environment.get("PYTHONPATH")
+            environment["PYTHONPATH"] = (
+                project_root
+                if not existing_pythonpath
+                else project_root + os.pathsep + existing_pythonpath
+            )
             proc = subprocess.run(
                 cmd,
                 capture_output=True,
-                text=True, encoding='utf-8', errors='replace', timeout=timeout_s,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=timeout_s,
+                env=environment,
             )
             ok = (
                 proc.returncode == 0
@@ -94,8 +107,10 @@ def execute_script(
         if p_ctx.exists():
             try:
                 updated_ctx = json.loads(p_ctx.read_text(encoding="utf-8"))
-            except json.JSONDecodeError:
-                updated_ctx = {}
+            except json.JSONDecodeError as exc:
+                raise RuntimeError(
+                    f"Sandbox returned invalid context JSON: {exc}"
+                ) from exc
 
         return {
             "ok": ok,
@@ -103,4 +118,3 @@ def execute_script(
             "stderr": stderr,
             "ctx": updated_ctx,
         }
-

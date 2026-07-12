@@ -3,8 +3,9 @@ from __future__ import annotations
 import hashlib
 import math
 import re
+from dataclasses import replace
 from datetime import date, datetime
-from typing import Any, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 import matplotlib.colors as mcolors
 import numpy as np
@@ -659,4 +660,58 @@ def extract_figure_manifest(
         },
         axes=axes,
         figure_legends=figure_legends,
+    )
+
+
+def combine_figure_manifests(
+    manifests: Mapping[str, FigureManifest | Mapping[str, Any]],
+) -> FigureManifest:
+    if not manifests:
+        raise ValueError("At least one panel manifest is required")
+    combined_axes: List[AxisManifest] = []
+    combined_legends: List[LegendManifest] = []
+    first_figure: dict[str, Any] | None = None
+    for panel_id, raw_manifest in manifests.items():
+        manifest = (
+            raw_manifest
+            if isinstance(raw_manifest, FigureManifest)
+            else FigureManifest.from_dict(raw_manifest)
+        )
+        if first_figure is None:
+            first_figure = dict(manifest.figure)
+        primary_count = sum(axis.role == "panel" for axis in manifest.axes)
+        if primary_count != 1:
+            raise ValueError(
+                f"Panel {panel_id!r} must contain exactly one primary axis, "
+                f"found {primary_count}"
+            )
+        for axis in manifest.axes:
+            if axis.role == "panel":
+                axis_id = str(panel_id)
+                logical_panel = str(panel_id)
+                parent_axis_id = None
+            elif axis.role == "secondary":
+                suffix = axis.axis_id.split(":")[-1]
+                axis_id = f"{panel_id}:{suffix}"
+                logical_panel = str(panel_id)
+                parent_axis_id = str(panel_id)
+            else:
+                axis_id = f"{panel_id}:{axis.axis_id}"
+                logical_panel = axis.panel_id
+                parent_axis_id = axis.parent_axis_id
+            combined_axes.append(
+                replace(
+                    axis,
+                    axis_id=axis_id,
+                    panel_id=logical_panel,
+                    parent_axis_id=parent_axis_id,
+                    index=len(combined_axes),
+                )
+            )
+        combined_legends.extend(manifest.figure_legends)
+    return FigureManifest(
+        schema_version=FIGURE_MANIFEST_SCHEMA_VERSION,
+        figure=first_figure or {},
+        axes=combined_axes,
+        figure_legends=combined_legends,
     )

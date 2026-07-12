@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -9,6 +10,8 @@ from experiments.harness import execute_experiment
 from experiments.models import RunRecord
 from experiments.providers import (
     GenerationRequest,
+    MultiPanelProvider,
+    ProviderBatch,
     ProviderExecutionError,
     SingleChainProvider,
 )
@@ -206,6 +209,26 @@ def test_best_of_n_and_iterative_obey_same_render_budget() -> None:
         ]
 
 
+def test_best_of_n_accounts_for_multi_render_candidates() -> None:
+    with experiment_workspace("best-multi-render") as workspace:
+        spec = make_spec(
+            workspace,
+            run_name="best-multi-render",
+            schedule="best_of_n",
+            budget_value=4,
+        )
+        provider = TestOnlySequenceProvider([0.2, 0.4], render_count=2)
+
+        outcome = execute_experiment(
+            spec,
+            provider_loader=_loader(provider),
+        )
+
+        assert outcome.record.status == "completed"
+        assert outcome.record.render_count == 4
+        assert len(outcome.record.candidates) == 2
+
+
 def test_render_budget_overrun_is_failed_not_accepted() -> None:
     with experiment_workspace("render-overrun") as workspace:
         spec = make_spec(
@@ -315,3 +338,99 @@ def test_missing_provider_never_falls_back_to_success() -> None:
         assert outcome.record.render_count == 0
         assert outcome.record.error is not None
         assert outcome.record.error["type"] == "ProviderUnavailableError"
+
+
+def test_multi_panel_provider_emits_programmatic_candidate(
+    tmp_path: Path,
+) -> None:
+    left = tmp_path / "left.csv"
+    right = tmp_path / "right.csv"
+    left.write_text("category,value\nA,1\nB,2\n", encoding="utf-8")
+    right.write_text("category,value\nA,3\nB,4\n", encoding="utf-8")
+    panels = [
+        {
+            "id": panel_id,
+            "data_path": path.name,
+            "user_goal": panel_id,
+            "chart_family": "bar",
+            "intent": {"x": "category", "y": "value"},
+        }
+        for panel_id, path in (("left", left), ("right", right))
+    ]
+    expectation_panels = [
+        {
+            "panel_id": panel_id,
+            "axis_index": 0,
+            "series": [
+                {
+                    "series_id": "value",
+                    "kind": "bar",
+                    "x": "category",
+                    "value": "value",
+                }
+            ],
+        }
+        for panel_id in ("left", "right")
+    ]
+    manifest = write_manifest(
+        tmp_path,
+        [
+            {
+                "case_id": "multi-case",
+                "panel_count": 2,
+                "split": "test",
+                "panels": panels,
+                "evaluation_expectation": {
+                    "schema_version": "1.1.0",
+                    "panels": expectation_panels,
+                    "panel_groups": [
+                        {
+                            "group_id": "shared",
+                            "panels": ["left", "right"],
+                            "checks": {"shared_y_scale": True},
+                        }
+                    ],
+                },
+            }
+        ],
+    )
+    spec = make_spec(
+        tmp_path,
+        run_name="multi-provider",
+        schedule="iterative",
+        case_id="multi-case",
+        panel_count=2,
+        split="test",
+        budget_value=2,
+        selection_metric="data_fidelity",
+    )
+    spec = replace(
+        spec,
+        method_config={
+            "initial_generation": "defaults",
+            "memory_mode": "full",
+        },
+    )
+    output_dir = tmp_path / "provider"
+    output_dir.mkdir()
+    request = GenerationRequest(
+        spec=spec,
+        dataset_manifest_path=manifest,
+        output_dir=output_dir,
+        call_index=1,
+        remaining_renders=2,
+        remaining_seconds=None,
+        deadline_monotonic=None,
+        history=(),
+        previous_candidate=None,
+    )
+
+    batch = MultiPanelProvider().generate(request)
+
+    assert isinstance(batch, ProviderBatch)
+    candidate = batch.candidates[0]
+    assert candidate.render_count == 2
+    assert candidate.metrics["data_fidelity"] == 1.0
+    assert candidate.metrics["series_cohesion"] == 1.0
+    assert Path(candidate.artifacts["render"]).is_file()
+    assert Path(candidate.artifacts["programmatic_evaluation"]).is_file()
