@@ -15,6 +15,7 @@ from .production_statistics import (
     load_provenance_summary,
     write_analysis_outputs,
 )
+from .rejudge import merge_rejudged_summary, rejudge_batch
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -69,6 +70,23 @@ def _build_parser() -> argparse.ArgumentParser:
         default=100_000,
     )
     analyze_parser.add_argument("--exact-max-n", type=int, default=16)
+
+    rejudge_parser = subparsers.add_parser(
+        "rejudge",
+        help="Read sealed best-candidate renders and run a post-hoc visual judge",
+    )
+    rejudge_parser.add_argument("source", type=Path)
+    rejudge_parser.add_argument("--judge-model", required=True)
+    rejudge_parser.add_argument("--out", type=Path, default=None)
+    rejudge_parser.add_argument("--resume", action="store_true")
+
+    merge_parser = subparsers.add_parser(
+        "merge-rejudge",
+        help="Create rejudged_summary.json without changing the source summary",
+    )
+    merge_parser.add_argument("summary", type=Path)
+    merge_parser.add_argument("sidecar_dir", type=Path)
+    merge_parser.add_argument("--out", type=Path, default=None)
     return parser
 
 
@@ -165,6 +183,44 @@ def _analyze_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def _rejudge_command(args: argparse.Namespace) -> int:
+    result = rejudge_batch(
+        args.source,
+        judge_model=args.judge_model,
+        output_dir=args.out,
+        resume=args.resume,
+    )
+    print(
+        json.dumps(
+            result.to_dict(),
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return result.exit_code
+
+
+def _merge_rejudge_command(args: argparse.Namespace) -> int:
+    path, metric = merge_rejudged_summary(
+        args.summary,
+        args.sidecar_dir,
+        output_path=args.out,
+    )
+    print(
+        json.dumps(
+            {
+                "rejudged_summary": str(path),
+                "second_judge_metric": metric,
+            },
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
@@ -175,6 +231,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             return _aggregate_command(args)
         if args.command == "analyze":
             return _analyze_command(args)
+        if args.command == "rejudge":
+            return _rejudge_command(args)
+        if args.command == "merge-rejudge":
+            return _merge_rejudge_command(args)
     except (AggregationError, MatrixError, ProvenanceError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
