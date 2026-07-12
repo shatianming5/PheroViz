@@ -289,7 +289,11 @@ def add_corpus_subcommands(subparsers: argparse._SubParsersAction) -> None:
         "discover",
         help="Crossref-only discovery with the CC-BY gate enabled by default",
     )
-    discover.add_argument("--query", required=True)
+    discover.add_argument(
+        "--query",
+        default="",
+        help="Optional topical query; omit for journal-wide discovery",
+    )
     discover.add_argument("--max", type=int, default=10)
     discover.add_argument(
         "--journal",

@@ -47,6 +47,24 @@ def test_discovery_uses_cursor_pagination_and_filters(monkeypatch):
     )
 
 
+def test_journal_wide_discovery_omits_empty_query(monkeypatch):
+    captured = {}
+
+    def fake_request(url, **kwargs):
+        captured.update(kwargs["params"])
+        return {"message": {"items": [], "next-cursor": None}}
+
+    monkeypatch.setattr(discovery, "_request_json", fake_request)
+    discovery.crossref_discover(
+        "",
+        rows=1,
+        journal="Scientific Reports",
+        sleep=0,
+    )
+    assert "query" not in captured
+    assert captured["query.container-title"] == "Scientific Reports"
+
+
 def test_discovery_rejects_invalid_bounds():
     for kwargs in (
         {"rows": 0},

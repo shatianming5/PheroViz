@@ -25,7 +25,7 @@
 - 仅发现并验证许可（不下载文章内容）：
   ```bash
   python nature_all_in_one.py discover \
-    --query "machine learning" --journal "Nature Communications" \
+    --journal "Nature Communications" \
     --from-date 2024-01-01 --until-date 2026-07-12 --max 2000 \
     --out outputs/corpus_discovery
   ```

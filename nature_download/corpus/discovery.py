@@ -94,11 +94,12 @@ def crossref_discover(
     while len(collected) < rows:
         request_rows = min(page_size, rows - len(collected))
         params: dict[str, Any] = {
-            "query": query,
             "filter": ",".join(filters),
             "rows": request_rows,
             "cursor": cursor,
         }
+        if query.strip():
+            params["query"] = query.strip()
         if journal:
             params["query.container-title"] = journal
         payload = _request_json(
