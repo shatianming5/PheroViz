@@ -575,6 +575,7 @@ class NvAgentProvider(ExternalBaselineProvider):
         timeout_seconds: float = 1800.0,
         check_dependencies: bool = True,
         environ: Optional[Mapping[str, str]] = None,
+        openai_compatible: bool = False,
     ) -> None:
         super().__init__(
             BASELINE_REGISTRY["nvagent"],
@@ -584,6 +585,7 @@ class NvAgentProvider(ExternalBaselineProvider):
             check_dependencies=check_dependencies,
             environ=environ,
         )
+        self.openai_compatible = bool(openai_compatible)
 
     def _prepare_invocation(
         self,
@@ -610,6 +612,12 @@ class NvAgentProvider(ExternalBaselineProvider):
                 "tables": [str(path) for path in copied_tables],
                 "instruction": _case_instruction(case),
                 "model": request.spec.backbone,
+                "openai_compatible": bool(
+                    request.spec.method_config.get(
+                        "openai_compatible",
+                        self.openai_compatible,
+                    )
+                ),
                 "log_path": str(logs_dir / "nvagent.log"),
                 "code_path": str(request.output_dir / "generated.py"),
                 "image_path": str(request.output_dir / "figure.svg"),
@@ -792,6 +800,13 @@ os.environ["OPENAI_API_VERSION"] = api_config.OPENAI_API_VERSION
 
 from core import llm
 llm.MODEL_NAME = config["model"]
+if config.get("openai_compatible"):
+    from openai import OpenAI
+    base_url = api_config.AZURE_OPENAI_ENDPOINT.rstrip("/") + "/"
+    llm.AzureOpenAI = lambda *args, **kwargs: OpenAI(
+        api_key=api_config.API_KEY,
+        base_url=base_url,
+    )
 from core.chat_manager import ChatManager
 from core.const import SYSTEM_NAME
 

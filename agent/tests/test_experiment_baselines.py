@@ -21,6 +21,7 @@ from experiments.external_baselines import (
     ChartCoderProvider,
     ExternalBaselineProvider,
     MatPlotAgentProvider,
+    NvAgentProvider,
 )
 from experiments.harness import execute_experiment
 from experiments.manifest import DatasetCase
@@ -255,6 +256,48 @@ def test_matplotagent_injects_standard_openai_environment() -> None:
             == "https://example.test/v1/"
         )
         assert (request.output_dir / "workspace" / "data.csv").is_file()
+
+
+def test_nvagent_openai_compatible_mode_is_explicit() -> None:
+    with experiment_workspace("nvagent-openai-compatible") as workspace:
+        table = workspace / "table.csv"
+        table.write_text("x,y\n1,2\n", encoding="utf-8")
+        spec = replace(
+            _external_spec(workspace),
+            method_config={"openai_compatible": True},
+        )
+        request = _request(spec, workspace)
+        case = DatasetCase(
+            case_id="baseline-case",
+            panel_count=1,
+            split="test",
+            payload={
+                "input_track": "table_nl_instruction",
+                "data_path": str(table),
+                "instruction": "Plot y against x.",
+            },
+        )
+        provider = NvAgentProvider(
+            repo_path=workspace,
+            check_dependencies=False,
+            environ={
+                "NVAGENT_AZURE_OPENAI_API_KEY": "test-key",
+                "NVAGENT_AZURE_OPENAI_ENDPOINT": "https://example.test/v1",
+                "NVAGENT_OPENAI_API_VERSION": "2024-02-01",
+            },
+        )
+
+        invocation = provider._prepare_invocation(request, case)
+        config = json.loads(
+            (request.output_dir / "baseline_input.json").read_text(
+                encoding="utf-8"
+            )
+        )
+
+        assert config["openai_compatible"] is True
+        assert invocation.environment["PHEROVIZ_AZURE_OPENAI_API_KEY"] == (
+            "test-key"
+        )
 
 
 def test_preflight_rejects_dirty_repo() -> None:
