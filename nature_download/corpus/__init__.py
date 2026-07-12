@@ -8,7 +8,12 @@ from .policy import (
     normalize_cc_by_url,
 )
 from .cases import build_cases, parse_figure_panel, safe_extract_tables
-from .benchmark import assemble_verified_benchmark, write_benchmark_outputs
+from .benchmark import (
+    assemble_verified_benchmark,
+    derive_multi_review_batch,
+    write_benchmark_outputs,
+    write_derived_proposal_outputs,
+)
 from .provenance import (
     build_article_manifest,
     build_corpus_manifest,
@@ -25,6 +30,7 @@ __all__ = [
     "build_article_manifest",
     "build_cases",
     "build_corpus_manifest",
+    "derive_multi_review_batch",
     "evaluate_crossref_item",
     "evaluate_record",
     "generate_split_bundle",
@@ -39,4 +45,5 @@ __all__ = [
     "validate_review_artifacts",
     "write_proposal_outputs",
     "write_benchmark_outputs",
+    "write_derived_proposal_outputs",
 ]

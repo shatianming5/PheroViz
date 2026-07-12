@@ -80,6 +80,19 @@ def test_new_corpus_commands_enable_gate_by_default() -> None:
             "benchmark",
         ]
     )
+    derived = parser.parse_args(
+        [
+            "derive-multi-proposals",
+            "--proposed",
+            "proposed.jsonl",
+            "--reviews",
+            "reviews.jsonl",
+            "--evidence",
+            "evidence.json",
+            "--out",
+            "derived",
+        ]
+    )
     assert discover.require_cc_by is True
     assert validate.require_cc_by is True
     assert manifest.require_cc_by is True
@@ -95,6 +108,9 @@ def test_new_corpus_commands_enable_gate_by_default() -> None:
     assert benchmark.evidence == ["evidence.json"]
     assert benchmark.train_ratio == 0.8
     assert benchmark.seed == 17
+    assert derived.proposed == ["proposed.jsonl"]
+    assert derived.reviews == ["reviews.jsonl"]
+    assert derived.evidence == ["evidence.json"]
 
 
 def test_legacy_download_commands_require_explicit_gate() -> None:

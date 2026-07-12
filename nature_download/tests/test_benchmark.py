@@ -9,7 +9,9 @@ import pytest
 from nature_download.corpus.benchmark import (
     BenchmarkBuildError,
     assemble_verified_benchmark,
+    derive_multi_review_batch,
     write_benchmark_outputs,
+    write_derived_proposal_outputs,
 )
 from nature_download.corpus.cases import write_case_outputs
 from nature_download.corpus.provenance import sha256_file
@@ -453,3 +455,47 @@ def test_multiple_review_bundles_merge_without_rejudging(
     assert len(
         result["manifest"]["provenance"]["source_binding"]["review_bundles"]
     ) == 2
+
+
+def test_derive_multi_batch_uses_only_reviewed_singles(
+    tmp_path: Path,
+) -> None:
+    corpus_manifest = _manifest_fixture(tmp_path)
+    corpus_hash = sha256_file(corpus_manifest)
+    singles = [
+        _canonical_single(
+            tmp_path,
+            candidate_id=f"case-{panel_id}",
+            panel_id=panel_id,
+            doi="10.1038/shared-article",
+            corpus_manifest_sha256=corpus_hash,
+        )
+        for panel_id in ("a", "b")
+    ]
+    proposed, reviews, evidence_path, _ = _review_bundle(
+        tmp_path,
+        singles,
+    )
+    result = derive_multi_review_batch(
+        review_bundles=[(proposed, reviews, evidence_path)],
+        code_commit="e" * 40,
+        code_dirty=False,
+    )
+    assert result["summary"]["accepted_single_proposals"] == 2
+    assert result["summary"]["derived_multi_panel_proposals"] == 1
+    multi = [
+        proposal
+        for proposal in result["proposals"]
+        if proposal["proposal_type"] == "multi_panel"
+    ][0]
+    assert multi["source_candidate_ids"] == ["case-a", "case-b"]
+    assert multi["experiment_case"]["panel_count"] == 2
+
+    summary = write_derived_proposal_outputs(
+        tmp_path / "derived",
+        result,
+    )
+    assert summary["proposals_total"] == 3
+    assert sha256_file(tmp_path / "derived" / "proposed.jsonl") == summary[
+        "proposed_sha256"
+    ]

@@ -1005,3 +1005,124 @@ def write_benchmark_outputs(
         encoding="utf-8",
     )
     return summary
+
+
+def derive_multi_review_batch(
+    *,
+    review_bundles: Iterable[
+        tuple[str | Path, str | Path, str | Path]
+    ],
+    code_commit: str,
+    code_dirty: bool,
+) -> dict[str, Any]:
+    """Build a new review batch from previously accepted single proposals."""
+
+    if not GIT_COMMIT_PATTERN.fullmatch(code_commit):
+        raise BenchmarkBuildError("invalid-code-commit")
+    if code_dirty:
+        raise BenchmarkBuildError("code-worktree-dirty")
+    singles: dict[str, dict[str, Any]] = {}
+    bindings: list[dict[str, Any]] = []
+    for index, (raw_proposed, raw_reviews, raw_evidence) in enumerate(
+        review_bundles
+    ):
+        proposed_path = Path(raw_proposed).expanduser().resolve(strict=True)
+        reviews_path = Path(raw_reviews).expanduser().resolve(strict=True)
+        evidence_path = Path(raw_evidence).expanduser().resolve(strict=True)
+        try:
+            bundle = validate_review_artifacts(
+                proposed_path=proposed_path,
+                reviews_path=reviews_path,
+                evidence_path=evidence_path,
+            )
+        except ReviewError as exc:
+            raise BenchmarkBuildError(
+                f"review-artifact-validation[{index}]:{exc}"
+            ) from exc
+        accepted_ids = {
+            record["candidate_id"]
+            for record in bundle["evidence"]["verifications"]
+        }
+        for candidate_id in sorted(accepted_ids):
+            proposal = bundle["proposals"].get(candidate_id)
+            if not proposal or proposal.get("proposal_type") != "single_panel":
+                continue
+            if candidate_id in singles:
+                raise BenchmarkBuildError(
+                    f"review-bundle-candidate-duplicate:{candidate_id}"
+                )
+            singles[candidate_id] = deepcopy(proposal)
+        bindings.append(
+            {
+                "proposed_path": str(proposed_path),
+                "proposed_sha256": bundle["input_proposed_sha256"],
+                "reviews_path": str(reviews_path),
+                "reviews_sha256": bundle["reviews_sha256"],
+                "evidence_path": str(evidence_path),
+                "evidence_sha256": bundle["evidence_sha256"],
+                "evidence_hash": bundle["evidence"]["evidence_hash"],
+            }
+        )
+    if not singles:
+        raise BenchmarkBuildError("accepted-single-proposals-empty")
+    bindings.sort(key=lambda binding: binding["proposed_path"])
+    source_binding_hash = _sha256_json(bindings)
+    multi = _multi_panel_proposals(
+        list(singles.values()),
+        input_candidates_sha256=source_binding_hash,
+        code_commit=code_commit,
+    )
+    proposals = sorted(
+        [*singles.values(), *multi],
+        key=lambda proposal: proposal["candidate_id"],
+    )
+    summary = {
+        "schema_version": SCHEMA_VERSION,
+        "code_commit": code_commit,
+        "code_dirty": code_dirty,
+        "source_review_bindings": bindings,
+        "source_binding_hash": source_binding_hash,
+        "accepted_single_proposals": len(singles),
+        "derived_multi_panel_proposals": len(multi),
+        "proposals_total": len(proposals),
+        "eligible_for_experiment": 0,
+    }
+    return {"proposals": proposals, "summary": summary}
+
+
+def write_derived_proposal_outputs(
+    output_root: str | Path,
+    result: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Write a non-overwriting derived review batch and its provenance."""
+
+    output = Path(output_root).expanduser().resolve()
+    if output.exists() and any(output.iterdir()):
+        raise BenchmarkBuildError(f"derived-proposal-output-not-empty:{output}")
+    output.mkdir(parents=True, exist_ok=True)
+    proposed_path = output / "proposed.jsonl"
+    with proposed_path.open("w", encoding="utf-8") as handle:
+        for proposal in result["proposals"]:
+            handle.write(
+                json.dumps(
+                    proposal,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                )
+                + "\n"
+            )
+    summary = {
+        **dict(result["summary"]),
+        "proposed": str(proposed_path),
+        "proposed_sha256": sha256_file(proposed_path),
+    }
+    summary["summary_hash"] = _sha256_json(summary)
+    (output / "summary.json").write_text(
+        json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    (output / "summary.sha256").write_text(
+        summary["summary_hash"] + "\n",
+        encoding="utf-8",
+    )
+    return summary

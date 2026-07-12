@@ -9,7 +9,12 @@ from pathlib import Path
 import re
 from typing import Any, Iterable
 
-from .benchmark import assemble_verified_benchmark, write_benchmark_outputs
+from .benchmark import (
+    assemble_verified_benchmark,
+    derive_multi_review_batch,
+    write_benchmark_outputs,
+    write_derived_proposal_outputs,
+)
 from .cases import (
     DEFAULT_MAX_ZIP_FILES,
     DEFAULT_MAX_ZIP_UNCOMPRESSED_BYTES,
@@ -307,6 +312,33 @@ def cmd_assemble_benchmark(args: argparse.Namespace) -> None:
     )
 
 
+def cmd_derive_multi_proposals(args: argparse.Namespace) -> None:
+    if not (
+        len(args.proposed) == len(args.reviews) == len(args.evidence)
+    ):
+        raise ValueError(
+            "--proposed, --reviews, and --evidence counts must match"
+        )
+    code_state = _resolve_git_state(None, allow_dirty=False)
+    result = derive_multi_review_batch(
+        review_bundles=zip(
+            args.proposed,
+            args.reviews,
+            args.evidence,
+            strict=True,
+        ),
+        code_commit=code_state.commit,
+        code_dirty=code_state.dirty,
+    )
+    summary = write_derived_proposal_outputs(args.out, result)
+    print(
+        f"[done] Derived proposals: single="
+        f"{summary['accepted_single_proposals']} multi="
+        f"{summary['derived_multi_panel_proposals']} "
+        f"eligible=0 sha256={summary['proposed_sha256']} out={args.out}"
+    )
+
+
 def _doi_from_nature_url(url: str) -> str | None:
     match = re.search(r"/articles/([^/?#]+)", url)
     return f"10.1038/{match.group(1)}" if match else None
@@ -584,3 +616,13 @@ def add_corpus_subcommands(subparsers: argparse._SubParsersAction) -> None:
     benchmark.add_argument("--val-ratio", type=float, default=0.1)
     benchmark.add_argument("--test-ratio", type=float, default=0.1)
     benchmark.set_defaults(func=cmd_assemble_benchmark)
+
+    derived = subparsers.add_parser(
+        "derive-multi-proposals",
+        help="Derive canonical multi-panel proposals from reviewed singles",
+    )
+    derived.add_argument("--proposed", action="append", required=True)
+    derived.add_argument("--reviews", action="append", required=True)
+    derived.add_argument("--evidence", action="append", required=True)
+    derived.add_argument("--out", required=True)
+    derived.set_defaults(func=cmd_derive_multi_proposals)

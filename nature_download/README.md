@@ -92,6 +92,18 @@
   `rejected.jsonl`、`summary.json` 与 `summary.sha256`。默认拒绝 dirty
   worktree；`--resume` 仅复用与输入、资产、rubric、模型和代码 hash
   完全绑定的 sidecar。
+- 若初始 multi proposal 因同图中的无效 panel 被 fail-closed gate 拒绝，
+  可仅从已审核通过的 singles 派生一个新的 canonical review batch：
+  ```bash
+  python nature_all_in_one.py derive-multi-proposals \
+    --proposed outputs/case_proposals/proposed.jsonl \
+    --reviews outputs/case_reviews/reviews.jsonl \
+    --evidence outputs/case_reviews/evidence.json \
+    --out outputs/derived_multi_review_batch
+  ```
+  该命令会重算 source review bundles，输出仍为
+  `eligible_for_experiment=false`；新的 singles 和 multi proposals 必须再次
+  经过 `review-proposals`，不能沿用旧 evidence。
 - 重新运行 `build-cases --evidence ...` 后，将一个或多个重建的
   `candidates.jsonl` 组装为 DOI-disjoint 实验 manifest：
   ```bash
