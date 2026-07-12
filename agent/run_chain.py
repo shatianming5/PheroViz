@@ -248,7 +248,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--initial-generation",
-        choices=("defaults", "model"),
+        choices=("defaults", "model_spec", "model"),
         default="defaults",
     )
     parser.add_argument("--seed", type=int, default=None)

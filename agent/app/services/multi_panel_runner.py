@@ -178,8 +178,14 @@ def run_multi_panel(
     ).strip().lower()
     if configured_initial_generation == "default":
         configured_initial_generation = "defaults"
-    if configured_initial_generation not in {"defaults", "model"}:
-        raise ValueError("initial_generation must be 'defaults' or 'model'")
+    if configured_initial_generation not in {
+        "defaults",
+        "model_spec",
+        "model",
+    }:
+        raise ValueError(
+            "initial_generation must be 'defaults', 'model_spec', or 'model'"
+        )
     configured_memory_mode = str(
         memory_mode
         if memory_mode is not None
@@ -443,7 +449,7 @@ def main() -> None:
     parser.add_argument("--rounds", type=int, default=None)
     parser.add_argument(
         "--initial-generation",
-        choices=("defaults", "model"),
+        choices=("defaults", "model_spec", "model"),
         default=None,
     )
     parser.add_argument("--seed", type=int, default=None)

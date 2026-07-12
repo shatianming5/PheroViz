@@ -37,7 +37,7 @@ pip install -r requirements.txt
 ```powershell
 python run_chain.py <data_path> <user_goal> <chart_family> \
   [--rounds N] [--sheet SHEET] [--intent JSON] \
-  [--initial-generation defaults|model] \
+  [--initial-generation defaults|model_spec|model] \
   [--memory-mode none|ephemeral|untyped|constraints|patches|full] \
   [--seed N] [--temperature T] \
   [--expectation expectation.json] [--metric-config metrics.json]
@@ -48,8 +48,9 @@ python run_chain.py <data_path> <user_goal> <chart_family> \
 - `chart_family`：初始图形类型（如 `bar`、`line`、`area`、`scatter`）。
 - `--intent`：JSON 字符串，声明 x / y / group 及其它意图；在 PowerShell 中推荐配合 `--%` 或单引号避免转义问题。
 - `--rounds`：最大迭代次数；若 Judge 评分（`visual_form` 与 `data_fidelity`）均达到 0.75，将提前停止。
-- `--initial-generation model`：首轮 L1--L4 也调用模型；正式
-  generation-only、best-of-N 和 iterative 实验必须使用该模式。
+- `--initial-generation model_spec`：首轮由模型产生完整 L1 spec，L2--L4
+  使用所有方法共享的确定性 renderer；这是推荐的公平实验模式。
+  `model` 会让首轮 L1--L4 全部调用模型，用于严格的全生成诊断。
 - `--memory-mode`：选择无记忆、轮间清空的 typed memory、untyped log、
   constraint-only、patch-only 或完整双层 memory。每种模式控制真实读写，
   不是结果标签。

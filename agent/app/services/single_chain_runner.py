@@ -605,7 +605,11 @@ def _normalize_initial_generation(value: str) -> str:
         return "defaults"
     if normalized == "model":
         return "model"
-    raise ValueError("initial_generation must be 'defaults' or 'model'")
+    if normalized in {"model_spec", "model-spec"}:
+        return "model_spec"
+    raise ValueError(
+        "initial_generation must be 'defaults', 'model_spec', or 'model'"
+    )
 
 
 def _normalize_memory_mode(value: str) -> str:
@@ -1248,7 +1252,7 @@ def iter_chain(
 
         ok_by_layer: Dict[str, Dict[str, str]] = {}
         allow_default_fallback = not (
-            round_idx == 1 and generation_mode == "model"
+            round_idx == 1 and generation_mode in {"model", "model_spec"}
         )
         for layer, payload in stage_payloads.items():
             stage_name = _STAGE_NAMES.get(layer, layer)
@@ -1263,7 +1267,13 @@ def iter_chain(
             )
             if (
                 round_idx == 1
-                and generation_mode == "defaults"
+                and (
+                    generation_mode == "defaults"
+                    or (
+                        generation_mode == "model_spec"
+                        and layer != "L1"
+                    )
+                )
                 and layer in DEFAULT_STAGE_SLOTS_V2
             ):
                 default_bundle = DEFAULT_STAGE_SLOTS_V2[layer]
@@ -1359,7 +1369,13 @@ def iter_chain(
                         history_ref.append({"round": round_idx, "summary": fallback_summary})
             if (
                 round_idx == 1
-                and generation_mode == "model"
+                and (
+                    generation_mode == "model"
+                    or (
+                        generation_mode == "model_spec"
+                        and layer == "L1"
+                    )
+                )
                 and not ok_layer
             ):
                 failure_path = (

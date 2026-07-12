@@ -345,7 +345,7 @@ class SingleChainProvider:
                     initial_generation=str(
                         request.spec.method_config.get(
                             "initial_generation",
-                            "model",
+                            "model_spec",
                         )
                     ),
                     seed=request.spec.seed + request.call_index - 1,
@@ -635,7 +635,7 @@ class MultiPanelProvider:
                     initial_generation=str(
                         request.spec.method_config.get(
                             "initial_generation",
-                            "model",
+                            "model_spec",
                         )
                     ),
                     seed=request.spec.seed + request.call_index - 1,

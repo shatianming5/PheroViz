@@ -602,6 +602,87 @@ def test_model_initial_generation_calls_all_stages_with_sampling_controls(
     }
 
 
+def test_model_spec_initial_generation_calls_only_l1(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _disable_network(monkeypatch)
+    _stub_render_and_judge(monkeypatch)
+    data_path = tmp_path / "panel.csv"
+    _write_csv(data_path, "category", "value")
+
+    class StructuredSpecClient:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def generate_json(self, messages, **kwargs):
+            del messages, kwargs
+            self.calls += 1
+            return ModelResponse(
+                value={
+                    "slots": {
+                        "spec.compose": {
+                            "canvas": {
+                                "width": 640,
+                                "height": 480,
+                                "dpi": 100,
+                                "aspect": 1.333,
+                            },
+                            "flags": {},
+                            "layout": {
+                                "titles": {},
+                                "legend": {},
+                                "grid": {},
+                                "panel_labels": [],
+                            },
+                            "theme": {},
+                            "scales": {
+                                "x": {"kind": "categorical"},
+                                "y_left": {"kind": "linear"},
+                                "y_right": {"kind": "linear"},
+                            },
+                            "overlays": [
+                                {
+                                    "mark": "bar",
+                                    "variant": "main",
+                                    "x": "category",
+                                    "y": "value",
+                                    "group": None,
+                                    "yaxis": "left",
+                                    "style": {},
+                                }
+                            ],
+                        },
+                        "spec.theme_defaults": {},
+                    }
+                },
+                model="fake",
+                request_id="model-spec",
+                usage={},
+                stop_reason="end_turn",
+                latency_seconds=0.0,
+            )
+
+    client = StructuredSpecClient()
+    result = single_runner.run_chain(
+        str(data_path),
+        "model spec",
+        "bar",
+        rounds=1,
+        run_dir=tmp_path / "model-spec",
+        model_client=client,  # type: ignore[arg-type]
+        initial_generation="model_spec",
+        memory_mode="none",
+    )
+
+    assert client.calls == 1
+    assert result["stages"]["L1"]["prompt"] != "DEFAULT_V2"
+    assert all(
+        result["stages"][layer]["prompt"] == "DEFAULT_V2"
+        for layer in ("L2", "L3", "L4")
+    )
+
+
 @pytest.mark.parametrize(
     ("mode", "expected_context_key", "writes_constraints", "writes_patches"),
     [
