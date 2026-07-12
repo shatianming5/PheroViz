@@ -22,6 +22,7 @@ from experiments.external_baselines import (
     ExternalBaselineProvider,
     MatPlotAgentProvider,
     NvAgentProvider,
+    _NVAGENT_DRIVER,
 )
 from experiments.harness import execute_experiment
 from experiments.manifest import DatasetCase
@@ -298,6 +299,7 @@ def test_nvagent_openai_compatible_mode_is_explicit() -> None:
         assert invocation.environment["PHEROVIZ_AZURE_OPENAI_API_KEY"] == (
             "test-key"
         )
+        assert "PROVIDER_NAME = core_const.PROCESSOR_NAME" in _NVAGENT_DRIVER
 
 
 def test_preflight_rejects_dirty_repo() -> None:

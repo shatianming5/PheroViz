@@ -807,6 +807,9 @@ if config.get("openai_compatible"):
         api_key=api_config.API_KEY,
         base_url=base_url,
     )
+import core.const as core_const
+if not hasattr(core_const, "PROVIDER_NAME"):
+    core_const.PROVIDER_NAME = core_const.PROCESSOR_NAME
 from core.chat_manager import ChatManager
 from core.const import SYSTEM_NAME
 
