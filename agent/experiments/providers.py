@@ -1,0 +1,401 @@
+from __future__ import annotations
+
+import importlib
+import inspect
+import json
+import math
+import os
+import random
+from contextlib import contextmanager
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Dict, Iterator, Mapping, Optional, Protocol, Sequence
+
+import yaml
+
+from .models import ExperimentSpec
+
+
+class ProviderError(RuntimeError):
+    """Base class for provider failures."""
+
+
+class ProviderUnavailableError(ProviderError):
+    """Raised when a requested provider cannot be used."""
+
+
+class ProviderExecutionError(ProviderError):
+    """Raised when a provider does not produce a valid real candidate."""
+
+
+@dataclass(frozen=True)
+class CandidateResult:
+    """One provider-produced render and its measured outputs."""
+
+    metrics: Dict[str, float]
+    render_count: int
+    artifacts: Dict[str, str]
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    test_only: bool = False
+
+    def __post_init__(self) -> None:
+        if self.render_count < 1:
+            raise ProviderExecutionError("A candidate must report at least one render")
+        if not self.metrics:
+            raise ProviderExecutionError("A candidate must report measured metrics")
+        for name, value in self.metrics.items():
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                raise ProviderExecutionError(f"Metric {name!r} is not numeric")
+            if not math.isfinite(float(value)):
+                raise ProviderExecutionError(f"Metric {name!r} is not finite")
+        if not self.artifacts:
+            raise ProviderExecutionError(
+                "A candidate must point to at least one real artifact"
+            )
+        try:
+            json.dumps(self.metadata, allow_nan=False)
+        except (TypeError, ValueError) as exc:
+            raise ProviderExecutionError(
+                f"Candidate metadata is not JSON serializable: {exc}"
+            ) from exc
+
+
+@dataclass(frozen=True)
+class ProviderBatch:
+    """One provider call may return a complete iterative trajectory."""
+
+    candidates: Sequence[CandidateResult]
+    stop: bool = False
+    test_only: bool = False
+
+    def __post_init__(self) -> None:
+        if not self.candidates:
+            raise ProviderExecutionError("Provider returned no candidates")
+
+
+@dataclass(frozen=True)
+class GenerationRequest:
+    spec: ExperimentSpec
+    output_dir: Path
+    call_index: int
+    remaining_renders: Optional[int]
+    remaining_seconds: Optional[float]
+    deadline_monotonic: Optional[float]
+    history: Sequence[Dict[str, Any]]
+    previous_candidate: Optional[Dict[str, Any]]
+
+
+class ExperimentProvider(Protocol):
+    name: str
+    test_only: bool
+
+    def check_available(self) -> None:
+        ...
+
+    def generate(
+        self,
+        request: GenerationRequest,
+    ) -> CandidateResult | ProviderBatch:
+        ...
+
+
+def load_provider(
+    import_path: str,
+    options: Mapping[str, Any],
+) -> ExperimentProvider:
+    if not import_path:
+        raise ProviderUnavailableError(
+            "No provider configured; refusing to fabricate a successful run"
+        )
+    module_name, separator, attribute_name = import_path.partition(":")
+    if not separator or not module_name or not attribute_name:
+        raise ProviderUnavailableError(
+            "Provider must use the import form 'module:ClassOrFactory'"
+        )
+    try:
+        module = importlib.import_module(module_name)
+        target = getattr(module, attribute_name)
+    except (ImportError, AttributeError) as exc:
+        raise ProviderUnavailableError(
+            f"Cannot import provider {import_path}: {exc}"
+        ) from exc
+
+    try:
+        if inspect.isclass(target) or callable(target):
+            provider = target(**dict(options))
+        else:
+            provider = target
+    except Exception as exc:
+        raise ProviderUnavailableError(
+            f"Cannot initialize provider {import_path}: {exc}"
+        ) from exc
+
+    if not callable(getattr(provider, "check_available", None)):
+        raise ProviderUnavailableError(
+            f"Provider {import_path} has no check_available()"
+        )
+    if not callable(getattr(provider, "generate", None)):
+        raise ProviderUnavailableError(f"Provider {import_path} has no generate()")
+    if not isinstance(getattr(provider, "name", None), str):
+        raise ProviderUnavailableError(f"Provider {import_path} has no string name")
+    if not isinstance(getattr(provider, "test_only", None), bool):
+        raise ProviderUnavailableError(
+            f"Provider {import_path} must declare test_only"
+        )
+    return provider
+
+
+@contextmanager
+def _temporary_environment(updates: Mapping[str, str]) -> Iterator[None]:
+    previous = {name: os.environ.get(name) for name in updates}
+    try:
+        os.environ.update(updates)
+        yield
+    finally:
+        for name, value in previous.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
+
+
+def _load_manifest(path: Path) -> Mapping[str, Any]:
+    try:
+        raw = path.read_text(encoding="utf-8-sig")
+        if path.suffix.lower() == ".json":
+            data = json.loads(raw)
+        elif path.suffix.lower() in {".yaml", ".yml"}:
+            data = yaml.safe_load(raw)
+        else:
+            raise ProviderExecutionError(
+                f"Unsupported dataset manifest format: {path}"
+            )
+    except (OSError, json.JSONDecodeError, yaml.YAMLError) as exc:
+        raise ProviderExecutionError(
+            f"Cannot load dataset manifest {path}: {exc}"
+        ) from exc
+    if not isinstance(data, Mapping):
+        raise ProviderExecutionError("Dataset manifest must contain an object")
+    return data
+
+
+class SingleChainProvider:
+    """Honest adapter for the existing single-chain iterative runner.
+
+    The adapter intentionally rejects best-of-N: the current core runner's first
+    round is deterministic default-slot generation, not an independent model
+    sample. A true best-of-N provider should be supplied as a separate plugin.
+    """
+
+    name = "phero_viz_single_chain"
+    test_only = False
+
+    def __init__(
+        self,
+        api_key_envs: Optional[Sequence[str]] = None,
+        wall_clock_rounds: Optional[int] = None,
+    ) -> None:
+        self.api_key_envs = tuple(
+            api_key_envs or ("LLM_API_KEY", "OPENAI_API_KEY")
+        )
+        self.wall_clock_rounds = wall_clock_rounds
+
+    def check_available(self) -> None:
+        try:
+            from app.services import single_chain_runner
+        except ImportError as exc:
+            raise ProviderUnavailableError(
+                "SingleChainProvider must run with agent/ on PYTHONPATH"
+            ) from exc
+        single_chain_runner._load_env_file()
+        if not any(os.getenv(name) for name in self.api_key_envs):
+            joined = ", ".join(self.api_key_envs)
+            raise ProviderUnavailableError(
+                f"No model credentials found in {joined}; run recorded as failed"
+            )
+
+    def generate(
+        self,
+        request: GenerationRequest,
+    ) -> ProviderBatch:
+        if request.spec.schedule != "iterative":
+            raise ProviderExecutionError(
+                "SingleChainProvider cannot claim independent best-of-N samples"
+            )
+        if request.previous_candidate is not None:
+            raise ProviderExecutionError(
+                "SingleChainProvider cannot resume an iterative trajectory across calls"
+            )
+
+        if request.remaining_renders is not None:
+            rounds = request.remaining_renders
+        else:
+            configured = request.spec.method_config.get(
+                "rounds",
+                self.wall_clock_rounds,
+            )
+            if isinstance(configured, bool) or not isinstance(configured, int):
+                raise ProviderExecutionError(
+                    "Wall-clock single-chain runs require integer method_config.rounds"
+                )
+            rounds = configured
+        if rounds < 1:
+            raise ProviderExecutionError("Single-chain rounds must be positive")
+
+        manifest_path = Path(request.spec.dataset_manifest_path)
+        manifest = _load_manifest(manifest_path)
+        raw_cases = manifest.get("cases")
+        if raw_cases is None:
+            raw_cases = [manifest]
+        if not isinstance(raw_cases, list) or len(raw_cases) != 1:
+            raise ProviderExecutionError(
+                "SingleChainProvider currently requires exactly one manifest case; "
+                "use a dataset-level provider plugin for corpus experiments"
+            )
+        case = raw_cases[0]
+        if not isinstance(case, Mapping):
+            raise ProviderExecutionError("Manifest case must be an object")
+
+        data_path_value = case.get("data_path")
+        user_goal = case.get("user_goal")
+        chart_family = case.get("chart_family")
+        if not all(
+            isinstance(item, str) and item.strip()
+            for item in (data_path_value, user_goal, chart_family)
+        ):
+            raise ProviderExecutionError(
+                "Manifest case requires data_path, user_goal, and chart_family"
+            )
+        data_path = Path(str(data_path_value)).expanduser()
+        if not data_path.is_absolute():
+            data_path = manifest_path.parent / data_path
+        data_path = data_path.resolve()
+        if not data_path.is_file():
+            raise ProviderExecutionError(f"Case data file does not exist: {data_path}")
+
+        sheet = case.get("sheet")
+        intent = case.get("intent")
+        if intent is not None and not isinstance(intent, dict):
+            raise ProviderExecutionError("Manifest case intent must be an object")
+
+        from app.services import single_chain_runner
+
+        core_runs_root = request.output_dir / "core_runs"
+        core_runs_root.mkdir(parents=True, exist_ok=True)
+        discovered_run_dir: Optional[Path] = None
+
+        def capture_progress(event: str, payload: Dict[str, Any]) -> None:
+            nonlocal discovered_run_dir
+            if event == "run_directory_ready" and payload.get("path"):
+                discovered_run_dir = Path(str(payload["path"])).resolve()
+
+        old_runs_dir = single_chain_runner.RUNS_DIR
+        old_client = single_chain_runner._LLM_CLIENT
+        random.seed(request.spec.seed)
+        try:
+            import numpy as np
+
+            np.random.seed(request.spec.seed)
+        except ImportError:
+            pass
+
+        environment = {
+            "LLM_MODEL": request.spec.backbone,
+            "FORCE_ALL_ROUNDS": "1",
+        }
+        if request.remaining_seconds is not None:
+            environment["LLM_TIMEOUT"] = str(max(request.remaining_seconds, 1.0))
+
+        try:
+            single_chain_runner.RUNS_DIR = core_runs_root
+            single_chain_runner._LLM_CLIENT = None
+            with _temporary_environment(environment):
+                single_chain_runner.run_chain(
+                    str(data_path),
+                    str(user_goal),
+                    str(chart_family),
+                    rounds=rounds,
+                    sheet=sheet,
+                    intent=dict(intent or {}),
+                    progress_callback=capture_progress,
+                )
+        finally:
+            single_chain_runner.RUNS_DIR = old_runs_dir
+            single_chain_runner._LLM_CLIENT = old_client
+
+        if discovered_run_dir is None or not discovered_run_dir.is_dir():
+            raise ProviderExecutionError(
+                "Core runner did not report a persistent run directory"
+            )
+        try:
+            discovered_run_dir.relative_to(request.output_dir.resolve())
+        except ValueError as exc:
+            raise ProviderExecutionError(
+                "Core runner wrote artifacts outside the allocated provider directory"
+            ) from exc
+
+        iteration_paths = sorted(discovered_run_dir.glob("iteration_*.json"))
+        if not iteration_paths:
+            raise ProviderExecutionError("Core runner produced no iteration records")
+
+        candidates: list[CandidateResult] = []
+        for iteration_path in iteration_paths:
+            try:
+                iteration = json.loads(iteration_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as exc:
+                raise ProviderExecutionError(
+                    f"Cannot read core iteration {iteration_path}: {exc}"
+                ) from exc
+            if not isinstance(iteration, dict):
+                raise ProviderExecutionError(
+                    f"Core iteration is not an object: {iteration_path}"
+                )
+            stages = iteration.get("stages") or {}
+            if isinstance(stages, Mapping):
+                for stage_name, stage in stages.items():
+                    if not isinstance(stage, Mapping):
+                        continue
+                    response = stage.get("response")
+                    notes = str(stage.get("notes") or "")
+                    if (
+                        isinstance(response, Mapping)
+                        and response.get("error")
+                    ) or "llm_error:" in notes:
+                        raise ProviderExecutionError(
+                            f"Model provider failed in core stage {stage_name}; "
+                            "refusing fallback output"
+                        )
+
+            raw_metrics = iteration.get("scores")
+            if not isinstance(raw_metrics, Mapping):
+                raise ProviderExecutionError(
+                    f"Core iteration has no measured scores: {iteration_path}"
+                )
+            metrics = {
+                str(name): float(value)
+                for name, value in raw_metrics.items()
+                if isinstance(value, (int, float)) and not isinstance(value, bool)
+            }
+            artifacts = {"iteration": str(iteration_path)}
+            round_number = iteration.get("round")
+            if isinstance(round_number, int):
+                for label, pattern in (
+                    ("render", f"figure_round_{round_number}.png"),
+                    ("code", f"code_round_{round_number}.py"),
+                    ("slots", f"slots_round_{round_number}.json"),
+                ):
+                    artifact = discovered_run_dir / pattern
+                    if artifact.is_file():
+                        artifacts[label] = str(artifact)
+            candidates.append(
+                CandidateResult(
+                    metrics=metrics,
+                    render_count=1,
+                    artifacts=artifacts,
+                    metadata={
+                        "core_round": round_number,
+                        "core_run_dir": str(discovered_run_dir),
+                    },
+                )
+            )
+        return ProviderBatch(candidates=candidates, stop=True)

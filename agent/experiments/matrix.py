@@ -1,0 +1,347 @@
+from __future__ import annotations
+
+import itertools
+import json
+import re
+import subprocess
+from pathlib import Path
+from typing import Any, Dict, Mapping, Optional, Sequence
+
+import yaml
+
+from .models import ExperimentSpec, ProvenanceError, sha256_file, sha256_json
+
+
+class MatrixError(ProvenanceError):
+    """Raised when an experiment matrix is malformed."""
+
+
+def load_structured_file(path: Path) -> Any:
+    try:
+        raw = path.read_text(encoding="utf-8-sig")
+    except OSError as exc:
+        raise MatrixError(f"Cannot read {path}: {exc}") from exc
+    try:
+        if path.suffix.lower() == ".json":
+            return json.loads(raw)
+        if path.suffix.lower() in {".yaml", ".yml"}:
+            return yaml.safe_load(raw)
+    except (json.JSONDecodeError, yaml.YAMLError) as exc:
+        raise MatrixError(f"Cannot parse {path}: {exc}") from exc
+    raise MatrixError(f"Experiment files must use .json, .yaml, or .yml: {path}")
+
+
+def _resolve_file(value: Any, *, base_dir: Path, name: str) -> Path:
+    if not isinstance(value, str) or not value.strip():
+        raise MatrixError(f"{name} must be a non-empty path")
+    path = Path(value).expanduser()
+    if not path.is_absolute():
+        path = base_dir / path
+    path = path.resolve()
+    if not path.is_file():
+        raise MatrixError(f"{name} does not exist or is not a file: {path}")
+    return path
+
+
+def _resolve_dir(value: Any, *, base_dir: Path, name: str) -> Path:
+    if not isinstance(value, str) or not value.strip():
+        raise MatrixError(f"{name} must be a non-empty path")
+    path = Path(value).expanduser()
+    if not path.is_absolute():
+        path = base_dir / path
+    return path.resolve()
+
+
+def _require_sequence(data: Mapping[str, Any], name: str) -> Sequence[Any]:
+    value = data.get(name)
+    if not isinstance(value, list) or not value:
+        raise MatrixError(f"{name} must be a non-empty list")
+    return value
+
+
+def _git_provenance(repo_root: Path) -> tuple[str, bool]:
+    try:
+        commit_result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=repo_root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        status_result = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=repo_root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise MatrixError(f"Cannot establish git provenance at {repo_root}: {exc}") from exc
+    return commit_result.stdout.strip().lower(), bool(status_result.stdout.strip())
+
+
+def _slug(value: str) -> str:
+    slug = re.sub(r"[^A-Za-z0-9._+-]+", "-", value.strip()).strip("-")
+    if not slug:
+        raise MatrixError(f"Cannot construct a run-name component from {value!r}")
+    return slug
+
+
+def _budget_label(budget_type: str, value: float) -> str:
+    if budget_type == "renders":
+        return f"renders-{int(value)}"
+    text = format(value, ".12g").replace(".", "p")
+    return f"wall-clock-seconds-{text}"
+
+
+def _validate_no_secrets(options: Mapping[str, Any], prefix: str = "") -> None:
+    secret_tokens = ("api_key", "apikey", "token", "password", "secret")
+    for key, value in options.items():
+        qualified = f"{prefix}.{key}" if prefix else str(key)
+        lowered = str(key).lower()
+        if any(token in lowered for token in secret_tokens):
+            raise MatrixError(
+                f"Provider option {qualified!r} looks secret; use an environment variable"
+            )
+        if isinstance(value, Mapping):
+            _validate_no_secrets(value, qualified)
+
+
+def _metric_details(
+    matrix: Mapping[str, Any],
+    *,
+    base_dir: Path,
+) -> tuple[Dict[str, Any], str, str]:
+    metric_block = matrix.get("metric")
+    if metric_block is not None:
+        if not isinstance(metric_block, Mapping):
+            raise MatrixError("metric must be an object")
+        version = metric_block.get("version")
+        inline_config = metric_block.get("config")
+        config_path_value = metric_block.get("config_path")
+    else:
+        version = matrix.get("metric_version")
+        inline_config = matrix.get("metric_config")
+        config_path_value = matrix.get("metric_config_path")
+
+    if not isinstance(version, str) or not version.strip():
+        raise MatrixError("A non-empty metric version is required")
+    if inline_config is not None and config_path_value is not None:
+        raise MatrixError("Specify metric config inline or by path, not both")
+    if config_path_value is not None:
+        config_path = _resolve_file(
+            config_path_value,
+            base_dir=base_dir,
+            name="metric config",
+        )
+        config = load_structured_file(config_path)
+    else:
+        config = inline_config
+    if not isinstance(config, dict):
+        raise MatrixError("metric config must be a JSON object")
+
+    selection = config.get("selection")
+    if not isinstance(selection, Mapping):
+        raise MatrixError("metric config requires a selection object")
+    direction = selection.get("direction", "maximize")
+    if direction not in {"maximize", "minimize"}:
+        raise MatrixError("metric selection.direction must be maximize or minimize")
+    has_metric = isinstance(selection.get("metric"), str)
+    has_weights = isinstance(selection.get("weights"), Mapping)
+    if has_metric == has_weights:
+        raise MatrixError(
+            "metric selection must define exactly one of metric or weights"
+        )
+    return dict(config), sha256_json(config), version.strip()
+
+
+def _parse_methods(
+    matrix: Mapping[str, Any],
+) -> list[Dict[str, Any]]:
+    method_defaults = matrix.get("method_configs") or {}
+    if not isinstance(method_defaults, Mapping):
+        raise MatrixError("method_configs must be an object")
+    global_provider = matrix.get("provider", "")
+    global_provider_options = matrix.get("provider_options") or {}
+    if not isinstance(global_provider_options, Mapping):
+        raise MatrixError("provider_options must be an object")
+    _validate_no_secrets(global_provider_options)
+
+    parsed: list[Dict[str, Any]] = []
+    for raw in _require_sequence(matrix, "methods"):
+        if isinstance(raw, str):
+            name = raw
+            inline: Mapping[str, Any] = {}
+        elif isinstance(raw, Mapping):
+            name = raw.get("name")
+            inline = raw
+        else:
+            raise MatrixError("Each method must be a string or object")
+        if not isinstance(name, str) or not name.strip():
+            raise MatrixError("Each method requires a non-empty name")
+
+        defaults = method_defaults.get(name, {})
+        if not isinstance(defaults, Mapping):
+            raise MatrixError(f"method_configs.{name} must be an object")
+        merged = dict(defaults)
+        merged.update({key: value for key, value in inline.items() if key != "name"})
+        schedule = merged.pop("schedule", None)
+        if schedule is None:
+            schedule = "best_of_n" if name == "best_of_n" else "iterative"
+        if schedule not in {"best_of_n", "iterative"}:
+            raise MatrixError(
+                f"Method {name!r} has unsupported schedule {schedule!r}"
+            )
+        provider = merged.pop("provider", global_provider)
+        if provider is None:
+            provider = ""
+        if not isinstance(provider, str):
+            raise MatrixError(f"Method {name!r} provider must be an import path")
+
+        local_options = merged.pop("provider_options", {})
+        if not isinstance(local_options, Mapping):
+            raise MatrixError(f"Method {name!r} provider_options must be an object")
+        provider_options = dict(global_provider_options)
+        provider_options.update(local_options)
+        _validate_no_secrets(provider_options)
+        parsed.append(
+            {
+                "name": name.strip(),
+                "schedule": schedule,
+                "provider": provider.strip(),
+                "provider_options": provider_options,
+                "method_config": merged,
+            }
+        )
+    return parsed
+
+
+def expand_matrix(
+    matrix: Mapping[str, Any],
+    *,
+    base_dir: Path,
+    repo_root: Optional[Path] = None,
+) -> list[ExperimentSpec]:
+    if not isinstance(matrix, Mapping):
+        raise MatrixError("Experiment matrix must be an object")
+    experiment_name = matrix.get("experiment_name")
+    if not isinstance(experiment_name, str) or not experiment_name.strip():
+        raise MatrixError("experiment_name must be non-empty")
+
+    base_dir = base_dir.resolve()
+    configured_repo = matrix.get("repo_root")
+    if repo_root is None and configured_repo is not None:
+        repo_root = _resolve_dir(
+            configured_repo,
+            base_dir=base_dir,
+            name="repo_root",
+        )
+    repo_root = (repo_root or Path(__file__).resolve().parents[2]).resolve()
+    git_commit, git_dirty = _git_provenance(repo_root)
+
+    manifest_path = _resolve_file(
+        matrix.get("dataset_manifest"),
+        base_dir=base_dir,
+        name="dataset_manifest",
+    )
+    manifest_data = load_structured_file(manifest_path)
+    if not isinstance(manifest_data, Mapping):
+        raise MatrixError("dataset manifest must be an object")
+    manifest_hash = sha256_file(manifest_path)
+
+    metric_config, metric_hash, metric_version = _metric_details(
+        matrix,
+        base_dir=base_dir,
+    )
+    artifact_root_value = matrix.get(
+        "artifact_root",
+        str(Path(__file__).resolve().parent / "runs"),
+    )
+    artifact_root = _resolve_dir(
+        artifact_root_value,
+        base_dir=base_dir,
+        name="artifact_root",
+    )
+
+    methods = _parse_methods(matrix)
+    backbones = _require_sequence(matrix, "backbones")
+    seeds = _require_sequence(matrix, "seeds")
+    budgets = _require_sequence(matrix, "budgets")
+
+    parsed_backbones: list[str] = []
+    for backbone in backbones:
+        if not isinstance(backbone, str) or not backbone.strip():
+            raise MatrixError("Each backbone must be a non-empty string")
+        parsed_backbones.append(backbone.strip())
+
+    parsed_seeds: list[int] = []
+    for seed in seeds:
+        if isinstance(seed, bool) or not isinstance(seed, int):
+            raise MatrixError("Each seed must be an integer")
+        parsed_seeds.append(seed)
+
+    parsed_budgets: list[tuple[str, float]] = []
+    for raw_budget in budgets:
+        if not isinstance(raw_budget, Mapping):
+            raise MatrixError("Each budget must be an object")
+        budget_type = raw_budget.get("type")
+        value = raw_budget.get("value")
+        if budget_type not in {"renders", "wall_clock_seconds"}:
+            raise MatrixError(
+                "Budget type must be renders or wall_clock_seconds"
+            )
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise MatrixError("Budget value must be numeric")
+        parsed_budgets.append((budget_type, float(value)))
+
+    specs: list[ExperimentSpec] = []
+    seen_names: set[str] = set()
+    for method, backbone, seed, budget in itertools.product(
+        methods,
+        parsed_backbones,
+        parsed_seeds,
+        parsed_budgets,
+    ):
+        budget_type, budget_value = budget
+        run_name = (
+            f"{_slug(experiment_name)}"
+            f"__method-{_slug(method['name'])}"
+            f"__backbone-{_slug(backbone)}"
+            f"__seed-{seed}"
+            f"__budget-{_budget_label(budget_type, budget_value)}"
+        )
+        if run_name in seen_names:
+            raise MatrixError(f"Matrix produces duplicate run_name: {run_name}")
+        seen_names.add(run_name)
+        specs.append(
+            ExperimentSpec(
+                run_name=run_name,
+                method=method["name"],
+                schedule=method["schedule"],
+                backbone=backbone,
+                seed=seed,
+                budget_type=budget_type,
+                budget_value=budget_value,
+                dataset_manifest_path=str(manifest_path),
+                dataset_manifest_hash=manifest_hash,
+                git_commit=git_commit,
+                git_dirty=git_dirty,
+                provider=method["provider"],
+                artifact_root=str(artifact_root),
+                repo_root=str(repo_root),
+                metric_config=metric_config,
+                metric_config_hash=metric_hash,
+                metric_version=metric_version,
+                method_config=method["method_config"],
+                provider_options=method["provider_options"],
+            )
+        )
+    return specs
+
+
+def load_and_expand_matrix(path: Path) -> list[ExperimentSpec]:
+    resolved = path.expanduser().resolve()
+    matrix = load_structured_file(resolved)
+    if not isinstance(matrix, Mapping):
+        raise MatrixError("Experiment matrix must be an object")
+    return expand_matrix(matrix, base_dir=resolved.parent)
