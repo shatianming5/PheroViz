@@ -13,12 +13,7 @@ import app.services.multi_panel_runner as multi_runner
 from app.services.pheromones import ConstraintRecord, Scope
 from experiments.harness import execute_experiment
 from experiments.models import sha256_path
-from experiments.providers import (
-    CandidateResult,
-    GenerationRequest,
-    MultiPanelProvider,
-    ProviderBatch,
-)
+from experiments.providers import MultiPanelProvider
 from tests.test_experiment_support import make_spec, write_manifest
 
 
@@ -286,6 +281,44 @@ def _iterative_spec(tmp_path: Path, *, budget_value: int = 6):
     )
 
 
+def _assert_candidate_artifacts_are_frozen(
+    outcome: Any,
+    *,
+    run_dir: Path,
+) -> None:
+    required = {
+        "output",
+        "render",
+        "result",
+        "programmatic_evaluation",
+        "memory_snapshot",
+        "memory_trace",
+        "memory_compatibility",
+        "schedule_trace",
+    }
+    paths_by_label = {label: set() for label in required}
+    for candidate in outcome.record.candidates:
+        candidate_id = candidate["candidate_id"]
+        assert required <= set(candidate["artifact_paths"])
+        for label, relative_path in candidate["artifact_paths"].items():
+            artifact = (run_dir / relative_path).resolve(strict=True)
+            artifact.relative_to(run_dir.resolve())
+            expected_hash = sha256_path(artifact)
+            assert candidate["artifact_hashes"][label] == expected_hash
+            assert (
+                outcome.record.artifact_hashes[
+                    f"{candidate_id}.{label}"
+                ]
+                == expected_hash
+            )
+            if label in paths_by_label:
+                paths_by_label[label].add(relative_path)
+    candidate_count = len(outcome.record.candidates)
+    assert all(
+        len(paths) == candidate_count for paths in paths_by_label.values()
+    )
+
+
 def test_runner_writes_one_immutable_checkpoint_per_global_round(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -381,12 +414,17 @@ def test_untyped_memory_is_checkpointed_at_each_round(
         assert checkpoint["memory_mode"] == "untyped"
 
 
-def test_iterative_provider_batch_archives_exact_round_candidates(
+@pytest.mark.parametrize("rounds", [1, 2, 3])
+def test_iterative_provider_batch_exact_fills_scheduler_budget(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    rounds: int,
 ) -> None:
     _install_fake_panel_core(monkeypatch)
-    _, spec = _iterative_spec(tmp_path)
+    _, spec = _iterative_spec(
+        tmp_path,
+        budget_value=len(PANEL_IDS) * rounds,
+    )
     provider = MultiPanelProvider()
     monkeypatch.setattr(provider, "check_available", lambda: None)
 
@@ -396,54 +434,40 @@ def test_iterative_provider_batch_archives_exact_round_candidates(
     )
 
     assert outcome.record.status == "completed"
-    assert outcome.record.render_count == 6
-    assert [item["render_count"] for item in outcome.record.candidates] == [
-        2,
-        2,
-        2,
-    ]
+    assert outcome.record.render_count == len(PANEL_IDS) * rounds
+    assert len(outcome.record.candidates) == rounds
+    assert {
+        item["render_count"] for item in outcome.record.candidates
+    } == {len(PANEL_IDS)}
     assert [
         item["call_index"] for item in outcome.record.candidates
-    ] == [1, 1, 1]
+    ] == [1] * rounds
     assert [
         item["provider_metadata"]["global_round"]
         for item in outcome.record.candidates
-    ] == [1, 2, 3]
+    ] == list(range(1, rounds + 1))
     assert [
         item["metrics"]["data_fidelity"]
         for item in outcome.record.candidates
-    ] == pytest.approx([1 / 3, 2 / 3, 1.0])
-    assert outcome.record.best_candidate_id == "candidate_0003"
+    ] == pytest.approx(
+        [round_number / rounds for round_number in range(1, rounds + 1)]
+    )
+    assert outcome.record.best_candidate_id == f"candidate_{rounds:04d}"
 
     run_dir = Path(spec.artifact_root) / spec.run_name
-    output_paths = set()
-    for candidate in outcome.record.candidates:
-        candidate_id = candidate["candidate_id"]
-        output_paths.add(candidate["artifact_paths"]["output"])
-        for label, relative_path in candidate["artifact_paths"].items():
-            artifact = (run_dir / relative_path).resolve(strict=True)
-            artifact.relative_to(run_dir.resolve())
-            expected_hash = sha256_path(artifact)
-            assert candidate["artifact_hashes"][label] == expected_hash
-            assert (
-                outcome.record.artifact_hashes[
-                    f"{candidate_id}.{label}"
-                ]
-                == expected_hash
-            )
-    assert len(output_paths) == 3
-    assert len(
-        {
-            candidate["artifact_hashes"]["schedule_trace"]
-            for candidate in outcome.record.candidates
-        }
-    ) == 3
-    assert len(
-        {
-            candidate["artifact_hashes"]["memory_snapshot"]
-            for candidate in outcome.record.candidates
-        }
-    ) == 3
+    _assert_candidate_artifacts_are_frozen(outcome, run_dir=run_dir)
+    for label in (
+        "render",
+        "programmatic_evaluation",
+        "memory_snapshot",
+        "schedule_trace",
+    ):
+        assert len(
+            {
+                candidate["artifact_hashes"][label]
+                for candidate in outcome.record.candidates
+            }
+        ) == rounds
 
     final = outcome.record.candidates[-1]
     final_programmatic = json.loads(
@@ -455,12 +479,14 @@ def test_iterative_provider_batch_archives_exact_round_candidates(
     assert final_programmatic["panel_fidelity"]["right"]["ratio"] == 1.0
 
 
-def test_best_of_n_returns_one_independent_complete_candidate_per_call(
+@pytest.mark.parametrize("rounds", [1, 2, 3])
+def test_best_of_n_exact_fills_with_one_complete_candidate_per_call(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    rounds: int,
 ) -> None:
     _install_fake_panel_core(monkeypatch)
-    manifest = write_manifest(tmp_path, [_panel_case(tmp_path)])
+    write_manifest(tmp_path, [_panel_case(tmp_path)])
     spec = make_spec(
         tmp_path,
         run_name="multi-best-of-n",
@@ -468,33 +494,48 @@ def test_best_of_n_returns_one_independent_complete_candidate_per_call(
         case_id="multi-case",
         panel_count=len(PANEL_IDS),
         split="test",
-        budget_value=4,
+        budget_value=len(PANEL_IDS) * rounds,
         selection_metric="data_fidelity",
     )
+    spec = replace(
+        spec,
+        method_config={"initial_generation": "defaults"},
+    )
     provider = MultiPanelProvider()
-    candidates = []
-    for call_index in (1, 2):
-        call_dir = tmp_path / f"call-{call_index}"
-        call_dir.mkdir()
-        result = provider.generate(
-            GenerationRequest(
-                spec=spec,
-                dataset_manifest_path=manifest,
-                output_dir=call_dir,
-                call_index=call_index,
-                remaining_renders=4 - (call_index - 1) * 2,
-                remaining_seconds=None,
-                deadline_monotonic=None,
-                history=(),
-                previous_candidate=None,
-            )
-        )
-        assert isinstance(result, CandidateResult)
-        assert not isinstance(result, ProviderBatch)
-        assert result.render_count == len(PANEL_IDS)
-        assert result.metadata["global_round"] == 1
-        assert result.metadata["memory_mode"] == "none"
-        candidates.append(result)
+    monkeypatch.setattr(provider, "check_available", lambda: None)
 
-    assert candidates[0].metadata["seed"] != candidates[1].metadata["seed"]
-    assert candidates[0].artifacts["output"] != candidates[1].artifacts["output"]
+    outcome = execute_experiment(
+        spec,
+        provider_loader=lambda import_path, options: provider,
+    )
+
+    assert outcome.record.status == "completed"
+    assert outcome.record.render_count == len(PANEL_IDS) * rounds
+    assert len(outcome.record.candidates) == rounds
+    assert {
+        item["render_count"] for item in outcome.record.candidates
+    } == {len(PANEL_IDS)}
+    assert [
+        item["call_index"] for item in outcome.record.candidates
+    ] == list(range(1, rounds + 1))
+    assert {
+        item["provider_metadata"]["global_round"]
+        for item in outcome.record.candidates
+    } == {1}
+    assert {
+        item["provider_metadata"]["memory_mode"]
+        for item in outcome.record.candidates
+    } == {"none"}
+    assert len(
+        {
+            item["provider_metadata"]["seed"]
+            for item in outcome.record.candidates
+        }
+    ) == rounds
+    assert {
+        item["metrics"]["data_fidelity"]
+        for item in outcome.record.candidates
+    } == {1.0}
+
+    run_dir = Path(spec.artifact_root) / spec.run_name
+    _assert_candidate_artifacts_are_frozen(outcome, run_dir=run_dir)

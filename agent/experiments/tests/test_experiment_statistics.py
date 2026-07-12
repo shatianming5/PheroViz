@@ -15,6 +15,7 @@ from experiments.models import SCHEMA_VERSION, sha256_json, write_json_atomic
 from experiments.production_statistics import (
     StatisticsError,
     analyze_summary,
+    holm_adjust,
     kendall_tau_b,
     load_provenance_summary,
     paired_bootstrap,
@@ -157,6 +158,22 @@ def test_monte_carlo_sign_flip_is_seeded() -> None:
     assert first == second
     assert first["mode"] == "monte_carlo"
     assert first["permutations"] == 250
+
+
+def test_holm_adjustment_is_step_down_and_deterministic() -> None:
+    adjusted = holm_adjust(
+        {
+            "method-b": 0.04,
+            "method-a": 0.01,
+            "method-c": 0.03,
+        }
+    )
+
+    assert adjusted == {
+        "method-a": pytest.approx(0.03),
+        "method-c": pytest.approx(0.06),
+        "method-b": pytest.approx(0.06),
+    }
 
 
 def test_case_mismatch_is_rejected() -> None:
@@ -461,10 +478,119 @@ def test_panel_strata_use_na_for_empty_stratum() -> None:
         assert strata["P=2"]["n"] == 0
         assert strata["P=2"]["mean_gap"] is None
         assert strata["P=2"]["ci95"] is None
+        comparison = analysis["slices"][0]["comparisons"][0]
+        assert comparison["panel_trend"]["status"] == "blocked"
+        assert comparison["panel_trend"]["missing_strata"] == ["P=2"]
+        assert comparison["panel_trend"]["statistic"] is None
+        assert (
+            analysis["slices"][0]["comparison_families"]["panel_trend"][
+                "status"
+            ]
+            == "blocked"
+        )
+
+
+def test_ordinal_panel_trend_and_holm_use_doi_clusters() -> None:
+    with _workspace("panel-trend") as workspace:
+        cases = (
+            ("case-1", 1, 0.0),
+            ("case-2", 2, 1.0),
+            ("case-3", 3, 2.0),
+            ("case-5", 5, 3.0),
+        )
+        rows = []
+        for case_id, panel_count, gap in cases:
+            rows.extend(
+                [
+                    _row(
+                        "reference",
+                        case_id,
+                        0.0,
+                        panel_count=panel_count,
+                    ),
+                    _row(
+                        "method-a",
+                        case_id,
+                        gap,
+                        panel_count=panel_count,
+                    ),
+                    _row(
+                        "method-b",
+                        case_id,
+                        gap / 2.0,
+                        panel_count=panel_count,
+                    ),
+                ]
+            )
+        summary = load_provenance_summary(
+            _write_summary(workspace / "summary.json", rows)
+        )
+
+        analysis = analyze_summary(
+            summary,
+            reference="reference",
+            methods=["method-a", "method-b"],
+            metric="metric.data_fidelity",
+            bootstrap_resamples=25,
+            monte_carlo_permutations=25,
+        )
+        result = analysis["slices"][0]
+        trends = {
+            comparison["method"]: comparison["panel_trend"]
+            for comparison in result["comparisons"]
+        }
+
+        assert trends["method-a"]["status"] == "ok"
+        assert trends["method-a"]["statistic"] == 1.0
+        assert trends["method-a"]["p_value"] == 0.25
+        assert trends["method-a"]["p_value_holm"] == 0.5
+        assert trends["method-a"]["sampling_unit"] == "doi"
+        assert trends["method-a"]["permutations"] == 16
+        assert trends["method-b"]["statistic"] == 0.5
+        assert trends["method-b"]["p_value_holm"] == 0.5
+        assert result["comparison_families"]["overall"]["status"] == "ok"
+        assert (
+            result["comparison_families"]["panel_trend"]["adjustment"]
+            == "holm"
+        )
+        assert analysis["analysis_version"] == "3.0"
+        assert analysis["right_censored_rmst"]["status"] == "not_implemented"
+        assert "censoring" in analysis["right_censored_rmst"]["reason"]
 
 
 def test_kendall_tau_b_handles_ties() -> None:
     assert kendall_tau_b([1.0, 1.0, 2.0], [1.0, 2.0, 2.0]) == 0.5
+
+
+def test_kendall_bootstrap_fails_closed_on_undefined_resamples() -> None:
+    with _workspace("kendall-undefined") as workspace:
+        rows = [
+            _row("reference", "case-1", 1.0, second_value=1.0),
+            _row("method", "case-1", 1.0, second_value=1.0),
+            _row("reference", "case-2", 0.0, second_value=0.0),
+            _row("method", "case-2", 2.0, second_value=2.0),
+        ]
+        summary = load_provenance_summary(
+            _write_summary(workspace / "summary.json", rows)
+        )
+
+        analysis = analyze_summary(
+            summary,
+            reference="reference",
+            methods=["method"],
+            metric="metric.data_fidelity",
+            second_judge_metric="metric.second_data_fidelity",
+            bootstrap_resamples=25,
+            monte_carlo_permutations=25,
+        )
+        uncertainty = analysis["slices"][0]["rankings"][
+            "kendall_tau_b_uncertainty"
+        ]
+
+        assert uncertainty["estimate"] == 1.0
+        assert uncertainty["status"] == "not_estimable"
+        assert uncertainty["ci95"] is None
+        assert uncertainty["undefined_resamples"] > 0
 
 
 @pytest.mark.parametrize(
@@ -629,9 +755,19 @@ def test_cli_writes_rankings_tau_and_provenance(
         csv_path = Path(cli_output["analysis_csv"])
         assert analysis_path.is_file()
         assert csv_path.is_file()
+        csv_header = csv_path.read_text(encoding="utf-8").splitlines()[0]
+        assert "p_value_holm" in csv_header
+        assert "panel_trend_status" in csv_header
+        assert "kendall_tau_b_ci_lower" in csv_header
         analysis = json.loads(analysis_path.read_text(encoding="utf-8"))
         ranking = analysis["slices"][0]["rankings"]
         assert ranking["kendall_tau_b"] == 0.5
+        uncertainty = ranking["kendall_tau_b_uncertainty"]
+        assert uncertainty["status"] == "ok"
+        assert uncertainty["ci95"] == [0.5, 0.5]
+        assert uncertainty["sampling_unit"] == "doi"
+        assert uncertainty["doi_count"] == 2
+        assert uncertainty["valid_resamples"] == 25
         assert ranking["primary_ranking"]
         assert ranking["second_judge_ranking"]
         assert analysis["input_summary_hash"]

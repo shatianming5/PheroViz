@@ -85,6 +85,24 @@ manifest 至少包含 `panels`；正式评测还应提供
 `combined_figure.png`、`programmatic_evaluation.json`、
 `shared_memory_snapshot.json` 与 `schedule_trace.json`。
 
+每个完成的 global round 还会冻结到
+`checkpoints/round_NNNN/`：当轮组合图、programmatic evaluation、共享
+memory snapshot/trace、schedule trace 及各 panel 的源 artifact 都不会被
+后续轮次覆盖。实验 provider 使用以下统一矩阵契约（组合图只是 archive
+artifact，不额外计为一次 render）：
+
+| schedule | provider 调用数 | 每次返回 | 每个 candidate 的 `render_count` | 总 render budget |
+| --- | ---: | --- | ---: | ---: |
+| `iterative` | 1 | 含 R 个 candidate 的 `ProviderBatch` | P | P × R |
+| `best_of_n` | R | 1 个独立完整 candidate | P | P × R |
+
+其中 P 是 panel 数，R 是完整 global round/candidate 数；例如 P=2 时，
+R=1/2/3 分别要求 budget=2/4/6。render scheduler 采用 exact-fill：budget
+必须能被 P 整除，partial panel round、少用或超用 budget、或用最终结果
+冒充缺失的中间 checkpoint 都会失败。harness 只归档 provider 分配目录内的
+artifact，并为每个 candidate 的组合图、指标、memory 与 schedule 记录
+独立路径和 SHA-256。
+
 ## 可追溯实验
 
 实验矩阵由 `python -m experiments run <matrix.yaml>` 执行。每个

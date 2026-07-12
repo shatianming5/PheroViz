@@ -15,6 +15,8 @@ from .proposals import (
     DEFAULT_MAX_COLUMNS,
     DEFAULT_MAX_FILE_BYTES,
     DEFAULT_MAX_ROWS,
+    PROPOSAL_RULE_V1,
+    PROPOSAL_RULE_V2,
     _multi_panel_proposals,
     _resolve_proposal_rule_version,
     propose_single_candidate,
@@ -1186,6 +1188,7 @@ def derive_multi_review_batch(
     if code_dirty:
         raise BenchmarkBuildError("code-worktree-dirty")
     singles: dict[str, dict[str, Any]] = {}
+    superseded_duplicate_ids: set[str] = set()
     bindings: list[dict[str, Any]] = []
     for index, (raw_proposed, raw_reviews, raw_evidence) in enumerate(
         review_bundles
@@ -1212,8 +1215,25 @@ def derive_multi_review_batch(
             if not proposal or proposal.get("proposal_type") != "single_panel":
                 continue
             if candidate_id in singles:
+                existing = singles[candidate_id]
+                rank = {
+                    PROPOSAL_RULE_V1: 1,
+                    PROPOSAL_RULE_V2: 2,
+                }
+                existing_rank = rank[_resolve_proposal_rule_version(existing)]
+                incoming_rank = rank[_resolve_proposal_rule_version(proposal)]
+                if incoming_rank > existing_rank:
+                    singles[candidate_id] = deepcopy(proposal)
+                    superseded_duplicate_ids.add(candidate_id)
+                    continue
+                if incoming_rank < existing_rank:
+                    superseded_duplicate_ids.add(candidate_id)
+                    continue
+                if _canonical_json(existing) == _canonical_json(proposal):
+                    continue
                 raise BenchmarkBuildError(
-                    f"review-bundle-candidate-duplicate:{candidate_id}"
+                    "same-version-review-bundle-candidate-conflict:"
+                    f"{candidate_id}"
                 )
             singles[candidate_id] = deepcopy(proposal)
         bindings.append(
@@ -1253,6 +1273,7 @@ def derive_multi_review_batch(
         "source_binding_hash": source_binding_hash,
         "accepted_single_proposals": len(singles),
         "derived_multi_panel_proposals": len(multi),
+        "superseded_duplicate_ids": sorted(superseded_duplicate_ids),
         "proposals_total": len(proposals),
         "eligible_for_experiment": 0,
         "proposal_rule_versions": sorted(

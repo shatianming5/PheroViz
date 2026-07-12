@@ -25,6 +25,11 @@ from .models import (
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _PANEL_STRATA = ("P=1", "P=2", "P=3-4", "P=5+")
+_PANEL_STRATUM_SCORES = {
+    stratum: float(index)
+    for index, stratum in enumerate(_PANEL_STRATA, 1)
+}
+_ANALYSIS_VERSION = "3.0"
 
 
 class StatisticsError(ProvenanceError):
@@ -254,6 +259,26 @@ def _percentile(sorted_values: Sequence[float], quantile: float) -> float:
     )
 
 
+def holm_adjust(p_values: Mapping[str, float]) -> Dict[str, float]:
+    """Return Holm step-down adjusted p-values keyed by comparison name."""
+
+    validated = {
+        name: _finite_number(value, f"p_value[{name}]")
+        for name, value in p_values.items()
+    }
+    if any(not 0.0 <= value <= 1.0 for value in validated.values()):
+        raise StatisticsError("Holm adjustment requires p-values in [0,1]")
+    ordered = sorted(validated.items(), key=lambda item: (item[1], item[0]))
+    adjusted: Dict[str, float] = {}
+    running_max = 0.0
+    family_size = len(ordered)
+    for index, (name, value) in enumerate(ordered):
+        candidate = min(1.0, (family_size - index) * value)
+        running_max = max(running_max, candidate)
+        adjusted[name] = running_max
+    return adjusted
+
+
 def paired_bootstrap(
     gaps: Sequence[float],
     *,
@@ -428,6 +453,155 @@ def stratified_bootstrap(
     return result
 
 
+def ordinal_panel_trend(
+    case_gaps: Mapping[str, float],
+    panel_counts: Mapping[str, int],
+    doi_by_case: Mapping[str, str],
+    *,
+    seed: int,
+    monte_carlo_permutations: int,
+    exact_max_n: int,
+) -> Dict[str, Any]:
+    """Test an increasing panel-stratum trend with DOI-cluster sign flips."""
+
+    grouped: Dict[str, Dict[str, list[float]]] = {}
+    for case_id, raw_gap in case_gaps.items():
+        if case_id not in panel_counts:
+            raise StatisticsError(
+                f"Missing panel_count for trend task {case_id!r}"
+            )
+        doi = doi_by_case.get(case_id)
+        if not isinstance(doi, str) or not doi:
+            raise StatisticsError(f"Missing DOI for trend task {case_id!r}")
+        stratum = panel_stratum(panel_counts[case_id])
+        grouped.setdefault(doi, {}).setdefault(stratum, []).append(
+            _finite_number(raw_gap, f"trend_gap[{case_id}]")
+        )
+
+    doi_stratum_means = {
+        doi: {
+            stratum: sum(values) / len(values)
+            for stratum, values in strata.items()
+        }
+        for doi, strata in grouped.items()
+    }
+    present = {
+        stratum
+        for strata in doi_stratum_means.values()
+        for stratum in strata
+    }
+    missing = [stratum for stratum in _PANEL_STRATA if stratum not in present]
+    base: Dict[str, Any] = {
+        "sampling_unit": "doi",
+        "alternative": "increasing",
+        "ordinal_scores": dict(_PANEL_STRATUM_SCORES),
+        "doi_count": len(doi_stratum_means),
+        "task_count": len(case_gaps),
+        "missing_strata": missing,
+        "p_value_holm": None,
+    }
+    if missing:
+        return {
+            **base,
+            "status": "blocked",
+            "reason": "missing_panel_strata",
+            "statistic": None,
+            "stratum_means": None,
+            "stratum_doi_counts": {
+                stratum: sum(
+                    stratum in strata
+                    for strata in doi_stratum_means.values()
+                )
+                for stratum in _PANEL_STRATA
+            },
+            "p_value": None,
+            "mode": None,
+            "permutations": 0,
+            "seed": seed,
+        }
+
+    centered_scores = {
+        stratum: score
+        - sum(_PANEL_STRATUM_SCORES.values())
+        / len(_PANEL_STRATUM_SCORES)
+        for stratum, score in _PANEL_STRATUM_SCORES.items()
+    }
+    denominator = sum(value * value for value in centered_scores.values())
+
+    def statistic(signs: Mapping[str, float]) -> tuple[float, Dict[str, float]]:
+        by_stratum: Dict[str, list[float]] = {
+            stratum: [] for stratum in _PANEL_STRATA
+        }
+        for doi, strata in doi_stratum_means.items():
+            sign = signs[doi]
+            for stratum, value in strata.items():
+                by_stratum[stratum].append(sign * value)
+        stratum_means = {
+            stratum: sum(values) / len(values)
+            for stratum, values in by_stratum.items()
+        }
+        slope = sum(
+            centered_scores[stratum] * stratum_means[stratum]
+            for stratum in _PANEL_STRATA
+        ) / denominator
+        return slope, stratum_means
+
+    doi_ids = sorted(doi_stratum_means)
+    observed, stratum_means = statistic({doi: 1.0 for doi in doi_ids})
+    epsilon = 1e-15
+    if len(doi_ids) <= exact_max_n:
+        permutations = 1 << len(doi_ids)
+        extreme = 0
+        for mask in range(permutations):
+            permuted, _ = statistic(
+                {
+                    doi: 1.0 if mask & (1 << index) else -1.0
+                    for index, doi in enumerate(doi_ids)
+                }
+            )
+            if permuted + epsilon >= observed:
+                extreme += 1
+        p_value = extreme / permutations
+        mode = "exact"
+    else:
+        if monte_carlo_permutations < 1:
+            raise StatisticsError(
+                "Panel-trend Monte Carlo permutations must be positive"
+            )
+        rng = random.Random(seed)
+        permutations = monte_carlo_permutations
+        extreme = 0
+        for _ in range(permutations):
+            permuted, _ = statistic(
+                {
+                    doi: 1.0 if rng.getrandbits(1) else -1.0
+                    for doi in doi_ids
+                }
+            )
+            if permuted + epsilon >= observed:
+                extreme += 1
+        p_value = (extreme + 1) / (permutations + 1)
+        mode = "monte_carlo"
+
+    return {
+        **base,
+        "status": "ok",
+        "reason": None,
+        "statistic": observed,
+        "stratum_means": stratum_means,
+        "stratum_doi_counts": {
+            stratum: sum(
+                stratum in strata for strata in doi_stratum_means.values()
+            )
+            for stratum in _PANEL_STRATA
+        },
+        "p_value": p_value,
+        "mode": mode,
+        "permutations": permutations,
+        "seed": seed,
+    }
+
+
 def kendall_tau_b(
     first: Sequence[float],
     second: Sequence[float],
@@ -528,18 +702,19 @@ def _git_provenance() -> tuple[str, bool]:
     return commit, dirty
 
 
-def _ranking_analysis(
+def _method_doi_scores(
     rows: Sequence[Mapping[str, Any]],
     methods: Sequence[str],
-    *,
-    primary_metric: str,
-    second_judge_metric: Optional[str],
-) -> Dict[str, Any]:
-    def clustered_method_mean(method: str, metric: str) -> float:
-        method_rows = [row for row in rows if row["method"] == method]
+    metric: str,
+) -> Dict[str, Dict[str, float]]:
+    result: Dict[str, Dict[str, float]] = {}
+    expected_dois: Optional[set[str]] = None
+    for method in methods:
         values_by_case: Dict[str, list[float]] = {}
         doi_by_case: Dict[str, str] = {}
-        for row in method_rows:
+        for row in rows:
+            if row["method"] != method:
+                continue
             case_id = str(row["case_id"])
             doi = str(row["doi"])
             previous = doi_by_case.setdefault(case_id, doi)
@@ -554,21 +729,110 @@ def _ranking_analysis(
             case_id: sum(values) / len(values)
             for case_id, values in values_by_case.items()
         }
-        doi_means = _cluster_means(task_means, doi_by_case)
-        return sum(doi_means.values()) / len(doi_means)
-
-    primary_scores: Dict[str, float] = {}
-    second_scores: Dict[str, float] = {}
-    for method in methods:
-        primary_scores[method] = clustered_method_mean(
-            method,
-            primary_metric,
-        )
-        if second_judge_metric is not None:
-            second_scores[method] = clustered_method_mean(
-                method,
-                second_judge_metric,
+        doi_scores = _cluster_means(task_means, doi_by_case)
+        if expected_dois is None:
+            expected_dois = set(doi_scores)
+        elif set(doi_scores) != expected_dois:
+            raise StatisticsError(
+                f"Judge ranking DOI coverage differs for method {method!r}"
             )
+        result[method] = doi_scores
+    return result
+
+
+def _kendall_doi_bootstrap(
+    primary: Mapping[str, Mapping[str, float]],
+    second: Mapping[str, Mapping[str, float]],
+    methods: Sequence[str],
+    *,
+    seed: int,
+    resamples: int,
+) -> Dict[str, Any]:
+    doi_sets = [
+        set(scores)
+        for scores in [*primary.values(), *second.values()]
+    ]
+    if not doi_sets or any(dois != doi_sets[0] for dois in doi_sets[1:]):
+        raise StatisticsError("Kendall bootstrap requires identical DOI coverage")
+    doi_ids = sorted(doi_sets[0])
+    if not doi_ids:
+        raise StatisticsError("Kendall bootstrap requires at least one DOI")
+
+    def tau(sampled_dois: Sequence[str]) -> Optional[float]:
+        primary_means = {
+            method: sum(primary[method][doi] for doi in sampled_dois)
+            / len(sampled_dois)
+            for method in methods
+        }
+        second_means = {
+            method: sum(second[method][doi] for doi in sampled_dois)
+            / len(sampled_dois)
+            for method in methods
+        }
+        return kendall_tau_b(
+            [primary_means[method] for method in methods],
+            [second_means[method] for method in methods],
+        )
+
+    estimate = tau(doi_ids)
+    rng = random.Random(seed)
+    bootstrap_values: list[float] = []
+    undefined = 0
+    for _ in range(resamples):
+        sampled = [doi_ids[rng.randrange(len(doi_ids))] for _ in doi_ids]
+        value = tau(sampled)
+        if value is None:
+            undefined += 1
+        else:
+            bootstrap_values.append(value)
+    bootstrap_values.sort()
+    estimable = (
+        estimate is not None
+        and len(bootstrap_values) == resamples
+    )
+    return {
+        "status": "ok" if estimable else "not_estimable",
+        "reason": (
+            None
+            if estimable
+            else "kendall_tau_undefined_in_point_or_bootstrap"
+        ),
+        "estimate": estimate,
+        "ci95": (
+            [
+                _percentile(bootstrap_values, 0.025),
+                _percentile(bootstrap_values, 0.975),
+            ]
+            if estimable
+            else None
+        ),
+        "resamples": resamples,
+        "valid_resamples": len(bootstrap_values),
+        "undefined_resamples": undefined,
+        "seed": seed,
+        "sampling_unit": "doi",
+        "doi_count": len(doi_ids),
+    }
+
+
+def _ranking_analysis(
+    rows: Sequence[Mapping[str, Any]],
+    methods: Sequence[str],
+    *,
+    primary_metric: str,
+    second_judge_metric: Optional[str],
+    seed: int,
+    bootstrap_resamples: int,
+) -> Dict[str, Any]:
+    primary_doi_scores = _method_doi_scores(
+        rows,
+        methods,
+        primary_metric,
+    )
+    primary_scores = {
+        method: sum(scores.values()) / len(scores)
+        for method, scores in primary_doi_scores.items()
+    }
     result: Dict[str, Any] = {
         "primary_metric": primary_metric,
         "ranking_direction": "higher_is_better",
@@ -581,19 +845,49 @@ def _ranking_analysis(
                 "second_judge_metric": None,
                 "second_judge_ranking": None,
                 "kendall_tau_b": None,
+                "kendall_tau_b_uncertainty": {
+                    "status": "not_requested",
+                    "reason": "second_judge_metric_not_requested",
+                    "estimate": None,
+                    "ci95": None,
+                    "resamples": 0,
+                    "valid_resamples": 0,
+                    "undefined_resamples": 0,
+                    "seed": seed,
+                    "sampling_unit": "doi",
+                    "doi_count": len(next(iter(primary_doi_scores.values()))),
+                },
                 "status": "not_requested",
             }
         )
         return result
+    second_doi_scores = _method_doi_scores(
+        rows,
+        methods,
+        second_judge_metric,
+    )
+    second_scores = {
+        method: sum(scores.values()) / len(scores)
+        for method, scores in second_doi_scores.items()
+    }
+    uncertainty = _kendall_doi_bootstrap(
+        primary_doi_scores,
+        second_doi_scores,
+        methods,
+        seed=seed,
+        resamples=bootstrap_resamples,
+    )
     result.update(
         {
             "second_judge_metric": second_judge_metric,
             "second_judge_ranking": method_ranking(second_scores),
-            "kendall_tau_b": kendall_tau_b(
-                [primary_scores[method] for method in methods],
-                [second_scores[method] for method in methods],
+            "kendall_tau_b": uncertainty["estimate"],
+            "kendall_tau_b_uncertainty": uncertainty,
+            "status": (
+                "ok"
+                if uncertainty["status"] == "ok"
+                else "not_estimable"
             ),
-            "status": "ok",
         }
     )
     return result
@@ -611,6 +905,12 @@ def analyze_summary(
     monte_carlo_permutations: int = 100_000,
     exact_max_n: int = 16,
 ) -> Dict[str, Any]:
+    """Build analysis schema v3.0.
+
+    Version 3 adds declared Holm families, DOI-level ordinal panel trends,
+    DOI-bootstrap Kendall uncertainty, and an explicit RMST blocker.
+    """
+
     if isinstance(seed, bool) or not isinstance(seed, int):
         raise StatisticsError("Analysis seed must be an integer")
     if bootstrap_resamples < 1:
@@ -767,8 +1067,75 @@ def analyze_summary(
                         resamples=bootstrap_resamples,
                         doi_by_case=doi_by_case,
                     ),
+                    "panel_trend": ordinal_panel_trend(
+                        case_gaps,
+                        panel_counts,
+                        doi_by_case,
+                        seed=seed,
+                        monte_carlo_permutations=monte_carlo_permutations,
+                        exact_max_n=exact_max_n,
+                    ),
                 }
             )
+
+        overall_raw = {
+            comparison["method"]: comparison["permutation"]["p_value"]
+            for comparison in comparisons
+        }
+        overall_adjusted = holm_adjust(overall_raw)
+        for comparison in comparisons:
+            comparison["permutation"]["p_value_holm"] = overall_adjusted[
+                comparison["method"]
+            ]
+            comparison["permutation"]["holm_family"] = "overall"
+        overall_family = {
+            "status": "ok",
+            "adjustment": "holm",
+            "scope": "within_slice",
+            "estimand": "overall_method_minus_reference",
+            "members": list(comparison_methods),
+            "raw_p_values": overall_raw,
+            "adjusted_p_values": overall_adjusted,
+        }
+
+        trend_blockers = [
+            comparison["method"]
+            for comparison in comparisons
+            if comparison["panel_trend"]["status"] != "ok"
+        ]
+        if trend_blockers:
+            for comparison in comparisons:
+                comparison["panel_trend"]["holm_family"] = "panel_trend"
+            trend_family = {
+                "status": "blocked",
+                "adjustment": "holm",
+                "scope": "within_slice",
+                "estimand": "ordinal_panel_stratum_trend",
+                "members": list(comparison_methods),
+                "blocked_members": trend_blockers,
+                "raw_p_values": None,
+                "adjusted_p_values": None,
+            }
+        else:
+            trend_raw = {
+                comparison["method"]: comparison["panel_trend"]["p_value"]
+                for comparison in comparisons
+            }
+            trend_adjusted = holm_adjust(trend_raw)
+            for comparison in comparisons:
+                comparison["panel_trend"]["p_value_holm"] = trend_adjusted[
+                    comparison["method"]
+                ]
+                comparison["panel_trend"]["holm_family"] = "panel_trend"
+            trend_family = {
+                "status": "ok",
+                "adjustment": "holm",
+                "scope": "within_slice",
+                "estimand": "ordinal_panel_stratum_trend",
+                "members": list(comparison_methods),
+                "raw_p_values": trend_raw,
+                "adjusted_p_values": trend_adjusted,
+            }
 
         slice_results.append(
             {
@@ -787,12 +1154,18 @@ def analyze_summary(
                 "case_ids": sorted(case_ids),
                 "doi_count": len(doi_ids),
                 "dois": doi_ids,
+                "comparison_families": {
+                    "overall": overall_family,
+                    "panel_trend": trend_family,
+                },
                 "comparisons": comparisons,
                 "rankings": _ranking_analysis(
                     rows,
                     selected_methods,
                     primary_metric=metric,
                     second_judge_metric=second_judge_metric,
+                    seed=seed,
+                    bootstrap_resamples=bootstrap_resamples,
                 ),
             }
         )
@@ -809,10 +1182,25 @@ def analyze_summary(
         "sampling_unit": "doi",
         "aggregation_order": ["seed_mean", "task_mean", "doi_cluster"],
         "panel_strata": list(_PANEL_STRATA),
+        "panel_trend": {
+            "statistic": "ordinal_stratum_slope",
+            "alternative": "increasing",
+            "permutation": "doi_cluster_sign_flip",
+            "missing_strata": "blocked",
+        },
+        "multiple_comparisons": {
+            "adjustment": "holm",
+            "scope": "within_slice",
+            "families": ["overall", "panel_trend"],
+        },
+        "kendall_uncertainty": {
+            "method": "doi_cluster_bootstrap",
+            "resamples": bootstrap_resamples,
+        },
     }
     commit, dirty = _git_provenance()
     output = {
-        "analysis_version": "2.0",
+        "analysis_version": _ANALYSIS_VERSION,
         "generated_at": utc_now(),
         "input_summary_path": str(summary.path),
         "input_summary_hash": summary.summary_hash,
@@ -820,6 +1208,19 @@ def analyze_summary(
         "analysis_config_hash": sha256_json(config),
         "code_git_commit": commit,
         "code_git_dirty": dirty,
+        "right_censored_rmst": {
+            "status": "not_implemented",
+            "reason": (
+                "Run summaries do not contain per-render threshold-crossing "
+                "events and censoring times required for provenance-safe RMST."
+            ),
+            "required_schema": [
+                "threshold",
+                "event_observed",
+                "event_render_or_time",
+                "censor_render_or_time",
+            ],
+        },
         "slices": slice_results,
     }
     output["analysis_hash"] = sha256_json(output)
@@ -833,6 +1234,9 @@ def _analysis_csv_rows(analysis: Mapping[str, Any]) -> list[Dict[str, Any]]:
         for comparison in slice_result["comparisons"]:
             overall = comparison["overall"]
             permutation = comparison["permutation"]
+            trend = comparison["panel_trend"]
+            tau_uncertainty = ranking["kendall_tau_b_uncertainty"]
+            tau_ci = tau_uncertainty.get("ci95")
             base = {
                 "backbone": slice_result["backbone"],
                 "seeds": ",".join(
@@ -857,6 +1261,18 @@ def _analysis_csv_rows(analysis: Mapping[str, Any]) -> list[Dict[str, Any]]:
                 "metric": analysis["analysis_config"]["metric"],
                 "second_judge_metric": ranking["second_judge_metric"],
                 "kendall_tau_b": ranking["kendall_tau_b"],
+                "kendall_tau_b_status": tau_uncertainty["status"],
+                "kendall_tau_b_ci_lower": (
+                    tau_ci[0] if tau_ci is not None else None
+                ),
+                "kendall_tau_b_ci_upper": (
+                    tau_ci[1] if tau_ci is not None else None
+                ),
+                "kendall_tau_b_resamples": tau_uncertainty["resamples"],
+                "panel_trend_status": trend["status"],
+                "panel_trend_statistic": trend["statistic"],
+                "panel_trend_p_value": trend["p_value"],
+                "panel_trend_p_value_holm": trend["p_value_holm"],
             }
             rows.append(
                 {
@@ -871,6 +1287,7 @@ def _analysis_csv_rows(analysis: Mapping[str, Any]) -> list[Dict[str, Any]]:
                     "permutation_mode": permutation["mode"],
                     "permutations": permutation["permutations"],
                     "p_value": permutation["p_value"],
+                    "p_value_holm": permutation["p_value_holm"],
                 }
             )
             for stratum in _PANEL_STRATA:
@@ -889,6 +1306,7 @@ def _analysis_csv_rows(analysis: Mapping[str, Any]) -> list[Dict[str, Any]]:
                         "permutation_mode": None,
                         "permutations": None,
                         "p_value": None,
+                        "p_value_holm": None,
                     }
                 )
     return rows

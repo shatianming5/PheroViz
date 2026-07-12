@@ -566,6 +566,39 @@ def test_derive_multi_batch_rejects_mixed_rule_versions(
         )
 
 
+def test_derive_prefers_v2_for_duplicate_accepted_single(
+    tmp_path: Path,
+) -> None:
+    bundles = []
+    for rule_version in (PROPOSAL_RULE_V1, PROPOSAL_RULE_V2):
+        root = tmp_path / rule_version
+        root.mkdir()
+        corpus_manifest = _manifest_fixture(root)
+        proposal = _canonical_single(
+            root,
+            candidate_id="case-shared",
+            panel_id="a",
+            doi="10.1038/shared",
+            corpus_manifest_sha256=sha256_file(corpus_manifest),
+            rule_version=rule_version,
+        )
+        proposed, reviews, evidence_path, _ = _review_bundle(
+            root,
+            [proposal],
+        )
+        bundles.append((proposed, reviews, evidence_path))
+
+    result = derive_multi_review_batch(
+        review_bundles=bundles,
+        code_commit="e" * 40,
+        code_dirty=False,
+    )
+
+    assert result["summary"]["accepted_single_proposals"] == 1
+    assert result["summary"]["superseded_duplicate_ids"] == ["case-shared"]
+    assert result["proposals"][0]["proposal_rule_version"] == PROPOSAL_RULE_V2
+
+
 def test_v2_single_canonical_validation_is_version_bound(
     tmp_path: Path,
 ) -> None:
