@@ -110,13 +110,24 @@ def _parse_json_text(content: str) -> dict[str, Any]:
     try:
         value = json.loads(text)
     except json.JSONDecodeError as exc:
-        match = re.search(r"\{.*\}", text, re.DOTALL)
-        if not match:
+        decoder = json.JSONDecoder()
+        objects: list[dict[str, Any]] = []
+        cursor = 0
+        while True:
+            start = text.find("{", cursor)
+            if start < 0:
+                break
+            try:
+                candidate, end = decoder.raw_decode(text, start)
+            except json.JSONDecodeError:
+                cursor = start + 1
+                continue
+            if isinstance(candidate, dict):
+                objects.append(candidate)
+            cursor = max(end, start + 1)
+        if not objects:
             raise ModelClientError("Model response did not contain a JSON object") from exc
-        try:
-            value = json.loads(match.group(0))
-        except json.JSONDecodeError as nested_exc:
-            raise ModelClientError("Model response contained invalid JSON") from nested_exc
+        value = objects[-1]
     if not isinstance(value, dict):
         raise ModelClientError("Model response JSON must be an object")
     return value

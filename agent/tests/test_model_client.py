@@ -96,6 +96,35 @@ def test_generate_json_parses_fenced_json() -> None:
     assert result.value == {"value": 4}
 
 
+def test_generate_json_uses_last_complete_object() -> None:
+    session = FakeSession(
+        [
+            FakeResponse(
+                {
+                    "choices": [
+                        {
+                            "message": {
+                                "content": (
+                                    "```json\n{\"rubric\": true}\n```"
+                                    "{\"visual_form\": 0.5,"
+                                    " \"diagnostics\": [\"ok\"]}"
+                                )
+                            }
+                        }
+                    ]
+                }
+            )
+        ]
+    )
+    result = ModelClient(config(reasoning_effort=None), session=session).generate_json(
+        [{"role": "user", "content": "json"}]
+    )
+    assert result.value == {
+        "visual_form": 0.5,
+        "diagnostics": ["ok"],
+    }
+
+
 def test_sampling_parameters_are_model_compatible() -> None:
     session = FakeSession(
         [
