@@ -254,6 +254,7 @@ def test_matplotagent_injects_standard_openai_environment() -> None:
             invocation.environment["OPENAI_BASE_URL"]
             == "https://example.test/v1/"
         )
+        assert (request.output_dir / "workspace" / "data.csv").is_file()
 
 
 def test_preflight_rejects_dirty_repo() -> None:

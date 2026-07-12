@@ -317,6 +317,15 @@ class ExternalBaselineProvider:
             invocation.environment,
             home_dir=work_dir / "isolated_home",
         )
+        python_bin = str(
+            Path(self.python_executable).expanduser().resolve().parent
+        )
+        started_environment["PATH"] = os.pathsep.join(
+            [
+                python_bin,
+                started_environment.get("PATH", ""),
+            ]
+        ).rstrip(os.pathsep)
         deadline_limited = False
         deadline_expired = False
         if request.deadline_monotonic is not None:
@@ -502,6 +511,11 @@ class MatPlotAgentProvider(ExternalBaselineProvider):
             manifest_source=Path(request.spec.dataset_manifest_path),
         )
         copied_tables = _copy_inputs(tables, request.output_dir / "workspace")
+        if len(copied_tables) == 1:
+            shutil.copy2(
+                copied_tables[0],
+                request.output_dir / "workspace" / "data.csv",
+            )
         instruction = _case_instruction(case)
         config_path = request.output_dir / "baseline_input.json"
         result_path = request.output_dir / "driver_result.json"
