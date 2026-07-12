@@ -468,6 +468,11 @@ def _llm_generate_slots(
     ]
     model_response = (model_client or _get_model_client()).generate_json(
         messages,
+        max_tokens=(
+            int(os.getenv("L1_MAX_TOKENS", "4096"))
+            if stage == "L1"
+            else None
+        ),
         seed=seed,
         temperature=temperature,
     )

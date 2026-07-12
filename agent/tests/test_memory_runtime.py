@@ -588,6 +588,9 @@ def test_model_initial_generation_calls_all_stages_with_sampling_controls(
     )
 
     assert len(client.calls) == 4
+    assert next(
+        call for call in client.calls if "(L1)" in str(call["messages"][-1]["content"])
+    )["max_tokens"] == 4096
     assert {call["seed"] for call in client.calls} == {17}
     assert {call["temperature"] for call in client.calls} == {0.65}
     assert all(
