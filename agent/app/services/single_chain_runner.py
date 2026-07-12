@@ -73,6 +73,24 @@ Rules:
 - Function bodies must end with `return ...` (or equivalent) and avoid def/class/with/try blocks.
 """ % _FORBIDDEN_APIS
 
+L1_OUTPUT_CONTRACT = """Output must be JSON (no extra commentary).
+{
+  "slots": {
+    "spec.compose": { "<complete overlay-based spec object>": "..." },
+    "spec.theme_defaults": { "<theme key>": "<JSON value>" }
+  },
+  "notes": "<design intent / risks>"
+}
+Rules:
+- Return JSON objects for both L1 slots, never Python source strings.
+- `spec.compose` must be the complete resulting spec and contain canvas, flags,
+  layout, theme, scales, and a non-empty overlays list.
+- Each overlay must use real column names from the data profile and must contain
+  mark, variant, x, y, group, yaxis, and style.
+- Use `spec.theme_defaults: {}` when no theme additions are needed.
+- Do not reference runtime variables or invent fields such as `spec['n']`.
+"""
+
 SYSTEM_PROMPT = (
     "You are a visualization assembly expert who emits Matplotlib slot bodies for stages L1-L4."
     "Always obey the output contract and respond with valid JSON only."
@@ -357,7 +375,8 @@ if ax_right:
             "Apply hard constraints exactly. Treat eligible patch templates as guarded "
             "examples only; adapt them to the current anchors and never use a rejected template."
         )
-    return f"{body}\n\n{OUTPUT_CONTRACT}"
+    contract = L1_OUTPUT_CONTRACT if stage == "L1" else OUTPUT_CONTRACT
+    return f"{body}\n\n{contract}"
 
 def _filter_forbidden_slot_content(stage: str, slots: Dict[str, str]) -> Tuple[Dict[str, str], Dict[str, str], Dict[str, str]]:
     filtered: Dict[str, str] = {}
@@ -460,7 +479,14 @@ def _llm_generate_slots(
     clean_slots: Dict[str, str] = {}
     for key, value in slots.items():
         if isinstance(key, str) and isinstance(value, str) and value.strip():
-            clean_slots[key.strip()] = value.strip()
+            normalized_body = value.strip()
+            if (
+                stage == "L1"
+                and key == "spec.theme_defaults"
+                and normalized_body in {"{}", "return {}"}
+            ):
+                normalized_body = "return spec"
+            clean_slots[key.strip()] = normalized_body
         elif (
             stage == "L1"
             and key == "spec.compose"

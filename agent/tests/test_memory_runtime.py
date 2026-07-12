@@ -532,6 +532,38 @@ def test_l1_structured_slots_are_compiled_without_eval() -> None:
     assert "theme.update" in result["slots"]["spec.theme_defaults"]
 
 
+def test_l1_empty_theme_string_preserves_spec() -> None:
+    class EmptyThemeClient:
+        def generate_json(self, messages, **kwargs):
+            del messages, kwargs
+            return ModelResponse(
+                value={
+                    "slots": {
+                        "spec.compose": "return spec",
+                        "spec.theme_defaults": "{}",
+                    }
+                },
+                model="fake",
+                request_id="empty-theme",
+                usage={},
+                stop_reason="end_turn",
+                latency_seconds=0.0,
+            )
+
+    result = single_runner._llm_generate_slots(
+        "L1",
+        {
+            "slot_keys": ["spec.compose", "spec.theme_defaults"],
+            "data_profile": {},
+            "intent": {},
+            "spec": {},
+            "memory_context": {},
+        },
+        model_client=EmptyThemeClient(),  # type: ignore[arg-type]
+    )
+    assert result["slots"]["spec.theme_defaults"] == "return spec"
+
+
 def test_model_initial_generation_calls_all_stages_with_sampling_controls(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
