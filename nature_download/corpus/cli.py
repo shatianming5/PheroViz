@@ -9,6 +9,12 @@ from pathlib import Path
 import re
 from typing import Any, Iterable
 
+from .cases import (
+    DEFAULT_MAX_ZIP_FILES,
+    DEFAULT_MAX_ZIP_UNCOMPRESSED_BYTES,
+    build_cases,
+    write_case_outputs,
+)
 from .discovery import (
     crossref_discover,
     crossref_lookup,
@@ -190,6 +196,23 @@ def cmd_split(args: argparse.Namespace) -> None:
     print(
         f"[done] Splits: {bundle['counts']} seed={bundle['seed']} "
         f"manifest_sha256={bundle['source_manifest_sha256']} out={args.out}"
+    )
+
+
+def cmd_build_cases(args: argparse.Namespace) -> None:
+    candidates, ambiguous, summary = build_cases(
+        corpus_manifest=args.corpus_manifest,
+        content_root=args.content_root,
+        output_root=args.out,
+        evidence_file=args.evidence,
+        max_zip_files=args.max_zip_files,
+        max_zip_uncompressed_bytes=args.max_zip_uncompressed_bytes,
+    )
+    write_case_outputs(args.out, candidates, ambiguous, summary)
+    print(
+        f"[done] Cases: candidates={summary['candidates']} "
+        f"ambiguous={summary['ambiguous']} verified={summary['verified']} "
+        f"eligible={summary['eligible_for_experiment']} out={args.out}"
     )
 
 
@@ -378,3 +401,27 @@ def add_corpus_subcommands(subparsers: argparse._SubParsersAction) -> None:
         help="Explicit YYYY-MM-DD cutoff; omitted means unconfigured strata",
     )
     split.set_defaults(func=cmd_split)
+
+    cases = subparsers.add_parser(
+        "build-cases",
+        help="Build fail-closed benchmark candidates from Source Data",
+    )
+    cases.add_argument("--corpus-manifest", required=True)
+    cases.add_argument("--content-root", required=True)
+    cases.add_argument("--out", required=True)
+    cases.add_argument(
+        "--evidence",
+        default=None,
+        help="Explicit human/external verification evidence JSON",
+    )
+    cases.add_argument(
+        "--max-zip-files",
+        type=int,
+        default=DEFAULT_MAX_ZIP_FILES,
+    )
+    cases.add_argument(
+        "--max-zip-uncompressed-bytes",
+        type=int,
+        default=DEFAULT_MAX_ZIP_UNCOMPRESSED_BYTES,
+    )
+    cases.set_defaults(func=cmd_build_cases)

@@ -14,6 +14,7 @@
 - **Source data 下载**：解析文章页的 “Source data” 区块，逐个保存附件并生成 manifest，支持大文件流式下载与超时控制。
 - **Provenance**：记录 DOI、期刊、年份、文章 URL、license 来源/证据/生效日、抓取时间、每个文件的 SHA-256、来源 URL、状态和拒绝原因。
 - **Paper-level split**：固定 seed、按 DOI 去重、保证 train/val/test 不交叉，记录源 manifest SHA-256；model cutoff 只能由 `--model-cutoff-date` 显式传入。
+- **Benchmark candidates**：安全展开 Source Data ZIP，仅识别 CSV/XLSX，并按文件名保守关联 figure/panel；自动候选永远是 `unverified`。
 
 ## 快速开始
 - 使用 Python 3.10+；运行时不会安装依赖，缺失依赖会明确退出：
@@ -51,6 +52,17 @@
     --out outputs/corpus_splits
   ```
   `--model-cutoff-date` 必须来自对应模型供应方的可核验文档；未知时省略，输出会明确记录为 `unconfigured`。
+- 从已下载 Source Data 构建 fail-closed case skeleton（不调用 LLM）：
+  ```bash
+  python nature_all_in_one.py build-cases \
+    --corpus-manifest outputs/corpus_manifest/corpus_manifest.jsonl \
+    --content-root outputs/nature_content \
+    --out outputs/benchmark_candidates
+  ```
+  输出 `candidates.jsonl`、`ambiguous.jsonl`、`summary.json`。未提供有效
+  `--evidence` 时所有候选均为 `unverified` 且
+  `eligible_for_experiment=false`。ZIP 默认最多 1,000 个文件、512 MiB
+  总展开大小，并拒绝绝对路径、zip-slip、symlink、特殊文件和加密成员。
 - 基础检索（合规、不抓取）：
   ```bash
   python nature_all_in_one.py search \
