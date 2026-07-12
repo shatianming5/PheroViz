@@ -31,6 +31,15 @@ class ProviderUnavailableError(ProviderError):
 class ProviderExecutionError(ProviderError):
     """Raised when a provider does not produce a valid real candidate."""
 
+    def __init__(
+        self,
+        message: str,
+        *,
+        artifacts: Optional[Mapping[str, str]] = None,
+    ) -> None:
+        super().__init__(message)
+        self.artifacts = dict(artifacts or {})
+
 
 @dataclass(frozen=True)
 class CandidateResult:

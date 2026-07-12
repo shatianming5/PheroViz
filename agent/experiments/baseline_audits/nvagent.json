@@ -1,0 +1,201 @@
+{
+  "audit_version": "1.0",
+  "generated_at": "2026-07-12T15:00:56.335307Z",
+  "inventory": {
+    "actual_interface": {
+      "api_configuration": "AzureOpenAI environment consumed by core/llm.py; upstream core/api_config.py contains placeholders",
+      "entrypoint": "core.chat_manager:ChatManager",
+      "inputs": [
+        "natural-language query",
+        "db_id",
+        "list of CSV table paths",
+        "matplotlib library selector"
+      ],
+      "kind": "Importable ChatManager; evaluation CLI has hard-coded paths",
+      "multi_table": "supported: Processor iterates table paths and Validator reads every CSV in databases/<db_id>",
+      "outputs": [
+        "generated Python code",
+        "SVG via execute_to_svg",
+        "API log"
+      ]
+    },
+    "adapter_outputs": [
+      "generated code",
+      "SVG",
+      "subprocess/API logs"
+    ],
+    "adapter_track": "table(s) plus natural-language instruction",
+    "dependency_manifest": "requirements.txt",
+    "limitations": [
+      "run_evaluate.py hard-codes dataset and webdriver paths.",
+      "The adapter uses ChatManager directly and preserves its multi-table list.",
+      "The upstream repository root declares no license file."
+    ],
+    "source_evidence": [
+      "run_evaluate.py:8-43",
+      "core/chat_manager.py:39-103",
+      "core/agents.py:167-264",
+      "core/agents.py:1053-1130",
+      "core/llm.py:33-109",
+      "core/api_config.py:1-17",
+      "viseval/dataset.py:8-58"
+    ]
+  },
+  "preflight": {
+    "actual_commit": "a37209e675813a25241e83f2fe56a87657a49ef6",
+    "baseline": "nvAgent",
+    "checks": [
+      {
+        "detail": "root matches checkout",
+        "name": "git_repository",
+        "ok": true
+      },
+      {
+        "detail": "matches registry",
+        "name": "origin",
+        "ok": true
+      },
+      {
+        "detail": "a37209e675813a25241e83f2fe56a87657a49ef6",
+        "name": "commit",
+        "ok": true
+      },
+      {
+        "detail": "clean",
+        "name": "clean_worktree",
+        "ok": true
+      },
+      {
+        "detail": "present",
+        "name": "required_file:core/chat_manager.py",
+        "ok": true
+      },
+      {
+        "detail": "present",
+        "name": "required_file:core/agents.py",
+        "ok": true
+      },
+      {
+        "detail": "present",
+        "name": "required_file:core/api_config.py",
+        "ok": true
+      },
+      {
+        "detail": "present",
+        "name": "required_file:requirements.txt",
+        "ok": true
+      },
+      {
+        "detail": "no root license file; registry records not_declared",
+        "name": "license",
+        "ok": true
+      },
+      {
+        "detail": "missing",
+        "name": "env:NVAGENT_AZURE_OPENAI_API_KEY",
+        "ok": false
+      },
+      {
+        "detail": "missing",
+        "name": "env:NVAGENT_AZURE_OPENAI_ENDPOINT",
+        "ok": false
+      },
+      {
+        "detail": "missing",
+        "name": "env:NVAGENT_OPENAI_API_VERSION",
+        "ok": false
+      },
+      {
+        "detail": "python",
+        "name": "python_executable",
+        "ok": true
+      },
+      {
+        "detail": "available",
+        "name": "dependency:openai",
+        "ok": true
+      },
+      {
+        "detail": "missing",
+        "name": "dependency:duckdb",
+        "ok": false
+      },
+      {
+        "detail": "available",
+        "name": "dependency:pandas",
+        "ok": true
+      },
+      {
+        "detail": "available",
+        "name": "dependency:matplotlib",
+        "ok": true
+      },
+      {
+        "detail": "available",
+        "name": "dependency:seaborn",
+        "ok": true
+      },
+      {
+        "detail": "missing",
+        "name": "dependency:sqlglot",
+        "ok": false
+      },
+      {
+        "detail": "missing",
+        "name": "dependency:func_timeout",
+        "ok": false
+      },
+      {
+        "detail": "available",
+        "name": "dependency:attr",
+        "ok": true
+      },
+      {
+        "detail": "available",
+        "name": "dependency:tqdm",
+        "ok": true
+      }
+    ],
+    "entrypoints": {
+      "workflow": "core.chat_manager:ChatManager"
+    },
+    "expected_commit": "a37209e675813a25241e83f2fe56a87657a49ef6",
+    "input_track": "table_nl_instruction",
+    "license_status": "not_declared",
+    "ready": false,
+    "repo_url": "https://github.com/geliang0114/nvAgent"
+  },
+  "registry": {
+    "checkpoint_env": null,
+    "commit": "a37209e675813a25241e83f2fe56a87657a49ef6",
+    "dependency_modules": [
+      "openai",
+      "duckdb",
+      "pandas",
+      "matplotlib",
+      "seaborn",
+      "sqlglot",
+      "func_timeout",
+      "attr",
+      "tqdm"
+    ],
+    "entrypoints": {
+      "workflow": "core.chat_manager:ChatManager"
+    },
+    "input_track": "table_nl_instruction",
+    "license_status": "not_declared",
+    "name": "nvAgent",
+    "repo_url": "https://github.com/geliang0114/nvAgent",
+    "required_env": [
+      "NVAGENT_AZURE_OPENAI_API_KEY",
+      "NVAGENT_AZURE_OPENAI_ENDPOINT",
+      "NVAGENT_OPENAI_API_VERSION"
+    ],
+    "required_files": [
+      "core/chat_manager.py",
+      "core/agents.py",
+      "core/api_config.py",
+      "requirements.txt"
+    ]
+  }
+}

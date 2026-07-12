@@ -1,0 +1,138 @@
+{
+  "audit_version": "1.0",
+  "generated_at": "2026-07-12T15:00:55.726206Z",
+  "inventory": {
+    "actual_interface": {
+      "api_configuration": "local checkpoint; no hosted API",
+      "checkpoint": "inference.py hard-codes /mnt/afs/chartcoder; adapter replaces only the loader argument from CHARTCODER_CHECKPOINT",
+      "entrypoint": "inference.py:ChartCoder",
+      "inputs": [
+        "instruction",
+        "reference chart image"
+      ],
+      "kind": "Python class; no runnable CLI",
+      "outputs": [
+        "model response containing plotting code"
+      ]
+    },
+    "adapter_outputs": [
+      "generated code",
+      "executed PNG",
+      "execution log"
+    ],
+    "adapter_track": "image-to-code reconstruction only",
+    "dependency_manifest": "requirements.txt and pyproject.toml",
+    "limitations": [
+      "Reference image and local checkpoint are mandatory.",
+      "The upstream class assumes CUDA via .cuda().",
+      "The upstream repository root declares no license file."
+    ],
+    "source_evidence": [
+      "inference.py:12-56",
+      "README.md:44-61",
+      "README.md:85-86",
+      "pyproject.toml:8-62"
+    ]
+  },
+  "preflight": {
+    "actual_commit": "47d965c971be15eebc5bd495c87efcfa34b2016a",
+    "baseline": "ChartCoder",
+    "checks": [
+      {
+        "detail": "root matches checkout",
+        "name": "git_repository",
+        "ok": true
+      },
+      {
+        "detail": "matches registry",
+        "name": "origin",
+        "ok": true
+      },
+      {
+        "detail": "47d965c971be15eebc5bd495c87efcfa34b2016a",
+        "name": "commit",
+        "ok": true
+      },
+      {
+        "detail": "clean",
+        "name": "clean_worktree",
+        "ok": true
+      },
+      {
+        "detail": "present",
+        "name": "required_file:inference.py",
+        "ok": true
+      },
+      {
+        "detail": "present",
+        "name": "required_file:llava/model/builder.py",
+        "ok": true
+      },
+      {
+        "detail": "present",
+        "name": "required_file:requirements.txt",
+        "ok": true
+      },
+      {
+        "detail": "no root license file; registry records not_declared",
+        "name": "license",
+        "ok": true
+      },
+      {
+        "detail": "required checkpoint path is missing",
+        "name": "checkpoint:CHARTCODER_CHECKPOINT",
+        "ok": false
+      },
+      {
+        "detail": "python",
+        "name": "python_executable",
+        "ok": true
+      },
+      {
+        "detail": "available",
+        "name": "dependency:torch",
+        "ok": true
+      },
+      {
+        "detail": "available",
+        "name": "dependency:PIL",
+        "ok": true
+      },
+      {
+        "detail": "available",
+        "name": "dependency:transformers",
+        "ok": true
+      }
+    ],
+    "entrypoints": {
+      "reconstruction": "inference.py:ChartCoder"
+    },
+    "expected_commit": "47d965c971be15eebc5bd495c87efcfa34b2016a",
+    "input_track": "image_to_code_reconstruction",
+    "license_status": "not_declared",
+    "ready": false,
+    "repo_url": "https://github.com/thunlp/ChartCoder"
+  },
+  "registry": {
+    "checkpoint_env": "CHARTCODER_CHECKPOINT",
+    "commit": "47d965c971be15eebc5bd495c87efcfa34b2016a",
+    "dependency_modules": [
+      "torch",
+      "PIL",
+      "transformers"
+    ],
+    "entrypoints": {
+      "reconstruction": "inference.py:ChartCoder"
+    },
+    "input_track": "image_to_code_reconstruction",
+    "license_status": "not_declared",
+    "name": "ChartCoder",
+    "repo_url": "https://github.com/thunlp/ChartCoder",
+    "required_env": [],
+    "required_files": [
+      "inference.py",
+      "llava/model/builder.py",
+      "requirements.txt"
+    ]
+  }
+}

@@ -180,7 +180,23 @@ def run_schedule(
             ),
         )
 
-        raw_batch = provider.generate(request)
+        try:
+            raw_batch = provider.generate(request)
+        except ProviderExecutionError as exc:
+            for label, raw_path in sorted(exc.artifacts.items()):
+                relative, digest = _normalize_artifact(
+                    raw_path,
+                    run_dir=run_dir,
+                )
+                key = f"failure.call_{call_index:04d}.{label}"
+                record.artifact_paths[key] = relative
+                record.artifact_hashes[key] = digest
+            record.wall_clock_seconds = max(
+                monotonic() - execution_started,
+                0.0,
+            )
+            persist()
+            raise
         batch = (
             raw_batch
             if isinstance(raw_batch, ProviderBatch)

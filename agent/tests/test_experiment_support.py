@@ -51,6 +51,7 @@ def make_spec(
     budget_type: str = "renders",
     budget_value: float = 3,
     provider: str = "tests.test_experiment_support:TestOnlySequenceProvider",
+    selection_metric: str = "score",
 ) -> ExperimentSpec:
     manifest = workspace / "dataset_manifest.json"
     if not manifest.exists():
@@ -74,7 +75,7 @@ def make_spec(
     ).stdout.strip()
     metric_config = {
         "selection": {
-            "metric": "score",
+            "metric": selection_metric,
             "direction": "maximize",
         }
     }

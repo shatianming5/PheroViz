@@ -1,0 +1,170 @@
+{
+  "audit_version": "1.0",
+  "generated_at": "2026-07-12T15:00:55.980252Z",
+  "inventory": {
+    "actual_interface": {
+      "api_configuration": "agents/config/openai.py constants or OpenAI-compatible local servers from models/model_config.py",
+      "entrypoints": {
+        "direct": "one_time_generate.py:mainworkflow",
+        "workflow": "workflow.py:mainworkflow"
+      },
+      "inputs": [
+        "workspace containing table files",
+        "simple instruction",
+        "expert instruction for workflow",
+        "model_type"
+      ],
+      "kind": "CLI scripts plus importable mainworkflow functions",
+      "outputs": [
+        "code_action_*.py",
+        "PNG requested by the prompt",
+        "workflow log"
+      ]
+    },
+    "adapter_outputs": [
+      "generated code",
+      "PNG",
+      "subprocess logs"
+    ],
+    "adapter_track": "table plus instruction",
+    "dependency_manifest": "requirements.txt",
+    "limitations": [
+      "Top-level CLIs hard-code the upstream benchmark data directory.",
+      "Adapter invokes the real mainworkflow in an external work directory.",
+      "The upstream repository root declares no license file."
+    ],
+    "source_evidence": [
+      "one_time_generate.py:14-73",
+      "workflow.py:15-153",
+      "agents/plot_agent/agent.py:12-197",
+      "agents/openai_chatComplete.py:17-71",
+      "agents/config/openai.py:1-3",
+      "models/model_config.py:1-32"
+    ]
+  },
+  "preflight": {
+    "actual_commit": "9cafa262aae7bdf85fccf6d02b2153fb772bc376",
+    "baseline": "MatPlotAgent",
+    "checks": [
+      {
+        "detail": "root matches checkout",
+        "name": "git_repository",
+        "ok": true
+      },
+      {
+        "detail": "matches registry",
+        "name": "origin",
+        "ok": true
+      },
+      {
+        "detail": "9cafa262aae7bdf85fccf6d02b2153fb772bc376",
+        "name": "commit",
+        "ok": true
+      },
+      {
+        "detail": "clean",
+        "name": "clean_worktree",
+        "ok": true
+      },
+      {
+        "detail": "present",
+        "name": "required_file:one_time_generate.py",
+        "ok": true
+      },
+      {
+        "detail": "present",
+        "name": "required_file:workflow.py",
+        "ok": true
+      },
+      {
+        "detail": "present",
+        "name": "required_file:agents/plot_agent/agent.py",
+        "ok": true
+      },
+      {
+        "detail": "present",
+        "name": "required_file:agents/config/openai.py",
+        "ok": true
+      },
+      {
+        "detail": "present",
+        "name": "required_file:requirements.txt",
+        "ok": true
+      },
+      {
+        "detail": "no root license file; registry records not_declared",
+        "name": "license",
+        "ok": true
+      },
+      {
+        "detail": "missing",
+        "name": "env:MATPLOTAGENT_API_KEY",
+        "ok": false
+      },
+      {
+        "detail": "missing",
+        "name": "env:MATPLOTAGENT_BASE_URL",
+        "ok": false
+      },
+      {
+        "detail": "python",
+        "name": "python_executable",
+        "ok": true
+      },
+      {
+        "detail": "available",
+        "name": "dependency:openai",
+        "ok": true
+      },
+      {
+        "detail": "available",
+        "name": "dependency:tenacity",
+        "ok": true
+      },
+      {
+        "detail": "available",
+        "name": "dependency:matplotlib",
+        "ok": true
+      }
+    ],
+    "entrypoints": {
+      "direct": "one_time_generate.py:mainworkflow",
+      "one_time": "one_time_generate.py:mainworkflow",
+      "workflow": "workflow.py:mainworkflow"
+    },
+    "expected_commit": "9cafa262aae7bdf85fccf6d02b2153fb772bc376",
+    "input_track": "table_instruction",
+    "license_status": "not_declared",
+    "ready": false,
+    "repo_url": "https://github.com/thunlp/MatPlotAgent"
+  },
+  "registry": {
+    "checkpoint_env": null,
+    "commit": "9cafa262aae7bdf85fccf6d02b2153fb772bc376",
+    "dependency_modules": [
+      "openai",
+      "tenacity",
+      "matplotlib"
+    ],
+    "entrypoints": {
+      "direct": "one_time_generate.py:mainworkflow",
+      "one_time": "one_time_generate.py:mainworkflow",
+      "workflow": "workflow.py:mainworkflow"
+    },
+    "input_track": "table_instruction",
+    "license_status": "not_declared",
+    "name": "MatPlotAgent",
+    "repo_url": "https://github.com/thunlp/MatPlotAgent",
+    "required_env": [
+      "MATPLOTAGENT_API_KEY",
+      "MATPLOTAGENT_BASE_URL"
+    ],
+    "required_files": [
+      "one_time_generate.py",
+      "workflow.py",
+      "agents/plot_agent/agent.py",
+      "agents/config/openai.py",
+      "requirements.txt"
+    ]
+  }
+}
