@@ -177,6 +177,28 @@ def test_vision_uses_anthropic_image_format(tmp_path: Path) -> None:
     assert source["data"]
 
 
+def test_vision_uses_detected_media_type_not_suffix(tmp_path: Path) -> None:
+    image = tmp_path / "mislabeled.png"
+    Image.new("RGB", (4, 4), (255, 0, 0)).save(image, format="WEBP")
+    session = FakeSession(
+        [
+            FakeResponse(
+                {
+                    "model": "claude-sonnet-4-6",
+                    "content": [{"type": "text", "text": '{"ok": true}'}],
+                }
+            )
+        ]
+    )
+    ModelClient(config(), session=session).evaluate_image_json(
+        "inspect",
+        image,
+        model="claude-sonnet-4.6",
+    )
+    source = session.calls[0]["json"]["messages"][0]["content"][0]["source"]
+    assert source["media_type"] == "image/webp"
+
+
 def test_invalid_json_fails_explicitly() -> None:
     session = FakeSession(
         [FakeResponse({"choices": [{"message": {"content": "not json"}}]})]

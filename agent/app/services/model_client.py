@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 import requests
+from PIL import Image
 
 
 class ModelClientError(RuntimeError):
@@ -322,6 +323,19 @@ class ModelClient:
 
 
 def _image_media_type(path: Path) -> str:
+    format_media_types = {
+        "PNG": "image/png",
+        "JPEG": "image/jpeg",
+        "GIF": "image/gif",
+        "WEBP": "image/webp",
+    }
+    try:
+        with Image.open(path) as image:
+            detected = format_media_types.get(str(image.format or "").upper())
+    except (OSError, ValueError):
+        detected = None
+    if detected is not None:
+        return detected
     suffix = path.suffix.lower()
     media_types = {
         ".png": "image/png",
