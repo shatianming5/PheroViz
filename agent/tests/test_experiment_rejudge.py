@@ -16,6 +16,8 @@ from experiments.models import RunRecord, sha256_file, sha256_json
 from experiments.production_statistics import load_provenance_summary
 from experiments.providers import CandidateResult, GenerationRequest
 from experiments.rejudge import (
+    CodeGitState,
+    RejudgeError,
     SIDECAR_BATCH_FILENAME,
     VISUAL_FORM_RUBRIC_HASH,
     merge_rejudged_summary,
@@ -97,6 +99,18 @@ class FakeModelClient:
         )
 
 
+CLEAN_CODE_COMMIT = "d" * 40
+
+
+@pytest.fixture(autouse=True)
+def _clean_rejudge_git_state(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        rejudge_module,
+        "_current_git_state",
+        lambda: CodeGitState(commit=CLEAN_CODE_COMMIT, dirty=False),
+    )
+
+
 def _create_run(
     workspace: Path,
     *,
@@ -165,12 +179,17 @@ def test_rejudge_binds_best_render_is_read_only_and_resumes() -> None:
         assert payload["judge_request_model"] == "judge/model-v1"
         assert payload["judge_served_model"] == "served-judge-v2"
         assert payload["rubric_hash"] == VISUAL_FORM_RUBRIC_HASH
+        assert payload["code_git_commit"] == CLEAN_CODE_COMMIT
+        assert payload["code_git_dirty"] is False
         assert payload["score"] == 0.75
         assert payload["usage"] == {"input_tokens": 10, "output_tokens": 5}
         unhashed = dict(payload)
         sidecar_hash = unhashed.pop("sidecar_hash")
         assert sidecar_hash == sha256_json(unhashed)
         assert _run_snapshot(run_dir) == before
+        batch = json.loads(first.batch_path.read_text(encoding="utf-8"))
+        assert batch["code_git_commit"] == CLEAN_CODE_COMMIT
+        assert batch["code_git_dirty"] is False
 
         resumed = rejudge_batch(
             run_root,
@@ -184,6 +203,52 @@ def test_rejudge_binds_best_render_is_read_only_and_resumes() -> None:
         assert resumed.resumed == (record.run_name,)
         assert len(client.calls) == 1
         assert _run_snapshot(run_dir) == before
+
+
+def test_resume_rejects_rejudge_code_commit_mismatch() -> None:
+    with experiment_workspace("rejudge-commit-mismatch") as workspace:
+        spec, _ = _create_run(workspace, scores=(0.8,))
+        sidecar_dir = workspace / "sidecars"
+        client = FakeModelClient()
+        first = rejudge_batch(
+            Path(spec.artifact_root),
+            judge_model="judge-a",
+            output_dir=sidecar_dir,
+            model_client=client,
+            git_state=CodeGitState(commit="a" * 40, dirty=False),
+        )
+        assert first.exit_code == 0
+
+        resumed = rejudge_batch(
+            Path(spec.artifact_root),
+            judge_model="judge-a",
+            output_dir=sidecar_dir,
+            resume=True,
+            model_client=client,
+            git_state=CodeGitState(commit="b" * 40, dirty=False),
+        )
+
+        assert resumed.exit_code == 1
+        assert "code_git_commit" in resumed.failures[0]["message"]
+        assert len(client.calls) == 1
+
+
+def test_dirty_rejudge_code_is_rejected_by_default() -> None:
+    with experiment_workspace("rejudge-dirty") as workspace:
+        spec, _ = _create_run(workspace, scores=(0.8,))
+        client = FakeModelClient()
+
+        with pytest.raises(RejudgeError, match="worktree is dirty"):
+            rejudge_batch(
+                Path(spec.artifact_root),
+                judge_model="judge-a",
+                output_dir=workspace / "sidecars",
+                model_client=client,
+                git_state=CodeGitState(commit="a" * 40, dirty=True),
+            )
+
+        assert client.calls == []
+        assert not (workspace / "sidecars").exists()
 
 
 def test_resume_rejects_tampered_sidecar() -> None:
@@ -309,6 +374,8 @@ def test_merge_creates_new_hashed_summary_and_preserves_original() -> None:
         assert merged["runs"][0][metric] == 0.61
         assert merged["runs"][0]["record_hash"] == record.record_hash
         assert metric in merged["columns"]
+        assert merged["rejudge"]["code_git_commit"] == CLEAN_CODE_COMMIT
+        assert merged["rejudge"]["code_git_dirty"] is False
         validated = load_provenance_summary(merged_path)
         assert validated.summary_hash == merged["summary_hash"]
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import math
 import re
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Mapping, Sequence
@@ -29,6 +30,7 @@ REJUDGE_SCHEMA_VERSION = "1.0"
 REJUDGED_SUMMARY_VERSION = "1.0"
 SIDECAR_BATCH_FILENAME = "rejudge_batch.json"
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+_GIT_COMMIT_RE = re.compile(r"^[0-9a-f]{7,64}$")
 _IMAGE_LABELS = ("combined", "combined_figure", "render")
 _TRUNCATED_STOP_REASONS = {
     "length",
@@ -65,6 +67,12 @@ VISUAL_FORM_PROMPT = (
 
 class RejudgeError(ProvenanceError):
     """Raised when post-hoc visual rejudging cannot remain provenance-safe."""
+
+
+@dataclass(frozen=True)
+class CodeGitState:
+    commit: str
+    dirty: bool
 
 
 @dataclass(frozen=True)
@@ -108,6 +116,59 @@ class RejudgeBatchResult:
 
 def judge_slug(model: str) -> str:
     return slug_identifier(model).lower()
+
+
+def _current_git_state() -> CodeGitState:
+    repo_root = Path(__file__).resolve().parents[2]
+    try:
+        commit = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=repo_root,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        status = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=repo_root,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise RejudgeError(f"Cannot resolve rejudge code git state: {exc}") from exc
+    return CodeGitState(commit=commit, dirty=bool(status.strip()))
+
+
+def _resolve_git_state(
+    git_state: CodeGitState | Mapping[str, Any] | None,
+    *,
+    allow_dirty: bool,
+) -> CodeGitState:
+    if git_state is None:
+        resolved = _current_git_state()
+    elif isinstance(git_state, CodeGitState):
+        resolved = git_state
+    elif isinstance(git_state, Mapping):
+        if set(git_state) != {"commit", "dirty"}:
+            raise RejudgeError(
+                "Injected git_state must contain exactly commit and dirty"
+            )
+        resolved = CodeGitState(
+            commit=str(git_state["commit"]),
+            dirty=git_state["dirty"],
+        )
+    else:
+        raise RejudgeError("git_state must be CodeGitState, mapping, or None")
+    if not _GIT_COMMIT_RE.fullmatch(resolved.commit):
+        raise RejudgeError("Rejudge code commit is missing or malformed")
+    if not isinstance(resolved.dirty, bool):
+        raise RejudgeError("Rejudge code dirty flag must be boolean")
+    if resolved.dirty and not allow_dirty:
+        raise RejudgeError(
+            "Rejudge code worktree is dirty; refusing uncommitted metric output"
+        )
+    return resolved
 
 
 def _default_output_dir(source: Path, model: str) -> Path:
@@ -290,6 +351,7 @@ def _binding_fields(
     sealed: SealedRender,
     *,
     request_model: str,
+    code_git_state: CodeGitState,
 ) -> Dict[str, Any]:
     return {
         "run_name": sealed.record.run_name,
@@ -300,6 +362,8 @@ def _binding_fields(
         "judge_request_model": request_model,
         "judge_slug": judge_slug(request_model),
         "rubric_hash": VISUAL_FORM_RUBRIC_HASH,
+        "code_git_commit": code_git_state.commit,
+        "code_git_dirty": code_git_state.dirty,
     }
 
 
@@ -308,8 +372,13 @@ def _validate_resume_binding(
     sealed: SealedRender,
     *,
     request_model: str,
+    code_git_state: CodeGitState,
 ) -> None:
-    expected = _binding_fields(sealed, request_model=request_model)
+    expected = _binding_fields(
+        sealed,
+        request_model=request_model,
+        code_git_state=code_git_state,
+    )
     mismatches = [
         name for name, value in expected.items() if payload.get(name) != value
     ]
@@ -374,6 +443,11 @@ def _validate_completed_sidecar(payload: Mapping[str, Any]) -> None:
             raise RejudgeError(
                 f"Completed sidecar has invalid {name}: {payload.get('run_name')!r}"
             )
+    commit = payload.get("code_git_commit")
+    if not isinstance(commit, str) or not _GIT_COMMIT_RE.fullmatch(commit):
+        raise RejudgeError("Completed sidecar has invalid code_git_commit")
+    if not isinstance(payload.get("code_git_dirty"), bool):
+        raise RejudgeError("Completed sidecar has invalid code_git_dirty")
     usage = payload.get("usage")
     if not isinstance(usage, Mapping):
         raise RejudgeError("Completed sidecar usage must be an object")
@@ -397,12 +471,17 @@ def _success_sidecar(
     response: ModelResponse,
     *,
     request_model: str,
+    code_git_state: CodeGitState,
 ) -> Dict[str, Any]:
     score, diagnostics = _validate_model_response(response)
     payload = {
         "schema_version": REJUDGE_SCHEMA_VERSION,
         "status": "completed",
-        **_binding_fields(sealed, request_model=request_model),
+        **_binding_fields(
+            sealed,
+            request_model=request_model,
+            code_git_state=code_git_state,
+        ),
         "judge_served_model": response.model,
         "judge_request_id": response.request_id,
         "usage": dict(response.usage),
@@ -419,12 +498,17 @@ def _failure_sidecar(
     sealed: SealedRender,
     *,
     request_model: str,
+    code_git_state: CodeGitState,
     error: Exception,
 ) -> Dict[str, Any]:
     payload = {
         "schema_version": REJUDGE_SCHEMA_VERSION,
         "status": "failed",
-        **_binding_fields(sealed, request_model=request_model),
+        **_binding_fields(
+            sealed,
+            request_model=request_model,
+            code_git_state=code_git_state,
+        ),
         "judge_served_model": None,
         "usage": {},
         "stop_reason": None,
@@ -446,10 +530,16 @@ def rejudge_batch(
     output_dir: Path | None = None,
     resume: bool = False,
     model_client: Any = None,
+    allow_dirty: bool = False,
+    git_state: CodeGitState | Mapping[str, Any] | None = None,
 ) -> RejudgeBatchResult:
     request_model = judge_model.strip()
     if not request_model:
         raise RejudgeError("judge_model must be non-empty")
+    code_git_state = _resolve_git_state(
+        git_state,
+        allow_dirty=allow_dirty,
+    )
     source = source.expanduser().resolve()
     targets = _discover_targets(source)
     sidecar_names = [
@@ -494,6 +584,7 @@ def rejudge_batch(
                     existing,
                     sealed,
                     request_model=request_model,
+                    code_git_state=code_git_state,
                 )
                 if existing.get("status") == "completed":
                     _validate_completed_sidecar(existing)
@@ -518,6 +609,7 @@ def rejudge_batch(
                 sealed,
                 response,
                 request_model=request_model,
+                code_git_state=code_git_state,
             )
             write_json_atomic(sidecar_path, payload)
             completed.append(target.run_name)
@@ -539,6 +631,7 @@ def rejudge_batch(
                         existing,
                         sealed,
                         request_model=request_model,
+                        code_git_state=code_git_state,
                     )
                 except Exception:
                     continue
@@ -547,6 +640,7 @@ def rejudge_batch(
             payload = _failure_sidecar(
                 sealed,
                 request_model=request_model,
+                code_git_state=code_git_state,
                 error=exc,
             )
             write_json_atomic(sidecar_path, payload)
@@ -559,6 +653,8 @@ def rejudge_batch(
         "judge_request_model": request_model,
         "judge_slug": judge_slug(request_model),
         "rubric_hash": VISUAL_FORM_RUBRIC_HASH,
+        "code_git_commit": code_git_state.commit,
+        "code_git_dirty": code_git_state.dirty,
         "started_at": started_at,
         "finished_at": utc_now(),
         "status": "failed" if failures else "completed",
@@ -602,6 +698,14 @@ def _load_completed_sidecars(sidecar_dir: Path) -> Dict[str, Dict[str, Any]]:
     expected_hashes = batch.get("sidecar_hashes")
     if not isinstance(expected_hashes, Mapping):
         raise RejudgeError("Rejudge batch has no sidecar_hashes")
+    batch_commit = batch.get("code_git_commit")
+    if not isinstance(batch_commit, str) or not _GIT_COMMIT_RE.fullmatch(
+        batch_commit
+    ):
+        raise RejudgeError("Rejudge batch has invalid code_git_commit")
+    batch_dirty = batch.get("code_git_dirty")
+    if not isinstance(batch_dirty, bool):
+        raise RejudgeError("Rejudge batch has invalid code_git_dirty")
 
     sidecars: Dict[str, Dict[str, Any]] = {}
     for path in sorted(sidecar_dir.glob("*.json")):
@@ -614,6 +718,11 @@ def _load_completed_sidecars(sidecar_dir: Path) -> Dict[str, Dict[str, Any]]:
         if run_name in sidecars:
             raise RejudgeError(f"Duplicate sidecar run_name: {run_name}")
         _validate_completed_sidecar(payload)
+        if (
+            payload.get("code_git_commit") != batch_commit
+            or payload.get("code_git_dirty") != batch_dirty
+        ):
+            raise RejudgeError(f"Batch/sidecar code provenance mismatch: {run_name}")
         if expected_hashes.get(run_name) != payload.get("sidecar_hash"):
             raise RejudgeError(f"Batch/sidecar hash mismatch: {run_name}")
         sidecars[run_name] = payload
@@ -646,12 +755,27 @@ def merge_rejudged_summary(
     rubric_hashes = {
         str(sidecar.get("rubric_hash") or "") for sidecar in sidecars.values()
     }
+    code_commits = {
+        str(sidecar.get("code_git_commit") or "")
+        for sidecar in sidecars.values()
+    }
+    code_dirty_values = {
+        sidecar.get("code_git_dirty") for sidecar in sidecars.values()
+    }
     if len(slugs) != 1 or "" in slugs:
         raise RejudgeError("Sidecars mix or omit judge_slug")
     if len(rubric_hashes) != 1 or not _SHA256_RE.fullmatch(
         next(iter(rubric_hashes))
     ):
         raise RejudgeError("Sidecars mix or omit rubric_hash")
+    if len(code_commits) != 1 or not _GIT_COMMIT_RE.fullmatch(
+        next(iter(code_commits))
+    ):
+        raise RejudgeError("Sidecars mix or omit code_git_commit")
+    if len(code_dirty_values) != 1 or not all(
+        isinstance(value, bool) for value in code_dirty_values
+    ):
+        raise RejudgeError("Sidecars mix or omit code_git_dirty")
     slug = next(iter(slugs))
     metric_name = f"metric.visual_form.{slug}"
 
@@ -700,6 +824,8 @@ def merge_rejudged_summary(
             "judge_slug": slug,
             "metric": metric_name,
             "rubric_hash": next(iter(rubric_hashes)),
+            "code_git_commit": next(iter(code_commits)),
+            "code_git_dirty": next(iter(code_dirty_values)),
             "sidecar_hashes": {
                 run_name: sidecars[run_name]["sidecar_hash"]
                 for run_name in sorted(sidecars)
