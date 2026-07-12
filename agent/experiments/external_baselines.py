@@ -532,6 +532,8 @@ class MatPlotAgentProvider(ExternalBaselineProvider):
             "PYTHONPATH": str(self.repo_path),
             "PHEROVIZ_BASELINE_API_KEY": api_key,
             "PHEROVIZ_BASELINE_BASE_URL": base_url,
+            "OPENAI_API_KEY": api_key,
+            "OPENAI_BASE_URL": base_url,
         }
         visual_refine = bool(
             request.spec.method_config.get("visual_refine", True)

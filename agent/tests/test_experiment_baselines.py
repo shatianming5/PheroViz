@@ -20,8 +20,10 @@ from experiments.external_baselines import (
     BaselineInvocation,
     ChartCoderProvider,
     ExternalBaselineProvider,
+    MatPlotAgentProvider,
 )
 from experiments.harness import execute_experiment
+from experiments.manifest import DatasetCase
 from experiments.providers import GenerationRequest, ProviderExecutionError
 from tests.test_experiment_support import (
     experiment_workspace,
@@ -218,6 +220,40 @@ def test_preflight_rejects_commit_mismatch() -> None:
         ).ok
         with pytest.raises(BaselinePreflightError):
             require_preflight(report)
+
+
+def test_matplotagent_injects_standard_openai_environment() -> None:
+    with experiment_workspace("matplot-openai-env") as workspace:
+        table = workspace / "table.csv"
+        table.write_text("x,y\n1,2\n", encoding="utf-8")
+        spec = _external_spec(workspace)
+        request = _request(spec, workspace)
+        case = DatasetCase(
+            case_id="baseline-case",
+            panel_count=1,
+            split="test",
+            payload={
+                "input_track": "table_instruction",
+                "data_path": str(table),
+                "instruction": "Plot y against x.",
+            },
+        )
+        provider = MatPlotAgentProvider(
+            repo_path=workspace,
+            check_dependencies=False,
+            environ={
+                "MATPLOTAGENT_API_KEY": "test-key",
+                "MATPLOTAGENT_BASE_URL": "https://example.test/v1",
+            },
+        )
+
+        invocation = provider._prepare_invocation(request, case)
+
+        assert invocation.environment["OPENAI_API_KEY"] == "test-key"
+        assert (
+            invocation.environment["OPENAI_BASE_URL"]
+            == "https://example.test/v1"
+        )
 
 
 def test_preflight_rejects_dirty_repo() -> None:
