@@ -10,6 +10,11 @@ from .aggregate import AggregationError, aggregate_runs
 from .harness import ExistingRunError, execute_experiment
 from .matrix import MatrixError, load_and_expand_matrix
 from .models import ProvenanceError
+from .production_statistics import (
+    analyze_summary,
+    load_provenance_summary,
+    write_analysis_outputs,
+)
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -41,6 +46,29 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     aggregate_parser.add_argument("run_root", type=Path)
     aggregate_parser.add_argument("--output-dir", type=Path, default=None)
+
+    analyze_parser = subparsers.add_parser(
+        "analyze",
+        help="Run provenance-strict paired production statistics",
+    )
+    analyze_parser.add_argument("summary", type=Path)
+    analyze_parser.add_argument("--reference", required=True)
+    analyze_parser.add_argument("--methods", nargs="+", required=True)
+    analyze_parser.add_argument("--metric", required=True)
+    analyze_parser.add_argument("--second-judge-metric", default=None)
+    analyze_parser.add_argument("--out", type=Path, required=True)
+    analyze_parser.add_argument("--seed", type=int, default=17_029)
+    analyze_parser.add_argument(
+        "--bootstrap-resamples",
+        type=int,
+        default=10_000,
+    )
+    analyze_parser.add_argument(
+        "--permutations",
+        type=int,
+        default=100_000,
+    )
+    analyze_parser.add_argument("--exact-max-n", type=int, default=16)
     return parser
 
 
@@ -108,6 +136,35 @@ def _aggregate_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def _analyze_command(args: argparse.Namespace) -> int:
+    summary = load_provenance_summary(args.summary)
+    analysis = analyze_summary(
+        summary,
+        reference=args.reference,
+        methods=args.methods,
+        metric=args.metric,
+        second_judge_metric=args.second_judge_metric,
+        seed=args.seed,
+        bootstrap_resamples=args.bootstrap_resamples,
+        monte_carlo_permutations=args.permutations,
+        exact_max_n=args.exact_max_n,
+    )
+    json_path, csv_path = write_analysis_outputs(analysis, args.out)
+    print(
+        json.dumps(
+            {
+                "analysis_json": str(json_path),
+                "analysis_csv": str(csv_path),
+                "analysis_hash": analysis["analysis_hash"],
+            },
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
@@ -116,6 +173,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return _run_command(args)
         if args.command == "aggregate":
             return _aggregate_command(args)
+        if args.command == "analyze":
+            return _analyze_command(args)
     except (AggregationError, MatrixError, ProvenanceError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2

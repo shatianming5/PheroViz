@@ -4,7 +4,7 @@ import csv
 import io
 import os
 from pathlib import Path
-from typing import Any, Dict, Sequence
+from typing import Any, Dict, Mapping, Sequence
 
 from .manifest import load_dataset_manifest, select_case, verify_case_metadata
 from .models import (
@@ -82,6 +82,7 @@ def _summary_row(record: RunRecord) -> Dict[str, Any]:
         "started_at": record.started_at,
         "finished_at": record.finished_at,
         "status": record.status,
+        "test_only": record.test_only,
         "render_count": record.render_count,
         "wall_clock_seconds": record.wall_clock_seconds,
         "metric_version": record.metric_version,
@@ -129,8 +130,14 @@ def verify_frozen_manifest(record: RunRecord, run_dir: Path) -> Path:
     return frozen
 
 
+def _record_field(record: RunRecord | Mapping[str, Any], name: str) -> Any:
+    if isinstance(record, Mapping):
+        return record.get(name)
+    return getattr(record, name)
+
+
 def assert_paired_ready(
-    records: Sequence[RunRecord],
+    records: Sequence[RunRecord | Mapping[str, Any]],
     *,
     methods: Sequence[str],
     backbone: str,
@@ -144,26 +151,36 @@ def assert_paired_ready(
             "Paired comparison requires at least two unique methods"
         )
 
-    by_method: Dict[str, Dict[str, RunRecord]] = {
+    by_method: Dict[
+        str,
+        Dict[str, RunRecord | Mapping[str, Any]],
+    ] = {
         method: {} for method in method_names
     }
     for record in records:
         if (
-            record.status != "completed"
-            or record.method not in by_method
-            or record.backbone != backbone
-            or record.seed != seed
-            or record.budget_type != budget_type
-            or record.budget_value != budget_value
+            _record_field(record, "status") != "completed"
+            or _record_field(record, "method") not in by_method
+            or _record_field(record, "backbone") != backbone
+            or _record_field(record, "seed") != seed
+            or _record_field(record, "budget_type") != budget_type
+            or _record_field(record, "budget_value") != budget_value
         ):
             continue
-        method_cases = by_method[record.method]
-        if record.case_id in method_cases:
+        method = str(_record_field(record, "method"))
+        raw_case_id = _record_field(record, "case_id")
+        if not isinstance(raw_case_id, str) or not raw_case_id.strip():
             raise AggregationError(
-                f"Duplicate paired case {record.case_id!r} for method "
-                f"{record.method!r}"
+                f"Paired record for method {method!r} has no case_id"
             )
-        method_cases[record.case_id] = record
+        case_id = raw_case_id
+        method_cases = by_method[method]
+        if case_id in method_cases:
+            raise AggregationError(
+                f"Duplicate paired case {case_id!r} for method "
+                f"{method!r}"
+            )
+        method_cases[case_id] = record
 
     reference_method = method_names[0]
     reference = by_method[reference_method]
@@ -173,11 +190,23 @@ def assert_paired_ready(
         )
     reference_cases = set(reference)
     reference_hashes = {
-        record.dataset_manifest_hash for record in reference.values()
+        _record_field(record, "dataset_manifest_hash")
+        for record in reference.values()
     }
     if len(reference_hashes) != 1:
         raise AggregationError(
             f"Method {reference_method!r} mixes dataset manifests"
+        )
+    reference_configs = {
+        (
+            _record_field(record, "metric_config_hash"),
+            _record_field(record, "metric_version"),
+        )
+        for record in reference.values()
+    }
+    if len(reference_configs) != 1:
+        raise AggregationError(
+            f"Method {reference_method!r} mixes metric configurations"
         )
 
     for method in method_names[1:]:
@@ -195,18 +224,32 @@ def assert_paired_ready(
                 f"missing={missing}, extra={extra}"
             )
         manifest_hashes = {
-            record.dataset_manifest_hash for record in candidates.values()
+            _record_field(record, "dataset_manifest_hash")
+            for record in candidates.values()
         }
         if manifest_hashes != reference_hashes:
             raise AggregationError(
                 f"Paired methods use different dataset manifests: {method!r}"
             )
+        metric_configs = {
+            (
+                _record_field(record, "metric_config_hash"),
+                _record_field(record, "metric_version"),
+            )
+            for record in candidates.values()
+        }
+        if metric_configs != reference_configs:
+            raise AggregationError(
+                f"Paired methods use different metric configurations: {method!r}"
+            )
         for case_id in sorted(reference_cases):
             expected = reference[case_id]
             actual = candidates[case_id]
             if (
-                actual.panel_count != expected.panel_count
-                or actual.split != expected.split
+                _record_field(actual, "panel_count")
+                != _record_field(expected, "panel_count")
+                or _record_field(actual, "split")
+                != _record_field(expected, "split")
             ):
                 raise AggregationError(
                     f"Paired case metadata mismatch for {case_id!r}"
@@ -280,6 +323,7 @@ def aggregate_runs(
         "started_at",
         "finished_at",
         "status",
+        "test_only",
         "render_count",
         "wall_clock_seconds",
         "metric_version",
