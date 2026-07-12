@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+import os
 import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Mapping, Sequence
 
+from .manifest import (
+    load_dataset_manifest,
+    select_case,
+    verify_case_metadata,
+)
 from .models import (
     RECORD_FILENAME,
     ExperimentSpec,
@@ -35,6 +41,50 @@ ProviderLoader = Callable[
 class RunOutcome:
     record: RunRecord
     skipped: bool
+
+
+def _freeze_dataset_manifest(
+    spec: ExperimentSpec,
+    *,
+    run_dir: Path,
+    record: RunRecord,
+) -> Path:
+    source = Path(spec.dataset_manifest_path)
+    if sha256_file(source) != spec.dataset_manifest_hash:
+        raise ProvenanceError("Dataset manifest changed after matrix expansion")
+
+    suffix = source.suffix.lower()
+    destination = run_dir / f"dataset_manifest.frozen{suffix}"
+    if destination.exists():
+        if sha256_file(destination) != spec.dataset_manifest_hash:
+            raise ProvenanceError(
+                "Existing frozen dataset manifest has an unexpected hash"
+            )
+    else:
+        temporary = destination.with_name(f".{destination.name}.tmp")
+        try:
+            with source.open("rb") as input_handle, temporary.open("wb") as output_handle:
+                for block in iter(lambda: input_handle.read(1024 * 1024), b""):
+                    output_handle.write(block)
+                output_handle.flush()
+                os.fsync(output_handle.fileno())
+            os.replace(temporary, destination)
+        finally:
+            if temporary.exists():
+                temporary.unlink()
+
+    cases = load_dataset_manifest(destination)
+    selected = select_case(cases, spec.case_id)
+    verify_case_metadata(
+        selected,
+        panel_count=spec.panel_count,
+        split=spec.split,
+    )
+    record.artifact_paths["dataset_manifest"] = destination.relative_to(
+        run_dir
+    ).as_posix()
+    record.artifact_hashes["dataset_manifest"] = sha256_path(destination)
+    return destination
 
 
 def _current_git_commit(repo_root: Path) -> str:
@@ -139,15 +189,16 @@ def execute_experiment(
         record.write(record_path)
 
     try:
+        frozen_manifest_path = _freeze_dataset_manifest(
+            spec,
+            run_dir=run_dir,
+            record=record,
+        )
+        persist()
         if spec.git_dirty:
             raise ProvenanceError(
                 "ExperimentSpec was expanded from a dirty worktree; commit or stash "
                 "source changes before running production experiments"
-            )
-        manifest_path = Path(spec.dataset_manifest_path)
-        if sha256_file(manifest_path) != spec.dataset_manifest_hash:
-            raise ProvenanceError(
-                "Dataset manifest changed after matrix expansion"
             )
         current_commit = _current_git_commit(Path(spec.repo_root))
         if current_commit != spec.git_commit:
@@ -166,6 +217,7 @@ def execute_experiment(
             provider,
             run_dir=run_dir,
             attempt_dir=attempt_path,
+            dataset_manifest_path=frozen_manifest_path,
             record=record,
             persist=persist,
             monotonic=monotonic,

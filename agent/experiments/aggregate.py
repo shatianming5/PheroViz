@@ -6,8 +6,10 @@ import os
 from pathlib import Path
 from typing import Any, Dict, Sequence
 
+from .manifest import load_dataset_manifest, select_case, verify_case_metadata
 from .models import (
     RECORD_FILENAME,
+    SCHEMA_VERSION,
     ProvenanceError,
     RunRecord,
     sha256_file,
@@ -69,6 +71,9 @@ def _summary_row(record: RunRecord) -> Dict[str, Any]:
         "run_name": record.run_name,
         "method": record.method,
         "backbone": record.backbone,
+        "case_id": record.case_id,
+        "panel_count": record.panel_count,
+        "split": record.split,
         "seed": record.seed,
         "budget_type": record.budget_type,
         "budget_value": record.budget_value,
@@ -90,6 +95,123 @@ def _summary_row(record: RunRecord) -> Dict[str, Any]:
     for name, value in sorted(record.metrics.items()):
         row[f"metric.{name}"] = value
     return row
+
+
+def verify_frozen_manifest(record: RunRecord, run_dir: Path) -> Path:
+    relative_text = record.artifact_paths.get("dataset_manifest")
+    if not relative_text:
+        raise AggregationError(
+            f"Run has no frozen dataset manifest: {record.run_name}"
+        )
+    relative = Path(relative_text)
+    if relative.is_absolute() or ".." in relative.parts:
+        raise AggregationError(
+            f"Frozen dataset manifest path is unsafe: {relative_text}"
+        )
+    frozen = (run_dir.resolve() / relative).resolve()
+    try:
+        frozen.relative_to(run_dir.resolve())
+    except ValueError as exc:
+        raise AggregationError(
+            f"Frozen dataset manifest escaped run directory: {record.run_name}"
+        ) from exc
+    if sha256_file(frozen) != record.dataset_manifest_hash:
+        raise AggregationError(
+            f"Frozen dataset manifest hash mismatch: {record.run_name}"
+        )
+    cases = load_dataset_manifest(frozen)
+    selected = select_case(cases, record.case_id)
+    verify_case_metadata(
+        selected,
+        panel_count=record.panel_count,
+        split=record.split,
+    )
+    return frozen
+
+
+def assert_paired_ready(
+    records: Sequence[RunRecord],
+    *,
+    methods: Sequence[str],
+    backbone: str,
+    seed: int,
+    budget_type: str,
+    budget_value: float,
+) -> set[str]:
+    method_names = list(methods)
+    if len(method_names) < 2 or len(method_names) != len(set(method_names)):
+        raise AggregationError(
+            "Paired comparison requires at least two unique methods"
+        )
+
+    by_method: Dict[str, Dict[str, RunRecord]] = {
+        method: {} for method in method_names
+    }
+    for record in records:
+        if (
+            record.status != "completed"
+            or record.method not in by_method
+            or record.backbone != backbone
+            or record.seed != seed
+            or record.budget_type != budget_type
+            or record.budget_value != budget_value
+        ):
+            continue
+        method_cases = by_method[record.method]
+        if record.case_id in method_cases:
+            raise AggregationError(
+                f"Duplicate paired case {record.case_id!r} for method "
+                f"{record.method!r}"
+            )
+        method_cases[record.case_id] = record
+
+    reference_method = method_names[0]
+    reference = by_method[reference_method]
+    if not reference:
+        raise AggregationError(
+            f"No completed records for paired method {reference_method!r}"
+        )
+    reference_cases = set(reference)
+    reference_hashes = {
+        record.dataset_manifest_hash for record in reference.values()
+    }
+    if len(reference_hashes) != 1:
+        raise AggregationError(
+            f"Method {reference_method!r} mixes dataset manifests"
+        )
+
+    for method in method_names[1:]:
+        candidates = by_method[method]
+        if not candidates:
+            raise AggregationError(
+                f"No completed records for paired method {method!r}"
+            )
+        case_ids = set(candidates)
+        if case_ids != reference_cases:
+            missing = sorted(reference_cases - case_ids)
+            extra = sorted(case_ids - reference_cases)
+            raise AggregationError(
+                f"Paired case mismatch for method {method!r}; "
+                f"missing={missing}, extra={extra}"
+            )
+        manifest_hashes = {
+            record.dataset_manifest_hash for record in candidates.values()
+        }
+        if manifest_hashes != reference_hashes:
+            raise AggregationError(
+                f"Paired methods use different dataset manifests: {method!r}"
+            )
+        for case_id in sorted(reference_cases):
+            expected = reference[case_id]
+            actual = candidates[case_id]
+            if (
+                actual.panel_count != expected.panel_count
+                or actual.split != expected.split
+            ):
+                raise AggregationError(
+                    f"Paired case metadata mismatch for {case_id!r}"
+                )
+    return reference_cases
 
 
 def aggregate_runs(
@@ -130,11 +252,7 @@ def aggregate_runs(
         try:
             record.validate_provenance(require_completed=True)
             verify_artifacts(record, record_path.parent)
-            manifest_path = Path(
-                str(record.experiment_spec["dataset_manifest_path"])
-            )
-            if sha256_file(manifest_path) != record.dataset_manifest_hash:
-                raise ProvenanceError("Dataset manifest hash no longer matches")
+            verify_frozen_manifest(record, record_path.parent)
         except (OSError, KeyError, ProvenanceError) as exc:
             raise AggregationError(
                 f"Incomplete completed run {record.run_name}: {exc}"
@@ -151,6 +269,9 @@ def aggregate_runs(
         "run_name",
         "method",
         "backbone",
+        "case_id",
+        "panel_count",
+        "split",
         "seed",
         "budget_type",
         "budget_value",
@@ -182,7 +303,7 @@ def aggregate_runs(
     json_path = output_dir / "summary.json"
     _write_csv_atomic(csv_path, rows, columns)
     payload = {
-        "schema_version": "1.0",
+        "schema_version": SCHEMA_VERSION,
         "generated_at": utc_now(),
         "source_root": str(run_root),
         "run_count": len(rows),

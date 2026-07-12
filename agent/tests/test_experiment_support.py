@@ -6,9 +6,14 @@ import subprocess
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator, Sequence
+from typing import Any, Iterator, Mapping, Optional, Sequence
 
-from experiments.models import ExperimentSpec, sha256_file, sha256_json
+from experiments.models import (
+    ExperimentSpec,
+    sha256_file,
+    sha256_json,
+    slug_identifier,
+)
 from experiments.providers import (
     CandidateResult,
     GenerationRequest,
@@ -37,15 +42,27 @@ def make_spec(
     *,
     run_name: str,
     schedule: str = "best_of_n",
+    method: Optional[str] = None,
+    backbone: str = "test-backbone",
+    seed: int = 7,
+    case_id: str = "case-001",
+    panel_count: Optional[int] = 1,
+    split: Optional[str] = "test",
     budget_type: str = "renders",
     budget_value: float = 3,
     provider: str = "tests.test_experiment_support:TestOnlySequenceProvider",
 ) -> ExperimentSpec:
     manifest = workspace / "dataset_manifest.json"
     if not manifest.exists():
-        manifest.write_text(
-            json.dumps({"cases": []}, sort_keys=True),
-            encoding="utf-8",
+        write_manifest(
+            workspace,
+            [
+                {
+                    "case_id": case_id,
+                    "panel_count": panel_count,
+                    "split": split,
+                }
+            ],
         )
     repo_root = Path(__file__).resolve().parents[2]
     commit = subprocess.run(
@@ -61,12 +78,18 @@ def make_spec(
             "direction": "maximize",
         }
     }
+    case_token = f"__case-{slug_identifier(case_id)}"
+    if case_token not in run_name:
+        run_name = f"{run_name}{case_token}"
     return ExperimentSpec(
         run_name=run_name,
-        method=schedule,
+        method=method or schedule,
         schedule=schedule,
-        backbone="test-backbone",
-        seed=7,
+        backbone=backbone,
+        case_id=case_id,
+        panel_count=panel_count,
+        split=split,
+        seed=seed,
         budget_type=budget_type,
         budget_value=budget_value,
         dataset_manifest_path=str(manifest),
@@ -80,6 +103,18 @@ def make_spec(
         metric_config_hash=sha256_json(metric_config),
         metric_version="test-metric-v1",
     )
+
+
+def write_manifest(
+    workspace: Path,
+    cases: Sequence[Mapping[str, Any]],
+) -> Path:
+    manifest = workspace / "dataset_manifest.json"
+    manifest.write_text(
+        json.dumps({"cases": list(cases)}, sort_keys=True),
+        encoding="utf-8",
+    )
+    return manifest
 
 
 class TestOnlySequenceProvider:

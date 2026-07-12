@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, Mapping, Optional
 
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "2.0"
 RECORD_FILENAME = "run_record.json"
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _GIT_COMMIT_RE = re.compile(r"^[0-9a-f]{7,64}$")
@@ -49,6 +49,13 @@ def canonical_json(data: Any) -> str:
 
 def sha256_json(data: Any) -> str:
     return hashlib.sha256(canonical_json(data).encode("utf-8")).hexdigest()
+
+
+def slug_identifier(value: str) -> str:
+    slug = re.sub(r"[^A-Za-z0-9._+-]+", "-", value.strip()).strip("-")
+    if not slug:
+        raise ProvenanceError(f"Cannot construct a slug from {value!r}")
+    return slug
 
 
 def sha256_file(path: Path) -> str:
@@ -164,6 +171,9 @@ class ExperimentSpec:
     method: str
     schedule: str
     backbone: str
+    case_id: str
+    panel_count: Optional[int]
+    split: Optional[str]
     seed: int
     budget_type: str
     budget_value: float
@@ -187,6 +197,7 @@ class ExperimentSpec:
             "method",
             "schedule",
             "backbone",
+            "case_id",
             "dataset_manifest_path",
             "git_commit",
             "artifact_root",
@@ -199,6 +210,25 @@ class ExperimentSpec:
             raise ProvenanceError(
                 f"Unsupported ExperimentSpec schema_version: {self.schema_version}"
             )
+        case_token = f"__case-{slug_identifier(self.case_id)}"
+        case_pattern = rf"(?:^|__)case-{re.escape(slug_identifier(self.case_id))}(?=__|$)"
+        if re.search(case_pattern, self.run_name) is None:
+            raise ProvenanceError(
+                f"run_name must include the case slug {case_token!r}"
+            )
+        if self.panel_count is not None:
+            if (
+                isinstance(self.panel_count, bool)
+                or not isinstance(self.panel_count, int)
+                or self.panel_count < 1
+            ):
+                raise ProvenanceError(
+                    "panel_count must be a positive integer when provided"
+                )
+        if self.split is not None and (
+            not isinstance(self.split, str) or not self.split.strip()
+        ):
+            raise ProvenanceError("split must be a non-empty string when provided")
         if self.budget_type not in _BUDGET_TYPES:
             raise ProvenanceError(
                 f"budget_type must be one of {sorted(_BUDGET_TYPES)}"
@@ -240,6 +270,9 @@ class RunRecord:
     run_name: str
     method: str
     backbone: str
+    case_id: str
+    panel_count: Optional[int]
+    split: Optional[str]
     seed: int
     budget_type: str
     budget_value: float
@@ -275,6 +308,9 @@ class RunRecord:
             run_name=spec.run_name,
             method=spec.method,
             backbone=spec.backbone,
+            case_id=spec.case_id,
+            panel_count=spec.panel_count,
+            split=spec.split,
             seed=spec.seed,
             budget_type=spec.budget_type,
             budget_value=spec.budget_value,
@@ -353,6 +389,9 @@ class RunRecord:
             "run_name": self.run_name,
             "method": self.method,
             "backbone": self.backbone,
+            "case_id": self.case_id,
+            "panel_count": self.panel_count,
+            "split": self.split,
             "seed": self.seed,
             "budget_type": self.budget_type,
             "budget_value": self.budget_value,
@@ -390,6 +429,10 @@ class RunRecord:
                 raise ProvenanceError(f"Metric {name} is not a finite number")
         if not self.artifact_paths:
             raise ProvenanceError("Completed runs must include hashed artifacts")
+        if "dataset_manifest" not in self.artifact_paths:
+            raise ProvenanceError(
+                "Completed runs must include a frozen dataset manifest"
+            )
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> "RunRecord":

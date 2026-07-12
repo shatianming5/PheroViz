@@ -11,8 +11,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterator, Mapping, Optional, Protocol, Sequence
 
-import yaml
-
+from .manifest import (
+    ManifestError,
+    load_dataset_manifest,
+    select_case,
+    verify_case_metadata,
+)
 from .models import ExperimentSpec
 
 
@@ -76,6 +80,7 @@ class ProviderBatch:
 @dataclass(frozen=True)
 class GenerationRequest:
     spec: ExperimentSpec
+    dataset_manifest_path: Path
     output_dir: Path
     call_index: int
     remaining_renders: Optional[int]
@@ -159,26 +164,6 @@ def _temporary_environment(updates: Mapping[str, str]) -> Iterator[None]:
                 os.environ[name] = value
 
 
-def _load_manifest(path: Path) -> Mapping[str, Any]:
-    try:
-        raw = path.read_text(encoding="utf-8-sig")
-        if path.suffix.lower() == ".json":
-            data = json.loads(raw)
-        elif path.suffix.lower() in {".yaml", ".yml"}:
-            data = yaml.safe_load(raw)
-        else:
-            raise ProviderExecutionError(
-                f"Unsupported dataset manifest format: {path}"
-            )
-    except (OSError, json.JSONDecodeError, yaml.YAMLError) as exc:
-        raise ProviderExecutionError(
-            f"Cannot load dataset manifest {path}: {exc}"
-        ) from exc
-    if not isinstance(data, Mapping):
-        raise ProviderExecutionError("Dataset manifest must contain an object")
-    return data
-
-
 class SingleChainProvider:
     """Honest adapter for the existing single-chain iterative runner.
 
@@ -242,19 +227,29 @@ class SingleChainProvider:
         if rounds < 1:
             raise ProviderExecutionError("Single-chain rounds must be positive")
 
-        manifest_path = Path(request.spec.dataset_manifest_path)
-        manifest = _load_manifest(manifest_path)
-        raw_cases = manifest.get("cases")
-        if raw_cases is None:
-            raw_cases = [manifest]
-        if not isinstance(raw_cases, list) or len(raw_cases) != 1:
-            raise ProviderExecutionError(
-                "SingleChainProvider currently requires exactly one manifest case; "
-                "use a dataset-level provider plugin for corpus experiments"
+        manifest_path = request.dataset_manifest_path
+        try:
+            manifest_cases = load_dataset_manifest(manifest_path)
+            selected_case = select_case(
+                manifest_cases,
+                request.spec.case_id,
             )
-        case = raw_cases[0]
-        if not isinstance(case, Mapping):
-            raise ProviderExecutionError("Manifest case must be an object")
+            verify_case_metadata(
+                selected_case,
+                panel_count=request.spec.panel_count,
+                split=request.spec.split,
+            )
+        except ManifestError as exc:
+            raise ProviderExecutionError(
+                f"Cannot select case {request.spec.case_id!r}: {exc}"
+            ) from exc
+        if selected_case.panel_count is not None and selected_case.panel_count > 1:
+            raise ProviderExecutionError(
+                f"case_id {selected_case.case_id!r} has panel_count="
+                f"{selected_case.panel_count}; SingleChainProvider cannot run "
+                "multi-panel cases, use a multi-panel provider"
+            )
+        case = selected_case.payload
 
         data_path_value = case.get("data_path")
         user_goal = case.get("user_goal")
@@ -268,7 +263,7 @@ class SingleChainProvider:
             )
         data_path = Path(str(data_path_value)).expanduser()
         if not data_path.is_absolute():
-            data_path = manifest_path.parent / data_path
+            data_path = Path(request.spec.dataset_manifest_path).parent / data_path
         data_path = data_path.resolve()
         if not data_path.is_file():
             raise ProviderExecutionError(f"Case data file does not exist: {data_path}")

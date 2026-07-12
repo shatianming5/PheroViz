@@ -112,6 +112,7 @@ def run_schedule(
     *,
     run_dir: Path,
     attempt_dir: Path,
+    dataset_manifest_path: Path,
     record: RunRecord,
     persist: Callable[[], None],
     monotonic: Callable[[], float] = time.monotonic,
@@ -165,6 +166,7 @@ def run_schedule(
         call_dir.mkdir(parents=True, exist_ok=False)
         request = GenerationRequest(
             spec=spec,
+            dataset_manifest_path=dataset_manifest_path,
             output_dir=call_dir,
             call_index=call_index,
             remaining_renders=remaining_renders,

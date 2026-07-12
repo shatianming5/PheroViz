@@ -2,14 +2,20 @@ from __future__ import annotations
 
 import itertools
 import json
-import re
 import subprocess
 from pathlib import Path
 from typing import Any, Dict, Mapping, Optional, Sequence
 
 import yaml
 
-from .models import ExperimentSpec, ProvenanceError, sha256_file, sha256_json
+from .manifest import DatasetCase, ManifestError, load_dataset_manifest
+from .models import (
+    ExperimentSpec,
+    ProvenanceError,
+    sha256_file,
+    sha256_json,
+    slug_identifier,
+)
 
 
 class MatrixError(ProvenanceError):
@@ -78,13 +84,6 @@ def _git_provenance(repo_root: Path) -> tuple[str, bool]:
     except (OSError, subprocess.CalledProcessError) as exc:
         raise MatrixError(f"Cannot establish git provenance at {repo_root}: {exc}") from exc
     return commit_result.stdout.strip().lower(), bool(status_result.stdout.strip())
-
-
-def _slug(value: str) -> str:
-    slug = re.sub(r"[^A-Za-z0-9._+-]+", "-", value.strip()).strip("-")
-    if not slug:
-        raise MatrixError(f"Cannot construct a run-name component from {value!r}")
-    return slug
 
 
 def _budget_label(budget_type: str, value: float) -> str:
@@ -216,6 +215,50 @@ def _parse_methods(
     return parsed
 
 
+def _parse_case_filter(
+    matrix: Mapping[str, Any],
+    name: str,
+) -> Optional[set[str]]:
+    raw = matrix.get(name)
+    if raw is None:
+        return None
+    if not isinstance(raw, list) or not raw:
+        raise MatrixError(f"{name} must be a non-empty list when provided")
+    values: list[str] = []
+    for item in raw:
+        if not isinstance(item, str) or not item.strip():
+            raise MatrixError(f"Every {name} entry must be a non-empty string")
+        values.append(item.strip())
+    if len(values) != len(set(values)):
+        raise MatrixError(f"{name} cannot contain duplicates")
+    return set(values)
+
+
+def _select_cases(
+    cases: Sequence[DatasetCase],
+    matrix: Mapping[str, Any],
+) -> list[DatasetCase]:
+    case_ids = _parse_case_filter(matrix, "case_ids")
+    splits = _parse_case_filter(matrix, "splits")
+    available_ids = {case.case_id for case in cases}
+    if case_ids is not None:
+        unknown = case_ids - available_ids
+        if unknown:
+            raise MatrixError(
+                f"case_ids contains unknown cases: {', '.join(sorted(unknown))}"
+            )
+
+    selected = [
+        case
+        for case in cases
+        if (case_ids is None or case.case_id in case_ids)
+        and (splits is None or case.split in splits)
+    ]
+    if not selected:
+        raise MatrixError("Case filters selected no dataset cases")
+    return selected
+
+
 def expand_matrix(
     matrix: Mapping[str, Any],
     *,
@@ -244,9 +287,21 @@ def expand_matrix(
         base_dir=base_dir,
         name="dataset_manifest",
     )
-    manifest_data = load_structured_file(manifest_path)
-    if not isinstance(manifest_data, Mapping):
-        raise MatrixError("dataset manifest must be an object")
+    try:
+        manifest_cases = load_dataset_manifest(manifest_path)
+    except ManifestError as exc:
+        raise MatrixError(str(exc)) from exc
+    selected_cases = _select_cases(manifest_cases, matrix)
+    case_slugs: Dict[str, str] = {}
+    for case in selected_cases:
+        slug = slug_identifier(case.case_id)
+        slug_key = slug.casefold()
+        previous = case_slugs.get(slug_key)
+        if previous is not None and previous != case.case_id:
+            raise MatrixError(
+                f"case_id values {previous!r} and {case.case_id!r} share slug {slug!r}"
+            )
+        case_slugs[slug_key] = case.case_id
     manifest_hash = sha256_file(manifest_path)
 
     metric_config, metric_hash, metric_version = _metric_details(
@@ -296,17 +351,19 @@ def expand_matrix(
 
     specs: list[ExperimentSpec] = []
     seen_names: set[str] = set()
-    for method, backbone, seed, budget in itertools.product(
+    for method, backbone, seed, budget, case in itertools.product(
         methods,
         parsed_backbones,
         parsed_seeds,
         parsed_budgets,
+        selected_cases,
     ):
         budget_type, budget_value = budget
         run_name = (
-            f"{_slug(experiment_name)}"
-            f"__method-{_slug(method['name'])}"
-            f"__backbone-{_slug(backbone)}"
+            f"{slug_identifier(experiment_name)}"
+            f"__case-{slug_identifier(case.case_id)}"
+            f"__method-{slug_identifier(method['name'])}"
+            f"__backbone-{slug_identifier(backbone)}"
             f"__seed-{seed}"
             f"__budget-{_budget_label(budget_type, budget_value)}"
         )
@@ -319,6 +376,9 @@ def expand_matrix(
                 method=method["name"],
                 schedule=method["schedule"],
                 backbone=backbone,
+                case_id=case.case_id,
+                panel_count=case.panel_count,
+                split=case.split,
                 seed=seed,
                 budget_type=budget_type,
                 budget_value=budget_value,

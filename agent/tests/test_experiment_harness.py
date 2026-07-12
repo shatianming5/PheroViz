@@ -2,8 +2,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
+from experiments.aggregate import verify_frozen_manifest
 from experiments.harness import execute_experiment
 from experiments.models import RunRecord
+from experiments.providers import (
+    GenerationRequest,
+    ProviderExecutionError,
+    SingleChainProvider,
+)
 from tests.test_experiment_support import (
     ClockedTestProvider,
     ManualClock,
@@ -11,6 +19,7 @@ from tests.test_experiment_support import (
     UnavailableTestProvider,
     experiment_workspace,
     make_spec,
+    write_manifest,
 )
 
 
@@ -39,6 +48,69 @@ def test_best_so_far_archive_keeps_highest_measured_candidate() -> None:
             / spec.run_name
             / "best_so_far.json"
         ).is_file()
+
+
+def test_run_freezes_manifest_for_future_aggregation() -> None:
+    with experiment_workspace("frozen-manifest") as workspace:
+        spec = make_spec(
+            workspace,
+            run_name="frozen-manifest",
+            budget_value=1,
+        )
+        provider = TestOnlySequenceProvider([0.5])
+        outcome = execute_experiment(
+            spec,
+            provider_loader=_loader(provider),
+        )
+        run_dir = Path(spec.artifact_root) / spec.run_name
+        frozen = run_dir / outcome.record.artifact_paths["dataset_manifest"]
+
+        assert frozen.is_file()
+        assert (
+            outcome.record.artifact_hashes["dataset_manifest"]
+            == outcome.record.dataset_manifest_hash
+        )
+        Path(spec.dataset_manifest_path).unlink()
+        assert verify_frozen_manifest(outcome.record, run_dir) == frozen
+
+
+def test_single_chain_selects_case_and_rejects_multi_panel() -> None:
+    with experiment_workspace("single-chain-multi") as workspace:
+        manifest = write_manifest(
+            workspace,
+            [
+                {"case_id": "single", "panel_count": 1, "split": "test"},
+                {"case_id": "multi", "panel_count": 3, "split": "test"},
+            ],
+        )
+        spec = make_spec(
+            workspace,
+            run_name="single-chain-multi",
+            schedule="iterative",
+            case_id="multi",
+            panel_count=3,
+            split="test",
+            budget_value=1,
+        )
+        output_dir = workspace / "provider-output"
+        output_dir.mkdir()
+        request = GenerationRequest(
+            spec=spec,
+            dataset_manifest_path=manifest,
+            output_dir=output_dir,
+            call_index=1,
+            remaining_renders=1,
+            remaining_seconds=None,
+            deadline_monotonic=None,
+            history=(),
+            previous_candidate=None,
+        )
+
+        with pytest.raises(
+            ProviderExecutionError,
+            match="use a multi-panel provider",
+        ):
+            SingleChainProvider().generate(request)
 
 
 def test_resume_skips_completed_run_without_provider_call() -> None:
