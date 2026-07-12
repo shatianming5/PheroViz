@@ -24,9 +24,21 @@ def test_new_corpus_commands_enable_gate_by_default() -> None:
             "content",
         ]
     )
+    cases = parser.parse_args(
+        [
+            "build-cases",
+            "--corpus-manifest",
+            "manifest.jsonl",
+            "--content-root",
+            "content",
+            "--out",
+            "cases",
+        ]
+    )
     assert discover.require_cc_by is True
     assert validate.require_cc_by is True
     assert manifest.require_cc_by is True
+    assert cases.max_xlsx_sheets == 256
 
 
 def test_legacy_download_commands_require_explicit_gate() -> None:

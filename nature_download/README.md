@@ -63,6 +63,10 @@
   `--evidence` 时所有候选均为 `unverified` 且
   `eligible_for_experiment=false`。ZIP 默认最多 1,000 个文件、512 MiB
   总展开大小，并拒绝绝对路径、zip-slip、symlink、特殊文件和加密成员。
+  对 generic XLSX 会以 openpyxl `read_only` 仅读取 sheet 名，并从明确的
+  `Fig. 1a` / `Figure 3C` 名称映射 panel；默认最多 256 sheets。无 panel、
+  panel range/list、resource fork、supplementary 或损坏 workbook 均进入
+  `ambiguous.jsonl`。
 - 基础检索（合规、不抓取）：
   ```bash
   python nature_all_in_one.py search \

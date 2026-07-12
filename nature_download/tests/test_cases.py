@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+from io import BytesIO
 import json
 from pathlib import Path
 import stat
 import zipfile
 
 import pytest
+from openpyxl import Workbook
 
+from nature_download.corpus import cases as cases_module
 from nature_download.corpus.cases import (
     ArchiveSafetyError,
     build_cases,
@@ -25,6 +28,17 @@ def write_zip(path: Path, members: dict[str, bytes]) -> None:
     with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as handle:
         for name, payload in members.items():
             handle.writestr(name, payload)
+
+
+def workbook_bytes(sheet_names: list[str]) -> bytes:
+    workbook = Workbook()
+    workbook.active.title = sheet_names[0]
+    for name in sheet_names[1:]:
+        workbook.create_sheet(title=name)
+    payload = BytesIO()
+    workbook.save(payload)
+    workbook.close()
+    return payload.getvalue()
 
 
 def test_safe_zip_rejects_zip_slip_and_absolute_paths(workdir: Path) -> None:
@@ -85,6 +99,7 @@ def test_safe_zip_extracts_only_csv_and_xlsx(workdir: Path) -> None:
         {
             "nested/Figure2B.csv": b"x,y\n1,2\n",
             "Figure3J-inset.xlsx": b"xlsx bytes",
+            "__MACOSX/._Figure4A.xlsx": b"resource fork",
             "script.py": b"raise RuntimeError('must not execute')",
         },
     )
@@ -96,6 +111,37 @@ def test_safe_zip_extracts_only_csv_and_xlsx(workdir: Path) -> None:
     assert not (workdir / "extract" / "script.py").exists()
 
 
+def test_xlsx_sheet_inspection_uses_read_only_mode(
+    monkeypatch: pytest.MonkeyPatch,
+    workdir: Path,
+) -> None:
+    calls: list[dict] = []
+
+    class FakeWorkbook:
+        sheetnames = ["Fig. 1a"]
+
+        def close(self) -> None:
+            return None
+
+    def fake_load_workbook(**kwargs):
+        calls.append(kwargs)
+        return FakeWorkbook()
+
+    monkeypatch.setattr(cases_module, "load_workbook", fake_load_workbook)
+    workbook = workdir / "generic.xlsx"
+    workbook.write_bytes(b"unused by fake loader")
+    sheets = cases_module._read_xlsx_sheet_names(workbook, max_sheets=256)
+    assert sheets.names == ("Fig. 1a",)
+    assert calls == [
+        {
+            "filename": workbook,
+            "read_only": True,
+            "data_only": False,
+            "keep_links": False,
+        }
+    ]
+
+
 @pytest.mark.parametrize(
     ("filename", "figure_no", "panel_id", "qualifier"),
     [
@@ -103,6 +149,8 @@ def test_safe_zip_extracts_only_csv_and_xlsx(workdir: Path) -> None:
         ("Figure_3C.xlsx", 3, "c", None),
         ("Figure3J-inset.csv", 3, "j", "inset"),
         ("Fig4K-inset.csv", 4, "k", "inset"),
+        ("Fig. 1a", 1, "a", None),
+        ("Figure 3C", 3, "c", None),
     ],
 )
 def test_figure_panel_mapping(
@@ -121,6 +169,23 @@ def test_figure_panel_mapping(
     )
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Figure1",
+        "Fig 2",
+        "Fig2G-H",
+        "Figure 5b,c",
+        "Figure2BC",
+        "Supplementary Figure 2B",
+    ],
+)
+def test_non_unique_or_missing_panel_reference_is_ambiguous(name: str) -> None:
+    mapping, reasons = parse_figure_panel(name)
+    assert mapping is None
+    assert reasons
+
+
 def make_case_fixture(workdir: Path) -> tuple[Path, Path]:
     content = workdir / "content"
     article = content / ARTICLE_ID
@@ -130,7 +195,7 @@ def make_case_fixture(workdir: Path) -> tuple[Path, Path]:
     figures.mkdir(parents=True)
     source_data.mkdir()
     meta.mkdir()
-    for figure_no in (2, 3):
+    for figure_no in (1, 2, 3):
         (figures / f"fig_{figure_no:03d}.png").write_bytes(
             f"figure {figure_no}".encode()
         )
@@ -139,11 +204,27 @@ def make_case_fixture(workdir: Path) -> tuple[Path, Path]:
             encoding="utf-8",
         )
     (source_data / "Figure2B.csv").write_text("x,y\n1,2\n", encoding="utf-8")
-    (source_data / "Figure2C.xlsx").write_bytes(b"direct xlsx fixture")
+    (source_data / "Figure2C.xlsx").write_bytes(
+        workbook_bytes(["Measurements"])
+    )
     (source_data / "unmapped.csv").write_text("x,y\n3,4\n", encoding="utf-8")
+    (source_data / "corrupt.xlsx").write_bytes(b"not a workbook")
+    (source_data / "._ignored.xlsx").write_bytes(b"resource fork")
     write_zip(
         source_data / "source.zip",
-        {"tables/Figure3J-inset.xlsx": b"xlsx fixture"},
+        {
+            "tables/source.xlsx": workbook_bytes(
+                [
+                    "Fig. 1a",
+                    "Figure 3C",
+                    "Figure3J-inset",
+                    "Figure1",
+                    "Fig2G-H",
+                    "Figure 5b,c",
+                    "._resource",
+                ]
+            )
+        },
     )
     (meta / "provenance.json").write_text(
         json.dumps(
@@ -190,15 +271,20 @@ def test_case_builder_checksums_ambiguity_and_unverified_gate(workdir: Path) -> 
         content_root=content,
         output_root=output,
     )
-    assert summary["candidates"] == 3
-    assert summary["ambiguous"] == 1
-    assert summary["direct_tables"] == 3
+    assert summary["candidates"] == 5
+    assert summary["ambiguous"] == 5
+    assert summary["direct_tables"] == 4
     assert summary["extracted_tables"] == 1
+    assert summary["resource_files_skipped"] == 1
+    assert summary["xlsx_workbooks"] == 3
+    assert summary["xlsx_sheets_inspected"] == 8
+    assert summary["xlsx_resource_sheets_skipped"] == 1
+    assert summary["xlsx_corrupt"] == 1
     assert summary["verified"] == 0
     assert summary["eligible_for_experiment"] == 0
     assert summary["llm_calls"] == 0
-    assert {item["figure_no"] for item in candidates} == {2, 3}
-    assert {item["panel_ids"][0] for item in candidates} == {"b", "c", "j"}
+    assert {item["figure_no"] for item in candidates} == {1, 2, 3}
+    assert {item["panel_ids"][0] for item in candidates} == {"a", "b", "c", "j"}
     assert all(item["curation_status"] == "unverified" for item in candidates)
     assert all(item["eligible_for_experiment"] is False for item in candidates)
     assert all(
@@ -214,7 +300,13 @@ def test_case_builder_checksums_ambiguity_and_unverified_gate(workdir: Path) -> 
         item["experiment_case"]["user_goal"] is None
         for item in candidates
     )
-    direct = next(item for item in candidates if item["figure_no"] == 2)
+    direct = next(
+        item
+        for item in candidates
+        if item["figure_no"] == 2
+        and item["panel_ids"] == ["b"]
+        and item["source_table"]["sheet_name"] is None
+    )
     assert direct["source_table"]["sha256"] == sha256_file(
         content / ARTICLE_ID / "source_data" / "Figure2B.csv"
     )
@@ -224,8 +316,53 @@ def test_case_builder_checksums_ambiguity_and_unverified_gate(workdir: Path) -> 
     assert direct["caption"]["sha256"] == sha256_file(
         content / ARTICLE_ID / "figures" / "fig_002.txt"
     )
-    assert ambiguous[0]["reasons"] == ["figure-panel-pattern-not-found"]
-    assert ambiguous[0]["eligible_for_experiment"] is False
+    sheet_candidates = [
+        item for item in candidates if item["source_table"]["sheet_name"]
+    ]
+    assert {item["source_table"]["sheet_name"] for item in sheet_candidates} == {
+        "Fig. 1a",
+        "Figure 3C",
+        "Figure3J-inset",
+    }
+    assert all(
+        item["experiment_case"]["data_path"] == item["source_table"]["path"]
+        and item["experiment_case"]["sheet"]
+        == item["source_table"]["sheet_name"]
+        for item in sheet_candidates
+    )
+    assert len({item["candidate_id"] for item in sheet_candidates}) == 3
+    assert len({item["source_table"]["sha256"] for item in sheet_candidates}) == 1
+    assert all(item["eligible_for_experiment"] is False for item in ambiguous)
+    assert any(
+        item["reasons"] == ["xlsx-workbook-invalid"] for item in ambiguous
+    )
+    assert {
+        item["source_table"]["sheet_name"]
+        for item in ambiguous
+        if (item.get("source_table") or {}).get("sheet_name")
+    } == {"Figure1", "Fig2G-H", "Figure 5b,c"}
+
+
+def test_xlsx_sheet_limit_is_recorded_without_loading_cells(workdir: Path) -> None:
+    manifest, content = make_case_fixture(workdir)
+    candidates, ambiguous, summary = build_cases(
+        corpus_manifest=manifest,
+        content_root=content,
+        output_root=workdir / "cases",
+        max_xlsx_sheets=2,
+    )
+    assert summary["max_xlsx_sheets"] == 2
+    assert summary["xlsx_sheet_limit_exceeded"] == 1
+    assert any(
+        item["reasons"] == ["xlsx-sheet-count-limit"]
+        for item in ambiguous
+    )
+    assert all(
+        item["source_table"]["sheet_name"] is None
+        for item in ambiguous
+        if item["reasons"] == ["xlsx-sheet-count-limit"]
+    )
+    assert all(item["eligible_for_experiment"] is False for item in candidates)
 
 
 def test_only_explicit_valid_evidence_can_verify(workdir: Path) -> None:
@@ -236,7 +373,12 @@ def test_only_explicit_valid_evidence_can_verify(workdir: Path) -> None:
         content_root=content,
         output_root=output,
     )
-    candidate_id = initial[0]["candidate_id"]
+    candidate_id = next(
+        item["candidate_id"]
+        for item in initial
+        if item["panel_ids"] == ["b"]
+        and item["source_table"]["sheet_name"] is None
+    )
     invalid_evidence = workdir / "invalid-evidence.json"
     invalid_evidence.write_text(
         json.dumps(

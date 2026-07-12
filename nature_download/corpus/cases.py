@@ -12,6 +12,11 @@ import stat
 from typing import Any, Iterable
 import zipfile
 
+try:
+    from openpyxl import load_workbook
+except ImportError:  # surfaced as an explicit workbook inspection error
+    load_workbook = None
+
 from .policy import normalize_cc_by_url, normalize_doi
 from .provenance import sha256_bytes, sha256_file
 
@@ -23,9 +28,18 @@ FIGURE_SUFFIXES = frozenset(
 )
 DEFAULT_MAX_ZIP_FILES = 1_000
 DEFAULT_MAX_ZIP_UNCOMPRESSED_BYTES = 512 * 1024 * 1024
+DEFAULT_MAX_XLSX_SHEETS = 256
 FIGURE_PANEL_PATTERN = re.compile(
     r"(?i)(?<![a-z0-9])(?:figure|fig)[\s_.-]*(?P<figure>\d{1,3})"
     r"[\s_.-]*(?P<panel>[a-z])(?=$|[\s_.-])"
+)
+MULTI_PANEL_PATTERN = re.compile(
+    r"(?ix)"
+    r"(?<![a-z0-9])(?:figure|fig)[\s_.-]*\d{1,3}[\s_.-]*"
+    r"[a-z](?:"
+    r"\s*(?:-|–|—|,|/|&|\band\b|\bto\b)\s*[a-z](?=$|[\s_.-])"
+    r"|[a-z](?=$|[\s_.-])"
+    r")"
 )
 SUPPLEMENTARY_PATTERN = re.compile(
     r"(?i)(?:supp(?:lementary)?|extended[\s_.-]*data)"
@@ -35,6 +49,16 @@ EVIDENCE_TYPES = frozenset({"human_review", "external_validation"})
 
 class ArchiveSafetyError(ValueError):
     """Raised when an archive violates a fail-closed extraction rule."""
+
+    def __init__(self, code: str, detail: str | None = None) -> None:
+        self.code = code
+        self.detail = detail
+        message = code if not detail else f"{code}:{detail}"
+        super().__init__(message)
+
+
+class WorkbookInspectionError(ValueError):
+    """Raised when an XLSX cannot be inspected without loading cells."""
 
     def __init__(self, code: str, detail: str | None = None) -> None:
         self.code = code
@@ -56,6 +80,21 @@ class FilenameMapping:
     qualifier: str | None
 
 
+@dataclass(frozen=True)
+class WorkbookSheets:
+    names: tuple[str, ...]
+    total_count: int
+    resource_count: int
+
+
+@dataclass(frozen=True)
+class MappingAttempt:
+    mapping: FilenameMapping | None
+    reasons: tuple[str, ...]
+    sheet_name: str | None
+    detail: str | None = None
+
+
 def _canonical_json_sha256(value: Any) -> str:
     payload = json.dumps(
         value,
@@ -64,6 +103,14 @@ def _canonical_json_sha256(value: Any) -> str:
         separators=(",", ":"),
     ).encode("utf-8")
     return sha256_bytes(payload)
+
+
+def _is_resource_fork_name(name: str) -> bool:
+    normalized = str(name).replace("\\", "/")
+    parts = [part for part in normalized.split("/") if part]
+    return any(part.casefold() == "__macosx" for part in parts) or (
+        bool(parts) and parts[-1].startswith("._")
+    )
 
 
 def _safe_member_path(name: str) -> PurePosixPath:
@@ -164,6 +211,8 @@ def safe_extract_tables(
             extracted: list[ExtractedTable] = []
             actual_total = 0
             for info, member_path in members:
+                if _is_resource_fork_name(member_path.as_posix()):
+                    continue
                 if Path(member_path.name).suffix.casefold() not in TABLE_SUFFIXES:
                     continue
                 target = destination_path.joinpath(*member_path.parts)
@@ -213,9 +262,13 @@ def safe_extract_tables(
 
 
 def parse_figure_panel(filename: str) -> tuple[FilenameMapping | None, list[str]]:
-    stem = Path(filename).stem
+    basename = str(filename).replace("\\", "/").rsplit("/", 1)[-1]
+    suffix = Path(basename).suffix.casefold()
+    stem = basename[: -len(suffix)] if suffix in TABLE_SUFFIXES else basename
     if SUPPLEMENTARY_PATTERN.search(stem):
         return None, ["supplementary-figure-mapping-unsupported"]
+    if MULTI_PANEL_PATTERN.search(stem):
+        return None, ["multiple-panel-reference"]
     matches = list(FIGURE_PANEL_PATTERN.finditer(stem))
     unique = {
         (int(match.group("figure")), match.group("panel").casefold())
@@ -231,6 +284,129 @@ def parse_figure_panel(filename: str) -> tuple[FilenameMapping | None, list[str]
     match = matches[0]
     qualifier = stem[match.end() :].strip(" ._-") or None
     return FilenameMapping(figure_no, panel_id, qualifier), []
+
+
+def _read_xlsx_sheet_names(
+    path: Path,
+    *,
+    max_sheets: int,
+) -> WorkbookSheets:
+    if max_sheets < 1:
+        raise ValueError("max_sheets must be positive")
+    if load_workbook is None:
+        raise WorkbookInspectionError(
+            "xlsx-openpyxl-missing",
+            "install openpyxl from nature_download/requirements.txt",
+        )
+    workbook = None
+    try:
+        workbook = load_workbook(
+            filename=path,
+            read_only=True,
+            data_only=False,
+            keep_links=False,
+        )
+        sheet_names = tuple(str(name) for name in workbook.sheetnames)
+    except Exception as exc:
+        raise WorkbookInspectionError(
+            "xlsx-workbook-invalid",
+            f"{type(exc).__name__}:{exc}",
+        ) from exc
+    finally:
+        if workbook is not None:
+            workbook.close()
+    if len(sheet_names) > max_sheets:
+        raise WorkbookInspectionError(
+            "xlsx-sheet-count-limit",
+            f"{len(sheet_names)}>{max_sheets}",
+        )
+    usable = tuple(
+        name for name in sheet_names if not _is_resource_fork_name(name)
+    )
+    return WorkbookSheets(
+        names=usable,
+        total_count=len(sheet_names),
+        resource_count=len(sheet_names) - len(usable),
+    )
+
+
+def _mapping_attempts(
+    path: Path,
+    *,
+    mapping_name: str,
+    max_xlsx_sheets: int,
+) -> tuple[list[MappingAttempt], dict[str, int]]:
+    filename_mapping, filename_reasons = parse_figure_panel(mapping_name)
+    metrics = {
+        "xlsx_workbooks": 0,
+        "xlsx_sheets_inspected": 0,
+        "xlsx_resource_sheets_skipped": 0,
+        "xlsx_corrupt": 0,
+        "xlsx_sheet_limit_exceeded": 0,
+    }
+    if path.suffix.casefold() != ".xlsx":
+        return [
+            MappingAttempt(
+                mapping=filename_mapping,
+                reasons=tuple(filename_reasons),
+                sheet_name=None,
+            )
+        ], metrics
+
+    metrics["xlsx_workbooks"] = 1
+    try:
+        sheets = _read_xlsx_sheet_names(path, max_sheets=max_xlsx_sheets)
+    except WorkbookInspectionError as exc:
+        if exc.code == "xlsx-sheet-count-limit":
+            metrics["xlsx_sheet_limit_exceeded"] = 1
+        elif exc.code == "xlsx-workbook-invalid":
+            metrics["xlsx_corrupt"] = 1
+        return [
+            MappingAttempt(
+                mapping=filename_mapping,
+                reasons=(exc.code,),
+                sheet_name=None,
+                detail=exc.detail,
+            )
+        ], metrics
+
+    metrics["xlsx_sheets_inspected"] = sheets.total_count
+    metrics["xlsx_resource_sheets_skipped"] = sheets.resource_count
+    if not sheets.names:
+        return [
+            MappingAttempt(
+                mapping=None,
+                reasons=("xlsx-no-usable-sheets",),
+                sheet_name=None,
+            )
+        ], metrics
+    if filename_mapping is not None and not filename_reasons:
+        return [
+            MappingAttempt(
+                mapping=filename_mapping,
+                reasons=(),
+                sheet_name=None,
+            )
+        ], metrics
+    if "supplementary-figure-mapping-unsupported" in filename_reasons:
+        return [
+            MappingAttempt(
+                mapping=None,
+                reasons=tuple(filename_reasons),
+                sheet_name=None,
+            )
+        ], metrics
+    attempts: list[MappingAttempt] = []
+    for sheet_name in sheets.names:
+        mapping, reasons = parse_figure_panel(sheet_name)
+        attempts.append(
+            MappingAttempt(
+                mapping=mapping,
+                reasons=tuple(reasons),
+                sheet_name=sheet_name,
+            )
+        )
+    return attempts, metrics
 
 
 def _read_manifest(path: Path) -> list[dict[str, Any]]:
@@ -419,6 +595,7 @@ def _source_table_descriptor(
     output_root: Path,
     archive_path: Path | None,
     archive_member: str | None,
+    sheet_name: str | None,
 ) -> dict[str, Any]:
     root_name = "output_root" if archive_path else "content_root"
     root = output_root if archive_path else content_root
@@ -428,6 +605,7 @@ def _source_table_descriptor(
             "format": path.suffix.casefold().lstrip("."),
             "path_root": root_name,
             "relative_path": path.resolve().relative_to(root.resolve()).as_posix(),
+            "sheet_name": sheet_name,
             "archive": None,
         }
     )
@@ -453,6 +631,7 @@ def _candidate_id(
             mapping.panel_id,
             mapping.qualifier or "",
             str(table["relative_path"]),
+            str(table.get("sheet_name") or ""),
             str(table["sha256"]),
         ]
     )
@@ -487,6 +666,7 @@ def _case_skeleton(
         "panel_count": 1,
         "split": curated.get("split"),
         "data_path": table["path"],
+        "sheet": table.get("sheet_name"),
         "data_sha256": table["sha256"],
         "panel_id": mapping.panel_id,
         "user_goal": curated.get("user_goal"),
@@ -515,6 +695,7 @@ def _iter_source_tables(
         "archives_rejected": 0,
         "direct_tables": 0,
         "extracted_tables": 0,
+        "resource_files_skipped": 0,
     }
     if not source_dir.is_dir():
         return tables, ambiguous, counts
@@ -529,6 +710,9 @@ def _iter_source_tables(
             )
             continue
         if not path.is_file():
+            continue
+        if _is_resource_fork_name(path.name):
+            counts["resource_files_skipped"] += 1
             continue
         suffix = path.suffix.casefold()
         if suffix in TABLE_SUFFIXES:
@@ -589,7 +773,10 @@ def build_cases(
     evidence_file: str | Path | None = None,
     max_zip_files: int = DEFAULT_MAX_ZIP_FILES,
     max_zip_uncompressed_bytes: int = DEFAULT_MAX_ZIP_UNCOMPRESSED_BYTES,
+    max_xlsx_sheets: int = DEFAULT_MAX_XLSX_SHEETS,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
+    if max_xlsx_sheets < 1:
+        raise ValueError("max_xlsx_sheets must be positive")
     manifest_path = Path(corpus_manifest)
     content = Path(content_root).resolve()
     output = Path(output_root).resolve()
@@ -612,6 +799,12 @@ def build_cases(
         "archives_rejected": 0,
         "direct_tables": 0,
         "extracted_tables": 0,
+        "resource_files_skipped": 0,
+        "xlsx_workbooks": 0,
+        "xlsx_sheets_inspected": 0,
+        "xlsx_resource_sheets_skipped": 0,
+        "xlsx_corrupt": 0,
+        "xlsx_sheet_limit_exceeded": 0,
     }
     eligible_articles = 0
     skipped_articles = 0
@@ -669,8 +862,8 @@ def build_cases(
             max_zip_files=max_zip_files,
             max_zip_uncompressed_bytes=max_zip_uncompressed_bytes,
         )
-        for key in totals:
-            totals[key] += counts[key]
+        for key, value in counts.items():
+            totals[key] += value
         for item in archive_ambiguities:
             ambiguous.append(
                 {
@@ -691,34 +884,82 @@ def build_cases(
                 str(item[2] or item[0].name).casefold(),
             ),
         ):
-            table = _source_table_descriptor(
+            base_table = _source_table_descriptor(
                 table_path,
                 content_root=content,
                 output_root=output,
                 archive_path=archive_path,
                 archive_member=archive_member,
+                sheet_name=None,
             )
-            mapping, mapping_reasons = parse_figure_panel(
-                archive_member or table_path.name
+            attempts, workbook_metrics = _mapping_attempts(
+                table_path,
+                mapping_name=archive_member or table_path.name,
+                max_xlsx_sheets=max_xlsx_sheets,
             )
-            reasons = list(article_reasons) + mapping_reasons
-            figure = None
-            caption = None
-            if mapping:
-                figure, caption, asset_reasons = _figure_assets(
-                    article_dir,
-                    mapping.figure_no,
+            for key, value in workbook_metrics.items():
+                totals[key] += value
+            for attempt in attempts:
+                table = {**base_table, "sheet_name": attempt.sheet_name}
+                mapping = attempt.mapping
+                reasons = list(article_reasons) + list(attempt.reasons)
+                figure = None
+                caption = None
+                if mapping:
+                    figure, caption, asset_reasons = _figure_assets(
+                        article_dir,
+                        mapping.figure_no,
+                    )
+                    reasons.extend(asset_reasons)
+                if reasons or not mapping:
+                    ambiguous.append(
+                        {
+                            "schema_version": SCHEMA_VERSION,
+                            "doi": doi,
+                            "article_id": article_id,
+                            "figure_no": mapping.figure_no if mapping else None,
+                            "panel_ids": [mapping.panel_id] if mapping else [],
+                            "panel_qualifier": mapping.qualifier if mapping else None,
+                            "source_table": table,
+                            "figure": figure,
+                            "caption": caption,
+                            "license": license_record,
+                            "license_evidence_sha256": _canonical_json_sha256(
+                                license_record
+                            ),
+                            "corpus_manifest_sha256": manifest_hash,
+                            "provenance_manifest_sha256": provenance_hash,
+                            "reasons": sorted(set(reasons)),
+                            "detail": attempt.detail,
+                            "curation_status": "unverified",
+                            "eligible_for_experiment": False,
+                        }
+                    )
+                    continue
+
+                candidate_id = _candidate_id(
+                    article_id=article_id,
+                    doi=doi,
+                    mapping=mapping,
+                    table=table,
                 )
-                reasons.extend(asset_reasons)
-            if reasons or not mapping:
-                ambiguous.append(
+                verification = evidence.get(candidate_id)
+                curation_status = "verified" if verification else "unverified"
+                skeleton = _case_skeleton(
+                    candidate_id=candidate_id,
+                    mapping=mapping,
+                    table=table,
+                    curation_status=curation_status,
+                    verification=verification,
+                )
+                candidates.append(
                     {
                         "schema_version": SCHEMA_VERSION,
+                        "candidate_id": candidate_id,
                         "doi": doi,
-                        "article_id": article_id,
-                        "figure_no": mapping.figure_no if mapping else None,
-                        "panel_ids": [mapping.panel_id] if mapping else [],
-                        "panel_qualifier": mapping.qualifier if mapping else None,
+                        "figure_no": mapping.figure_no,
+                        "panel_ids": [mapping.panel_id],
+                        "panel_qualifier": mapping.qualifier,
                         "source_table": table,
                         "figure": figure,
                         "caption": caption,
@@ -728,66 +969,28 @@ def build_cases(
                         ),
                         "corpus_manifest_sha256": manifest_hash,
                         "provenance_manifest_sha256": provenance_hash,
-                        "reasons": sorted(set(reasons)),
-                        "curation_status": "unverified",
-                        "eligible_for_experiment": False,
+                        "curation_status": curation_status,
+                        "verification_evidence": verification,
+                        "verification_evidence_file_sha256": (
+                            evidence_file_hash if verification else None
+                        ),
+                        "eligible_for_experiment": (
+                            curation_status == "verified"
+                        ),
+                        "eligibility_reasons": (
+                            [] if curation_status == "verified"
+                            else ["curation-not-verified"]
+                        ),
+                        "experiment_case": skeleton,
                     }
                 )
-                continue
-
-            candidate_id = _candidate_id(
-                article_id=article_id,
-                doi=doi,
-                mapping=mapping,
-                table=table,
-            )
-            verification = evidence.get(candidate_id)
-            curation_status = "verified" if verification else "unverified"
-            skeleton = _case_skeleton(
-                candidate_id=candidate_id,
-                mapping=mapping,
-                table=table,
-                curation_status=curation_status,
-                verification=verification,
-            )
-            candidates.append(
-                {
-                    "schema_version": SCHEMA_VERSION,
-                    "candidate_id": candidate_id,
-                    "doi": doi,
-                    "figure_no": mapping.figure_no,
-                    "panel_ids": [mapping.panel_id],
-                    "panel_qualifier": mapping.qualifier,
-                    "source_table": table,
-                    "figure": figure,
-                    "caption": caption,
-                    "license": license_record,
-                    "license_evidence_sha256": _canonical_json_sha256(
-                        license_record
-                    ),
-                    "corpus_manifest_sha256": manifest_hash,
-                    "provenance_manifest_sha256": provenance_hash,
-                    "curation_status": curation_status,
-                    "verification_evidence": verification,
-                    "verification_evidence_file_sha256": (
-                        evidence_file_hash if verification else None
-                    ),
-                    "eligible_for_experiment": (
-                        curation_status == "verified"
-                    ),
-                    "eligibility_reasons": (
-                        [] if curation_status == "verified"
-                        else ["curation-not-verified"]
-                    ),
-                    "experiment_case": skeleton,
-                }
-            )
 
     candidates.sort(key=lambda item: item["candidate_id"])
     ambiguous.sort(
         key=lambda item: (
             str(item.get("doi")),
             str((item.get("source_table") or {}).get("path") or item.get("source_path")),
+            str((item.get("source_table") or {}).get("sheet_name") or ""),
             ",".join(item.get("reasons") or []),
         )
     )
@@ -812,6 +1015,7 @@ def build_cases(
         "evidence_file_sha256": evidence_file_hash,
         "max_zip_files": max_zip_files,
         "max_zip_uncompressed_bytes": max_zip_uncompressed_bytes,
+        "max_xlsx_sheets": max_xlsx_sheets,
         "llm_calls": 0,
     }
     return candidates, ambiguous, summary

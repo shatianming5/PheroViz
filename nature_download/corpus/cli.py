@@ -12,6 +12,7 @@ from typing import Any, Iterable
 from .cases import (
     DEFAULT_MAX_ZIP_FILES,
     DEFAULT_MAX_ZIP_UNCOMPRESSED_BYTES,
+    DEFAULT_MAX_XLSX_SHEETS,
     build_cases,
     write_case_outputs,
 )
@@ -207,6 +208,7 @@ def cmd_build_cases(args: argparse.Namespace) -> None:
         evidence_file=args.evidence,
         max_zip_files=args.max_zip_files,
         max_zip_uncompressed_bytes=args.max_zip_uncompressed_bytes,
+        max_xlsx_sheets=args.max_xlsx_sheets,
     )
     write_case_outputs(args.out, candidates, ambiguous, summary)
     print(
@@ -423,5 +425,10 @@ def add_corpus_subcommands(subparsers: argparse._SubParsersAction) -> None:
         "--max-zip-uncompressed-bytes",
         type=int,
         default=DEFAULT_MAX_ZIP_UNCOMPRESSED_BYTES,
+    )
+    cases.add_argument(
+        "--max-xlsx-sheets",
+        type=int,
+        default=DEFAULT_MAX_XLSX_SHEETS,
     )
     cases.set_defaults(func=cmd_build_cases)
