@@ -446,6 +446,23 @@ def _llm_generate_slots(
     for key, value in slots.items():
         if isinstance(key, str) and isinstance(value, str) and value.strip():
             clean_slots[key.strip()] = value.strip()
+        elif (
+            stage == "L1"
+            and key == "spec.compose"
+            and isinstance(value, dict)
+        ):
+            clean_slots[key] = f"return {value!r}"
+        elif (
+            stage == "L1"
+            and key == "spec.theme_defaults"
+            and isinstance(value, dict)
+        ):
+            clean_slots[key] = (
+                f"theme = spec.get('theme') or {{}}\n"
+                f"theme.update({value!r})\n"
+                "spec['theme'] = theme\n"
+                "return spec"
+            )
     if not clean_slots:
         raise ValueError(
             f"{stage} model response contained no non-empty slot bodies"

@@ -491,6 +491,47 @@ def test_model_prompt_receives_memory_context() -> None:
     assert "theme.palette_global" in prompt
 
 
+def test_l1_structured_slots_are_compiled_without_eval() -> None:
+    class StructuredL1Client:
+        def generate_json(self, messages, **kwargs):
+            del messages, kwargs
+            return ModelResponse(
+                value={
+                    "slots": {
+                        "spec.compose": {
+                            "canvas": {"width": 640, "height": 480, "dpi": 100},
+                            "theme": {"palette_global": "tab10"},
+                            "layout": {},
+                            "scales": {},
+                            "overlays": [],
+                        },
+                        "spec.theme_defaults": {"font": "Arial"},
+                    },
+                    "notes": "structured L1",
+                },
+                model="fake",
+                request_id="structured-l1",
+                usage={},
+                stop_reason="end_turn",
+                latency_seconds=0.0,
+            )
+
+    result = single_runner._llm_generate_slots(
+        "L1",
+        {
+            "slot_keys": ["spec.compose", "spec.theme_defaults"],
+            "data_profile": {},
+            "intent": {},
+            "spec": {},
+            "memory_context": {},
+        },
+        model_client=StructuredL1Client(),  # type: ignore[arg-type]
+    )
+
+    assert result["slots"]["spec.compose"].startswith("return {")
+    assert "theme.update" in result["slots"]["spec.theme_defaults"]
+
+
 def test_model_initial_generation_calls_all_stages_with_sampling_controls(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
