@@ -94,6 +94,49 @@ case/method/backbone/seed/budget 都有独立 run 名和冻结的数据 manifest
 commit 的外部 checkout 运行，审计记录位于
 `experiments/baseline_audits/`。
 
+## Open-weight Transformers 文本服务
+
+`experiments.transformers_server` 提供仅文本的 OpenAI-compatible
+`/v1/chat/completions`，用于固定本地 checkpoint 的 open-weight 实验。
+它不支持图片、音频、tools、URL 或任意文件输入。模型目录必须已经存在于
+本机；服务以 `local_files_only=True`、`trust_remote_code=False` 加载。
+
+```bash
+export OPEN_MODEL_API_KEY='仅保存在环境变量中的随机密钥'
+python -m experiments.transformers_server \
+  --model-path /absolute/path/to/Qwen-checkpoint \
+  --served-model-name Qwen/Qwen3.5 \
+  --host 127.0.0.1 --port 8000 \
+  --device cuda --dtype bfloat16 \
+  --api-key-env OPEN_MODEL_API_KEY \
+  --state-file runs/open_weight_server.json
+```
+
+默认只绑定 `127.0.0.1`；绑定 `0.0.0.0` 或其它非 loopback 地址必须额外传
+`--allow-remote`。state JSON 权限为 `0600`，包含实际 PID、端口和一次性
+shutdown token，但不包含 API key。实验结束后由控制进程读取 state 文件并
+调用受 token 保护的 `/shutdown`：
+
+```bash
+python - <<'PY'
+import http.client, json
+from pathlib import Path
+
+state = json.loads(Path("runs/open_weight_server.json").read_text())
+conn = http.client.HTTPConnection(state["host"], state["port"], timeout=10)
+conn.request(
+    "POST",
+    "/shutdown",
+    headers={state["shutdown_header"]: state["shutdown_token"]},
+)
+response = conn.getresponse()
+print(response.status, response.read().decode())
+PY
+```
+
+随后等待 state 中的 PID 退出，并用 `nvidia-smi`（或对应设备工具）确认该
+PID 已不再占用 GPU；进程退出前会删除模型引用并调用 CUDA cache cleanup。
+
 ## Default Slots v2 摘要
 
 默认 slot 覆盖 L1-L4 全链路：
