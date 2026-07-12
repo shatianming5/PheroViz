@@ -23,7 +23,11 @@ from .models import (
     verify_artifacts,
     write_json_atomic,
 )
-from .providers import ExperimentProvider, load_provider
+from .providers import (
+    ExperimentProvider,
+    ProviderUnavailableError,
+    load_provider,
+)
 from .scheduler import run_schedule
 
 
@@ -35,6 +39,15 @@ ProviderLoader = Callable[
     [str, Mapping[str, object]],
     ExperimentProvider,
 ]
+
+
+def _failure_attribution(exc: Exception) -> str:
+    explicit = getattr(exc, "failure_attribution", None)
+    if explicit in {"method", "infrastructure"}:
+        return str(explicit)
+    if isinstance(exc, ProviderUnavailableError):
+        return "infrastructure"
+    return "unclassified"
 
 
 @dataclass(frozen=True)
@@ -187,6 +200,11 @@ def execute_experiment(
     record.write(record_path)
 
     execution_started = monotonic()
+    deadline_monotonic = (
+        execution_started + float(spec.budget_value)
+        if spec.budget_type == "wall_clock_seconds"
+        else None
+    )
 
     def persist() -> None:
         record.write(record_path)
@@ -224,6 +242,7 @@ def execute_experiment(
             record=record,
             persist=persist,
             monotonic=monotonic,
+            deadline_monotonic=deadline_monotonic,
         )
         record.status = "completed"
         record.finished_at = utc_now()
@@ -243,6 +262,7 @@ def execute_experiment(
         record.error = {
             "type": type(exc).__name__,
             "message": str(exc),
+            "attribution": _failure_attribution(exc),
         }
         record.write(record_path)
         record.validate_provenance()

@@ -7,12 +7,15 @@ from typing import Any, Callable
 
 import pytest
 
+import nature_download.corpus.reviews as reviews_module
 from nature_download.corpus.cases import _load_evidence
 from nature_download.corpus.provenance import sha256_file
 from nature_download.corpus.proposals import (
     DEFAULT_MAX_COLUMNS,
     DEFAULT_MAX_FILE_BYTES,
     DEFAULT_MAX_ROWS,
+    PROPOSAL_RULE_V2,
+    _multi_panel_proposals,
     propose_single_candidate,
 )
 from nature_download.corpus.reviews import (
@@ -155,55 +158,22 @@ def make_single(
 
 
 def make_multi(first: dict[str, Any], second: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "schema_version": "1.0",
-        "candidate_id": "multi-figure1",
-        "proposal_type": "multi_panel",
-        "source_candidate_ids": [
-            first["candidate_id"],
-            second["candidate_id"],
-        ],
-        "doi": first["doi"],
-        "figure_no": 1,
-        "panel_ids": ["a", "b"],
-        "curation_status": "proposed",
-        "eligible_for_experiment": False,
-        "eligibility_reasons": ["external-validation-required"],
-        "experiment_case": {
-            "case_id": "multi-figure1",
-            "panel_count": 2,
-            "split": None,
-            "panels": [
-                {
-                    "id": "a",
-                    "data_path": first["source_table"]["path"],
-                    "sheet": None,
-                    "user_goal": "Panel A.",
-                    "chart_family": "bar",
-                    "intent": {"x": "Category", "y": "Value"},
-                },
-                {
-                    "id": "b",
-                    "data_path": second["source_table"]["path"],
-                    "sheet": None,
-                    "user_goal": "Panel B.",
-                    "chart_family": "bar",
-                    "intent": {"x": "Category", "y": "Value"},
-                },
-            ],
-            "user_goal": "Create a two-panel figure.",
-            "chart_family": "multi_panel",
-            "intent": {"panels": []},
-            "evaluation_expectation": {
-                "schema_version": "1.1.0",
-                "panels": [
-                    first["experiment_case"]["evaluation_expectation"]["panels"][0],
-                    second["experiment_case"]["evaluation_expectation"]["panels"][0],
-                ],
-                "panel_groups": [],
-            },
-        },
-    }
+    return _multi_panel_proposals(
+        [first, second],
+        input_candidates_sha256="f" * 64,
+        code_commit="a" * 40,
+    )[0]
+
+
+def canonical_single(candidate: dict[str, Any]) -> dict[str, Any]:
+    return propose_single_candidate(
+        candidate,
+        input_candidates_sha256="f" * 64,
+        code_commit="a" * 40,
+        max_file_bytes=DEFAULT_MAX_FILE_BYTES,
+        max_rows=DEFAULT_MAX_ROWS,
+        max_columns=DEFAULT_MAX_COLUMNS,
+    )
 
 
 def write_proposed(path: Path, proposals: list[dict[str, Any]]) -> None:
@@ -300,10 +270,104 @@ def test_all_models_agree_generates_case_builder_evidence(workdir: Path) -> None
     assert validated["summary"] == result["summary"]
 
 
+def test_v2_scatter_proposal_is_reviewed_and_validated(
+    workdir: Path,
+) -> None:
+    candidate = make_single(workdir, candidate_id="scatter-a")
+    table = Path(candidate["source_table"]["path"])
+    table.write_text(
+        "Run order,Value\n1,3\n2,1\n3,2\n",
+        encoding="utf-8",
+    )
+    candidate["source_table"] = {
+        **descriptor(table),
+        "sheet_name": None,
+    }
+    proposal = propose_single_candidate(
+        candidate,
+        input_candidates_sha256="f" * 64,
+        code_commit="a" * 40,
+        max_file_bytes=DEFAULT_MAX_FILE_BYTES,
+        max_rows=DEFAULT_MAX_ROWS,
+        max_columns=DEFAULT_MAX_COLUMNS,
+        rule_version=PROPOSAL_RULE_V2,
+    )
+    source = workdir / "proposed.jsonl"
+    output = workdir / "reviews"
+    write_proposed(source, [proposal])
+
+    def scatter_output(prompt: str, model: str) -> dict[str, Any]:
+        return {
+            "valid": True,
+            "chart_family": "scatter",
+            "x": "Run order",
+            "y": ["Value"],
+            "reason": "Exact match.",
+        }
+
+    factory, calls = factory_for(scatter_output)
+    result = review_proposals(
+        proposed_path=source,
+        output_root=output,
+        judge_models=MODELS,
+        client_factory=factory,
+        git_state=CLEAN_GIT,
+    )
+
+    assert result["summary"]["single_accepted"] == 1
+    assert (
+        result["summary"]["rubric_hash"]
+        == reviews_module.REVIEW_RUBRIC_V2_HASH
+    )
+    assert all("line, bar, or scatter" in call["prompt"] for call in calls)
+    validate_review_artifacts(
+        proposed_path=source,
+        reviews_path=output / "reviews.jsonl",
+        evidence_path=output / "evidence.json",
+    )
+
+
+@pytest.mark.parametrize("chart_family", ["line", "bar", "scatter"])
+def test_v2_rubric_accepts_all_supported_chart_families(
+    chart_family: str,
+) -> None:
+    allowed = reviews_module.REVIEW_RUBRICS[
+        reviews_module.REVIEW_RUBRIC_V2_HASH
+    ][1]
+    output = reviews_module._strict_output(
+        {
+            "valid": True,
+            "chart_family": chart_family,
+            "x": "x",
+            "y": ["y"],
+            "reason": "supported",
+        },
+        allowed_chart_families=allowed,
+    )
+    assert output["chart_family"] == chart_family
+
+
+def test_v1_rubric_rejects_scatter_model_output() -> None:
+    allowed = reviews_module.REVIEW_RUBRICS[
+        reviews_module.REVIEW_RUBRIC_V1_HASH
+    ][1]
+    with pytest.raises(ReviewError, match="model-output-schema-invalid"):
+        reviews_module._strict_output(
+            {
+                "valid": True,
+                "chart_family": "scatter",
+                "x": "x",
+                "y": ["y"],
+                "reason": "unsupported in v1",
+            },
+            allowed_chart_families=allowed,
+        )
+
+
 def test_disagreement_and_correction_are_recorded_not_adopted(
     workdir: Path,
 ) -> None:
-    proposal = make_single(workdir)
+    proposal = canonical_single(make_single(workdir))
     original_case = json.loads(json.dumps(proposal["experiment_case"]))
     source = workdir / "proposed.jsonl"
     write_proposed(source, [proposal])
@@ -396,6 +460,165 @@ def test_resume_reuses_bound_reviews_and_rejects_tamper(workdir: Path) -> None:
         )
 
 
+def test_resume_preserves_legacy_v1_rubric(
+    workdir: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    proposal = canonical_single(make_single(workdir))
+    proposal.pop("proposal_rule_version")
+    source = workdir / "proposed.jsonl"
+    output = workdir / "reviews"
+    write_proposed(source, [proposal])
+    factory, calls = factory_for()
+    monkeypatch.setattr(
+        reviews_module,
+        "REVIEW_RUBRIC_HASH",
+        reviews_module.REVIEW_RUBRIC_V1_HASH,
+    )
+    first = review_proposals(
+        proposed_path=source,
+        output_root=output,
+        judge_models=MODELS,
+        client_factory=factory,
+        git_state=CLEAN_GIT,
+    )
+    assert (
+        first["summary"]["rubric_hash"]
+        == reviews_module.REVIEW_RUBRIC_V1_HASH
+    )
+    validated = validate_review_artifacts(
+        proposed_path=source,
+        reviews_path=output / "reviews.jsonl",
+        evidence_path=output / "evidence.json",
+    )
+    assert (
+        validated["evidence"]["rubric_hash"]
+        == reviews_module.REVIEW_RUBRIC_V1_HASH
+    )
+
+    monkeypatch.setattr(
+        reviews_module,
+        "REVIEW_RUBRIC_HASH",
+        reviews_module.REVIEW_RUBRIC_V2_HASH,
+    )
+    calls.clear()
+    resumed = review_proposals(
+        proposed_path=source,
+        output_root=output,
+        judge_models=MODELS,
+        client_factory=factory,
+        git_state=CLEAN_GIT,
+        resume=True,
+    )
+
+    assert resumed["summary"]["resumed"] == 1
+    assert (
+        resumed["summary"]["rubric_hash"]
+        == reviews_module.REVIEW_RUBRIC_V1_HASH
+    )
+    assert calls == []
+    validate_review_artifacts(
+        proposed_path=source,
+        reviews_path=output / "reviews.jsonl",
+        evidence_path=output / "evidence.json",
+    )
+
+
+def test_resume_malformed_binding_fails_closed(workdir: Path) -> None:
+    proposal = make_single(workdir)
+    source = workdir / "proposed.jsonl"
+    output = workdir / "reviews"
+    write_proposed(source, [proposal])
+    factory, _ = factory_for()
+    review_proposals(
+        proposed_path=source,
+        output_root=output,
+        judge_models=MODELS,
+        client_factory=factory,
+        git_state=CLEAN_GIT,
+    )
+    reviews_path = output / "reviews.jsonl"
+    record = json.loads(reviews_path.read_text(encoding="utf-8"))
+    record["binding"] = []
+    unhashed = dict(record)
+    unhashed.pop("review_hash")
+    record["review_hash"] = reviews_module._sha256_json(unhashed)
+    reviews_path.write_text(
+        json.dumps(record, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ReviewError, match="resume-review-binding-invalid"):
+        review_proposals(
+            proposed_path=source,
+            output_root=output,
+            judge_models=MODELS,
+            client_factory=factory,
+            git_state=CLEAN_GIT,
+            resume=True,
+        )
+
+
+def test_unknown_proposal_rule_fails_before_review(workdir: Path) -> None:
+    proposal = make_single(workdir)
+    proposal["proposal_rule_version"] = "simple-2d-v999"
+    source = workdir / "proposed.jsonl"
+    write_proposed(source, [proposal])
+    factory, calls = factory_for()
+
+    with pytest.raises(ReviewError, match="proposal-rule-version-unsupported"):
+        review_proposals(
+            proposed_path=source,
+            output_root=workdir / "reviews",
+            judge_models=MODELS,
+            client_factory=factory,
+            git_state=CLEAN_GIT,
+        )
+    assert calls == []
+
+
+def test_noncanonical_multi_is_rejected_without_evidence(
+    workdir: Path,
+) -> None:
+    first = canonical_single(
+        make_single(workdir, candidate_id="panel-a", panel_id="a")
+    )
+    second = canonical_single(
+        make_single(workdir, candidate_id="panel-b", panel_id="b")
+    )
+    multi = make_multi(first, second)
+    multi["experiment_case"]["user_goal"] = "Tampered multi-panel goal."
+    source = workdir / "proposed.jsonl"
+    output = workdir / "reviews"
+    write_proposed(source, [first, second, multi])
+    factory, _ = factory_for()
+
+    result = review_proposals(
+        proposed_path=source,
+        output_root=output,
+        judge_models=MODELS,
+        client_factory=factory,
+        git_state=CLEAN_GIT,
+    )
+
+    rejected = next(
+        item
+        for item in result["rejected"]
+        if item["candidate_id"] == multi["candidate_id"]
+    )
+    assert rejected["rejection_reasons"] == [
+        "multi-proposal-not-canonical"
+    ]
+    assert {
+        item["candidate_id"]
+        for item in result["evidence"]["verifications"]
+    } == {"panel-a", "panel-b"}
+    validate_review_artifacts(
+        proposed_path=source,
+        reviews_path=output / "reviews.jsonl",
+        evidence_path=output / "evidence.json",
+    )
+
 def test_dirty_code_is_rejected_by_default(workdir: Path) -> None:
     proposal = make_single(workdir)
     source = workdir / "proposed.jsonl"
@@ -430,7 +653,7 @@ def test_multi_evidence_requires_all_source_candidates(workdir: Path) -> None:
     assert accepted["summary"]["multi_accepted"] == 1
     assert {
         item["candidate_id"] for item in accepted["evidence"]["verifications"]
-    } == {"panel-a", "panel-b", "multi-figure1"}
+    } == {"panel-a", "panel-b", multi["candidate_id"]}
 
     def reject_second(prompt: str, model: str) -> dict[str, Any]:
         value = matching_output(prompt, model)
@@ -453,7 +676,7 @@ def test_multi_evidence_requires_all_source_candidates(workdir: Path) -> None:
     multi_rejection = next(
         item
         for item in rejected["rejected"]
-        if item["candidate_id"] == "multi-figure1"
+        if item["candidate_id"] == multi["candidate_id"]
     )
     assert multi_rejection["rejection_reasons"] == [
         "multi-source-not-all-validated"

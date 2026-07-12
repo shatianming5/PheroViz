@@ -697,6 +697,33 @@ def _apply_shared_memory_constraints(
     return updated, reused_ids
 
 
+def _shared_memory_constraint_bindings(
+    *,
+    memory: PersistentMemory,
+    panel_id: str,
+    panel_group: str,
+    intent: Mapping[str, Any],
+) -> list[dict[str, Any]]:
+    resolution = memory.constraint_projection(
+        panel_id=panel_id,
+        panel_group=panel_group,
+    )
+    supported = {_path_slot(path): path for path in _SHARED_SPEC_PATHS}
+    bindings = []
+    for slot, record in sorted(resolution.selected.items()):
+        path = supported.get(slot)
+        if path is None or _intent_overrides_path(intent, path):
+            continue
+        bindings.append(
+            {
+                "path": list(path),
+                "value": copy.deepcopy(record.value),
+                "record_id": record.id,
+            }
+        )
+    return bindings
+
+
 def _memory_context_for_stage(
     *,
     memory: PersistentMemory,
@@ -1220,6 +1247,16 @@ def iter_chain(
             round_inherited_ids = []
         spec = validate_spec(spec)
         ctx["spec"] = spec
+        ctx["_enforced_shared_constraints"] = (
+            _shared_memory_constraint_bindings(
+                memory=memory_store,
+                panel_id=panel_id,
+                panel_group=panel_group,
+                intent=base_intent,
+            )
+            if read_constraints
+            else []
+        )
         emit("round_start", {"round": round_idx, "feedback": feedback_text})
         stage_logs: Dict[str, Any] = {}
 
@@ -1533,6 +1570,18 @@ def iter_chain(
             ctx.update(updated_ctx)
             new_spec = updated_ctx.get("spec")
             if isinstance(new_spec, dict):
+                if read_constraints:
+                    new_spec, enforced_constraint_ids = (
+                        _apply_shared_memory_constraints(
+                            new_spec,
+                            memory=memory_store,
+                            panel_id=panel_id,
+                            panel_group=panel_group,
+                            intent=base_intent,
+                        )
+                    )
+                    round_reuse_ids.update(enforced_constraint_ids)
+                    updated_ctx["spec"] = new_spec
                 try:
                     validated_spec = validate_spec(new_spec)
                 except (TypeError, ValueError) as exc:

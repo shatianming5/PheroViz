@@ -18,7 +18,7 @@ from .manifest import (
     verify_case_data_files,
     verify_case_metadata,
 )
-from .models import ExperimentSpec
+from .models import ExperimentSpec, sha256_path
 
 
 class ProviderError(RuntimeError):
@@ -498,7 +498,246 @@ class SingleChainProvider:
         )
 
 
+def _contained_candidate_artifacts(
+    raw_artifacts: Any,
+    *,
+    output_dir: Path,
+    required_labels: set[str],
+) -> Dict[str, str]:
+    if not isinstance(raw_artifacts, Mapping):
+        raise ProviderExecutionError(
+            "Multi-panel checkpoint has no artifact mapping"
+        )
+    artifacts: Dict[str, str] = {}
+    for label, path in raw_artifacts.items():
+        if (
+            not isinstance(label, str)
+            or not label
+            or not isinstance(path, str)
+            or not path
+        ):
+            raise ProviderExecutionError(
+                "Multi-panel checkpoint artifact labels and paths must be "
+                "non-empty strings"
+            )
+        artifacts[label] = path
+    missing = sorted(required_labels - set(artifacts))
+    if missing:
+        raise ProviderExecutionError(
+            "Multi-panel checkpoint is missing artifacts: "
+            + ", ".join(missing)
+        )
+
+    root = output_dir.resolve()
+    for label, raw_path in artifacts.items():
+        path = Path(raw_path)
+        if path.is_symlink():
+            raise ProviderExecutionError(
+                f"Multi-panel checkpoint artifact is a symlink: {label}"
+            )
+        try:
+            resolved = path.resolve(strict=True)
+        except OSError as exc:
+            raise ProviderExecutionError(
+                f"Multi-panel checkpoint artifact is missing: {label}"
+            ) from exc
+        try:
+            resolved.relative_to(root)
+        except ValueError as exc:
+            raise ProviderExecutionError(
+                "Multi-panel checkpoint artifact escaped its allocated "
+                f"provider directory: {label}={resolved}"
+            ) from exc
+        artifacts[label] = str(resolved)
+    return artifacts
+
+
+def _reject_failed_multi_panel_iterations(
+    artifacts: Mapping[str, str],
+) -> None:
+    iteration_paths = {
+        label: path
+        for label, path in artifacts.items()
+        if label.startswith("panel.") and label.endswith(".iteration")
+    }
+    for label, raw_path in sorted(iteration_paths.items()):
+        try:
+            iteration = json.loads(
+                Path(raw_path).read_text(encoding="utf-8")
+            )
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ProviderExecutionError(
+                f"Cannot read {label}: {exc}"
+            ) from exc
+        if not isinstance(iteration, Mapping):
+            raise ProviderExecutionError(f"{label} is not a JSON object")
+        stages = iteration.get("stages") or {}
+        if not isinstance(stages, Mapping):
+            continue
+        for stage_name, stage in stages.items():
+            if not isinstance(stage, Mapping):
+                continue
+            response = stage.get("response")
+            notes = str(stage.get("notes") or "")
+            if (
+                isinstance(response, Mapping) and response.get("error")
+            ) or "llm_error:" in notes:
+                raise ProviderExecutionError(
+                    f"Model provider failed in {label} stage {stage_name}; "
+                    "refusing fallback output"
+                )
+
+
+def _multi_panel_checkpoint_candidate(
+    checkpoint: Mapping[str, Any],
+    *,
+    expected_round: int,
+    total_rounds: int,
+    panel_ids: Sequence[str],
+    memory_mode: str,
+    seed: int,
+    output_dir: Path,
+) -> CandidateResult:
+    if checkpoint.get("global_round") != expected_round:
+        raise ProviderExecutionError(
+            "Multi-panel checkpoints are not a contiguous global-round "
+            f"trajectory: expected {expected_round}, got "
+            f"{checkpoint.get('global_round')!r}"
+        )
+    panel_count = len(panel_ids)
+    if checkpoint.get("render_count") != panel_count:
+        raise ProviderExecutionError(
+            f"Global round {expected_round} must report exactly "
+            f"{panel_count} panel renders"
+        )
+    if checkpoint.get("cumulative_render_count") != panel_count * expected_round:
+        raise ProviderExecutionError(
+            f"Global round {expected_round} has inconsistent cumulative "
+            "render accounting"
+        )
+
+    panels = checkpoint.get("panels")
+    if not isinstance(panels, Mapping) or set(panels) != set(panel_ids):
+        raise ProviderExecutionError(
+            f"Global round {expected_round} does not contain every panel"
+        )
+    programmatic = checkpoint.get("programmatic_evaluation")
+    if not isinstance(programmatic, Mapping):
+        raise ProviderExecutionError(
+            f"Global round {expected_round} has no programmatic evaluation"
+        )
+    panel_fidelity = programmatic.get("panel_fidelity")
+    if (
+        not isinstance(panel_fidelity, Mapping)
+        or set(panel_fidelity) != set(panel_ids)
+    ):
+        raise ProviderExecutionError(
+            f"Global round {expected_round} has incomplete panel fidelity"
+        )
+    numerator = sum(
+        int(item.get("numerator", 0))
+        for item in panel_fidelity.values()
+        if isinstance(item, Mapping)
+    )
+    denominator = sum(
+        int(item.get("denominator", 0))
+        for item in panel_fidelity.values()
+        if isinstance(item, Mapping)
+    )
+    if denominator <= 0:
+        raise ProviderExecutionError(
+            f"Global round {expected_round} has no applicable fidelity checks"
+        )
+    metrics: Dict[str, float] = {
+        "data_fidelity": numerator / denominator,
+        "execution_success": 1.0,
+    }
+    cohesion_ratio = (programmatic.get("cohesion") or {}).get("ratio")
+    if (
+        isinstance(cohesion_ratio, (int, float))
+        and not isinstance(cohesion_ratio, bool)
+    ):
+        metrics["series_cohesion"] = float(cohesion_ratio)
+    visual_scores: list[float] = []
+    for panel in panels.values():
+        if not isinstance(panel, Mapping):
+            continue
+        scores = panel.get("scores")
+        score = (
+            scores.get("visual_form")
+            if isinstance(scores, Mapping)
+            else None
+        )
+        if isinstance(score, (int, float)) and not isinstance(score, bool):
+            visual_scores.append(float(score))
+    if visual_scores:
+        metrics["visual_form"] = sum(visual_scores) / len(visual_scores)
+
+    required_artifacts = {
+        "output",
+        "render",
+        "result",
+        "programmatic_evaluation",
+        "memory_snapshot",
+        "memory_trace",
+        "memory_compatibility",
+        "schedule_trace",
+    }
+    for panel_id in panel_ids:
+        required_artifacts.update(
+            {
+                f"panel.{panel_id}.iteration",
+                f"panel.{panel_id}.render",
+                f"panel.{panel_id}.programmatic_evaluation",
+            }
+        )
+    if memory_mode == "untyped":
+        required_artifacts.add("untyped_memory")
+    artifacts = _contained_candidate_artifacts(
+        checkpoint.get("artifacts"),
+        output_dir=output_dir,
+        required_labels=required_artifacts,
+    )
+    _reject_failed_multi_panel_iterations(artifacts)
+
+    served_models = sorted(
+        {
+            str(metadata.get("model"))
+            for panel in panels.values()
+            if isinstance(panel, Mapping)
+            for metadata in (panel.get("model_calls") or {}).values()
+            if isinstance(metadata, Mapping) and metadata.get("model")
+        }
+    )
+    judge_models = sorted(
+        {
+            str(metadata.get("model"))
+            for panel in panels.values()
+            if isinstance(panel, Mapping)
+            for metadata in [panel.get("judge_model_metadata") or {}]
+            if isinstance(metadata, Mapping) and metadata.get("model")
+        }
+    )
+    return CandidateResult(
+        metrics=metrics,
+        render_count=panel_count,
+        artifacts=artifacts,
+        metadata={
+            "global_round": expected_round,
+            "panel_count": panel_count,
+            "rounds": total_rounds,
+            "memory_mode": memory_mode,
+            "seed": seed,
+            "cumulative_render_count": panel_count * expected_round,
+            "served_models": served_models,
+            "judge_models": judge_models,
+        },
+    )
+
+
 class MultiPanelProvider:
+    """Archive each complete global round as one comparable candidate."""
+
     name = "phero_viz_multi_panel"
     test_only = False
 
@@ -624,7 +863,7 @@ class MultiPanelProvider:
             rounds = request.remaining_renders // panel_count
             memory_mode = str(
                 request.spec.method_config.get("memory_mode", "full")
-            )
+            ).strip().lower()
         else:
             configured = request.spec.method_config.get(
                 "rounds",
@@ -638,7 +877,7 @@ class MultiPanelProvider:
             rounds = configured
             memory_mode = str(
                 request.spec.method_config.get("memory_mode", "full")
-            )
+            ).strip().lower()
         if rounds < 1:
             raise ProviderExecutionError("Multi-panel rounds must be positive")
 
@@ -685,92 +924,100 @@ class MultiPanelProvider:
         finally:
             single_chain_runner._MODEL_CLIENT = old_model_client
             single_chain_runner._LLM_CLIENT = old_compat_client
-        programmatic = result.get("programmatic_evaluation")
-        if not isinstance(programmatic, Mapping):
+        if result.get("rounds") != rounds:
             raise ProviderExecutionError(
-                "Multi-panel run produced no programmatic evaluation"
+                "Multi-panel run reported an unexpected round count"
             )
-        panel_fidelity = programmatic.get("panel_fidelity") or {}
-        numerator = sum(
-            int(item.get("numerator", 0))
-            for item in panel_fidelity.values()
-            if isinstance(item, Mapping)
-        )
-        denominator = sum(
-            int(item.get("denominator", 0))
-            for item in panel_fidelity.values()
-            if isinstance(item, Mapping)
-        )
-        if denominator <= 0:
+        render_counts = result.get("render_counts")
+        if (
+            not isinstance(render_counts, Mapping)
+            or set(render_counts) != {
+                str(panel.get("id"))
+                for panel in panel_manifest.get("panels") or []
+                if isinstance(panel, Mapping)
+            }
+            or any(
+                isinstance(value, bool)
+                or not isinstance(value, int)
+                or value != rounds
+                for value in render_counts.values()
+            )
+        ):
             raise ProviderExecutionError(
-                "Multi-panel run has no applicable fidelity checks"
+                "Multi-panel run has inconsistent final render accounting"
             )
-        metrics: Dict[str, float] = {
-            "data_fidelity": numerator / denominator,
-            "execution_success": 1.0,
-        }
-        cohesion_ratio = (programmatic.get("cohesion") or {}).get("ratio")
-        if isinstance(cohesion_ratio, (int, float)):
-            metrics["series_cohesion"] = float(cohesion_ratio)
-        visual_scores = [
-            float((panel["result"].get("scores") or {}).get("visual_form", 0.0))
-            for panel in result["panels"].values()
-            if isinstance(panel.get("result"), Mapping)
+        if sum(int(value) for value in render_counts.values()) != (
+            panel_count * rounds
+        ):
+            raise ProviderExecutionError(
+                "Multi-panel run did not consume the exact panel-render budget"
+            )
+        checkpoints = result.get("checkpoints")
+        if (
+            not isinstance(checkpoints, list)
+            or len(checkpoints) != rounds
+            or not all(
+                isinstance(checkpoint, Mapping)
+                for checkpoint in checkpoints
+            )
+        ):
+            raise ProviderExecutionError(
+                "Multi-panel run did not produce one checkpoint per global "
+                "round; refusing to substitute the final output"
+            )
+        panel_ids = [
+            str(panel["id"])
+            for panel in panel_manifest.get("panels") or []
+            if isinstance(panel, Mapping)
         ]
-        if visual_scores:
-            metrics["visual_form"] = sum(visual_scores) / len(visual_scores)
-
-        artifacts = {
-            "output": str(output_dir),
-            "render": str(result["combined_figure_path"]),
-            "result": str(result["result_path"]),
-            "programmatic_evaluation": str(
-                result["programmatic_evaluation_path"]
-            ),
-            "memory_snapshot": str(result["shared_memory_snapshot_path"]),
-            "memory_trace": str(result["shared_memory_trace_path"]),
-            "schedule_trace": str(result["schedule_trace_path"]),
-        }
-        candidate = CandidateResult(
-            metrics=metrics,
-            render_count=sum(int(value) for value in result["render_counts"].values()),
-            artifacts=artifacts,
-            metadata={
-                "panel_count": panel_count,
-                "rounds": rounds,
-                "memory_mode": memory_mode,
-                "seed": request.spec.seed + request.call_index - 1,
-                "served_models": sorted(
-                    {
-                        str(
-                            metadata.get("model")
-                        )
-                        for panel in result["panels"].values()
-                        if isinstance(panel.get("result"), Mapping)
-                        for stage in (
-                            panel["result"].get("stages") or {}
-                        ).values()
-                        if isinstance(stage, Mapping)
-                        for metadata in [stage.get("model_metadata") or {}]
-                        if metadata.get("model")
-                    }
-                ),
-                "judge_models": sorted(
-                    {
-                        str(metadata.get("model"))
-                        for panel in result["panels"].values()
-                        if isinstance(panel.get("result"), Mapping)
-                        for metadata in [
-                            panel["result"].get(
-                                "judge_model_metadata"
-                            )
-                            or {}
-                        ]
-                        if metadata.get("model")
-                    }
-                ),
-            },
+        candidate_seed = request.spec.seed + request.call_index - 1
+        candidates = tuple(
+            _multi_panel_checkpoint_candidate(
+                checkpoint,
+                expected_round=round_number,
+                total_rounds=rounds,
+                panel_ids=panel_ids,
+                memory_mode=memory_mode,
+                seed=candidate_seed,
+                output_dir=request.output_dir,
+            )
+            for round_number, checkpoint in enumerate(checkpoints, 1)
         )
+        if sum(candidate.render_count for candidate in candidates) != (
+            panel_count * rounds
+        ):
+            raise ProviderExecutionError(
+                "Multi-panel checkpoint trajectory has inconsistent render "
+                "accounting"
+            )
+        if (
+            checkpoints[-1].get("programmatic_evaluation")
+            != result.get("programmatic_evaluation")
+        ):
+            raise ProviderExecutionError(
+                "Final multi-panel checkpoint does not match the final result"
+            )
+        final_render = Path(str(result.get("combined_figure_path") or ""))
+        checkpoint_render = Path(
+            str(
+                (checkpoints[-1].get("artifacts") or {}).get("render")
+                or ""
+            )
+        )
+        if (
+            not final_render.is_file()
+            or not checkpoint_render.is_file()
+            or sha256_path(final_render) != sha256_path(checkpoint_render)
+        ):
+            raise ProviderExecutionError(
+                "Final multi-panel checkpoint render does not match the "
+                "final result"
+            )
         if request.spec.schedule == "best_of_n":
-            return candidate
-        return ProviderBatch(candidates=(candidate,), stop=True)
+            if len(candidates) != 1:
+                raise ProviderExecutionError(
+                    "best_of_n must produce one complete multi-panel candidate "
+                    "per provider call"
+                )
+            return candidates[0]
+        return ProviderBatch(candidates=candidates, stop=True)

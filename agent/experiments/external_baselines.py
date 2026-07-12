@@ -5,9 +5,10 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Mapping, Optional, Sequence
+from typing import Any, Callable, Dict, Mapping, Optional, Sequence
 
 from .baseline_registry import (
     BASELINE_REGISTRY,
@@ -209,6 +210,7 @@ class ExternalBaselineProvider:
         timeout_seconds: float = 1800.0,
         check_dependencies: bool = True,
         environ: Optional[Mapping[str, str]] = None,
+        monotonic: Callable[[], float] = time.monotonic,
     ) -> None:
         self.definition = definition
         self.name = f"external_{definition.name}"
@@ -217,6 +219,7 @@ class ExternalBaselineProvider:
         self.timeout_seconds = float(timeout_seconds)
         self.check_dependencies = check_dependencies
         self.environ = dict(os.environ if environ is None else environ)
+        self.monotonic = monotonic
         self.last_preflight: Optional[PreflightReport] = None
 
     def _required_env(self) -> Sequence[str]:
@@ -314,28 +317,56 @@ class ExternalBaselineProvider:
             invocation.environment,
             home_dir=work_dir / "isolated_home",
         )
-        try:
-            completed = subprocess.run(
-                list(invocation.argv),
-                cwd=work_dir,
-                env=started_environment,
-                check=False,
-                capture_output=True,
-                text=True,
-                timeout=self.timeout_seconds,
+        deadline_limited = False
+        deadline_expired = False
+        if request.deadline_monotonic is not None:
+            fresh_remaining = (
+                float(request.deadline_monotonic) - self.monotonic()
             )
-            exit_code = completed.returncode
-            stdout = completed.stdout
-            stderr = completed.stderr
-        except subprocess.TimeoutExpired as exc:
+            deadline_limited = fresh_remaining <= self.timeout_seconds
+            deadline_expired = fresh_remaining <= 0
+            effective_timeout = (
+                0.0
+                if deadline_expired
+                else min(self.timeout_seconds, fresh_remaining)
+            )
+        elif request.remaining_seconds is not None:
+            effective_timeout = min(
+                self.timeout_seconds,
+                max(float(request.remaining_seconds), 0.001),
+            )
+        else:
+            effective_timeout = self.timeout_seconds
+
+        timed_out = deadline_expired
+        if deadline_expired:
             exit_code = -1
-            stdout = exc.stdout or ""
-            stderr = exc.stderr or ""
-            if isinstance(stdout, bytes):
-                stdout = stdout.decode("utf-8", errors="replace")
-            if isinstance(stderr, bytes):
-                stderr = stderr.decode("utf-8", errors="replace")
-            stderr = f"{stderr}\nTimeoutExpired after {self.timeout_seconds}s"
+            stdout = ""
+            stderr = "Absolute wall-clock deadline expired before subprocess launch"
+        else:
+            try:
+                completed = subprocess.run(
+                    list(invocation.argv),
+                    cwd=work_dir,
+                    env=started_environment,
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=effective_timeout,
+                )
+                exit_code = completed.returncode
+                stdout = completed.stdout
+                stderr = completed.stderr
+            except subprocess.TimeoutExpired as exc:
+                timed_out = True
+                exit_code = -1
+                stdout = exc.stdout or ""
+                stderr = exc.stderr or ""
+                if isinstance(stdout, bytes):
+                    stdout = stdout.decode("utf-8", errors="replace")
+                if isinstance(stderr, bytes):
+                    stderr = stderr.decode("utf-8", errors="replace")
+                stderr = f"{stderr}\nTimeoutExpired after {effective_timeout}s"
 
         stdout = _redact_text(stdout, secret_values)
         stderr = _redact_text(stderr, secret_values)
@@ -350,6 +381,7 @@ class ExternalBaselineProvider:
             "command_argv": redacted_argv,
             "exit_code": exit_code,
             "served_model": invocation.served_model,
+            "timeout_seconds": effective_timeout,
             "stdout_summary": stdout[:2000],
             "stderr_summary": stderr[:2000],
         }
@@ -360,11 +392,14 @@ class ExternalBaselineProvider:
             "subprocess_result": metadata_path,
         }
         if exit_code != 0:
-            raise self._failure(
+            failure = self._failure(
                 f"{self.definition.name} subprocess failed with exit code "
                 f"{exit_code}",
                 artifacts=failure_artifacts,
             )
+            if timed_out and deadline_limited:
+                failure.failure_attribution = "method"
+            raise failure
 
         if not invocation.result_manifest.is_file():
             raise self._failure(

@@ -9,7 +9,7 @@ from pathlib import Path, PurePosixPath
 import re
 import shutil
 import stat
-from typing import Any, Iterable
+from typing import Any, Iterable, Mapping
 import zipfile
 
 try:
@@ -18,7 +18,11 @@ except ImportError:  # surfaced as an explicit workbook inspection error
     load_workbook = None
 
 from .policy import normalize_cc_by_url, normalize_doi
-from .provenance import sha256_bytes, sha256_file
+from .provenance import (
+    sha256_bytes,
+    sha256_file,
+    validate_article_manifest,
+)
 
 
 SCHEMA_VERSION = "1.0"
@@ -42,7 +46,8 @@ MULTI_PANEL_PATTERN = re.compile(
     r")"
 )
 SUPPLEMENTARY_PATTERN = re.compile(
-    r"(?i)(?:supp(?:lementary)?|extended[\s_.-]*data)"
+    r"(?i)(?:(?<![a-z0-9])sup(?:p(?:lementary)?)?(?![a-z0-9])"
+    r"|extended[\s_.-]*data)"
 )
 EVIDENCE_TYPES = frozenset({"human_review", "external_validation"})
 
@@ -523,28 +528,98 @@ def _article_provenance(
     *,
     doi: str,
     license_url: str,
-) -> tuple[str | None, list[str]]:
+    content_root: Path,
+) -> tuple[str | None, list[str], dict[Path, dict[str, Any]]]:
     if not path.is_file():
-        return None, ["article-provenance-manifest-missing"]
+        return None, ["article-provenance-manifest-missing"], {}
     digest = sha256_file(path)
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
-        return digest, ["article-provenance-manifest-invalid"]
+        return digest, ["article-provenance-manifest-invalid"], {}
     if not isinstance(value, dict):
-        return digest, ["article-provenance-manifest-invalid"]
-    reasons: list[str] = []
+        return digest, ["article-provenance-manifest-invalid"], {}
+    reasons = [
+        f"article-provenance:{reason}"
+        for reason in validate_article_manifest(
+            value,
+            content_root=content_root,
+        )
+    ]
     if normalize_doi(value.get("doi")) != doi:
         reasons.append("article-provenance-doi-mismatch")
     if not value.get("download_eligible"):
         reasons.append("article-provenance-not-download-eligible")
-    provenance_license = value.get("license") or {}
-    provenance_url = provenance_license.get("normalized_url") or provenance_license.get(
-        "url"
+    provenance_license_value = value.get("license")
+    provenance_license = (
+        provenance_license_value
+        if isinstance(provenance_license_value, dict)
+        else {}
     )
+    provenance_url = provenance_license.get(
+        "normalized_url"
+    ) or provenance_license.get("url")
     if normalize_cc_by_url(provenance_url) != normalize_cc_by_url(license_url):
         reasons.append("article-provenance-license-mismatch")
-    return digest, reasons
+    article_dir = path.parent.parent
+    files: dict[Path, dict[str, Any]] = {}
+    raw_files = value.get("files")
+    if not isinstance(raw_files, list):
+        return digest, sorted(set(reasons)), files
+    for entry in raw_files:
+        if (
+            not isinstance(entry, dict)
+            or entry.get("download_status") != "downloaded"
+            or not isinstance(entry.get("path"), str)
+        ):
+            continue
+        raw_path = entry["path"]
+        relative_path = PurePosixPath(raw_path)
+        if (
+            not raw_path
+            or "\x00" in raw_path
+            or "\\" in raw_path
+            or relative_path.is_absolute()
+            or any(part in {"", ".", ".."} for part in relative_path.parts)
+            or relative_path.as_posix() != raw_path
+        ):
+            continue
+        resolved = article_dir.joinpath(*relative_path.parts).resolve()
+        try:
+            resolved.relative_to(article_dir.resolve())
+        except ValueError:
+            continue
+        if resolved in files:
+            reasons.append("article-provenance-file-path-duplicate")
+            continue
+        files[resolved] = dict(entry)
+    return digest, sorted(set(reasons)), files
+
+
+def _bind_provenance_file(
+    descriptor: dict[str, Any],
+    *,
+    provenance_files: Mapping[Path, dict[str, Any]],
+    expected_kind: str,
+    reason_prefix: str,
+) -> list[str]:
+    path = Path(str(descriptor.get("path") or "")).resolve()
+    entry = provenance_files.get(path)
+    if entry is None:
+        return [f"{reason_prefix}-not-in-article-provenance"]
+    reasons: list[str] = []
+    if entry.get("kind") != expected_kind:
+        reasons.append(f"{reason_prefix}-provenance-kind-mismatch")
+    if entry.get("sha256") != descriptor.get("sha256"):
+        reasons.append(f"{reason_prefix}-provenance-hash-mismatch")
+    if entry.get("size_bytes") != descriptor.get("size_bytes"):
+        reasons.append(f"{reason_prefix}-provenance-size-mismatch")
+    source_url = entry.get("source_url")
+    if not isinstance(source_url, str) or not source_url:
+        reasons.append(f"{reason_prefix}-provenance-source-url-missing")
+    else:
+        descriptor["source_url"] = source_url
+    return reasons
 
 
 def _file_descriptor(path: Path, *, source_url: str | None = None) -> dict[str, Any]:
@@ -824,17 +899,30 @@ def build_cases(
                 }
             )
             continue
-        license_record = record.get("license") or {}
+        license_value = record.get("license")
+        license_record = license_value if isinstance(license_value, dict) else {}
         license_url = license_record.get("normalized_url") or license_record.get("url")
         license_source = license_record.get("source") or record.get("license_source")
         license_evidence = license_record.get("evidence") or record.get(
             "license_evidence"
         )
+        crossref_evidence_valid = True
+        if license_source == "crossref":
+            crossref_evidence_valid = (
+                license_record.get("content_version") == "vor"
+                and isinstance(license_evidence, dict)
+                and license_evidence.get("content-version") == "vor"
+                and normalize_cc_by_url(
+                    license_evidence.get("URL") or license_evidence.get("url")
+                )
+                == normalize_cc_by_url(license_url)
+            )
         if (
             not record.get("download_eligible")
             or not normalize_cc_by_url(license_url)
             or license_source not in {"crossref", "article_metadata"}
             or not license_evidence
+            or not crossref_evidence_valid
         ):
             skipped_articles += 1
             ambiguous.append(
@@ -850,10 +938,15 @@ def build_cases(
         eligible_articles += 1
         article_dir = content / article_id
         provenance_path = article_dir / "meta" / "provenance.json"
-        provenance_hash, article_reasons = _article_provenance(
+        (
+            provenance_hash,
+            article_reasons,
+            provenance_files,
+        ) = _article_provenance(
             provenance_path,
             doi=doi,
             license_url=str(license_url),
+            content_root=content,
         )
         tables, archive_ambiguities, counts = _iter_source_tables(
             article_dir,
@@ -892,6 +985,21 @@ def build_cases(
                 archive_member=archive_member,
                 sheet_name=None,
             )
+            provenance_descriptor = (
+                base_table["archive"]
+                if archive_path is not None
+                else base_table
+            )
+            table_provenance_reasons = _bind_provenance_file(
+                provenance_descriptor,
+                provenance_files=provenance_files,
+                expected_kind="source_data",
+                reason_prefix="source-table",
+            )
+            if archive_path is not None and provenance_descriptor.get(
+                "source_url"
+            ):
+                base_table["source_url"] = provenance_descriptor["source_url"]
             attempts, workbook_metrics = _mapping_attempts(
                 table_path,
                 mapping_name=archive_member or table_path.name,
@@ -902,7 +1010,11 @@ def build_cases(
             for attempt in attempts:
                 table = {**base_table, "sheet_name": attempt.sheet_name}
                 mapping = attempt.mapping
-                reasons = list(article_reasons) + list(attempt.reasons)
+                reasons = (
+                    list(article_reasons)
+                    + table_provenance_reasons
+                    + list(attempt.reasons)
+                )
                 figure = None
                 caption = None
                 if mapping:
@@ -911,6 +1023,24 @@ def build_cases(
                         mapping.figure_no,
                     )
                     reasons.extend(asset_reasons)
+                    if figure is not None:
+                        reasons.extend(
+                            _bind_provenance_file(
+                                figure,
+                                provenance_files=provenance_files,
+                                expected_kind="figure",
+                                reason_prefix="figure",
+                            )
+                        )
+                    if caption is not None:
+                        reasons.extend(
+                            _bind_provenance_file(
+                                caption,
+                                provenance_files=provenance_files,
+                                expected_kind="caption",
+                                reason_prefix="caption",
+                            )
+                        )
                 if reasons or not mapping:
                     ambiguous.append(
                         {

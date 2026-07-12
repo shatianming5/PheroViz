@@ -528,6 +528,18 @@ def run(df: pd.DataFrame, intent: Dict[str, Any], ctx: Dict[str, Any], out_png: 
     spec_base = (ctx or {}).get("spec", {})
     spec = slot_spec_compose(spec_base, intent, ctx)
     spec = slot_spec_theme_defaults(spec, intent, ctx)
+    for binding in (ctx or {}).get("_enforced_shared_constraints") or []:
+        path = binding.get("path") or []
+        if not path:
+            continue
+        current = spec
+        for key in path[:-1]:
+            nested = current.get(key)
+            if not isinstance(nested, dict):
+                nested = {}
+                current[key] = nested
+            current = nested
+        current[path[-1]] = binding.get("value")
     ctx['spec'] = spec
 
     # Sanitize overlays/x/y/group to ensure they reference real df columns

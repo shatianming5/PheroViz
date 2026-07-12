@@ -187,6 +187,7 @@ def _discover_targets(source: Path) -> list[RejudgeTarget]:
     resolved = source.expanduser().resolve()
     if resolved.is_dir():
         targets = []
+        found_records = False
         for child in sorted(resolved.iterdir()):
             if not child.is_dir() or child.name.startswith("."):
                 continue
@@ -195,6 +196,20 @@ def _discover_targets(source: Path) -> list[RejudgeTarget]:
                 raise RejudgeError(
                     f"Run directory has no {RECORD_FILENAME}: {child}"
                 )
+            found_records = True
+            record = RunRecord.read(record_path)
+            record.validate_provenance()
+            if record.status == "failed":
+                if (record.error or {}).get("attribution") == "method":
+                    continue
+                raise RejudgeError(
+                    "Cannot skip a non-method failed run during rejudge: "
+                    f"{record.run_name}"
+                )
+            if record.status != "completed":
+                raise RejudgeError(
+                    f"Cannot rejudge non-terminal run: {record.run_name}"
+                )
             targets.append(
                 RejudgeTarget(
                     run_name=child.name,
@@ -202,7 +217,7 @@ def _discover_targets(source: Path) -> list[RejudgeTarget]:
                     expected_record_hash=None,
                 )
             )
-        if not targets:
+        if not found_records:
             raise RejudgeError(f"No run records found under {resolved}")
         return targets
 
@@ -225,6 +240,7 @@ def _discover_targets(source: Path) -> list[RejudgeTarget]:
             expected_record_hash=str(row["record_hash"]),
         )
         for row in summary.rows
+        if row.get("status") == "completed"
     ]
 
 
@@ -557,7 +573,7 @@ def rejudge_batch(
 
     client_error: Exception | None = None
     client = model_client
-    if client is None:
+    if client is None and targets:
         try:
             client = ModelClient.from_env(model=request_model)
         except Exception as exc:
@@ -675,7 +691,9 @@ def rejudge_batch(
     )
 
 
-def _load_completed_sidecars(sidecar_dir: Path) -> Dict[str, Dict[str, Any]]:
+def _load_completed_sidecars(
+    sidecar_dir: Path,
+) -> tuple[Dict[str, Dict[str, Any]], Dict[str, Any]]:
     if not sidecar_dir.is_dir():
         raise RejudgeError(f"Sidecar directory does not exist: {sidecar_dir}")
     batch_path = sidecar_dir / SIDECAR_BATCH_FILENAME
@@ -706,6 +724,15 @@ def _load_completed_sidecars(sidecar_dir: Path) -> Dict[str, Dict[str, Any]]:
     batch_dirty = batch.get("code_git_dirty")
     if not isinstance(batch_dirty, bool):
         raise RejudgeError("Rejudge batch has invalid code_git_dirty")
+    batch_slug = batch.get("judge_slug")
+    if not isinstance(batch_slug, str) or not batch_slug:
+        raise RejudgeError("Rejudge batch has invalid judge_slug")
+    batch_rubric_hash = batch.get("rubric_hash")
+    if (
+        not isinstance(batch_rubric_hash, str)
+        or not _SHA256_RE.fullmatch(batch_rubric_hash)
+    ):
+        raise RejudgeError("Rejudge batch has invalid rubric_hash")
 
     sidecars: Dict[str, Dict[str, Any]] = {}
     for path in sorted(sidecar_dir.glob("*.json")):
@@ -721,16 +748,18 @@ def _load_completed_sidecars(sidecar_dir: Path) -> Dict[str, Dict[str, Any]]:
         if (
             payload.get("code_git_commit") != batch_commit
             or payload.get("code_git_dirty") != batch_dirty
+            or payload.get("judge_slug") != batch_slug
+            or payload.get("rubric_hash") != batch_rubric_hash
         ):
-            raise RejudgeError(f"Batch/sidecar code provenance mismatch: {run_name}")
+            raise RejudgeError(
+                f"Batch/sidecar provenance mismatch: {run_name}"
+            )
         if expected_hashes.get(run_name) != payload.get("sidecar_hash"):
             raise RejudgeError(f"Batch/sidecar hash mismatch: {run_name}")
         sidecars[run_name] = payload
-    if not sidecars:
-        raise RejudgeError(f"No completed sidecars found in {sidecar_dir}")
     if set(expected_hashes) != set(sidecars):
         raise RejudgeError("Batch sidecar_hashes do not exactly cover sidecars")
-    return sidecars
+    return sidecars, batch
 
 
 def merge_rejudged_summary(
@@ -742,47 +771,41 @@ def merge_rejudged_summary(
     summary_path = summary_path.expanduser().resolve()
     summary = load_provenance_summary(summary_path)
     original = read_json(summary_path)
-    sidecars = _load_completed_sidecars(sidecar_dir.expanduser().resolve())
-    run_names = {str(row["run_name"]) for row in summary.rows}
-    if set(sidecars) != run_names:
+    sidecars, batch = _load_completed_sidecars(
+        sidecar_dir.expanduser().resolve()
+    )
+    completed_run_names = {
+        str(row["run_name"])
+        for row in summary.rows
+        if row.get("status") == "completed"
+    }
+    if set(sidecars) != completed_run_names:
         raise RejudgeError(
-            "Sidecar coverage does not exactly match summary runs; "
-            f"missing={sorted(run_names - set(sidecars))}, "
-            f"extra={sorted(set(sidecars) - run_names)}"
+            "Sidecar coverage does not exactly match completed summary runs; "
+            f"missing={sorted(completed_run_names - set(sidecars))}, "
+            f"extra={sorted(set(sidecars) - completed_run_names)}"
         )
 
-    slugs = {str(sidecar.get("judge_slug") or "") for sidecar in sidecars.values()}
-    rubric_hashes = {
-        str(sidecar.get("rubric_hash") or "") for sidecar in sidecars.values()
-    }
-    code_commits = {
-        str(sidecar.get("code_git_commit") or "")
-        for sidecar in sidecars.values()
-    }
-    code_dirty_values = {
-        sidecar.get("code_git_dirty") for sidecar in sidecars.values()
-    }
-    if len(slugs) != 1 or "" in slugs:
-        raise RejudgeError("Sidecars mix or omit judge_slug")
-    if len(rubric_hashes) != 1 or not _SHA256_RE.fullmatch(
-        next(iter(rubric_hashes))
-    ):
-        raise RejudgeError("Sidecars mix or omit rubric_hash")
-    if len(code_commits) != 1 or not _GIT_COMMIT_RE.fullmatch(
-        next(iter(code_commits))
-    ):
-        raise RejudgeError("Sidecars mix or omit code_git_commit")
-    if len(code_dirty_values) != 1 or not all(
-        isinstance(value, bool) for value in code_dirty_values
-    ):
-        raise RejudgeError("Sidecars mix or omit code_git_dirty")
-    slug = next(iter(slugs))
+    slug = str(batch["judge_slug"])
     metric_name = f"metric.visual_form.{slug}"
 
     rows = []
+    failed_zero_runs: list[str] = []
     for raw_row in summary.rows:
         row = dict(raw_row)
         run_name = str(row["run_name"])
+        if row.get("status") == "failed":
+            if (
+                row.get("failure_attribution") != "method"
+                or float(row.get("execution_success", -1.0)) != 0.0
+            ):
+                raise RejudgeError(
+                    f"Failed row is not a zero-valued method outcome: {run_name}"
+                )
+            row[metric_name] = 0.0
+            rows.append(row)
+            failed_zero_runs.append(run_name)
+            continue
         sidecar = sidecars[run_name]
         if sidecar.get("record_hash") != row.get("record_hash"):
             raise RejudgeError(f"Sidecar record_hash mismatch: {run_name}")
@@ -823,13 +846,14 @@ def merge_rejudged_summary(
             "schema_version": REJUDGED_SUMMARY_VERSION,
             "judge_slug": slug,
             "metric": metric_name,
-            "rubric_hash": next(iter(rubric_hashes)),
-            "code_git_commit": next(iter(code_commits)),
-            "code_git_dirty": next(iter(code_dirty_values)),
+            "rubric_hash": batch["rubric_hash"],
+            "code_git_commit": batch["code_git_commit"],
+            "code_git_dirty": batch["code_git_dirty"],
             "sidecar_hashes": {
                 run_name: sidecars[run_name]["sidecar_hash"]
                 for run_name in sorted(sidecars)
             },
+            "failed_zero_runs": sorted(failed_zero_runs),
         },
     }
     merged["summary_hash"] = sha256_json(merged)

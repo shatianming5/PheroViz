@@ -800,6 +800,117 @@ def test_model_spec_invalid_executed_spec_fails_with_evidence(
     assert evidence["model_metadata"]["request_id"] == "invalid-model-spec"
 
 
+def test_shared_constraints_are_reapplied_after_l1_execution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _disable_network(monkeypatch)
+    data_path = tmp_path / "panel.csv"
+    _write_csv(data_path, "category", "value")
+    memory = PersistentMemory()
+    stored = memory.add_constraint(
+        ConstraintRecord(
+            id="shared-palette",
+            scope=Scope.PANEL_GROUP,
+            scope_key="figure-a",
+            level=1,
+            slot="theme.palette_global",
+            value="viridis",
+            hard=False,
+            provenance={"grounding": "executable"},
+            validated_executable=True,
+        )
+    )
+
+    class OverwritingSpecClient:
+        def generate_json(self, messages, **kwargs):
+            del messages, kwargs
+            return ModelResponse(
+                value={
+                    "slots": {
+                        "spec.compose": {
+                            "canvas": {
+                                "width": 640,
+                                "height": 480,
+                                "dpi": 100,
+                                "aspect": 1.333,
+                            },
+                            "flags": {},
+                            "layout": {
+                                "titles": {},
+                                "legend": {},
+                                "grid": {},
+                                "panel_labels": [],
+                            },
+                            "theme": {"palette_global": "plasma"},
+                            "scales": {
+                                "x": {"kind": "categorical"},
+                                "y_left": {"kind": "linear"},
+                                "y_right": {"kind": "linear"},
+                            },
+                            "overlays": [
+                                {
+                                    "mark": "line",
+                                    "variant": "main",
+                                    "x": "category",
+                                    "y": "value",
+                                    "group": None,
+                                    "yaxis": "left",
+                                    "style": {},
+                                }
+                            ],
+                        },
+                        "spec.theme_defaults": {},
+                    }
+                },
+                model="fake",
+                request_id="overwrite-shared",
+                usage={},
+                stop_reason="end_turn",
+                latency_seconds=0.0,
+            )
+
+    result = single_runner.run_chain(
+        str(data_path),
+        "shared palette",
+        "line",
+        rounds=1,
+        run_dir=tmp_path / "run",
+        model_client=OverwritingSpecClient(),  # type: ignore[arg-type]
+        initial_generation="model_spec",
+        memory_mode="constraints",
+        memory=memory,
+        panel_id="panel-a",
+        panel_group="figure-a",
+        evaluation_expectation={
+            "schema_version": "1.1.0",
+            "panels": [
+                {
+                    "panel_id": "panel-a",
+                    "axis_index": 0,
+                    "series": [
+                        {
+                            "series_id": "rendered-line",
+                            "kind": "line",
+                            "x": "category",
+                            "y": "value",
+                        }
+                    ],
+                }
+            ],
+            "panel_groups": [],
+        },
+    )
+
+    assert result["spec"]["theme"]["palette_global"] == "viridis"
+    assert stored.id in result["memory"]["reused_record_ids"]
+    assert Path(result["png_path"]).is_file()
+    rendered_series = result["programmatic_evaluation"]["figure_manifest"][
+        "axes"
+    ][0]["series"]
+    assert rendered_series[0]["color"] == "#440154ff"
+
+
 @pytest.mark.parametrize(
     ("mode", "expected_context_key", "writes_constraints", "writes_patches"),
     [

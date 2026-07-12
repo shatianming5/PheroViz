@@ -5,9 +5,15 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator
 from openpyxl import Workbook
+import pytest
 
 from nature_download.corpus.proposals import (
+    DEFAULT_MAX_COLUMNS,
+    DEFAULT_MAX_FILE_BYTES,
+    DEFAULT_MAX_ROWS,
+    PROPOSAL_RULE_V1,
     propose_cases,
+    propose_single_candidate,
     write_proposal_outputs,
 )
 from nature_download.corpus.provenance import sha256_file
@@ -113,6 +119,116 @@ def test_explicit_time_generates_line_with_real_columns_and_units(
     assert proposal["eligible_for_experiment"] is False
     assert proposal["eligibility_reasons"] == ["external-validation-required"]
     assert proposal["code_commit"] == "test-commit"
+
+
+def test_run_order_generates_versioned_scatter_proposal(
+    workdir: Path,
+) -> None:
+    table = workdir / "scatter.csv"
+    table.write_text(
+        "Run order,Value\n1,4.0\n2,3.5\n3,4.2\n",
+        encoding="utf-8",
+    )
+
+    proposed, rejected, summary = run_one(
+        workdir,
+        candidate_for(table, candidate_id="scatter-a"),
+    )
+
+    assert rejected == []
+    assert summary["single_proposals"] == 1
+    proposal = proposed[0]
+    assert proposal["proposal_rule_version"] == "simple-2d-v2"
+    assert proposal["experiment_case"]["chart_family"] == "scatter"
+    assert proposal["experiment_case"]["intent"]["x"] == "Run order"
+    assert proposal["experiment_case"]["evaluation_expectation"]["panels"][0][
+        "series"
+    ][0]["kind"] == "scatter"
+
+
+@pytest.mark.parametrize(
+    "header",
+    ["Run order", "run_order", "RUN-ORDER", "Run.order", "RunOrder"],
+)
+def test_explicit_run_order_wins_over_other_monotonic_columns(
+    workdir: Path,
+    header: str,
+) -> None:
+    table = workdir / "scatter-monotonic.csv"
+    table.write_text(
+        f"{header},Value\n1,10\n2,20\n3,30\n",
+        encoding="utf-8",
+    )
+
+    proposed, rejected, _ = run_one(
+        workdir,
+        candidate_for(table, candidate_id="scatter-monotonic"),
+    )
+
+    assert rejected == []
+    assert proposed[0]["experiment_case"]["chart_family"] == "scatter"
+
+
+def test_run_order_ambiguity_and_invalid_values_fail_closed(
+    workdir: Path,
+) -> None:
+    ambiguous = workdir / "ambiguous-run-order.csv"
+    ambiguous.write_text(
+        "Run order,Run_order,Value\n1,1,3\n2,2,1\n3,3,2\n",
+        encoding="utf-8",
+    )
+    invalid = workdir / "invalid-run-order.csv"
+    invalid.write_text(
+        "Run order,Value\n1,3\n3,1\n2,2\n",
+        encoding="utf-8",
+    )
+    source = workdir / "candidates.jsonl"
+    write_candidates(
+        source,
+        [
+            candidate_for(ambiguous, candidate_id="ambiguous-run-order"),
+            candidate_for(invalid, candidate_id="invalid-run-order"),
+        ],
+    )
+
+    proposed, rejected, _ = propose_cases(
+        candidates_path=source,
+        code_commit="test-commit",
+    )
+
+    assert proposed == []
+    reasons = {
+        item["candidate_id"]: item["proposal_rejection_reasons"]
+        for item in rejected
+    }
+    assert reasons["ambiguous-run-order"] == [
+        "x-column-ambiguous-run-order"
+    ]
+    assert reasons["invalid-run-order"] == [
+        "explicit-run-order-column-invalid"
+    ]
+
+
+def test_explicit_v1_rule_preserves_run_order_line_behavior(
+    workdir: Path,
+) -> None:
+    table = workdir / "legacy-run-order.csv"
+    table.write_text(
+        "Run order,Value\n1,3\n2,1\n3,2\n",
+        encoding="utf-8",
+    )
+    proposal = propose_single_candidate(
+        candidate_for(table, candidate_id="legacy-run-order"),
+        input_candidates_sha256="f" * 64,
+        code_commit="a" * 40,
+        max_file_bytes=DEFAULT_MAX_FILE_BYTES,
+        max_rows=DEFAULT_MAX_ROWS,
+        max_columns=DEFAULT_MAX_COLUMNS,
+        rule_version=PROPOSAL_RULE_V1,
+    )
+
+    assert proposal["proposal_rule_version"] == PROPOSAL_RULE_V1
+    assert proposal["experiment_case"]["chart_family"] == "line"
 
 
 def test_unique_categorical_generates_bar_and_does_not_guess_units(
@@ -264,6 +380,11 @@ def test_multi_panel_proposal_uses_only_schema_provable_cohesion(
     assert rejected == []
     assert summary["single_proposals"] == 2
     assert summary["multi_panel_proposals"] == 1
+    assert summary["proposal_rule_version"] == "simple-2d-v2"
+    assert all(
+        proposal["proposal_rule_version"] == "simple-2d-v2"
+        for proposal in proposed
+    )
     for proposal in proposed:
         Draft202012Validator(EXPECTATION_SCHEMA).validate(
             proposal["experiment_case"]["evaluation_expectation"]

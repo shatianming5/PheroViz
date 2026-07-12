@@ -8,6 +8,7 @@ import pytest
 
 from nature_download.corpus.benchmark import (
     BenchmarkBuildError,
+    _validate_canonical_single_proposal,
     assemble_verified_benchmark,
     derive_multi_review_batch,
     write_benchmark_outputs,
@@ -19,6 +20,8 @@ from nature_download.corpus.proposals import (
     DEFAULT_MAX_COLUMNS,
     DEFAULT_MAX_FILE_BYTES,
     DEFAULT_MAX_ROWS,
+    PROPOSAL_RULE_V1,
+    PROPOSAL_RULE_V2,
     _multi_panel_proposals,
     propose_single_candidate,
 )
@@ -73,6 +76,7 @@ def _canonical_single(
     panel_id: str,
     doi: str,
     corpus_manifest_sha256: str,
+    rule_version: str = PROPOSAL_RULE_V1,
 ) -> dict:
     candidate = make_single(
         root,
@@ -97,6 +101,7 @@ def _canonical_single(
         max_file_bytes=DEFAULT_MAX_FILE_BYTES,
         max_rows=DEFAULT_MAX_ROWS,
         max_columns=DEFAULT_MAX_COLUMNS,
+        rule_version=rule_version,
     )
 
 
@@ -483,6 +488,9 @@ def test_derive_multi_batch_uses_only_reviewed_singles(
     )
     assert result["summary"]["accepted_single_proposals"] == 2
     assert result["summary"]["derived_multi_panel_proposals"] == 1
+    assert result["summary"]["proposal_rule_versions"] == [
+        PROPOSAL_RULE_V1
+    ]
     multi = [
         proposal
         for proposal in result["proposals"]
@@ -490,6 +498,24 @@ def test_derive_multi_batch_uses_only_reviewed_singles(
     ][0]
     assert multi["source_candidate_ids"] == ["case-a", "case-b"]
     assert multi["experiment_case"]["panel_count"] == 2
+    assert multi["proposal_rule_version"] == PROPOSAL_RULE_V1
+
+    tampered = deepcopy(result)
+    tampered_multi = next(
+        proposal
+        for proposal in tampered["proposals"]
+        if proposal["proposal_type"] == "multi_panel"
+    )
+    tampered_multi["experiment_case"]["user_goal"] = "tampered"
+    with pytest.raises(
+        BenchmarkBuildError,
+        match="derived-review-multi-not-canonical",
+    ):
+        write_derived_proposal_outputs(
+            tmp_path / "tampered-derived",
+            tampered,
+        )
+    assert not (tmp_path / "tampered-derived").exists()
 
     summary = write_derived_proposal_outputs(
         tmp_path / "derived",
@@ -499,3 +525,73 @@ def test_derive_multi_batch_uses_only_reviewed_singles(
     assert sha256_file(tmp_path / "derived" / "proposed.jsonl") == summary[
         "proposed_sha256"
     ]
+
+
+def test_derive_multi_batch_rejects_mixed_rule_versions(
+    tmp_path: Path,
+) -> None:
+    corpus_manifest = _manifest_fixture(tmp_path)
+    corpus_hash = sha256_file(corpus_manifest)
+    singles = [
+        _canonical_single(
+            tmp_path,
+            candidate_id="case-a",
+            panel_id="a",
+            doi="10.1038/shared-article",
+            corpus_manifest_sha256=corpus_hash,
+            rule_version=PROPOSAL_RULE_V1,
+        ),
+        _canonical_single(
+            tmp_path,
+            candidate_id="case-b",
+            panel_id="b",
+            doi="10.1038/shared-article",
+            corpus_manifest_sha256=corpus_hash,
+            rule_version=PROPOSAL_RULE_V2,
+        ),
+    ]
+    proposed, reviews, evidence_path, _ = _review_bundle(
+        tmp_path,
+        singles,
+    )
+
+    with pytest.raises(
+        BenchmarkBuildError,
+        match="multi-panel-proposal-rule-version-mixed",
+    ):
+        derive_multi_review_batch(
+            review_bundles=[(proposed, reviews, evidence_path)],
+            code_commit="e" * 40,
+            code_dirty=False,
+        )
+
+
+def test_v2_single_canonical_validation_is_version_bound(
+    tmp_path: Path,
+) -> None:
+    corpus_manifest = _manifest_fixture(tmp_path)
+    proposal = _canonical_single(
+        tmp_path,
+        candidate_id="case-v2",
+        panel_id="a",
+        doi="10.1038/v2",
+        corpus_manifest_sha256=sha256_file(corpus_manifest),
+        rule_version=PROPOSAL_RULE_V2,
+    )
+
+    _validate_canonical_single_proposal(
+        proposal,
+        proposal,
+        candidate_id="case-v2",
+    )
+    tampered = deepcopy(proposal)
+    tampered["proposal_rule_version"] = "simple-2d-v999"
+    with pytest.raises(
+        BenchmarkBuildError,
+        match="candidate-proposal-rule-version-invalid",
+    ):
+        _validate_canonical_single_proposal(
+            proposal,
+            tampered,
+            candidate_id="case-v2",
+        )

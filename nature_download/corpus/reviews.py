@@ -23,6 +23,8 @@ from .proposals import (
     DEFAULT_MAX_COLUMNS,
     DEFAULT_MAX_FILE_BYTES,
     DEFAULT_MAX_ROWS,
+    _multi_panel_proposals,
+    _resolve_proposal_rule_version,
     propose_single_candidate,
 )
 
@@ -41,7 +43,7 @@ SENSITIVE_USAGE_KEYS = frozenset(
 )
 GIT_COMMIT_PATTERN = re.compile(r"^[0-9a-f]{7,64}$")
 
-REVIEW_RUBRIC: dict[str, Any] = {
+REVIEW_RUBRIC_V1: dict[str, Any] = {
     "rubric_version": "proposal-external-validation-v1",
     "task": "validate_a_deterministic_chart_case_proposal",
     "instructions": [
@@ -59,6 +61,15 @@ REVIEW_RUBRIC: dict[str, Any] = {
         "reason": "string",
     },
 }
+REVIEW_RUBRIC_V2: dict[str, Any] = {
+    **REVIEW_RUBRIC_V1,
+    "rubric_version": "proposal-external-validation-v2",
+    "output_schema": {
+        **REVIEW_RUBRIC_V1["output_schema"],
+        "chart_family": "string: line, bar, or scatter",
+    },
+}
+REVIEW_RUBRIC = REVIEW_RUBRIC_V2
 
 
 class ReviewError(RuntimeError):
@@ -84,7 +95,19 @@ def _sha256_json(value: Any) -> str:
     return hashlib.sha256(_canonical_json(value).encode("utf-8")).hexdigest()
 
 
-REVIEW_RUBRIC_HASH = _sha256_json(REVIEW_RUBRIC)
+REVIEW_RUBRIC_V1_HASH = _sha256_json(REVIEW_RUBRIC_V1)
+REVIEW_RUBRIC_V2_HASH = _sha256_json(REVIEW_RUBRIC_V2)
+REVIEW_RUBRIC_HASH = REVIEW_RUBRIC_V2_HASH
+REVIEW_RUBRICS = {
+    REVIEW_RUBRIC_V1_HASH: (
+        REVIEW_RUBRIC_V1,
+        frozenset({"line", "bar"}),
+    ),
+    REVIEW_RUBRIC_V2_HASH: (
+        REVIEW_RUBRIC_V2,
+        frozenset({"line", "bar", "scatter"}),
+    ),
+}
 
 
 def _seal(payload: dict[str, Any], field: str) -> dict[str, Any]:
@@ -294,13 +317,21 @@ def _sample_table(
     raise ReviewError("source-table-format-unsupported")
 
 
-def _proposal_expected(proposal: Mapping[str, Any]) -> dict[str, Any]:
+def _proposal_expected(
+    proposal: Mapping[str, Any],
+    *,
+    allowed_chart_families: frozenset[str] = frozenset(
+        {"line", "bar", "scatter"}
+    ),
+) -> dict[str, Any]:
     case = proposal.get("experiment_case")
     if not isinstance(case, Mapping):
         raise ReviewError("experiment-case-missing")
     chart_family = case.get("chart_family")
     intent = case.get("intent")
-    if chart_family not in {"line", "bar"} or not isinstance(intent, Mapping):
+    if chart_family not in allowed_chart_families or not isinstance(
+        intent, Mapping
+    ):
         raise ReviewError("experiment-case-schema-invalid")
     x = intent.get("x")
     raw_series = intent.get("series")
@@ -326,6 +357,7 @@ def _fixed_prompt(
     header: list[str],
     rows: list[list[Any]],
     expected: Mapping[str, Any],
+    rubric: Mapping[str, Any] = REVIEW_RUBRIC,
 ) -> tuple[str, str]:
     payload = {
         "candidate_id": proposal.get("candidate_id"),
@@ -339,14 +371,20 @@ def _fixed_prompt(
     prompt = (
         "Return exactly one JSON object and no markdown. Apply the fixed rubric "
         "to the attached figure and the untrusted table sample.\n"
-        + _canonical_json(REVIEW_RUBRIC)
+        + _canonical_json(rubric)
         + "\nINPUT\n"
         + _canonical_json(payload)
     )
     return prompt, hashlib.sha256(prompt.encode("utf-8")).hexdigest()
 
 
-def _strict_output(value: Any) -> dict[str, Any]:
+def _strict_output(
+    value: Any,
+    *,
+    allowed_chart_families: frozenset[str] = frozenset(
+        {"line", "bar", "scatter"}
+    ),
+) -> dict[str, Any]:
     required = {"valid", "chart_family", "x", "y", "reason"}
     if not isinstance(value, Mapping) or set(value) != required:
         raise ReviewError("model-output-schema-invalid")
@@ -357,7 +395,7 @@ def _strict_output(value: Any) -> dict[str, Any]:
     reason = value["reason"]
     if type(valid) is not bool:
         raise ReviewError("model-output-schema-invalid")
-    if chart_family not in {"line", "bar"}:
+    if chart_family not in allowed_chart_families:
         raise ReviewError("model-output-schema-invalid")
     if not isinstance(x, str) or not x:
         raise ReviewError("model-output-schema-invalid")
@@ -398,6 +436,9 @@ def _model_review(
     request_model: str,
     prompt: str,
     image_path: Path,
+    allowed_chart_families: frozenset[str] = frozenset(
+        {"line", "bar", "scatter"}
+    ),
 ) -> dict[str, Any]:
     try:
         response = client.evaluate_image_json(
@@ -452,7 +493,10 @@ def _model_review(
             "failure_code": "model-not-completed",
         }
     try:
-        output = _strict_output(getattr(response, "value", None))
+        output = _strict_output(
+            getattr(response, "value", None),
+            allowed_chart_families=allowed_chart_families,
+        )
     except ReviewError as exc:
         return {
             "status": "failed",
@@ -480,6 +524,11 @@ def _single_binding(
     input_hash: str,
     models: tuple[str, ...],
     git_state: GitState,
+    rubric: Mapping[str, Any] = REVIEW_RUBRIC,
+    rubric_hash: str = REVIEW_RUBRIC_HASH,
+    allowed_chart_families: frozenset[str] = frozenset(
+        {"line", "bar", "scatter"}
+    ),
 ) -> tuple[dict[str, Any], list[str], str | None, str | None, dict[str, Any] | None]:
     reasons: list[str] = []
     candidate_id = proposal.get("candidate_id")
@@ -503,7 +552,10 @@ def _single_binding(
     prompt = None
     if not reasons:
         try:
-            expected = _proposal_expected(proposal)
+            expected = _proposal_expected(
+                proposal,
+                allowed_chart_families=allowed_chart_families,
+            )
             header, rows = _sample_table(source)
             if expected["x"] not in header or any(
                 column not in header for column in expected["y"]
@@ -514,6 +566,7 @@ def _single_binding(
                 header=header,
                 rows=rows,
                 expected=expected,
+                rubric=rubric,
             )
         except ReviewError as exc:
             reasons.append(str(exc))
@@ -524,7 +577,7 @@ def _single_binding(
         "source": source_binding,
         "figure": figure_binding,
         "caption": caption_binding,
-        "rubric_hash": REVIEW_RUBRIC_HASH,
+        "rubric_hash": rubric_hash,
         "prompt_hash": prompt_hash,
         "request_models": list(models),
         "code_commit": git_state.commit,
@@ -543,6 +596,9 @@ def _single_review(
     expected: dict[str, Any] | None,
     models: tuple[str, ...],
     get_client: Callable[[str], Any],
+    allowed_chart_families: frozenset[str] = frozenset(
+        {"line", "bar", "scatter"}
+    ),
 ) -> dict[str, Any]:
     model_reviews: list[dict[str, Any]] = []
     reasons = list(preflight_reasons)
@@ -571,6 +627,7 @@ def _single_review(
                     request_model=model,
                     prompt=prompt,
                     image_path=image_path,
+                    allowed_chart_families=allowed_chart_families,
                 )
             )
         for review in model_reviews:
@@ -612,13 +669,14 @@ def _multi_binding(
     input_hash: str,
     models: tuple[str, ...],
     git_state: GitState,
+    rubric_hash: str = REVIEW_RUBRIC_HASH,
 ) -> dict[str, Any]:
     binding = {
         "candidate_id": proposal.get("candidate_id"),
         "candidate_sha256": _sha256_json(proposal),
         "input_proposed_sha256": input_hash,
         "source_candidate_ids": proposal.get("source_candidate_ids"),
-        "rubric_hash": REVIEW_RUBRIC_HASH,
+        "rubric_hash": rubric_hash,
         "request_models": list(models),
         "code_commit": git_state.commit,
         "code_dirty": git_state.dirty,
@@ -634,8 +692,41 @@ def _multi_review(
     accepted_single_ids: set[str],
     known_single_ids: set[str],
     single_reviews: Mapping[str, Mapping[str, Any]],
+    canonical_multi: Mapping[str, Mapping[str, Any]],
 ) -> dict[str, Any]:
     reasons: list[str] = []
+    candidate_id = proposal.get("candidate_id")
+    canonical = canonical_multi.get(str(candidate_id or ""))
+    canonical_fields = (
+        "schema_version",
+        "candidate_id",
+        "proposal_type",
+        "source_candidate_ids",
+        "doi",
+        "figure_no",
+        "panel_ids",
+        "curation_status",
+        "eligible_for_experiment",
+        "eligibility_reasons",
+        "experiment_case",
+    )
+    try:
+        rule_version_matches = (
+            canonical is not None
+            and _resolve_proposal_rule_version(dict(proposal))
+            == _resolve_proposal_rule_version(dict(canonical))
+        )
+    except ValueError:
+        rule_version_matches = False
+    if (
+        canonical is None
+        or not rule_version_matches
+        or any(
+            proposal.get(key) != canonical.get(key)
+            for key in canonical_fields
+        )
+    ):
+        reasons.append("multi-proposal-not-canonical")
     source_ids = proposal.get("source_candidate_ids")
     if (
         not isinstance(source_ids, list)
@@ -758,6 +849,26 @@ def model_client_factory_from_env(model: str) -> Any:
     return ModelClient.from_env(model=model)
 
 
+def _canonical_multi_map(
+    proposals: Iterable[Mapping[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    singles = [
+        dict(proposal)
+        for proposal in proposals
+        if proposal.get("proposal_type") == "single_panel"
+    ]
+    try:
+        canonical = _multi_panel_proposals(
+            singles,
+            input_candidates_sha256="canonical-review-validation",
+            code_commit="canonical-review-validation",
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        code = str(exc) or type(exc).__name__
+        raise ReviewError(f"multi-proposal-canonicalization-failed:{code}") from exc
+    return {str(proposal["candidate_id"]): proposal for proposal in canonical}
+
+
 def review_proposals(
     *,
     proposed_path: str | Path,
@@ -781,6 +892,11 @@ def review_proposals(
             raise ReviewError("proposal-candidate-id-missing")
         if candidate_id in by_id:
             raise ReviewError("proposal-candidate-id-duplicate")
+        if proposal.get("proposal_type") in {"single_panel", "multi_panel"}:
+            try:
+                _resolve_proposal_rule_version(proposal)
+            except ValueError as exc:
+                raise ReviewError("proposal-rule-version-unsupported") from exc
         by_id[candidate_id] = proposal
 
     reviews_path = output / "reviews.jsonl"
@@ -809,6 +925,24 @@ def review_proposals(
             existing[candidate_id] = review
         if not set(existing).issubset(by_id):
             raise ReviewError("resume-review-input-set-mismatch")
+    if existing:
+        existing_rubric_hashes: set[str] = set()
+        for review in existing.values():
+            binding = review.get("binding")
+            if not isinstance(binding, Mapping):
+                raise ReviewError("resume-review-binding-invalid")
+            existing_rubric_hashes.add(str(binding.get("rubric_hash") or ""))
+        if (
+            len(existing_rubric_hashes) != 1
+            or next(iter(existing_rubric_hashes)) not in REVIEW_RUBRICS
+        ):
+            raise ReviewError("resume-review-rubric-invalid-or-mixed")
+        active_rubric_hash = next(iter(existing_rubric_hashes))
+    else:
+        active_rubric_hash = REVIEW_RUBRIC_HASH
+    active_rubric, active_chart_families = REVIEW_RUBRICS[
+        active_rubric_hash
+    ]
 
     clients: dict[str, Any] = {}
 
@@ -830,6 +964,9 @@ def review_proposals(
             input_hash=input_hash,
             models=models,
             git_state=code_state,
+            rubric=active_rubric,
+            rubric_hash=active_rubric_hash,
+            allowed_chart_families=active_chart_families,
         )
         if candidate_id in existing:
             prior = existing[candidate_id]
@@ -847,6 +984,7 @@ def review_proposals(
             expected=expected,
             models=models,
             get_client=get_client,
+            allowed_chart_families=active_chart_families,
         )
 
     accepted_single_ids = {
@@ -860,6 +998,7 @@ def review_proposals(
         if proposal.get("proposal_type") == "multi_panel"
     }
     unsupported_ids = set(by_id) - single_ids - multi_ids
+    canonical_multi = _canonical_multi_map(by_id.values()) if multi_ids else {}
     for candidate_id in sorted(multi_ids):
         proposal = by_id[candidate_id]
         binding = _multi_binding(
@@ -867,6 +1006,7 @@ def review_proposals(
             input_hash=input_hash,
             models=models,
             git_state=code_state,
+            rubric_hash=active_rubric_hash,
         )
         recomputed = _multi_review(
             proposal,
@@ -874,6 +1014,7 @@ def review_proposals(
             accepted_single_ids=accepted_single_ids,
             known_single_ids=single_ids,
             single_reviews=reviews,
+            canonical_multi=canonical_multi,
         )
         if candidate_id in existing:
             prior = existing[candidate_id]
@@ -893,6 +1034,7 @@ def review_proposals(
             input_hash=input_hash,
             models=models,
             git_state=code_state,
+            rubric_hash=active_rubric_hash,
         )
         payload = {
             "schema_version": SCHEMA_VERSION,
@@ -916,7 +1058,7 @@ def review_proposals(
         "evidence_type": "external_validation",
         "human_claims": 0,
         "input_proposed_sha256": input_hash,
-        "rubric_hash": REVIEW_RUBRIC_HASH,
+        "rubric_hash": active_rubric_hash,
         "code_commit": code_state.commit,
         "code_dirty": code_state.dirty,
         "judge_models": list(models),
@@ -938,7 +1080,7 @@ def review_proposals(
         "schema_version": SCHEMA_VERSION,
         "input_proposed": str(source_path),
         "input_proposed_sha256": input_hash,
-        "rubric_hash": REVIEW_RUBRIC_HASH,
+        "rubric_hash": active_rubric_hash,
         "code_commit": code_state.commit,
         "code_dirty": code_state.dirty,
         "judge_models": list(models),
@@ -994,6 +1136,13 @@ def validate_review_artifacts(
         candidate_id = str(proposal.get("candidate_id") or "").strip()
         if not candidate_id or candidate_id in proposals:
             raise ReviewError("validation-proposal-candidate-invalid")
+        if proposal.get("proposal_type") in {"single_panel", "multi_panel"}:
+            try:
+                _resolve_proposal_rule_version(proposal)
+            except ValueError as exc:
+                raise ReviewError(
+                    "validation-proposal-rule-version-unsupported"
+                ) from exc
         proposals[candidate_id] = proposal
 
     review_list = _read_jsonl(reviews_file)
@@ -1021,9 +1170,13 @@ def validate_review_artifacts(
         or _sha256_json(unhashed_evidence) != evidence_hash
     ):
         raise ReviewError("validation-evidence-hash-mismatch")
+    rubric_hash = evidence_payload.get("rubric_hash")
+    rubric_config = REVIEW_RUBRICS.get(str(rubric_hash))
+    if rubric_config is None:
+        raise ReviewError("validation-evidence-rubric-unsupported")
+    rubric, allowed_chart_families = rubric_config
     if (
         evidence_payload.get("input_proposed_sha256") != input_hash
-        or evidence_payload.get("rubric_hash") != REVIEW_RUBRIC_HASH
         or evidence_payload.get("code_dirty") is not False
         or evidence_payload.get("human_claims") != 0
     ):
@@ -1048,19 +1201,29 @@ def validate_review_artifacts(
             input_hash=input_hash,
             models=models,
             git_state=git_state,
+            rubric=rubric,
+            rubric_hash=str(rubric_hash),
+            allowed_chart_families=allowed_chart_families,
         )
         if review.get("binding") != binding:
             raise ReviewError("validation-single-binding-mismatch")
-        recomputed_proposal = propose_single_candidate(
-            deepcopy_json(proposal),
-            input_candidates_sha256=str(
-                proposal.get("input_candidates_sha256") or ""
-            ),
-            code_commit=str(proposal.get("code_commit") or ""),
-            max_file_bytes=DEFAULT_MAX_FILE_BYTES,
-            max_rows=DEFAULT_MAX_ROWS,
-            max_columns=DEFAULT_MAX_COLUMNS,
-        )
+        try:
+            rule_version = _resolve_proposal_rule_version(proposal)
+            recomputed_proposal = propose_single_candidate(
+                deepcopy_json(proposal),
+                input_candidates_sha256=str(
+                    proposal.get("input_candidates_sha256") or ""
+                ),
+                code_commit=str(proposal.get("code_commit") or ""),
+                max_file_bytes=DEFAULT_MAX_FILE_BYTES,
+                max_rows=DEFAULT_MAX_ROWS,
+                max_columns=DEFAULT_MAX_COLUMNS,
+                rule_version=rule_version,
+            )
+        except (ValueError, KeyError, TypeError) as exc:
+            raise ReviewError(
+                "validation-proposal-rule-version-unsupported"
+            ) from exc
         semantic_fields = (
             "case_id",
             "panel_count",
@@ -1100,7 +1263,10 @@ def validate_review_artifacts(
                 or model_review.get("failure_code") is not None
             ):
                 raise ReviewError("validation-single-model-not-completed")
-            output = _strict_output(model_review.get("output"))
+            output = _strict_output(
+                model_review.get("output"),
+                allowed_chart_families=allowed_chart_families,
+            )
             if (
                 not output["valid"]
                 or output["chart_family"] != expected["chart_family"]
@@ -1119,6 +1285,14 @@ def validate_review_artifacts(
         accepted_single_ids.add(candidate_id)
 
     known_single_ids = set(single_reviews)
+    multi_proposals = [
+        proposal
+        for proposal in proposals.values()
+        if proposal.get("proposal_type") == "multi_panel"
+    ]
+    canonical_multi = (
+        _canonical_multi_map(proposals.values()) if multi_proposals else {}
+    )
     for candidate_id, proposal in proposals.items():
         if proposal.get("proposal_type") != "multi_panel":
             continue
@@ -1127,6 +1301,7 @@ def validate_review_artifacts(
             input_hash=input_hash,
             models=models,
             git_state=git_state,
+            rubric_hash=str(rubric_hash),
         )
         review = reviews[candidate_id]
         if review.get("binding") != expected_binding:
@@ -1137,6 +1312,7 @@ def validate_review_artifacts(
             accepted_single_ids=accepted_single_ids,
             known_single_ids=known_single_ids,
             single_reviews=single_reviews,
+            canonical_multi=canonical_multi,
         )
         if review != expected_review:
             raise ReviewError("validation-multi-review-mismatch")
@@ -1155,7 +1331,7 @@ def validate_review_artifacts(
         "evidence_type": "external_validation",
         "human_claims": 0,
         "input_proposed_sha256": input_hash,
-        "rubric_hash": REVIEW_RUBRIC_HASH,
+        "rubric_hash": rubric_hash,
         "code_commit": commit,
         "code_dirty": False,
         "judge_models": list(models),
@@ -1191,7 +1367,7 @@ def validate_review_artifacts(
     }
     summary_bindings = {
         "input_proposed_sha256": input_hash,
-        "rubric_hash": REVIEW_RUBRIC_HASH,
+        "rubric_hash": rubric_hash,
         "code_commit": commit,
         "code_dirty": False,
         "judge_models": list(models),

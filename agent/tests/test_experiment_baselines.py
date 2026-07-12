@@ -34,6 +34,7 @@ _FAKE_ENTRY = r'''
 import json
 import os
 import sys
+import time
 from pathlib import Path
 
 config = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
@@ -43,6 +44,8 @@ print(f"stdout secret={secret}")
 print(f"stderr secret={secret}", file=sys.stderr)
 if config["behavior"] == "fail":
     raise SystemExit(7)
+if config["behavior"] == "sleep":
+    time.sleep(0.2)
 
 work_dir = Path(config["work_dir"])
 code_path = work_dir / "generated.py"
@@ -360,6 +363,71 @@ def test_subprocess_failure_is_failed_with_redacted_logs() -> None:
         assert "failure-secret" not in evidence
         assert "***REDACTED***" in evidence
         assert '"exit_code": 7' in evidence
+
+
+def test_external_timeout_recomputes_absolute_deadline_before_launch() -> None:
+    with experiment_workspace("baseline-timeout") as workspace:
+        repo, definition = _fake_repo(workspace)
+        spec = _external_spec(workspace, behavior="sleep")
+        request = replace(
+            _request(spec, workspace),
+            remaining_renders=None,
+            remaining_seconds=10.0,
+            deadline_monotonic=100.01,
+        )
+        provider = FakeExternalProvider(
+            definition,
+            repo,
+            timeout_seconds=10.0,
+            check_dependencies=False,
+            environ={"FAKE_SECRET": "set"},
+            monotonic=lambda: 100.0,
+        )
+
+        with pytest.raises(ProviderExecutionError):
+            provider.generate(request)
+
+        metadata = json.loads(
+            (request.output_dir / "subprocess_result.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        assert metadata["timeout_seconds"] == pytest.approx(0.01)
+        assert metadata["exit_code"] == -1
+
+
+def test_external_deadline_expired_during_setup_prevents_launch() -> None:
+    with experiment_workspace("baseline-expired") as workspace:
+        repo, definition = _fake_repo(workspace)
+        spec = _external_spec(workspace)
+        request = replace(
+            _request(spec, workspace),
+            remaining_renders=None,
+            remaining_seconds=10.0,
+            deadline_monotonic=99.0,
+        )
+        provider = FakeExternalProvider(
+            definition,
+            repo,
+            timeout_seconds=10.0,
+            check_dependencies=False,
+            environ={"FAKE_SECRET": "set"},
+            monotonic=lambda: 100.0,
+        )
+
+        with pytest.raises(ProviderExecutionError) as error:
+            provider.generate(request)
+
+        metadata = json.loads(
+            (request.output_dir / "subprocess_result.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        assert metadata["timeout_seconds"] == 0.0
+        assert metadata["exit_code"] == -1
+        assert "expired before subprocess launch" in metadata["stderr_summary"]
+        assert not (request.output_dir / "driver_result.json").exists()
+        assert error.value.failure_attribution == "method"
 
 
 def test_artifact_escape_is_rejected() -> None:

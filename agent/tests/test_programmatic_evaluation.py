@@ -229,6 +229,27 @@ def test_missing_series_reduces_coverage_and_numeric_match():
     assert (numeric.numerator, numeric.denominator) == (4, 6)
 
 
+def test_unbound_data_axis_reduces_fidelity_purity(source_df):
+    fig = _make_line_figure([10.0, 20.0, 30.0])
+    extra = fig.add_axes([0.65, 0.6, 0.25, 0.25])
+    extra.set_gid("unexpected-panel")
+    extra.plot([1, 2, 3], [99.0, 98.0, 97.0], label="unexpected")
+    try:
+        result = evaluate_figure(fig, source_df, _line_expectation())
+    finally:
+        plt.close(fig)
+
+    purity = result.fidelity.checks["series_purity"]
+    assert purity.ratio == 0.5
+    assert any(
+        mismatch.code == "series_unexpected"
+        and mismatch.panel_id == "unexpected-panel"
+        for mismatch in purity.mismatches
+    )
+    numeric = result.fidelity.checks["numeric_match"]
+    assert (numeric.numerator, numeric.denominator) == (6, 9)
+
+
 def test_log_linear_scale_mismatch_is_explicit(source_df):
     fig = _make_line_figure([10.0, 20.0, 30.0])
     expectation = _line_expectation(y_scale="log")
@@ -421,6 +442,39 @@ def test_single_panel_cohesion_is_na(source_df):
     assert result.cohesion.ratio is None
     assert (result.cohesion.numerator, result.cohesion.denominator) == (0, 0)
     assert all(check.status == "na" for check in result.cohesion.checks.values())
+
+
+def test_missing_rendered_panel_fails_declared_cohesion(source_df):
+    fig = _make_line_figure([10.0, 20.0, 30.0], panel_id="panel-a")
+    try:
+        manifest = extract_figure_manifest(fig)
+        result = evaluate_cohesion(manifest, _multi_panel_expectation())
+    finally:
+        plt.close(fig)
+
+    assert result.applicable is True
+    assert result.status == "fail"
+    assert result.ratio is not None
+    assert result.ratio < 1.0
+
+
+def test_positional_fallback_does_not_reuse_exactly_bound_axis(source_df):
+    fig = _make_line_figure(
+        [10.0, 20.0, 30.0],
+        panel_id="panel-b",
+    )
+    try:
+        result = evaluate_cohesion(
+            extract_figure_manifest(fig),
+            _multi_panel_expectation(),
+        )
+    finally:
+        plt.close(fig)
+
+    assert result.applicable is True
+    assert result.status == "fail"
+    assert result.ratio is not None
+    assert result.ratio < 1.0
 
 
 def test_manifest_extracts_bar_scatter_and_image():

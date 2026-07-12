@@ -260,12 +260,29 @@ def _bind_panels(
         if axis["role"] == "secondary" and axis["panel_id"] is not None:
             secondary_by_panel.setdefault(axis["panel_id"], []).append(axis)
     bindings: Dict[str, Dict[str, Optional[Dict[str, Any]]]] = {}
+    used_primary_ids: set[str] = set()
+    exact_axes: Dict[str, Optional[Dict[str, Any]]] = {}
     for panel in resolved_panels:
         panel_id = panel["panel_id"]
         axis = by_id.get(panel_id) or by_panel_id.get(panel_id)
+        if axis is not None and axis["axis_id"] in used_primary_ids:
+            axis = None
+        exact_axes[panel_id] = axis
+        if axis is not None:
+            used_primary_ids.add(axis["axis_id"])
+
+    for panel in resolved_panels:
+        panel_id = panel["panel_id"]
+        axis = exact_axes[panel_id]
         if axis is None and "axis_index" in panel:
             index = panel["axis_index"]
-            axis = primary_axes[index] if index < len(primary_axes) else None
+            candidate = primary_axes[index] if index < len(primary_axes) else None
+            if (
+                candidate is not None
+                and candidate["axis_id"] not in used_primary_ids
+            ):
+                axis = candidate
+                used_primary_ids.add(axis["axis_id"])
         logical_panel_id = axis["panel_id"] if axis else panel_id
         secondary_axes = secondary_by_panel.get(logical_panel_id, [])
         bindings[panel_id] = {
@@ -396,6 +413,12 @@ def evaluate_fidelity(
     cfg = coerce_metric_config(config)
     resolved_panels = _resolve_expectation(source_df, expectation, cfg)
     bindings = _bind_panels(manifest, resolved_panels)
+    bound_axis_ids = {
+        axis["axis_id"]
+        for binding in bindings.values()
+        for axis in (binding.get("primary"), binding.get("secondary"))
+        if axis is not None
+    }
 
     numeric_expected = 0
     numeric_observed = 0
@@ -708,6 +731,47 @@ def evaluate_fidelity(
                     )
                 )
 
+    for axis in (
+        item.to_dict()
+        for item in manifest.axes
+        if item.role in {"panel", "secondary"}
+        and item.axis_id not in bound_axis_ids
+    ):
+        panel_id = str(axis.get("panel_id") or axis["axis_id"])
+        for observed in axis.get("series") or []:
+            observed_points = _series_points(observed)
+            numeric_observed += len(observed_points)
+            purity_items.append(
+                {
+                    "panel_id": panel_id,
+                    "series_id": observed["series_id"],
+                    "passed": False,
+                }
+            )
+            numeric_mismatches.append(
+                _mismatch(
+                    "series_unexpected",
+                    "Data-bearing series appears on an unbound axis.",
+                    panel_id,
+                    observed["series_id"],
+                    observed={
+                        "axis_id": axis["axis_id"],
+                        "kind": observed.get("kind"),
+                        "label": observed.get("label"),
+                        "point_count": len(observed_points),
+                    },
+                )
+            )
+            purity_mismatches.append(
+                _mismatch(
+                    "series_unexpected",
+                    "Data-bearing series appears on an unbound axis.",
+                    panel_id,
+                    observed["series_id"],
+                    observed={"axis_id": axis["axis_id"]},
+                )
+            )
+
     numeric_denominator = numeric_expected + numeric_observed
     numeric_check = CheckResult(
         name="numeric_match",
@@ -806,8 +870,7 @@ def evaluate_cohesion(
     validate_expectation(expectation)
     validate_figure_manifest(manifest)
     cfg = coerce_metric_config(config)
-    panel_axes = _manifest_axes(manifest)
-    if len(panel_axes) <= 1:
+    if len(expectation.get("panels") or []) <= 1:
         return _empty_cohesion("single_panel")
     groups = list(expectation.get("panel_groups") or [])
     if not groups:

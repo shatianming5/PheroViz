@@ -14,7 +14,11 @@ from experiments.cli import main
 from experiments.harness import execute_experiment
 from experiments.models import RunRecord, sha256_file, sha256_json
 from experiments.production_statistics import load_provenance_summary
-from experiments.providers import CandidateResult, GenerationRequest
+from experiments.providers import (
+    CandidateResult,
+    GenerationRequest,
+    ProviderExecutionError,
+)
 from experiments.rejudge import (
     CodeGitState,
     RejudgeError,
@@ -56,6 +60,21 @@ class ImageProvider:
             metadata={"call_index": request.call_index},
             test_only=False,
         )
+
+
+class MethodFailure(ProviderExecutionError):
+    failure_attribution = "method"
+
+
+class MethodFailureProvider:
+    name = "method_failure_provider"
+    test_only = False
+
+    def check_available(self) -> None:
+        return None
+
+    def generate(self, request: GenerationRequest) -> CandidateResult:
+        raise MethodFailure("method produced no render")
 
 
 class FakeModelClient:
@@ -129,6 +148,28 @@ def _create_run(
     )
     assert outcome.record.status == "completed"
     assert outcome.record.test_only is False
+    return spec, outcome.record
+
+
+def _create_failed_run(
+    workspace: Path,
+    *,
+    run_name: str = "failed-rejudge-run",
+):
+    spec = make_spec(
+        workspace,
+        run_name=run_name,
+        method="failed-method",
+        budget_value=1,
+    )
+    outcome = execute_experiment(
+        spec,
+        provider_loader=lambda import_path, options: MethodFailureProvider(),
+    )
+    assert outcome.record.status == "failed"
+    assert outcome.record.test_only is False
+    assert outcome.record.error is not None
+    assert outcome.record.error["attribution"] == "method"
     return spec, outcome.record
 
 
@@ -378,6 +419,106 @@ def test_merge_creates_new_hashed_summary_and_preserves_original() -> None:
         assert merged["rejudge"]["code_git_dirty"] is False
         validated = load_provenance_summary(merged_path)
         assert validated.summary_hash == merged["summary_hash"]
+
+
+def test_rejudge_zeros_failed_methods_without_sidecars() -> None:
+    with experiment_workspace("rejudge-failed-method") as workspace:
+        completed_spec, _ = _create_run(
+            workspace,
+            run_name="completed-rejudge-run",
+            scores=(0.8,),
+        )
+        _, failed_record = _create_failed_run(workspace)
+        _, summary_path = aggregate_runs(Path(completed_spec.artifact_root))
+        sidecar_dir = workspace / "sidecars"
+        client = FakeModelClient(score=0.61)
+
+        result = rejudge_batch(
+            summary_path,
+            judge_model="judge/model-v1",
+            output_dir=sidecar_dir,
+            model_client=client,
+        )
+
+        assert result.exit_code == 0
+        assert len(client.calls) == 1
+        assert len(
+            [
+                path
+                for path in sidecar_dir.glob("*.json")
+                if path.name != SIDECAR_BATCH_FILENAME
+            ]
+        ) == 1
+        merged_path, metric = merge_rejudged_summary(
+            summary_path,
+            sidecar_dir,
+            output_path=workspace / "mixed-rejudged-summary.json",
+        )
+        merged = json.loads(merged_path.read_text(encoding="utf-8"))
+        rows = {row["run_name"]: row for row in merged["runs"]}
+        assert rows[failed_record.run_name][metric] == 0.0
+        assert merged["rejudge"]["failed_zero_runs"] == [
+            failed_record.run_name
+        ]
+
+
+def test_rejudge_all_failed_summary_needs_no_render_sidecars() -> None:
+    with experiment_workspace("rejudge-all-failed") as workspace:
+        spec, failed_record = _create_failed_run(workspace)
+        _, summary_path = aggregate_runs(Path(spec.artifact_root))
+        sidecar_dir = workspace / "sidecars"
+        client = FakeModelClient()
+
+        result = rejudge_batch(
+            Path(spec.artifact_root),
+            judge_model="judge/model-v1",
+            output_dir=sidecar_dir,
+            model_client=client,
+        )
+
+        assert result.exit_code == 0
+        assert result.completed == ()
+        assert client.calls == []
+        assert sorted(path.name for path in sidecar_dir.glob("*.json")) == [
+            SIDECAR_BATCH_FILENAME
+        ]
+        merged_path, metric = merge_rejudged_summary(
+            summary_path,
+            sidecar_dir,
+            output_path=workspace / "failed-only-rejudged-summary.json",
+        )
+        merged = json.loads(merged_path.read_text(encoding="utf-8"))
+        assert merged["runs"][0]["run_name"] == failed_record.run_name
+        assert merged["runs"][0][metric] == 0.0
+        assert merged["rejudge"]["sidecar_hashes"] == {}
+
+
+def test_merge_requires_exact_completed_sidecar_coverage() -> None:
+    with experiment_workspace("rejudge-sidecar-coverage") as workspace:
+        spec, _ = _create_run(workspace, scores=(0.8,))
+        _, summary_path = aggregate_runs(Path(spec.artifact_root))
+        sidecar_dir = workspace / "sidecars"
+        result = rejudge_batch(
+            summary_path,
+            judge_model="judge/model-v1",
+            output_dir=sidecar_dir,
+            model_client=FakeModelClient(),
+        )
+        assert result.exit_code == 0
+        _sidecar_path(sidecar_dir).unlink()
+        batch_path = sidecar_dir / SIDECAR_BATCH_FILENAME
+        batch = json.loads(batch_path.read_text(encoding="utf-8"))
+        batch["sidecar_hashes"] = {}
+        batch.pop("batch_hash")
+        batch["batch_hash"] = sha256_json(batch)
+        batch_path.write_text(json.dumps(batch), encoding="utf-8")
+
+        with pytest.raises(RejudgeError, match="completed summary runs"):
+            merge_rejudged_summary(
+                summary_path,
+                sidecar_dir,
+                output_path=workspace / "missing-sidecar-summary.json",
+            )
 
 
 def test_cli_rejudge_and_merge_commands(

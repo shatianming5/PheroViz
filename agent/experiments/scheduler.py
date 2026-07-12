@@ -23,6 +23,8 @@ from .providers import (
 class BudgetError(RuntimeError):
     """Raised when a provider violates or underuses a strict budget."""
 
+    failure_attribution = "method"
+
 
 def selection_score(
     metrics: Mapping[str, float],
@@ -116,8 +118,14 @@ def run_schedule(
     record: RunRecord,
     persist: Callable[[], None],
     monotonic: Callable[[], float] = time.monotonic,
+    deadline_monotonic: Optional[float] = None,
 ) -> None:
-    """Execute one fair schedule and update ``record`` in place."""
+    """Execute one fair schedule and update ``record`` in place.
+
+    Render budgets use exact-fill semantics: consuming exactly the remaining
+    renders is accepted, while stopping short or returning even one extra
+    render fails the run.
+    """
 
     record.provider_name = provider.name
     record.test_only = provider.test_only
@@ -129,7 +137,17 @@ def run_schedule(
     if max_calls_raw < 1:
         raise ProvenanceError("method_config.max_provider_calls must be positive")
 
-    execution_started = monotonic()
+    schedule_started = monotonic()
+    if spec.budget_type == "wall_clock_seconds":
+        deadline = (
+            float(deadline_monotonic)
+            if deadline_monotonic is not None
+            else schedule_started + float(spec.budget_value)
+        )
+        execution_started = deadline - float(spec.budget_value)
+    else:
+        deadline = None
+        execution_started = schedule_started
     call_index = 0
     best_score: Optional[float] = None
     best_candidate: Optional[Dict[str, Any]] = None
@@ -138,23 +156,28 @@ def run_schedule(
     stopped = False
 
     while True:
-        elapsed = monotonic() - execution_started
+        now = monotonic()
+        elapsed = now - execution_started
         record.wall_clock_seconds = max(elapsed, 0.0)
         if spec.budget_type == "renders":
             budget = int(spec.budget_value)
             remaining_renders = budget - record.render_count
             remaining_seconds = None
-            deadline = None
             if remaining_renders == 0:
                 break
             if remaining_renders < 0:
                 raise BudgetError("Render budget was exceeded")
         else:
-            budget_seconds = float(spec.budget_value)
-            remaining_seconds = budget_seconds - elapsed
+            if deadline is None:
+                raise ProvenanceError("Wall-clock schedule has no absolute deadline")
+            remaining_seconds = deadline - now
             remaining_renders = None
-            deadline = execution_started + budget_seconds
             if remaining_seconds <= 0:
+                if not record.candidates:
+                    raise BudgetError(
+                        "Absolute wall-clock deadline expired before provider "
+                        "generation"
+                    )
                 break
 
         if call_index >= max_calls_raw:
@@ -212,7 +235,8 @@ def run_schedule(
         batch_render_count = sum(
             candidate.render_count for candidate in batch.candidates
         )
-        call_elapsed = monotonic() - execution_started
+        call_finished = monotonic()
+        call_elapsed = call_finished - execution_started
         if spec.budget_type == "renders":
             if batch_render_count > int(remaining_renders or 0):
                 record.render_count += batch_render_count
@@ -222,11 +246,18 @@ def run_schedule(
                     f"Provider exceeded render budget by "
                     f"{batch_render_count - int(remaining_renders or 0)}"
                 )
-        elif call_elapsed > float(spec.budget_value):
+        elif (
+            deadline is not None
+            and call_finished > deadline
+        ):
             record.render_count += batch_render_count
             record.wall_clock_seconds = max(call_elapsed, 0.0)
             persist()
-            raise BudgetError("Provider exceeded wall-clock budget")
+            raise BudgetError(
+                "Provider batch missed the absolute wall-clock deadline"
+            )
+
+        record.render_count += batch_render_count
 
         for result in batch.candidates:
             candidate_number = len(record.candidates) + 1
@@ -276,7 +307,6 @@ def run_schedule(
             record.artifact_hashes[f"{candidate_id}.metadata"] = candidate_digest
 
             record.candidates.append(candidate)
-            record.render_count += result.render_count
             record.test_only = bool(
                 record.test_only or batch.test_only or result.test_only
             )
@@ -321,6 +351,19 @@ def run_schedule(
                 0.0,
             )
             persist()
+
+        if deadline is not None:
+            archive_finished = monotonic()
+            record.wall_clock_seconds = max(
+                archive_finished - execution_started,
+                0.0,
+            )
+            if archive_finished > deadline:
+                persist()
+                raise BudgetError(
+                    "Provider batch missed the absolute wall-clock deadline "
+                    "after complete archive admission"
+                )
 
         if batch.stop:
             stopped = True

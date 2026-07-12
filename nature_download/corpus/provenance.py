@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import hashlib
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 from typing import Any, Iterable
 
@@ -362,42 +362,159 @@ def build_corpus_manifest(
     return manifests
 
 
+def _safe_manifest_file_path(value: Any) -> PurePosixPath | None:
+    if (
+        not isinstance(value, str)
+        or not value
+        or "\x00" in value
+        or "\\" in value
+    ):
+        return None
+    path = PurePosixPath(value)
+    if (
+        path.is_absolute()
+        or any(part in {"", ".", ".."} for part in path.parts)
+        or path.as_posix() != value
+    ):
+        return None
+    return path
+
+
+def _path_has_symlink(path: Path, article_dir: Path) -> bool:
+    current = article_dir
+    try:
+        parts = path.relative_to(article_dir).parts
+    except ValueError:
+        return True
+    for part in parts:
+        current = current / part
+        if current.is_symlink():
+            return True
+    return False
+
+
 def validate_article_manifest(
     manifest: dict[str, Any],
     *,
     content_root: str | Path | None = None,
 ) -> list[str]:
+    if not isinstance(manifest, dict):
+        return ["manifest-invalid"]
+
     errors: list[str] = []
     if not normalize_doi(manifest.get("doi")):
         errors.append("doi-missing")
     if manifest.get("download_eligible"):
         if not manifest.get("journal_allowed"):
             errors.append("journal-not-allowed")
-        license_record = manifest.get("license") or {}
+        license_value = manifest.get("license")
+        if not isinstance(license_value, dict):
+            errors.append("license-record-invalid")
+            license_record: dict[str, Any] = {}
+        else:
+            license_record = license_value
         normalized = normalize_cc_by_url(
             license_record.get("normalized_url") or license_record.get("url")
         )
         if not normalized:
             errors.append("license-not-verifiable-cc-by")
-        if not manifest.get("license_source"):
+        else:
+            canonical_url, version = normalized
+            if (
+                license_record.get("normalized_url") is not None
+                and license_record.get("normalized_url") != canonical_url
+            ):
+                errors.append("license-normalized-url-mismatch")
+            if (
+                license_record.get("version") is not None
+                and license_record.get("version") != version
+            ):
+                errors.append("license-version-mismatch")
+            if (
+                license_record.get("license_id") is not None
+                and license_record.get("license_id") != f"CC-BY-{version}"
+            ):
+                errors.append("license-id-mismatch")
+
+        license_source = manifest.get("license_source")
+        nested_source = license_record.get("source")
+        if not license_source:
             errors.append("license-source-missing")
-        if not manifest.get("license_evidence"):
+        if not nested_source:
+            errors.append("license-record-source-missing")
+        if (
+            license_source
+            and nested_source
+            and license_source != nested_source
+        ):
+            errors.append("license-source-mismatch")
+
+        raw_evidence = manifest.get("license_evidence")
+        nested_evidence = license_record.get("evidence")
+        if not raw_evidence:
             errors.append("license-evidence-missing")
+        if (
+            nested_evidence is not None
+            and raw_evidence is not None
+            and nested_evidence != raw_evidence
+        ):
+            errors.append("license-evidence-mismatch")
+        if (
+            (nested_source or license_source) == "crossref"
+        ):
+            if license_record.get("content_version") != "vor":
+                errors.append("license-crossref-content-version-not-vor")
+            if not isinstance(raw_evidence, dict):
+                errors.append("license-crossref-evidence-invalid")
+            else:
+                if raw_evidence.get("content-version") != "vor":
+                    errors.append(
+                        "license-crossref-evidence-content-version-not-vor"
+                    )
+                evidence_url = raw_evidence.get("URL") or raw_evidence.get("url")
+                if (
+                    not normalized
+                    or normalize_cc_by_url(evidence_url) != normalized
+                ):
+                    errors.append("license-crossref-evidence-url-mismatch")
+                if (
+                    license_record.get("url") is not None
+                    and license_record.get("url") != evidence_url
+                ):
+                    errors.append("license-crossref-raw-url-mismatch")
     elif not manifest.get("rejection_reasons"):
         errors.append("rejected-without-reason")
     if manifest.get("download_eligible") and not manifest.get("require_cc_by"):
         errors.append("download-eligible-without-cc-by-gate")
 
     origin = manifest.get("source_data_origin")
-    if origin not in SOURCE_DATA_ORIGINS:
+    if not isinstance(origin, str) or origin not in SOURCE_DATA_ORIGINS:
         errors.append("source-data-origin-invalid")
-    for entry in manifest.get("files") or []:
+    raw_files = manifest.get("files")
+    if not isinstance(raw_files, list):
+        errors.append("files-invalid")
+        raw_files = []
+
+    article_dir = (
+        Path(content_root) / _article_id(manifest)
+        if content_root is not None
+        else None
+    )
+    seen_paths: set[str] = set()
+    for entry in raw_files:
         if not isinstance(entry, dict):
             errors.append("file-entry-invalid")
             continue
-        if entry.get("kind") == "source_data":
+        kind = entry.get("kind")
+        if not isinstance(kind, str) or kind not in {
+            "figure",
+            "caption",
+            "source_data",
+        }:
+            errors.append("file-kind-invalid")
+        if kind == "source_data":
             file_origin = entry.get("source_data_origin")
-            if file_origin not in {
+            if not isinstance(file_origin, str) or file_origin not in {
                 "supplementary_information",
                 "reconstructed",
             }:
@@ -413,16 +530,71 @@ def validate_article_manifest(
                 and not entry.get("verification_status")
             ):
                 errors.append("reconstructed-verification-status-missing")
-        if entry.get("download_status") == "downloaded":
-            if not entry.get("sha256"):
+            if (
+                origin in {
+                    "supplementary_information",
+                    "reconstructed",
+                }
+                and file_origin != origin
+            ):
+                errors.append("source-data-file-origin-mismatch")
+
+        status = entry.get("download_status")
+        if not isinstance(status, str) or status not in {
+            "downloaded",
+            "missing",
+        }:
+            errors.append("file-download-status-invalid")
+        raw_path = entry.get("path")
+        safe_path = (
+            _safe_manifest_file_path(raw_path)
+            if raw_path is not None
+            else None
+        )
+        if raw_path is not None and safe_path is None:
+            errors.append(f"file-path-invalid:{raw_path}")
+        if safe_path is not None:
+            path_key = safe_path.as_posix().casefold()
+            if path_key in seen_paths:
+                errors.append(f"file-path-duplicate:{safe_path.as_posix()}")
+            seen_paths.add(path_key)
+
+        if status == "downloaded":
+            if safe_path is None:
+                errors.append("downloaded-file-path-missing")
+            checksum = entry.get("sha256")
+            if not checksum:
                 errors.append("downloaded-file-checksum-missing")
-            if not entry.get("source_url"):
-                errors.append(f"downloaded-file-source-url-missing:{entry.get('path')}")
-            if content_root and entry.get("path"):
-                article_id = _article_id(manifest)
-                path = Path(content_root) / article_id / str(entry["path"])
-                if not path.is_file():
-                    errors.append(f"file-missing:{entry['path']}")
-                elif sha256_file(path) != entry.get("sha256"):
-                    errors.append(f"checksum-mismatch:{entry['path']}")
+            elif (
+                not isinstance(checksum, str)
+                or not re.fullmatch(r"[0-9a-f]{64}", checksum)
+            ):
+                errors.append(f"downloaded-file-checksum-invalid:{raw_path}")
+            size_bytes = entry.get("size_bytes")
+            if (
+                not isinstance(size_bytes, int)
+                or isinstance(size_bytes, bool)
+                or size_bytes < 0
+            ):
+                errors.append(f"downloaded-file-size-invalid:{raw_path}")
+            source_url = entry.get("source_url")
+            if not isinstance(source_url, str) or not source_url:
+                errors.append(f"downloaded-file-source-url-missing:{raw_path}")
+            if article_dir is not None and safe_path is not None:
+                path = article_dir.joinpath(*safe_path.parts)
+                resolved = path.resolve()
+                try:
+                    resolved.relative_to(article_dir.resolve())
+                except ValueError:
+                    errors.append(f"file-outside-article-directory:{raw_path}")
+                    continue
+                if _path_has_symlink(path, article_dir):
+                    errors.append(f"file-symlink:{raw_path}")
+                elif not path.is_file():
+                    errors.append(f"file-missing:{raw_path}")
+                else:
+                    if sha256_file(path) != checksum:
+                        errors.append(f"checksum-mismatch:{raw_path}")
+                    if path.stat().st_size != size_bytes:
+                        errors.append(f"size-mismatch:{raw_path}")
     return sorted(set(errors))

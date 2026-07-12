@@ -51,23 +51,32 @@ def _row(
     manifest_hash: str = "a" * 64,
     metric_config_hash: str = "b" * 64,
     seed: int = 7,
+    doi: str | None = None,
+    status: str = "completed",
+    failure_attribution: str = "",
+    git_commit: str = "c" * 40,
 ) -> dict[str, Any]:
     run_name = f"{method}-{case_id}-{seed}"
+    execution_success = 1.0 if status == "completed" else 0.0
     return {
         "run_name": run_name,
         "method": method,
         "backbone": "model-a",
         "case_id": case_id,
+        "doi": doi or f"10.1234/{case_id}",
         "panel_count": panel_count,
         "split": "test",
         "seed": seed,
         "budget_type": "renders",
         "budget_value": 3.0,
         "dataset_manifest_hash": manifest_hash,
-        "git_commit": "c" * 40,
+        "git_commit": git_commit,
         "started_at": "2026-01-01T00:00:00Z",
         "finished_at": "2026-01-01T00:01:00Z",
-        "status": "completed",
+        "status": status,
+        "execution_success": execution_success,
+        "failure_attribution": failure_attribution,
+        "failure_type": "MethodFailure" if status == "failed" else "",
         "test_only": False,
         "render_count": 3,
         "wall_clock_seconds": 1.0,
@@ -79,6 +88,7 @@ def _row(
         "spec_hash": _digest(f"spec-{run_name}"),
         "record_hash": _digest(f"record-{run_name}"),
         "metric.data_fidelity": value,
+        "metric.execution_success": execution_success,
         **(
             {"metric.second_data_fidelity": second_value}
             if second_value is not None
@@ -162,6 +172,240 @@ def test_case_mismatch_is_rejected() -> None:
         summary = load_provenance_summary(summary_path)
 
         with pytest.raises(StatisticsError, match="Paired case mismatch"):
+            analyze_summary(
+                summary,
+                reference="reference",
+                methods=["method"],
+                metric="metric.data_fidelity",
+                bootstrap_resamples=20,
+                monte_carlo_permutations=20,
+            )
+
+
+def test_analysis_averages_seeds_and_tasks_before_doi_resampling() -> None:
+    with _workspace("doi-clusters") as workspace:
+        method_values = {
+            ("case-1", 7): 2.0,
+            ("case-1", 9): 4.0,
+            ("case-2", 7): 6.0,
+            ("case-2", 9): 8.0,
+            ("case-3", 7): 10.0,
+            ("case-3", 9): 14.0,
+        }
+        dois = {
+            "case-1": "10.1234/article-a",
+            "case-2": "10.1234/article-a",
+            "case-3": "10.1234/article-b",
+        }
+        rows = []
+        for case_id in dois:
+            for run_seed in (7, 9):
+                rows.extend(
+                    [
+                        _row(
+                            "reference",
+                            case_id,
+                            0.0,
+                            seed=run_seed,
+                            doi=dois[case_id],
+                        ),
+                        _row(
+                            "method",
+                            case_id,
+                            method_values[(case_id, run_seed)],
+                            seed=run_seed,
+                            doi=dois[case_id],
+                        ),
+                    ]
+                )
+        summary = load_provenance_summary(
+            _write_summary(workspace / "summary.json", rows)
+        )
+
+        analysis = analyze_summary(
+            summary,
+            reference="reference",
+            methods=["method"],
+            metric="metric.data_fidelity",
+            bootstrap_resamples=30,
+            monte_carlo_permutations=30,
+        )
+        result = analysis["slices"][0]
+        overall = result["comparisons"][0]["overall"]
+
+        assert result["seeds"] == [7, 9]
+        assert result["case_count"] == 3
+        assert result["doi_count"] == 2
+        assert overall["n"] == 2
+        assert overall["mean_gap"] == 8.5
+        assert overall["sampling_unit"] == "doi"
+        assert analysis["analysis_config"]["sampling_unit"] == "doi"
+        assert result["experiment_git_commit"] == "c" * 40
+
+
+def test_sparse_optional_json_metrics_are_accepted() -> None:
+    with _workspace("sparse-metrics") as workspace:
+        rows = []
+        for case_id in ("case-1", "case-2"):
+            rows.extend(
+                [
+                    _row("reference", case_id, 1.0),
+                    _row("method", case_id, 2.0),
+                ]
+            )
+        rows[0]["metric.optional_judge"] = 0.75
+        summary = load_provenance_summary(
+            _write_summary(workspace / "summary.json", rows)
+        )
+
+        assert "metric.optional_judge" in summary.rows[0]
+        assert all(
+            "metric.optional_judge" not in row for row in summary.rows[1:]
+        )
+        analysis = analyze_summary(
+            summary,
+            reference="reference",
+            methods=["method"],
+            metric="metric.data_fidelity",
+            bootstrap_resamples=20,
+            monte_carlo_permutations=20,
+        )
+        assert analysis["slices"][0]["comparisons"][0]["overall"][
+            "mean_gap"
+        ] == 1.0
+
+
+def test_seed_merged_slice_rejects_mixed_experiment_commits() -> None:
+    with _workspace("mixed-seed-commits") as workspace:
+        rows = []
+        for run_seed, commit in ((7, "c" * 40), (9, "d" * 40)):
+            for case_id in ("case-1", "case-2"):
+                rows.extend(
+                    [
+                        _row(
+                            "reference",
+                            case_id,
+                            1.0,
+                            seed=run_seed,
+                            git_commit=commit,
+                        ),
+                        _row(
+                            "method",
+                            case_id,
+                            2.0,
+                            seed=run_seed,
+                            git_commit=commit,
+                        ),
+                    ]
+                )
+        summary = load_provenance_summary(
+            _write_summary(workspace / "summary.json", rows)
+        )
+
+        with pytest.raises(StatisticsError, match="mixes code"):
+            analyze_summary(
+                summary,
+                reference="reference",
+                methods=["method"],
+                metric="metric.data_fidelity",
+                bootstrap_resamples=20,
+                monte_carlo_permutations=20,
+            )
+
+
+def test_explicit_method_failures_are_zero_outcomes_not_survivors() -> None:
+    with _workspace("method-failures") as workspace:
+        rows = []
+        for case_id in ("case-1", "case-2"):
+            rows.extend(
+                [
+                    _row("reference", case_id, 1.0),
+                    _row(
+                        "method",
+                        case_id,
+                        0.0,
+                        status="failed",
+                        failure_attribution="method",
+                    ),
+                ]
+            )
+        summary = load_provenance_summary(
+            _write_summary(workspace / "summary.json", rows)
+        )
+
+        analysis = analyze_summary(
+            summary,
+            reference="reference",
+            methods=["method"],
+            metric="metric.data_fidelity",
+            bootstrap_resamples=20,
+            monte_carlo_permutations=20,
+        )
+
+        overall = analysis["slices"][0]["comparisons"][0]["overall"]
+        assert overall["n"] == 2
+        assert overall["mean_gap"] == -1.0
+
+
+def test_infrastructure_failure_and_missing_doi_fail_closed() -> None:
+    with _workspace("unsafe-failures") as workspace:
+        infrastructure = _row(
+            "method",
+            "case-1",
+            0.0,
+            status="failed",
+            failure_attribution="infrastructure",
+        )
+        with pytest.raises(StatisticsError, match="explicit method attribution"):
+            load_provenance_summary(
+                _write_summary(
+                    workspace / "infrastructure.json",
+                    [infrastructure],
+                )
+            )
+
+        missing_rows = []
+        for case_id in ("case-1", "case-2"):
+            missing_rows.extend(
+                [
+                    _row("reference", case_id, 1.0),
+                    _row("method", case_id, 2.0),
+                ]
+            )
+        missing_rows[0]["doi"] = ""
+        missing_summary = load_provenance_summary(
+            _write_summary(
+                workspace / "missing-doi.json",
+                missing_rows,
+            )
+        )
+        with pytest.raises(StatisticsError, match="DOI cluster"):
+            analyze_summary(
+                missing_summary,
+                reference="reference",
+                methods=["method"],
+                metric="metric.data_fidelity",
+                bootstrap_resamples=20,
+                monte_carlo_permutations=20,
+            )
+
+
+def test_task_sets_must_match_across_seeds() -> None:
+    with _workspace("seed-task-mismatch") as workspace:
+        rows = []
+        for run_seed, case_ids in ((7, ("case-1", "case-2")), (9, ("case-1",))):
+            for case_id in case_ids:
+                rows.extend(
+                    [
+                        _row("reference", case_id, 1.0, seed=run_seed),
+                        _row("method", case_id, 2.0, seed=run_seed),
+                    ]
+                )
+        summary = load_provenance_summary(
+            _write_summary(workspace / "summary.json", rows)
+        )
+
+        with pytest.raises(StatisticsError, match="task sets across seeds"):
             analyze_summary(
                 summary,
                 reference="reference",

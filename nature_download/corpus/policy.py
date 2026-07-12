@@ -209,7 +209,7 @@ class LicenseEvidence:
 
 def _crossref_candidates(
     item: dict[str, Any],
-) -> Iterable[tuple[Any, str | None, str, Any, str | None]]:
+) -> Iterable[tuple[Any, str | None, str, Any, Any]]:
     licenses = item.get("license") or []
     if isinstance(licenses, dict):
         licenses = [licenses]
@@ -217,7 +217,7 @@ def _crossref_candidates(
         if not isinstance(entry, dict):
             continue
         url = entry.get("URL") or entry.get("url")
-        content_version = str(entry.get("content-version") or "").strip() or None
+        content_version = entry.get("content-version")
         yield (
             url,
             _date_from_parts(entry.get("start")),
@@ -255,12 +255,28 @@ def _select_license(
     variants: set[str] = set()
     future_cc_by = False
     tdm_cc_by = False
+    non_vor_versions: set[str] = set()
     for raw_url, effective_date, source, evidence, content_version in candidates:
-        normalized_content_version = (content_version or "").casefold()
-        if source == "crossref" and normalized_content_version == "tdm":
-            if normalize_cc_by_url(raw_url):
-                tdm_cc_by = True
-            continue
+        if source == "crossref":
+            if content_version == "vor":
+                pass
+            elif str(content_version or "").strip().casefold() == "tdm":
+                if normalize_cc_by_url(raw_url):
+                    tdm_cc_by = True
+                continue
+            else:
+                if normalize_cc_by_url(raw_url):
+                    non_vor_versions.add(
+                        str(content_version).strip()
+                        if content_version is not None
+                        and str(content_version).strip()
+                        else "missing"
+                    )
+                else:
+                    variant = _license_variant(raw_url)
+                    if variant:
+                        variants.add(variant)
+                continue
         normalized = normalize_cc_by_url(raw_url)
         if not normalized:
             variant = _license_variant(raw_url)
@@ -294,6 +310,10 @@ def _select_license(
         reasons.append("license-not-yet-effective")
     if tdm_cc_by:
         reasons.append("license-tdm-only")
+    reasons.extend(
+        f"license-non-vor-content-version:{version}"
+        for version in sorted(non_vor_versions)
+    )
     if variants:
         reasons.extend(f"license-disallowed-variant:{variant}" for variant in sorted(variants))
     if not reasons:
@@ -379,6 +399,95 @@ def evaluate_crossref_item(
     }
 
 
+def _article_metadata_evidence_url(evidence: Any) -> str | None:
+    if not isinstance(evidence, str):
+        return None
+    match = re.fullmatch(
+        r'(?:meta\[[^\]\r\n]+\] content|link\[rel=license\] href)="([^"\r\n]+)"',
+        evidence.strip(),
+        flags=re.I,
+    )
+    return match.group(1) if match else None
+
+
+def _reject_license_decision(
+    decision: dict[str, Any],
+    reasons: Iterable[str],
+) -> None:
+    added = [reason for reason in reasons if reason]
+    if not added:
+        return
+    decision["policy_accepted"] = False
+    decision["download_eligible"] = False
+    decision["reject_reasons"] = sorted(
+        set(list(decision.get("reject_reasons") or []) + added)
+    )
+
+
+def _license_contradictions(
+    original: dict[str, Any],
+    selected: dict[str, Any],
+    *,
+    authoritative_source: str | None,
+    stated_source: Any,
+    stated_evidence: Any,
+) -> list[str]:
+    fields: set[str] = set()
+    if (
+        authoritative_source
+        and stated_source is not None
+        and stated_source != authoritative_source
+    ):
+        fields.add("source")
+
+    for key in (
+        "url",
+        "normalized_url",
+        "license_id",
+        "version",
+        "effective_date",
+        "content_version",
+    ):
+        if (
+            key in original
+            and original.get(key) is not None
+            and original.get(key) != selected.get(key)
+        ):
+            fields.add(key)
+
+    if stated_evidence is not None:
+        if authoritative_source == "crossref":
+            if not isinstance(stated_evidence, dict):
+                fields.add("evidence")
+            else:
+                if stated_evidence != selected.get("evidence"):
+                    fields.add("evidence")
+                evidence_url = stated_evidence.get("URL") or stated_evidence.get(
+                    "url"
+                )
+                if (
+                    stated_evidence.get("content-version") != "vor"
+                    or normalize_cc_by_url(evidence_url)
+                    != normalize_cc_by_url(selected.get("normalized_url"))
+                ):
+                    fields.add("evidence")
+        elif authoritative_source == "article_metadata":
+            evidence_url = _article_metadata_evidence_url(stated_evidence)
+            if (
+                not evidence_url
+                or normalize_cc_by_url(evidence_url)
+                != normalize_cc_by_url(selected.get("normalized_url"))
+            ):
+                fields.add("evidence")
+
+    if not fields:
+        return []
+    return ["license-provenance-contradiction"] + [
+        f"license-provenance-contradiction:{field}"
+        for field in sorted(fields)
+    ]
+
+
 def evaluate_record(
     record: dict[str, Any],
     *,
@@ -386,18 +495,89 @@ def evaluate_record(
     retrieved_at: str | None = None,
 ) -> dict[str, Any]:
     """Revalidate a discovery/provenance record without trusting OA flags."""
-    original_license = record.get("license")
-    raw_license = record.get("license_candidates")
+    original_license_value = record.get("license")
+    original_license = (
+        original_license_value
+        if isinstance(original_license_value, dict)
+        else None
+    )
+    nested_source = (
+        original_license.get("source") if original_license is not None else None
+    )
+    nested_evidence = (
+        original_license.get("evidence") if original_license is not None else None
+    )
+    top_level_source = record.get("license_source")
+    top_level_evidence = record.get("license_evidence")
+    stated_source = nested_source or top_level_source
+    stated_evidence = (
+        nested_evidence if nested_evidence is not None else top_level_evidence
+    )
+
+    input_reasons: list[str] = []
+    if (
+        nested_source is not None
+        and top_level_source is not None
+        and nested_source != top_level_source
+    ):
+        input_reasons.extend(
+            [
+                "license-provenance-contradiction",
+                "license-provenance-contradiction:source",
+            ]
+        )
+    if (
+        nested_evidence is not None
+        and top_level_evidence is not None
+        and nested_evidence != top_level_evidence
+    ):
+        input_reasons.extend(
+            [
+                "license-provenance-contradiction",
+                "license-provenance-contradiction:evidence",
+            ]
+        )
+
+    raw_candidates = record.get("license_candidates")
+    raw_candidates_supplied = bool(raw_candidates)
+    if (
+        raw_candidates is not None
+        and not isinstance(raw_candidates, (dict, list))
+    ):
+        input_reasons.append("license-candidates-invalid")
+        raw_license: Any = []
+        raw_candidates_supplied = False
+    else:
+        raw_license = raw_candidates
+
     synthesized_from_normalized = False
     if not raw_license:
         normalized = original_license
-        if isinstance(normalized, dict) and (
+        if (
+            isinstance(normalized, dict)
+            and stated_source == "crossref"
+            and isinstance(stated_evidence, dict)
+        ):
+            raw_license = [dict(stated_evidence)]
+        elif isinstance(normalized, dict) and (
             normalized.get("normalized_url") or normalized.get("url")
         ):
             synthesized_from_normalized = True
+            metadata_evidence_url = (
+                _article_metadata_evidence_url(stated_evidence)
+                if stated_source == "article_metadata"
+                else None
+            )
             entry: dict[str, Any] = {
-                "URL": normalized.get("normalized_url") or normalized.get("url")
+                "URL": metadata_evidence_url
+                or normalized.get("url")
+                or normalized.get("normalized_url")
             }
+            content_version = normalized.get("content_version")
+            if content_version:
+                entry["content-version"] = content_version
+            elif normalized.get("source") == "article_metadata":
+                entry["content-version"] = "vor"
             effective = normalized.get("effective_date")
             if effective:
                 try:
@@ -406,10 +586,21 @@ def evaluate_record(
                 except ValueError:
                     pass
             raw_license = [entry]
-        elif isinstance(record.get("license"), list):
-            raw_license = record.get("license")
+        elif isinstance(original_license_value, list):
+            raw_license = original_license_value
+            raw_candidates_supplied = bool(raw_license)
         else:
             raw_license = []
+
+    authoritative_source: str | None
+    if raw_candidates_supplied or isinstance(original_license_value, list):
+        authoritative_source = "crossref"
+    elif stated_source == "crossref" and isinstance(stated_evidence, dict):
+        authoritative_source = "crossref"
+    elif stated_source == "article_metadata":
+        authoritative_source = "article_metadata"
+    else:
+        authoritative_source = None
 
     item = {
         "DOI": record.get("doi") or record.get("DOI"),
@@ -436,9 +627,52 @@ def evaluate_record(
         retrieved_at=retrieved_at or record.get("retrieved_at"),
         require_cc_by=require_cc_by,
     )
+    selected_license = (
+        decision.get("license")
+        if isinstance(decision.get("license"), dict)
+        else {}
+    )
+    contradiction_reasons = list(input_reasons)
+    if original_license is not None:
+        contradiction_reasons.extend(
+            _license_contradictions(
+                original_license,
+                selected_license,
+                authoritative_source=authoritative_source,
+                stated_source=stated_source,
+                stated_evidence=stated_evidence,
+            )
+        )
+    elif isinstance(original_license_value, list) or raw_candidates_supplied:
+        contradiction_reasons.extend(
+            _license_contradictions(
+                {},
+                selected_license,
+                authoritative_source="crossref",
+                stated_source=stated_source,
+                stated_evidence=stated_evidence,
+            )
+        )
+
+    provenance_missing = synthesized_from_normalized and (
+        stated_source not in {"crossref", "article_metadata"}
+        or not stated_evidence
+        or (
+            stated_source == "crossref"
+            and not isinstance(stated_evidence, dict)
+        )
+        or (
+            stated_source == "article_metadata"
+            and not _article_metadata_evidence_url(stated_evidence)
+        )
+    )
+    if provenance_missing:
+        contradiction_reasons.append("license-provenance-missing")
+    _reject_license_decision(decision, contradiction_reasons)
+
     if (
         decision.get("policy_accepted")
-        and isinstance(original_license, dict)
+        and original_license is not None
         and normalize_cc_by_url(
             original_license.get("normalized_url") or original_license.get("url")
         )
@@ -457,18 +691,8 @@ def evaluate_record(
             if original_license.get(key) is not None:
                 preserved[key] = original_license[key]
         decision["license"] = preserved
-        if synthesized_from_normalized and (
-            original_license.get("source") not in {"crossref", "article_metadata"}
-            or not original_license.get("evidence")
-        ):
-            decision["policy_accepted"] = False
-            decision["download_eligible"] = False
-            decision["reject_reasons"] = sorted(
-                set(
-                    list(decision.get("reject_reasons") or [])
-                    + ["license-provenance-missing"]
-                )
-            )
+    if synthesized_from_normalized and authoritative_source == "article_metadata":
+        decision["license_candidates"] = record.get("license_candidates") or []
     for key in ("authors", "abstract", "pmcid", "pmc_url", "pmid"):
         if key in record:
             decision[key] = record[key]

@@ -146,6 +146,95 @@ def test_safe_and_unsafe_patch_replay_keep_constraint_projection() -> None:
     assert not memory.evaluate_patch(template, frozen_context).allowed
 
 
+def test_patch_replay_matches_concrete_slots_against_stage_prefixes() -> None:
+    memory = PersistentMemory()
+    template = PatchTemplate(
+        id="line-template",
+        scope=Scope.PANEL,
+        level=3,
+        slot="marks.line.main",
+        patch={"slots": {"marks.line.main": "return []"}},
+        chart_meta_class="positional",
+        required_anchors=("marks.line.main", "x"),
+        anchor_coverage_threshold=1.0,
+        safety=SafetyPredicate(allowed_slots=("marks.line.main",)),
+        provenance={"source": "test"},
+        touched_slots=("marks.line.main",),
+        validated_executable=True,
+    )
+    memory.add_patch(template)
+
+    context = memory.reuse_context(
+        chart_meta_class="positional",
+        target_level=3,
+        available_anchors=("marks.*", "scales.*", "x"),
+        writable_slots=("marks.*", "scales.*", "colorbar.apply"),
+        panel_id="panel-a",
+        include_constraints=False,
+        include_patches=True,
+    )
+
+    assert [item.id for item in context.patches] == ["line-template"]
+    assert context.patch_decisions[0].allowed is True
+
+
+def test_stage_prefix_does_not_satisfy_missing_dataframe_anchor() -> None:
+    memory = PersistentMemory()
+    template = PatchTemplate(
+        id="column-sensitive-template",
+        scope=Scope.PANEL,
+        level=3,
+        slot="marks.line.main",
+        patch={"slots": {"marks.line.main": "return []"}},
+        chart_meta_class="positional",
+        required_anchors=("marks.line.main", "marks.value"),
+        anchor_coverage_threshold=1.0,
+        safety=SafetyPredicate(allowed_slots=("marks.line.main",)),
+        provenance={"source": "test"},
+        touched_slots=("marks.line.main",),
+        validated_executable=True,
+    )
+    memory.add_patch(template)
+
+    context = memory.reuse_context(
+        chart_meta_class="positional",
+        target_level=3,
+        available_anchors=("marks.*", "scales.*"),
+        writable_slots=("marks.*", "scales.*", "colorbar.apply"),
+        panel_id="panel-a",
+        include_constraints=False,
+        include_patches=True,
+    )
+
+    assert context.patches == ()
+    assert context.patch_decisions[0].anchor_coverage == 0.5
+    assert context.patch_decisions[0].reasons == (
+        "insufficient_anchor_coverage",
+    )
+
+
+def test_prompt_context_exposes_conflicting_record_ids() -> None:
+    memory = PersistentMemory()
+    memory.add_constraint(
+        constraint(record_id="palette-a", value="viridis")
+    )
+    memory.add_constraint(
+        constraint(record_id="palette-b", value="cividis")
+    )
+
+    prompt = memory.reuse_context(
+        chart_meta_class="positional",
+        target_level=1,
+        available_anchors=("spec.*",),
+        writable_slots=("spec.*",),
+    ).to_prompt_dict()
+
+    assert prompt["conflicts"]["theme.palette_global"] == [
+        "palette-a",
+        "palette-b",
+    ]
+
+
 def test_ttl_and_capacity_bound_active_views() -> None:
     memory = PersistentMemory(
         capacity_by_level={1: 1, 2: 1, 3: 1, 4: 1},

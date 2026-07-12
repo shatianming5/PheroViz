@@ -123,6 +123,259 @@ def _compose_panel_images(
             image.close()
 
 
+def _write_json(path: Path, value: Any) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            value,
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+            allow_nan=False,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return path
+
+
+def _combined_programmatic_evaluation(
+    *,
+    panel_order: list[str],
+    panel_programmatic: Mapping[str, Mapping[str, Any]],
+    full_expectation: Mapping[str, Any] | None,
+    metric_config: Any,
+) -> dict[str, Any] | None:
+    if full_expectation is None:
+        return None
+    if set(panel_programmatic) != set(panel_order):
+        missing = sorted(set(panel_order) - set(panel_programmatic))
+        raise RuntimeError(
+            "Programmatic evaluation missing panel results: "
+            + ", ".join(missing)
+        )
+    combined_manifest = combine_figure_manifests(
+        {
+            panel_id: panel_programmatic[panel_id]["figure_manifest"]
+            for panel_id in panel_order
+        }
+    )
+    cohesion = evaluate_cohesion(
+        combined_manifest,
+        full_expectation,
+        metric_config,
+    )
+    return {
+        "metric_config": panel_programmatic[panel_order[0]][
+            "metric_config"
+        ],
+        "figure_manifest": combined_manifest.to_dict(),
+        "panel_fidelity": {
+            panel_id: panel_programmatic[panel_id]["fidelity"]
+            for panel_id in panel_order
+        },
+        "cohesion": cohesion.to_dict(),
+    }
+
+
+def _contained_file(
+    raw_path: Any,
+    *,
+    output_dir: Path,
+    label: str,
+) -> Path:
+    if not isinstance(raw_path, str) or not raw_path:
+        raise RuntimeError(f"Missing {label} artifact path")
+    path = Path(raw_path)
+    if path.is_symlink() or not path.is_file():
+        raise RuntimeError(f"Missing {label} artifact: {path}")
+    resolved = path.resolve()
+    try:
+        resolved.relative_to(output_dir.resolve())
+    except ValueError as exc:
+        raise RuntimeError(
+            f"{label} artifact escaped the multi-panel output directory: "
+            f"{resolved}"
+        ) from exc
+    return resolved
+
+
+def _write_global_round_checkpoint(
+    *,
+    output_dir: Path,
+    global_round: int,
+    panel_order: list[str],
+    histories: Mapping[str, list[dict[str, Any]]],
+    render_counts: Mapping[str, int],
+    schedule: list[dict[str, Any]],
+    shared_memory: PersistentMemory,
+    shared_untyped_memory: list[dict[str, Any]],
+    memory_mode: str,
+    columns: int,
+    full_expectation: Mapping[str, Any] | None,
+    metric_config: Any,
+) -> dict[str, Any]:
+    checkpoint_dir = (
+        output_dir / "checkpoints" / f"round_{global_round:04d}"
+    )
+    checkpoint_dir.mkdir(parents=True, exist_ok=False)
+
+    panel_images: list[Path] = []
+    panel_programmatic: dict[str, Mapping[str, Any]] = {}
+    panel_summaries: dict[str, dict[str, Any]] = {}
+    artifacts: dict[str, str] = {}
+    for panel_id in panel_order:
+        history = histories[panel_id]
+        if not history:
+            raise RuntimeError(
+                f"Panel {panel_id!r} has no result for round {global_round}"
+            )
+        result = history[-1]
+        if result.get("round") != global_round:
+            raise RuntimeError(
+                f"Panel {panel_id!r} returned round "
+                f"{result.get('round')!r}, expected {global_round}"
+            )
+        iteration_path = _contained_file(
+            result.get("artifact_path"),
+            output_dir=output_dir,
+            label=f"panel {panel_id} iteration",
+        )
+        render_path = _contained_file(
+            result.get("png_path"),
+            output_dir=output_dir,
+            label=f"panel {panel_id} render",
+        )
+        panel_images.append(render_path)
+        panel_artifacts = {
+            "iteration": str(iteration_path),
+            "render": str(render_path),
+        }
+        panel_run_dir = output_dir / "panels" / panel_id
+        for label, name in (
+            ("code", f"code_round_{global_round}.py"),
+            ("slots", f"slots_round_{global_round}.json"),
+        ):
+            path = panel_run_dir / name
+            if path.is_file():
+                panel_artifacts[label] = str(
+                    _contained_file(
+                        str(path),
+                        output_dir=output_dir,
+                        label=f"panel {panel_id} {label}",
+                    )
+                )
+
+        evaluation = result.get("programmatic_evaluation")
+        evaluation_path = result.get("programmatic_evaluation_path")
+        if isinstance(evaluation, Mapping):
+            panel_programmatic[panel_id] = evaluation
+            path = _contained_file(
+                evaluation_path,
+                output_dir=output_dir,
+                label=f"panel {panel_id} programmatic evaluation",
+            )
+            panel_artifacts["programmatic_evaluation"] = str(path)
+        elif full_expectation is not None:
+            raise RuntimeError(
+                f"Programmatic evaluation missing panel result: {panel_id}"
+            )
+
+        stages = result.get("stages") or {}
+        panel_summaries[panel_id] = {
+            "round": global_round,
+            "scores": dict(result.get("scores") or {}),
+            "artifact_paths": panel_artifacts,
+            "model_calls": {
+                str(stage_name): dict(
+                    stage.get("model_metadata") or {}
+                )
+                for stage_name, stage in stages.items()
+                if isinstance(stage, Mapping)
+                and stage.get("model_metadata")
+            },
+            "judge_model_metadata": dict(
+                result.get("judge_model_metadata") or {}
+            ),
+        }
+        for label, path in panel_artifacts.items():
+            artifacts[f"panel.{panel_id}.{label}"] = path
+
+    combined_image_path = _compose_panel_images(
+        panel_images,
+        checkpoint_dir / "combined_figure.png",
+        columns=columns,
+    )
+    memory_snapshot_path = shared_memory.write_snapshot(
+        checkpoint_dir / "shared_memory_snapshot.json"
+    )
+    memory_trace_path = shared_memory.write_trace(
+        checkpoint_dir / "shared_memory_trace.json"
+    )
+    compatibility_path = shared_memory.write_compatibility(
+        checkpoint_dir / "pheromones.json"
+    )
+    schedule_path = _write_json(
+        checkpoint_dir / "schedule_trace.json",
+        schedule,
+    )
+    untyped_memory_path: Path | None = None
+    if memory_mode == "untyped":
+        untyped_memory_path = _write_json(
+            checkpoint_dir / "untyped_memory.json",
+            shared_untyped_memory,
+        )
+
+    programmatic_summary = _combined_programmatic_evaluation(
+        panel_order=panel_order,
+        panel_programmatic=panel_programmatic,
+        full_expectation=full_expectation,
+        metric_config=metric_config,
+    )
+    programmatic_path: Path | None = None
+    if programmatic_summary is not None:
+        programmatic_path = _write_json(
+            checkpoint_dir / "programmatic_evaluation.json",
+            programmatic_summary,
+        )
+
+    checkpoint_path = checkpoint_dir / "checkpoint.json"
+    artifacts.update(
+        {
+            "output": str(checkpoint_dir.resolve()),
+            "render": str(combined_image_path.resolve()),
+            "result": str(checkpoint_path.resolve()),
+            "memory_snapshot": str(memory_snapshot_path.resolve()),
+            "memory_trace": str(memory_trace_path.resolve()),
+            "memory_compatibility": str(compatibility_path.resolve()),
+            "schedule_trace": str(schedule_path.resolve()),
+        }
+    )
+    if programmatic_path is not None:
+        artifacts["programmatic_evaluation"] = str(
+            programmatic_path.resolve()
+        )
+    if untyped_memory_path is not None:
+        artifacts["untyped_memory"] = str(untyped_memory_path.resolve())
+
+    checkpoint = {
+        "global_round": global_round,
+        "render_count": len(panel_order),
+        "cumulative_render_count": sum(
+            int(render_counts[panel_id]) for panel_id in panel_order
+        ),
+        "panel_order": list(panel_order),
+        "panels": panel_summaries,
+        "memory_mode": memory_mode,
+        "schedule_event_count": len(schedule),
+        "programmatic_evaluation": programmatic_summary,
+        "artifacts": artifacts,
+        "result_path": str(checkpoint_path.resolve()),
+    }
+    _write_json(checkpoint_path, checkpoint)
+    return checkpoint
+
+
 def run_multi_panel(
     manifest: str | Path | Mapping[str, Any],
     *,
@@ -227,6 +480,11 @@ def run_multi_panel(
     }
     render_counts = {panel["id"]: 0 for panel in panels}
     generators = {}
+    layout = manifest_data.get("layout") or {}
+    columns = int(
+        layout.get("columns") or math.ceil(math.sqrt(len(panels)))
+    )
+    checkpoints: list[dict[str, Any]] = []
 
     for panel in panels:
         panel_id = panel["id"]
@@ -306,6 +564,22 @@ def run_multi_panel(
             if progress_callback is not None:
                 progress_callback("round_robin_commit", dict(event))
 
+        checkpoint = _write_global_round_checkpoint(
+            output_dir=active_output_dir,
+            global_round=global_round,
+            panel_order=panel_order,
+            histories=histories,
+            render_counts=render_counts,
+            schedule=schedule,
+            shared_memory=shared_memory,
+            shared_untyped_memory=shared_untyped_memory,
+            memory_mode=configured_memory_mode,
+            columns=columns,
+            full_expectation=full_expectation,
+            metric_config=metric_config,
+        )
+        checkpoints.append(checkpoint)
+
     memory_snapshot_path = shared_memory.write_snapshot(
         active_output_dir / "shared_memory_snapshot.json"
     )
@@ -354,55 +628,24 @@ def run_multi_panel(
             if isinstance(evaluation, dict):
                 panel_programmatic[panel_id] = evaluation
 
-    layout = manifest_data.get("layout") or {}
-    columns = int(layout.get("columns") or math.ceil(math.sqrt(len(panels))))
     combined_image_path = _compose_panel_images(
         final_image_paths,
         active_output_dir / "combined_figure.png",
         columns=columns,
     )
-
     programmatic_path: Path | None = None
-    programmatic_summary: dict[str, Any] | None = None
-    if full_expectation is not None:
-        if set(panel_programmatic) != set(panel_order):
-            missing = sorted(set(panel_order) - set(panel_programmatic))
-            raise RuntimeError(
-                "Programmatic evaluation missing panel results: "
-                + ", ".join(missing)
-            )
-        combined_manifest = combine_figure_manifests(
-            {
-                panel_id: panel_programmatic[panel_id]["figure_manifest"]
-                for panel_id in panel_order
-            }
-        )
-        cohesion = evaluate_cohesion(
-            combined_manifest,
-            full_expectation,
-            metric_config,
-        )
-        programmatic_summary = {
-            "metric_config": panel_programmatic[panel_order[0]][
-                "metric_config"
-            ],
-            "figure_manifest": combined_manifest.to_dict(),
-            "panel_fidelity": {
-                panel_id: panel_programmatic[panel_id]["fidelity"]
-                for panel_id in panel_order
-            },
-            "cohesion": cohesion.to_dict(),
-        }
+    programmatic_path: Path | None = None
+    programmatic_summary = _combined_programmatic_evaluation(
+        panel_order=panel_order,
+        panel_programmatic=panel_programmatic,
+        full_expectation=full_expectation,
+        metric_config=metric_config,
+    )
+    if programmatic_summary is not None:
         programmatic_path = active_output_dir / "programmatic_evaluation.json"
-        programmatic_path.write_text(
-            json.dumps(
-                programmatic_summary,
-                ensure_ascii=False,
-                indent=2,
-                sort_keys=True,
-            )
-            + "\n",
-            encoding="utf-8",
+        _write_json(
+            programmatic_path,
+            programmatic_summary,
         )
 
     result = {
@@ -414,6 +657,7 @@ def run_multi_panel(
         "memory_mode": configured_memory_mode,
         "panel_order": panel_order,
         "panels": panel_results,
+        "checkpoints": checkpoints,
         "render_counts": render_counts,
         "schedule_trace_path": str(schedule_path),
         "shared_memory_snapshot_path": str(memory_snapshot_path),

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 import json
 from pathlib import Path
 
@@ -29,8 +30,13 @@ def accepted_record() -> dict:
             "license_id": "CC-BY-4.0",
             "version": "4.0",
             "effective_date": "2024-05-06",
+            "content_version": "vor",
             "source": "crossref",
-            "evidence": {"URL": "http://creativecommons.org/licenses/by/4.0/"},
+            "evidence": {
+                "URL": "http://creativecommons.org/licenses/by/4.0/",
+                "start": {"date-parts": [[2024, 5, 6]]},
+                "content-version": "vor",
+            },
         },
     }
 
@@ -106,6 +112,97 @@ def test_checksum_validation_detects_mutation(workdir: Path) -> None:
     (article / "figures" / "fig_001.png").write_bytes(b"mutated")
     errors = validate_article_manifest(manifest, content_root=content)
     assert "checksum-mismatch:figures/fig_001.png" in errors
+
+
+@pytest.mark.parametrize(
+    ("mutation", "expected_error"),
+    [
+        (
+            "normalized-content-version",
+            "license-crossref-content-version-not-vor",
+        ),
+        (
+            "evidence-content-version",
+            "license-crossref-evidence-content-version-not-vor",
+        ),
+        ("evidence-url", "license-crossref-evidence-url-mismatch"),
+        ("source", "license-source-mismatch"),
+    ],
+)
+def test_crossref_manifest_license_is_bound_to_exact_raw_vor_evidence(
+    workdir: Path,
+    mutation: str,
+    expected_error: str,
+) -> None:
+    content = workdir / "content"
+    make_downloaded_article(content)
+    manifest = build_article_manifest(accepted_record(), content)
+    if mutation == "normalized-content-version":
+        manifest["license"]["content_version"] = "VOR"
+    elif mutation == "evidence-content-version":
+        manifest["license_evidence"] = {
+            **manifest["license_evidence"],
+            "content-version": "VOR",
+        }
+    elif mutation == "evidence-url":
+        manifest["license_evidence"] = {
+            **manifest["license_evidence"],
+            "URL": "https://creativecommons.org/licenses/by/3.0/",
+        }
+    else:
+        manifest["license_source"] = "article_metadata"
+
+    errors = validate_article_manifest(manifest, content_root=content)
+
+    assert expected_error in errors
+
+
+@pytest.mark.parametrize("files", [None, {}, "invalid", 7])
+def test_malformed_files_field_fails_closed(
+    workdir: Path,
+    files: object,
+) -> None:
+    content = workdir / "content"
+    make_downloaded_article(content)
+    manifest = build_article_manifest(accepted_record(), content)
+    manifest["files"] = files
+
+    assert "files-invalid" in validate_article_manifest(
+        manifest,
+        content_root=content,
+    )
+
+
+def test_malformed_file_entries_and_paths_fail_closed(workdir: Path) -> None:
+    content = workdir / "content"
+    make_downloaded_article(content)
+    manifest = build_article_manifest(accepted_record(), content)
+    malformed = deepcopy(manifest["files"][0])
+    malformed["path"] = "../outside.csv"
+    manifest["files"] = [
+        None,
+        malformed,
+        {
+            "kind": [],
+            "path": [],
+            "download_status": {},
+        },
+        {
+            "kind": "source_data",
+            "path": None,
+            "download_status": "missing",
+            "source_data_origin": [],
+        },
+    ]
+
+    errors = validate_article_manifest(manifest, content_root=content)
+
+    assert "file-entry-invalid" in errors
+    assert "file-path-invalid:../outside.csv" in errors
+    assert "downloaded-file-path-missing" in errors
+    assert "file-kind-invalid" in errors
+    assert "file-download-status-invalid" in errors
+    assert "source-data-file-origin-invalid" in errors
 
 
 def test_untracked_source_data_requires_explicit_origin(workdir: Path) -> None:

@@ -58,6 +58,25 @@ def _required_string(row: Mapping[str, Any], name: str) -> str:
     return value
 
 
+def _normalized_doi(row: Mapping[str, Any]) -> Optional[str]:
+    raw = row.get("doi")
+    if raw in {"", None}:
+        return None
+    if not isinstance(raw, str):
+        raise StatisticsError("Summary row DOI must be a string when present")
+    doi = raw.strip().casefold()
+    if (
+        doi != raw
+        or not doi.startswith("10.")
+        or "/" not in doi
+        or any(character.isspace() for character in doi)
+    ):
+        raise StatisticsError(
+            f"Summary row has an invalid normalized DOI: {row.get('run_name')!r}"
+        )
+    return doi
+
+
 def load_provenance_summary(path: Path) -> ValidatedSummary:
     resolved = path.expanduser().resolve()
     try:
@@ -106,16 +125,36 @@ def load_provenance_summary(path: Path) -> ValidatedSummary:
         if run_name in run_names:
             raise StatisticsError(f"Duplicate run_name in summary: {run_name}")
         run_names.add(run_name)
-        if row.get("status") != "completed":
-            raise StatisticsError(f"Non-completed summary row: {run_name}")
+        status = row.get("status")
+        if status not in {"completed", "failed"}:
+            raise StatisticsError(f"Non-terminal summary row: {run_name}")
         if row.get("test_only") is not False:
             raise StatisticsError(
                 f"test_only or unlabelled row is forbidden: {run_name}"
+            )
+        execution_success = _finite_number(
+            row.get("execution_success"),
+            f"{run_name}.execution_success",
+        )
+        failure_attribution = row.get("failure_attribution")
+        if status == "completed":
+            if execution_success != 1.0 or failure_attribution not in {"", None}:
+                raise StatisticsError(
+                    f"Completed row has inconsistent execution status: {run_name}"
+                )
+        elif execution_success != 0.0 or failure_attribution != "method":
+            raise StatisticsError(
+                "Failed rows require execution_success=0 and explicit "
+                f"method attribution: {run_name}"
             )
 
         method = _required_string(row, "method")
         backbone = _required_string(row, "backbone")
         case_id = _required_string(row, "case_id")
+        git_commit = _required_string(row, "git_commit")
+        if not re.fullmatch(r"[0-9a-f]{7,64}", git_commit):
+            raise StatisticsError(f"{run_name}.git_commit is invalid")
+        doi = _normalized_doi(row)
         metric_version = _required_string(row, "metric_version")
         budget_type = _required_string(row, "budget_type")
         if budget_type not in {"renders", "wall_clock_seconds"}:
@@ -157,6 +196,17 @@ def load_provenance_summary(path: Path) -> ValidatedSummary:
             raise StatisticsError(
                 f"input_record_hashes disagrees for {run_name}"
             )
+        metric_execution_success = _finite_number(
+            row.get("metric.execution_success"),
+            f"{run_name}.metric.execution_success",
+        )
+        if metric_execution_success != execution_success:
+            raise StatisticsError(
+                f"Execution-success metric disagrees with status: {run_name}"
+            )
+        for name, value in row.items():
+            if name.startswith("metric."):
+                _finite_number(value, f"{run_name}.{name}")
 
         key = (
             method,
@@ -175,6 +225,7 @@ def load_provenance_summary(path: Path) -> ValidatedSummary:
                 f"Duplicate case within a method slice: {method}/{case_id}"
             )
         statistical_keys.add(key)
+        row["doi"] = doi or ""
         validated.append(row)
 
     if set(record_hashes) != run_names:
@@ -208,6 +259,7 @@ def paired_bootstrap(
     *,
     seed: int,
     resamples: int = 10_000,
+    sampling_unit: str = "case_id",
 ) -> Dict[str, Any]:
     values = [
         _finite_number(value, f"gap[{index}]")
@@ -217,6 +269,8 @@ def paired_bootstrap(
         raise StatisticsError("Paired bootstrap requires at least one case")
     if resamples < 1:
         raise StatisticsError("bootstrap resamples must be positive")
+    if not sampling_unit:
+        raise StatisticsError("sampling_unit must be non-empty")
     rng = random.Random(seed)
     n = len(values)
     means = []
@@ -233,7 +287,7 @@ def paired_bootstrap(
         ],
         "resamples": resamples,
         "seed": seed,
-        "sampling_unit": "case_id",
+        "sampling_unit": sampling_unit,
     }
 
 
@@ -243,6 +297,7 @@ def paired_sign_flip_permutation(
     seed: int,
     monte_carlo_permutations: int = 100_000,
     exact_max_n: int = 16,
+    sampling_unit: str = "case_id",
 ) -> Dict[str, Any]:
     values = [
         _finite_number(value, f"gap[{index}]")
@@ -251,6 +306,8 @@ def paired_sign_flip_permutation(
     n = len(values)
     if n < 1:
         raise StatisticsError("Sign-flip test requires at least one case")
+    if not sampling_unit:
+        raise StatisticsError("sampling_unit must be non-empty")
     observed = abs(sum(values) / n)
     epsilon = 1e-15
     if n <= exact_max_n:
@@ -290,7 +347,7 @@ def paired_sign_flip_permutation(
         "mode": mode,
         "permutations": permutations,
         "seed": seed,
-        "sampling_unit": "case_id",
+        "sampling_unit": sampling_unit,
     }
 
 
@@ -304,41 +361,68 @@ def panel_stratum(panel_count: int) -> str:
     return "P=5+"
 
 
+def _cluster_means(
+    values: Mapping[str, float],
+    cluster_ids: Mapping[str, str],
+) -> Dict[str, float]:
+    grouped: Dict[str, list[float]] = {}
+    for task_id, value in values.items():
+        cluster_id = cluster_ids.get(task_id)
+        if not isinstance(cluster_id, str) or not cluster_id:
+            raise StatisticsError(f"Task {task_id!r} has no DOI cluster")
+        grouped.setdefault(cluster_id, []).append(
+            _finite_number(value, f"task[{task_id}]")
+        )
+    return {
+        cluster_id: sum(cluster_values) / len(cluster_values)
+        for cluster_id, cluster_values in sorted(grouped.items())
+    }
+
+
 def stratified_bootstrap(
     case_gaps: Mapping[str, float],
     panel_counts: Mapping[str, int],
     *,
     seed: int,
     resamples: int,
+    doi_by_case: Optional[Mapping[str, str]] = None,
 ) -> Dict[str, Any]:
-    grouped: Dict[str, list[float]] = {
-        stratum: [] for stratum in _PANEL_STRATA
+    grouped: Dict[str, Dict[str, float]] = {
+        stratum: {} for stratum in _PANEL_STRATA
     }
     for case_id, gap in case_gaps.items():
         if case_id not in panel_counts:
             raise StatisticsError(
                 f"Missing panel_count for paired case {case_id!r}"
             )
-        grouped[panel_stratum(panel_counts[case_id])].append(gap)
+        grouped[panel_stratum(panel_counts[case_id])][case_id] = gap
     result: Dict[str, Any] = {}
     for stratum in _PANEL_STRATA:
-        values = grouped[stratum]
-        if not values:
+        task_values = grouped[stratum]
+        if not task_values:
             result[stratum] = {
                 "status": "NA",
                 "n": 0,
                 "mean_gap": None,
                 "ci95": None,
                 "resamples": resamples,
-                "sampling_unit": "case_id",
+                "sampling_unit": "doi" if doi_by_case is not None else "case_id",
             }
             continue
+        values = (
+            list(_cluster_means(task_values, doi_by_case).values())
+            if doi_by_case is not None
+            else list(task_values.values())
+        )
         result[stratum] = {
             "status": "ok",
             **paired_bootstrap(
                 values,
                 seed=seed,
                 resamples=resamples,
+                sampling_unit=(
+                    "doi" if doi_by_case is not None else "case_id"
+                ),
             ),
         }
     return result
@@ -414,7 +498,6 @@ def _metric_value(row: Mapping[str, Any], metric: str) -> float:
 def _slice_key(row: Mapping[str, Any]) -> tuple[Any, ...]:
     return (
         row["backbone"],
-        row["seed"],
         row["budget_type"],
         float(row["budget_value"]),
         row.get("split"),
@@ -452,22 +535,44 @@ def _ranking_analysis(
     primary_metric: str,
     second_judge_metric: Optional[str],
 ) -> Dict[str, Any]:
+    def clustered_method_mean(method: str, metric: str) -> float:
+        method_rows = [row for row in rows if row["method"] == method]
+        values_by_case: Dict[str, list[float]] = {}
+        doi_by_case: Dict[str, str] = {}
+        for row in method_rows:
+            case_id = str(row["case_id"])
+            doi = str(row["doi"])
+            previous = doi_by_case.setdefault(case_id, doi)
+            if previous != doi:
+                raise StatisticsError(
+                    f"Case {case_id!r} maps to multiple DOI clusters"
+                )
+            values_by_case.setdefault(case_id, []).append(
+                _metric_value(row, metric)
+            )
+        task_means = {
+            case_id: sum(values) / len(values)
+            for case_id, values in values_by_case.items()
+        }
+        doi_means = _cluster_means(task_means, doi_by_case)
+        return sum(doi_means.values()) / len(doi_means)
+
     primary_scores: Dict[str, float] = {}
     second_scores: Dict[str, float] = {}
     for method in methods:
-        method_rows = [row for row in rows if row["method"] == method]
-        primary_values = [
-            _metric_value(row, primary_metric) for row in method_rows
-        ]
-        primary_scores[method] = sum(primary_values) / len(primary_values)
+        primary_scores[method] = clustered_method_mean(
+            method,
+            primary_metric,
+        )
         if second_judge_metric is not None:
-            second_values = [
-                _metric_value(row, second_judge_metric) for row in method_rows
-            ]
-            second_scores[method] = sum(second_values) / len(second_values)
+            second_scores[method] = clustered_method_mean(
+                method,
+                second_judge_metric,
+            )
     result: Dict[str, Any] = {
         "primary_metric": primary_metric,
         "ranking_direction": "higher_is_better",
+        "aggregation_order": ["seed_mean", "task_mean", "doi_mean"],
         "primary_ranking": method_ranking(primary_scores),
     }
     if second_judge_metric is None:
@@ -533,6 +638,14 @@ def analyze_summary(
         raise StatisticsError(
             f"Requested methods are absent: {sorted(missing_methods)}"
         )
+    missing_doi = [
+        str(row["run_name"]) for row in selected_rows if not row.get("doi")
+    ]
+    if missing_doi:
+        raise StatisticsError(
+            "Confirmatory analysis requires a sealed DOI cluster for every "
+            f"selected run; missing={sorted(missing_doi)}"
+        )
 
     by_slice: Dict[tuple[Any, ...], list[Dict[str, Any]]] = {}
     for row in selected_rows:
@@ -540,58 +653,96 @@ def analyze_summary(
 
     slice_results = []
     for key in sorted(by_slice, key=lambda item: canonical_json(item)):
-        backbone, slice_seed, budget_type, budget_value, split = key
+        backbone, budget_type, budget_value, split = key
         rows = by_slice[key]
-        try:
-            case_ids = assert_paired_ready(
-                rows,
-                methods=selected_methods,
-                backbone=backbone,
-                seed=slice_seed,
-                budget_type=budget_type,
-                budget_value=budget_value,
-            )
-        except AggregationError as exc:
-            raise StatisticsError(str(exc)) from exc
-        if len(case_ids) < 2:
-            raise StatisticsError(
-                f"Slice {key!r} has fewer than two paired cases"
-            )
+        seeds = sorted({int(row["seed"]) for row in rows})
+        case_ids: Optional[set[str]] = None
+        for slice_seed in seeds:
+            seed_rows = [row for row in rows if row["seed"] == slice_seed]
+            try:
+                seed_case_ids = assert_paired_ready(
+                    seed_rows,
+                    methods=selected_methods,
+                    backbone=backbone,
+                    seed=slice_seed,
+                    budget_type=budget_type,
+                    budget_value=budget_value,
+                )
+            except AggregationError as exc:
+                raise StatisticsError(str(exc)) from exc
+            if case_ids is None:
+                case_ids = seed_case_ids
+            elif seed_case_ids != case_ids:
+                raise StatisticsError(
+                    f"Slice {key!r} has different task sets across seeds"
+                )
+        if not case_ids:
+            raise StatisticsError(f"Slice {key!r} contains no paired tasks")
         manifest_hashes = {row["dataset_manifest_hash"] for row in rows}
         config_hashes = {row["metric_config_hash"] for row in rows}
         metric_versions = {row["metric_version"] for row in rows}
+        git_commits = {row["git_commit"] for row in rows}
         if (
             len(manifest_hashes) != 1
             or len(config_hashes) != 1
             or len(metric_versions) != 1
+            or len(git_commits) != 1
         ):
             raise StatisticsError(
-                f"Slice {key!r} mixes manifest or metric provenance"
+                f"Slice {key!r} mixes code, manifest, or metric provenance"
             )
 
-        by_method_case = {
-            method: {
-                row["case_id"]: row
-                for row in rows
-                if row["method"] == method
+        panel_counts: Dict[str, int] = {}
+        doi_by_case: Dict[str, str] = {}
+        for case_id in case_ids:
+            task_rows = [row for row in rows if row["case_id"] == case_id]
+            task_panel_counts = {
+                int(row["panel_count"]) for row in task_rows
             }
-            for method in selected_methods
-        }
-        reference_rows = by_method_case[reference]
-        panel_counts = {
-            case_id: int(reference_rows[case_id]["panel_count"])
-            for case_id in case_ids
-        }
+            task_dois = {str(row["doi"]) for row in task_rows}
+            if len(task_panel_counts) != 1 or len(task_dois) != 1:
+                raise StatisticsError(
+                    f"Task metadata changes across methods or seeds: {case_id!r}"
+                )
+            panel_counts[case_id] = next(iter(task_panel_counts))
+            doi_by_case[case_id] = next(iter(task_dois))
+        doi_ids = sorted(set(doi_by_case.values()))
+        if len(doi_ids) < 2:
+            raise StatisticsError(
+                f"Slice {key!r} has fewer than two DOI clusters"
+            )
+
+        def task_metric_means(method: str, metric_name: str) -> Dict[str, float]:
+            means: Dict[str, float] = {}
+            for case_id in case_ids:
+                task_rows = [
+                    row
+                    for row in rows
+                    if row["method"] == method and row["case_id"] == case_id
+                ]
+                task_seeds = {int(row["seed"]) for row in task_rows}
+                if task_seeds != set(seeds):
+                    raise StatisticsError(
+                        f"Task {case_id!r} has an incomplete seed set for "
+                        f"method {method!r}"
+                    )
+                values = [
+                    _metric_value(row, metric_name) for row in task_rows
+                ]
+                means[case_id] = sum(values) / len(values)
+            return means
+
+        reference_task_means = task_metric_means(reference, metric)
         comparisons = []
         for method in comparison_methods:
+            method_task_means = task_metric_means(method, metric)
             case_gaps = {
-                case_id: (
-                    _metric_value(by_method_case[method][case_id], metric)
-                    - _metric_value(reference_rows[case_id], metric)
-                )
+                case_id: method_task_means[case_id]
+                - reference_task_means[case_id]
                 for case_id in sorted(case_ids)
             }
-            gaps = list(case_gaps.values())
+            doi_gaps = _cluster_means(case_gaps, doi_by_case)
+            gaps = list(doi_gaps.values())
             comparisons.append(
                 {
                     "method": method,
@@ -600,18 +751,21 @@ def analyze_summary(
                         gaps,
                         seed=seed,
                         resamples=bootstrap_resamples,
+                        sampling_unit="doi",
                     ),
                     "permutation": paired_sign_flip_permutation(
                         gaps,
                         seed=seed,
                         monte_carlo_permutations=monte_carlo_permutations,
                         exact_max_n=exact_max_n,
+                        sampling_unit="doi",
                     ),
                     "panel_strata": stratified_bootstrap(
                         case_gaps,
                         panel_counts,
                         seed=seed,
                         resamples=bootstrap_resamples,
+                        doi_by_case=doi_by_case,
                     ),
                 }
             )
@@ -619,16 +773,20 @@ def analyze_summary(
         slice_results.append(
             {
                 "backbone": backbone,
-                "seed": slice_seed,
+                "seeds": seeds,
+                "seed_count": len(seeds),
                 "budget_type": budget_type,
                 "budget_value": budget_value,
                 "split": split,
                 "dataset_manifest_hash": next(iter(manifest_hashes)),
                 "metric_config_hash": next(iter(config_hashes)),
                 "metric_version": next(iter(metric_versions)),
+                "experiment_git_commit": next(iter(git_commits)),
                 "reference": reference,
                 "case_count": len(case_ids),
                 "case_ids": sorted(case_ids),
+                "doi_count": len(doi_ids),
+                "dois": doi_ids,
                 "comparisons": comparisons,
                 "rankings": _ranking_analysis(
                     rows,
@@ -648,12 +806,13 @@ def analyze_summary(
         "bootstrap_resamples": bootstrap_resamples,
         "monte_carlo_permutations": monte_carlo_permutations,
         "exact_max_n": exact_max_n,
-        "sampling_unit": "case_id",
+        "sampling_unit": "doi",
+        "aggregation_order": ["seed_mean", "task_mean", "doi_cluster"],
         "panel_strata": list(_PANEL_STRATA),
     }
     commit, dirty = _git_provenance()
     output = {
-        "analysis_version": "1.0",
+        "analysis_version": "2.0",
         "generated_at": utc_now(),
         "input_summary_path": str(summary.path),
         "input_summary_hash": summary.summary_hash,
@@ -676,7 +835,12 @@ def _analysis_csv_rows(analysis: Mapping[str, Any]) -> list[Dict[str, Any]]:
             permutation = comparison["permutation"]
             base = {
                 "backbone": slice_result["backbone"],
-                "seed": slice_result["seed"],
+                "seeds": ",".join(
+                    str(seed) for seed in slice_result["seeds"]
+                ),
+                "seed_count": slice_result["seed_count"],
+                "task_count": slice_result["case_count"],
+                "doi_count": slice_result["doi_count"],
                 "budget_type": slice_result["budget_type"],
                 "budget_value": slice_result["budget_value"],
                 "split": slice_result["split"],
@@ -685,6 +849,9 @@ def _analysis_csv_rows(analysis: Mapping[str, Any]) -> list[Dict[str, Any]]:
                 ],
                 "metric_config_hash": slice_result["metric_config_hash"],
                 "metric_version": slice_result["metric_version"],
+                "experiment_git_commit": slice_result[
+                    "experiment_git_commit"
+                ],
                 "reference": slice_result["reference"],
                 "method": comparison["method"],
                 "metric": analysis["analysis_config"]["metric"],

@@ -85,6 +85,17 @@ def _value_equal(left: Any, right: Any) -> bool:
     return _canonical_json(left) == _canonical_json(right)
 
 
+def _slot_matches(slot: str, patterns: Iterable[str]) -> bool:
+    for raw_pattern in patterns:
+        pattern = str(raw_pattern)
+        if pattern.endswith("*"):
+            if slot.startswith(pattern[:-1]):
+                return True
+        elif slot == pattern:
+            return True
+    return False
+
+
 def chart_meta_class(chart_family: str) -> str:
     family = (chart_family or "").strip().lower()
     if family in {"heatmap", "matrix", "hexbin"}:
@@ -317,8 +328,16 @@ class PatchTemplate:
     def anchor_coverage(self, available_anchors: Iterable[str]) -> float:
         if not self.required_anchors:
             return 1.0
-        available = {str(anchor) for anchor in available_anchors}
-        matched = sum(anchor in available for anchor in self.required_anchors)
+        available = tuple(str(anchor) for anchor in available_anchors)
+        slot_anchors = {self.slot, *self.touched_slots}
+        matched = sum(
+            anchor in available
+            or (
+                anchor in slot_anchors
+                and _slot_matches(anchor, available)
+            )
+            for anchor in self.required_anchors
+        )
         return matched / len(self.required_anchors)
 
     def to_dict(self) -> dict[str, Any]:
@@ -616,6 +635,12 @@ class MemoryContext:
                 for slot, record in sorted(self.resolution.selected.items())
             },
             "blocked_slots": sorted(self.resolution.blocked),
+            "conflicts": {
+                slot: list(record_ids)
+                for slot, record_ids in sorted(
+                    self.resolution.conflicts.items()
+                )
+            },
             "eligible_patch_templates": patch_entries,
             "patch_rejections": [
                 decision.to_dict()
@@ -1055,7 +1080,10 @@ class PersistentMemory:
             template.validated_executable
         ):
             reasons.append("not_executable_validated")
-        if not set(template.touched_slots).issubset(context.writable_slots):
+        if not all(
+            _slot_matches(slot, context.writable_slots)
+            for slot in template.touched_slots
+        ):
             reasons.append("write_outside_target_scope")
         if template.safety.allowed_slots and not set(
             template.touched_slots

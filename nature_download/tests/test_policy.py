@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from datetime import date
 import json
 from pathlib import Path
@@ -105,6 +106,138 @@ def test_tdm_cc_by_does_not_override_restrictive_vor_license() -> None:
     assert "license-disallowed-variant:by-nc-nd" in decision["reject_reasons"]
 
 
+@pytest.mark.parametrize(
+    "content_version",
+    ["am", None, "VOR", "vor ", " vor", 1],
+)
+def test_crossref_cc_by_requires_exact_vor_content_version(
+    content_version: object,
+) -> None:
+    license_record = {
+        "URL": "https://creativecommons.org/licenses/by/4.0/",
+    }
+    if content_version is not None:
+        license_record["content-version"] = content_version
+    item = {
+        "DOI": "10.1038/s41467-024-00013-3",
+        "container-title": ["Nature Communications"],
+        "issued": {"date-parts": [[2024]]},
+        "license": [license_record],
+    }
+
+    decision = evaluate_crossref_item(item)
+
+    assert decision["download_eligible"] is False
+    assert any(
+        reason.startswith("license-non-vor-content-version:")
+        for reason in decision["reject_reasons"]
+    )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        (
+            "normalized_url",
+            "https://creativecommons.org/licenses/by/3.0/",
+        ),
+        ("license_id", "CC-BY-3.0"),
+        ("version", "3.0"),
+        ("content_version", "VOR"),
+        ("source", "article_metadata"),
+    ],
+)
+def test_revalidation_rejects_normalized_fields_that_contradict_raw_crossref(
+    field: str,
+    value: str,
+) -> None:
+    original = evaluate_crossref_item(
+        fixture_items()["nature_comm_cc_by_4"],
+        today=date(2026, 7, 12),
+    )
+    record = deepcopy(original)
+    record["license"][field] = value
+
+    decision = evaluate_record(record)
+
+    assert decision["download_eligible"] is False
+    assert "license-provenance-contradiction" in decision["reject_reasons"]
+    assert (
+        f"license-provenance-contradiction:{field}"
+        in decision["reject_reasons"]
+    )
+
+
+def test_license_list_rejects_contradictory_top_level_source() -> None:
+    decision = evaluate_record(
+        {
+            "doi": "10.1038/s41467-024-88888-8",
+            "journal": "Nature Communications",
+            "year": 2024,
+            "license": [
+                {
+                    "URL": "https://creativecommons.org/licenses/by/4.0/",
+                    "content-version": "vor",
+                }
+            ],
+            "license_source": "article_metadata",
+        }
+    )
+
+    assert decision["download_eligible"] is False
+    assert (
+        "license-provenance-contradiction:source"
+        in decision["reject_reasons"]
+    )
+
+
+def test_revalidation_rejects_raw_evidence_that_disagrees_with_candidates() -> None:
+    original = evaluate_crossref_item(
+        fixture_items()["nature_comm_cc_by_4"],
+        today=date(2026, 7, 12),
+    )
+    record = deepcopy(original)
+    record["license"]["evidence"] = {
+        **record["license"]["evidence"],
+        "content-version": "tdm",
+    }
+
+    decision = evaluate_record(record)
+
+    assert decision["download_eligible"] is False
+    assert (
+        "license-provenance-contradiction:evidence"
+        in decision["reject_reasons"]
+    )
+
+
+def test_revalidation_uses_crossref_evidence_not_normalized_claims() -> None:
+    decision = evaluate_record(
+        {
+            "doi": "10.1038/s41467-024-99998-8",
+            "journal": "Nature Communications",
+            "year": 2024,
+            "license": {
+                "url": "https://creativecommons.org/licenses/by/4.0/",
+                "normalized_url": (
+                    "https://creativecommons.org/licenses/by/4.0/"
+                ),
+                "license_id": "CC-BY-4.0",
+                "version": "4.0",
+                "content_version": "vor",
+                "source": "crossref",
+                "evidence": {
+                    "URL": "https://creativecommons.org/licenses/by/3.0/",
+                    "content-version": "vor",
+                },
+            },
+        }
+    )
+
+    assert decision["download_eligible"] is False
+    assert "license-provenance-contradiction" in decision["reject_reasons"]
+
+
 def test_nature_main_is_explicitly_rejected() -> None:
     decision = evaluate_crossref_item(fixture_items()["nature_main"])
     assert decision["download_eligible"] is False
@@ -134,6 +267,28 @@ def test_article_metadata_can_supply_exact_cc_by_evidence() -> None:
     assert revalidated["download_eligible"] is True
     assert revalidated["license"]["source"] == "article_metadata"
     assert revalidated["license"]["evidence"] == decision["license"]["evidence"]
+
+
+def test_article_metadata_evidence_must_bind_to_normalized_license() -> None:
+    html = (FIXTURES / "article_cc_by.html").read_text(encoding="utf-8")
+    record = evaluate_crossref_item(
+        {
+            "DOI": "10.1038/s41467-024-00010-0",
+            "container-title": ["Nature Communications"],
+            "issued": {"date-parts": [[2024]]},
+            "license": [],
+        },
+        article_html=html,
+    )
+    record["license"]["evidence"] = (
+        'meta[citation_license] content="'
+        'https://creativecommons.org/licenses/by/3.0/"'
+    )
+
+    decision = evaluate_record(record)
+
+    assert decision["download_eligible"] is False
+    assert "license-provenance-contradiction" in decision["reject_reasons"]
 
 
 def test_article_oa_text_without_license_is_rejected() -> None:

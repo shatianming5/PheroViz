@@ -11,6 +11,7 @@ from experiments.aggregate import verify_frozen_manifest
 from experiments.harness import execute_experiment
 from experiments.models import RunRecord
 from experiments.providers import (
+    CandidateResult,
     GenerationRequest,
     MultiPanelProvider,
     ProviderBatch,
@@ -335,6 +336,35 @@ def test_best_of_n_accounts_for_multi_render_candidates() -> None:
         assert len(outcome.record.candidates) == 2
 
 
+def test_render_budget_accepts_an_exact_fill_even_when_provider_stops() -> None:
+    class ExactFillProvider(TestOnlySequenceProvider):
+        def generate(self, request: GenerationRequest) -> ProviderBatch:
+            return ProviderBatch(
+                candidates=(super().generate(request),),
+                stop=True,
+                test_only=True,
+            )
+
+    with experiment_workspace("render-exact-fill") as workspace:
+        spec = make_spec(
+            workspace,
+            run_name="render-exact-fill",
+            schedule="iterative",
+            budget_value=3,
+        )
+        provider = ExactFillProvider([0.5], render_count=3)
+
+        outcome = execute_experiment(
+            spec,
+            provider_loader=_loader(provider),
+        )
+
+        assert outcome.record.status == "completed"
+        assert outcome.record.render_count == 3
+        assert len(provider.requests) == 1
+        assert provider.requests[0].remaining_renders == 3
+
+
 def test_render_budget_overrun_is_failed_not_accepted() -> None:
     with experiment_workspace("render-overrun") as workspace:
         spec = make_spec(
@@ -359,6 +389,7 @@ def test_render_budget_overrun_is_failed_not_accepted() -> None:
 def test_wall_clock_provider_must_stop_within_budget() -> None:
     with experiment_workspace("fair-clock") as workspace:
         clock = ManualClock()
+        clock.advance(10.0)
         spec = make_spec(
             workspace,
             run_name="clock-run",
@@ -376,6 +407,43 @@ def test_wall_clock_provider_must_stop_within_budget() -> None:
 
         assert outcome.record.status == "completed"
         assert outcome.record.wall_clock_seconds <= spec.budget_value
+        assert {
+            request.deadline_monotonic for request in provider.requests
+        } == {11.0}
+        assert [
+            request.remaining_seconds for request in provider.requests
+        ] == pytest.approx([1.0, 0.6, 0.3])
+
+
+def test_wall_clock_deadline_includes_provider_setup_time() -> None:
+    class SetupClockedProvider(ClockedTestProvider):
+        def check_available(self) -> None:
+            self.clock.advance(0.4)
+
+    with experiment_workspace("clock-setup") as workspace:
+        clock = ManualClock()
+        spec = make_spec(
+            workspace,
+            run_name="clock-setup",
+            schedule="iterative",
+            budget_type="wall_clock_seconds",
+            budget_value=1.0,
+        )
+        provider = SetupClockedProvider(clock)
+
+        outcome = execute_experiment(
+            spec,
+            provider_loader=_loader(provider),
+            monotonic=clock,
+        )
+
+        assert outcome.record.status == "completed"
+        assert {
+            request.deadline_monotonic for request in provider.requests
+        } == {1.0}
+        assert [
+            request.remaining_seconds for request in provider.requests
+        ] == pytest.approx([0.6, 0.3])
 
 
 def test_wall_clock_overrun_is_failed_not_accepted() -> None:
@@ -397,6 +465,63 @@ def test_wall_clock_overrun_is_failed_not_accepted() -> None:
         )
 
         assert outcome.record.status == "failed"
+        assert outcome.record.error is not None
+        assert outcome.record.error["type"] == "BudgetError"
+        assert outcome.record.error["attribution"] == "method"
+        assert outcome.record.render_count == 1
+        assert outcome.record.candidates == []
+
+
+def test_prearchive_deadline_failure_counts_every_completed_render() -> None:
+    class OverrunBatchProvider:
+        name = "overrun_batch"
+        test_only = True
+
+        def __init__(self, clock: ManualClock) -> None:
+            self.clock = clock
+            self.requests: list[GenerationRequest] = []
+
+        def check_available(self) -> None:
+            return None
+
+        def generate(self, request: GenerationRequest) -> ProviderBatch:
+            self.requests.append(request)
+            candidates = []
+            for index, render_count in enumerate((2, 3), 1):
+                artifact = request.output_dir / f"candidate-{index}.json"
+                artifact.write_text("{}", encoding="utf-8")
+                candidates.append(
+                    CandidateResult(
+                        metrics={"score": float(index)},
+                        render_count=render_count,
+                        artifacts={"output": str(artifact)},
+                        test_only=True,
+                    )
+                )
+            self.clock.advance(2.0)
+            return ProviderBatch(candidates=tuple(candidates), test_only=True)
+
+    with experiment_workspace("clock-prearchive-count") as workspace:
+        clock = ManualClock()
+        spec = make_spec(
+            workspace,
+            run_name="clock-prearchive-count",
+            schedule="iterative",
+            budget_type="wall_clock_seconds",
+            budget_value=1.0,
+        )
+        provider = OverrunBatchProvider(clock)
+
+        outcome = execute_experiment(
+            spec,
+            provider_loader=_loader(provider),
+            monotonic=clock,
+        )
+
+        assert outcome.record.status == "failed"
+        assert outcome.record.render_count == 5
+        assert outcome.record.candidates == []
+        assert provider.requests[0].deadline_monotonic == 1.0
         assert outcome.record.error is not None
         assert outcome.record.error["type"] == "BudgetError"
 
@@ -424,6 +549,7 @@ def test_provider_failure_is_written_explicitly() -> None:
         assert persisted.error == {
             "type": "ProviderUnavailableError",
             "message": "intentional provider outage",
+            "attribution": "infrastructure",
         }
         assert persisted.test_only is True
         assert persisted.render_count == 0

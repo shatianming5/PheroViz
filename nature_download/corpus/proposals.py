@@ -31,6 +31,13 @@ EVALUATION_SCHEMA_VERSION = "1.1.0"
 DEFAULT_MAX_FILE_BYTES = 64 * 1024 * 1024
 DEFAULT_MAX_ROWS = 100_000
 DEFAULT_MAX_COLUMNS = 64
+PROPOSAL_RULE_V1 = "simple-2d-v1"
+PROPOSAL_RULE_V2 = "simple-2d-v2"
+CURRENT_PROPOSAL_RULE = PROPOSAL_RULE_V2
+RUN_ORDER_COLUMN_PATTERN = re.compile(
+    r"run[\s_.-]*order",
+    flags=re.I,
+)
 TEMPORAL_COLUMN_PATTERN = re.compile(
     r"(?i)(?:^|[^a-z])"
     r"(?:time|timepoint|date|datetime|timestamp|year|month|day)"
@@ -51,6 +58,18 @@ class ProposalRejected(ValueError):
         self.reasons = tuple(sorted(set(reasons or ("proposal-rejected",))))
         self.detail = detail
         super().__init__(",".join(self.reasons))
+
+
+def _resolve_proposal_rule_version(proposal: dict[str, Any]) -> str:
+    value = proposal.get("proposal_rule_version")
+    if value is None:
+        return PROPOSAL_RULE_V1
+    if not isinstance(value, str) or value not in {
+        PROPOSAL_RULE_V1,
+        PROPOSAL_RULE_V2,
+    }:
+        raise ValueError("proposal-rule-version-unsupported")
+    return value
 
 
 @dataclass(frozen=True)
@@ -310,7 +329,13 @@ def _extract_unit(column: str) -> str | None:
     return match.group(1) if match else None
 
 
-def analyze_table(frame: Any) -> TableAnalysis:
+def analyze_table(
+    frame: Any,
+    *,
+    rule_version: str = PROPOSAL_RULE_V1,
+) -> TableAnalysis:
+    if rule_version not in {PROPOSAL_RULE_V1, PROPOSAL_RULE_V2}:
+        raise ValueError(f"unsupported proposal rule version: {rule_version}")
     headers = _validate_headers(frame.columns)
     profiles = {
         name: _column_profile(name, frame[name])
@@ -330,9 +355,22 @@ def analyze_table(frame: Any) -> TableAnalysis:
     categorical = [
         profile for profile in profiles.values() if profile.categorical
     ]
-    if len(temporal) > 1:
+    run_order = [
+        profile
+        for profile in profiles.values()
+        if RUN_ORDER_COLUMN_PATTERN.fullmatch(profile.name.strip())
+    ]
+    if rule_version == PROPOSAL_RULE_V2 and len(run_order) > 1:
+        raise ProposalRejected("x-column-ambiguous-run-order")
+    if rule_version == PROPOSAL_RULE_V2 and run_order:
+        x_profile = run_order[0]
+        if not x_profile.monotonic_numeric:
+            raise ProposalRejected("explicit-run-order-column-invalid")
+        x_mode = "linear"
+        chart_family = "scatter"
+    elif len(temporal) > 1:
         raise ProposalRejected("x-column-ambiguous-temporal")
-    if temporal:
+    elif temporal:
         x_profile = temporal[0]
         x_mode = "temporal"
         chart_family = "line"
@@ -433,7 +471,11 @@ def _single_expectation(
 def _user_goal(candidate: dict[str, Any], analysis: TableAnalysis) -> str:
     figure_no = candidate.get("figure_no")
     panel_id = str((candidate.get("panel_ids") or ["?"])[0]).upper()
-    verb = "line chart" if analysis.chart_family == "line" else "bar chart"
+    verb = {
+        "line": "line chart",
+        "bar": "bar chart",
+        "scatter": "scatter plot",
+    }[analysis.chart_family]
     y_names = ", ".join(f"`{name}`" for name in analysis.y)
     return (
         f"Create a {verb} for Figure {figure_no}{panel_id} showing "
@@ -449,6 +491,7 @@ def propose_single_candidate(
     max_file_bytes: int,
     max_rows: int,
     max_columns: int,
+    rule_version: str = PROPOSAL_RULE_V1,
 ) -> dict[str, Any]:
     frame = read_candidate_table(
         candidate,
@@ -456,7 +499,7 @@ def propose_single_candidate(
         max_rows=max_rows,
         max_columns=max_columns,
     )
-    analysis = analyze_table(frame)
+    analysis = analyze_table(frame, rule_version=rule_version)
     expectation = _single_expectation(candidate, analysis)
     source = candidate.get("source_table") or {}
     panel_id = str(candidate["panel_ids"][0])
@@ -492,6 +535,7 @@ def propose_single_candidate(
     proposal.update(
         {
             "proposal_type": "single_panel",
+            "proposal_rule_version": rule_version,
             "curation_status": "proposed",
             "eligible_for_experiment": False,
             "eligibility_reasons": ["external-validation-required"],
@@ -520,7 +564,9 @@ def _multi_panel_proposals(
     code_commit: str,
 ) -> list[dict[str, Any]]:
     grouped: dict[tuple[str, int], list[dict[str, Any]]] = {}
+    rule_versions: dict[int, str] = {}
     for proposal in singles:
+        rule_versions[id(proposal)] = _resolve_proposal_rule_version(proposal)
         doi = str(proposal.get("doi") or "")
         figure_no = proposal.get("figure_no")
         if doi and isinstance(figure_no, int):
@@ -539,6 +585,12 @@ def _multi_panel_proposals(
         ]
         if len(clear) < 2:
             continue
+        group_rule_versions = {
+            rule_versions[id(proposal)] for proposal in clear
+        }
+        if len(group_rule_versions) != 1:
+            raise ValueError("multi-panel-proposal-rule-version-mixed")
+        rule_version = next(iter(group_rule_versions))
         source_ids = sorted(str(item["candidate_id"]) for item in clear)
         digest = hashlib.sha256(
             "|".join(source_ids).encode("utf-8")
@@ -617,6 +669,7 @@ def _multi_panel_proposals(
                 "schema_version": SCHEMA_VERSION,
                 "candidate_id": case_id,
                 "proposal_type": "multi_panel",
+                "proposal_rule_version": rule_version,
                 "source_candidate_ids": source_ids,
                 "doi": doi,
                 "figure_no": figure_no,
@@ -717,6 +770,7 @@ def propose_cases(
                     max_file_bytes=max_file_bytes,
                     max_rows=max_rows,
                     max_columns=max_columns,
+                    rule_version=CURRENT_PROPOSAL_RULE,
                 )
             )
         except ProposalRejected as exc:
@@ -748,6 +802,7 @@ def propose_cases(
         "input_candidates": str(source_path.resolve()),
         "input_candidates_sha256": input_hash,
         "code_commit": commit,
+        "proposal_rule_version": CURRENT_PROPOSAL_RULE,
         "input_count": len(candidates),
         "single_proposals": len(singles),
         "multi_panel_proposals": len(multi),

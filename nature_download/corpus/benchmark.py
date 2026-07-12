@@ -16,6 +16,7 @@ from .proposals import (
     DEFAULT_MAX_FILE_BYTES,
     DEFAULT_MAX_ROWS,
     _multi_panel_proposals,
+    _resolve_proposal_rule_version,
     propose_single_candidate,
 )
 from .provenance import sha256_file
@@ -282,16 +283,23 @@ def _validate_canonical_single_proposal(
     *,
     candidate_id: str,
 ) -> None:
-    recomputed = propose_single_candidate(
-        deepcopy(dict(record)),
-        input_candidates_sha256=str(
-            proposal.get("input_candidates_sha256") or ""
-        ),
-        code_commit=str(proposal.get("code_commit") or ""),
-        max_file_bytes=DEFAULT_MAX_FILE_BYTES,
-        max_rows=DEFAULT_MAX_ROWS,
-        max_columns=DEFAULT_MAX_COLUMNS,
-    )
+    try:
+        rule_version = _resolve_proposal_rule_version(dict(proposal))
+        recomputed = propose_single_candidate(
+            deepcopy(dict(record)),
+            input_candidates_sha256=str(
+                proposal.get("input_candidates_sha256") or ""
+            ),
+            code_commit=str(proposal.get("code_commit") or ""),
+            max_file_bytes=DEFAULT_MAX_FILE_BYTES,
+            max_rows=DEFAULT_MAX_ROWS,
+            max_columns=DEFAULT_MAX_COLUMNS,
+            rule_version=rule_version,
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        raise BenchmarkBuildError(
+            f"candidate-proposal-rule-version-invalid:{candidate_id}"
+        ) from exc
     expected_case = proposal.get("experiment_case")
     actual_case = recomputed.get("experiment_case")
     semantic_fields = (
@@ -799,9 +807,8 @@ def assemble_verified_benchmark(
                 for candidate_id in bundle_evidence
             }
         )
-        bundle_canonical_multi = {
-            proposal["candidate_id"]: proposal
-            for proposal in _multi_panel_proposals(
+        try:
+            canonical_proposals = _multi_panel_proposals(
                 [
                     proposal
                     for proposal in bundle_proposals.values()
@@ -812,6 +819,13 @@ def assemble_verified_benchmark(
                 ],
                 code_commit=code_commit,
             )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise BenchmarkBuildError(
+                f"canonical-multi-generation-failed:{exc}"
+            ) from exc
+        bundle_canonical_multi = {
+            proposal["candidate_id"]: proposal
+            for proposal in canonical_proposals
         }
         if set(canonical_multi) & set(bundle_canonical_multi):
             raise BenchmarkBuildError("canonical-multi-candidate-duplicate")
@@ -853,11 +867,16 @@ def assemble_verified_benchmark(
             )
         canonical = canonical_multi.get(candidate_id)
         canonical_fields = (
+            "schema_version",
             "candidate_id",
+            "proposal_type",
             "source_candidate_ids",
             "doi",
             "figure_no",
             "panel_ids",
+            "curation_status",
+            "eligible_for_experiment",
+            "eligibility_reasons",
             "experiment_case",
         )
         if canonical is None or any(
@@ -867,6 +886,17 @@ def assemble_verified_benchmark(
             raise BenchmarkBuildError(
                 f"multi-proposal-not-canonical:{candidate_id}"
             )
+        try:
+            if _resolve_proposal_rule_version(
+                proposal
+            ) != _resolve_proposal_rule_version(canonical):
+                raise BenchmarkBuildError(
+                    f"multi-proposal-not-canonical:{candidate_id}"
+                )
+        except ValueError as exc:
+            raise BenchmarkBuildError(
+                f"multi-proposal-rule-version-invalid:{candidate_id}"
+            ) from exc
         case, doi = _materialize_multi_case(
             candidate_id,
             verification=evidence[candidate_id],
@@ -1007,6 +1037,138 @@ def write_benchmark_outputs(
     return summary
 
 
+def _validate_derived_review_batch(result: Mapping[str, Any]) -> None:
+    summary = result.get("summary")
+    proposals_value = result.get("proposals")
+    if not isinstance(summary, Mapping) or not isinstance(
+        proposals_value,
+        list,
+    ):
+        raise BenchmarkBuildError("derived-review-batch-schema-invalid")
+    proposals = proposals_value
+    code_commit = summary.get("code_commit")
+    if (
+        not isinstance(code_commit, str)
+        or not GIT_COMMIT_PATTERN.fullmatch(code_commit)
+        or summary.get("code_dirty") is not False
+    ):
+        raise BenchmarkBuildError("derived-review-batch-code-state-invalid")
+    bindings = summary.get("source_review_bindings")
+    if (
+        not isinstance(bindings, list)
+        or summary.get("source_binding_hash") != _sha256_json(bindings)
+    ):
+        raise BenchmarkBuildError("derived-review-batch-source-binding-invalid")
+
+    by_id: dict[str, dict[str, Any]] = {}
+    singles: list[dict[str, Any]] = []
+    multi: list[dict[str, Any]] = []
+    rule_versions: set[str] = set()
+    for proposal in proposals:
+        if not isinstance(proposal, dict):
+            raise BenchmarkBuildError("derived-review-proposal-invalid")
+        candidate_id = proposal.get("candidate_id")
+        if (
+            not isinstance(candidate_id, str)
+            or not candidate_id
+            or candidate_id in by_id
+            or proposal.get("curation_status") != "proposed"
+            or proposal.get("eligible_for_experiment") is not False
+        ):
+            raise BenchmarkBuildError("derived-review-proposal-invalid")
+        try:
+            rule_versions.add(_resolve_proposal_rule_version(proposal))
+        except ValueError as exc:
+            raise BenchmarkBuildError(
+                f"derived-review-rule-version-invalid:{candidate_id}"
+            ) from exc
+        by_id[candidate_id] = proposal
+        if proposal.get("proposal_type") == "single_panel":
+            singles.append(proposal)
+        elif proposal.get("proposal_type") == "multi_panel":
+            multi.append(proposal)
+        else:
+            raise BenchmarkBuildError(
+                f"derived-review-proposal-type-invalid:{candidate_id}"
+            )
+
+    single_semantic_fields = (
+        "case_id",
+        "panel_count",
+        "sheet",
+        "panel_id",
+        "user_goal",
+        "chart_family",
+        "intent",
+        "evaluation_expectation",
+    )
+    for proposal in singles:
+        candidate_id = str(proposal["candidate_id"])
+        try:
+            recomputed = propose_single_candidate(
+                deepcopy(proposal),
+                input_candidates_sha256=str(
+                    proposal.get("input_candidates_sha256") or ""
+                ),
+                code_commit=str(proposal.get("code_commit") or ""),
+                max_file_bytes=DEFAULT_MAX_FILE_BYTES,
+                max_rows=DEFAULT_MAX_ROWS,
+                max_columns=DEFAULT_MAX_COLUMNS,
+                rule_version=_resolve_proposal_rule_version(proposal),
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise BenchmarkBuildError(
+                f"derived-review-single-not-canonical:{candidate_id}"
+            ) from exc
+        original_case = proposal.get("experiment_case")
+        recomputed_case = recomputed.get("experiment_case")
+        if (
+            not isinstance(original_case, Mapping)
+            or not isinstance(recomputed_case, Mapping)
+            or proposal.get("proposal_analysis")
+            != recomputed.get("proposal_analysis")
+            or any(
+                original_case.get(key) != recomputed_case.get(key)
+                for key in single_semantic_fields
+            )
+        ):
+            raise BenchmarkBuildError(
+                f"derived-review-single-not-canonical:{candidate_id}"
+            )
+
+    try:
+        canonical_multi = _multi_panel_proposals(
+            singles,
+            input_candidates_sha256=str(summary["source_binding_hash"]),
+            code_commit=code_commit,
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        raise BenchmarkBuildError(
+            f"derived-review-multi-generation-failed:{exc}"
+        ) from exc
+    expected_multi = {
+        str(proposal["candidate_id"]): proposal
+        for proposal in canonical_multi
+    }
+    actual_multi = {
+        str(proposal["candidate_id"]): proposal for proposal in multi
+    }
+    if actual_multi != expected_multi:
+        raise BenchmarkBuildError("derived-review-multi-not-canonical")
+
+    expected_summary = {
+        "accepted_single_proposals": len(singles),
+        "derived_multi_panel_proposals": len(multi),
+        "proposals_total": len(proposals),
+        "eligible_for_experiment": 0,
+        "proposal_rule_versions": sorted(rule_versions),
+    }
+    if any(summary.get(key) != value for key, value in expected_summary.items()):
+        raise BenchmarkBuildError("derived-review-summary-mismatch")
+    if proposals != sorted(proposals, key=lambda proposal: proposal["candidate_id"]):
+        raise BenchmarkBuildError("derived-review-proposals-not-sorted")
+
+
 def derive_multi_review_batch(
     *,
     review_bundles: Iterable[
@@ -1019,6 +1181,8 @@ def derive_multi_review_batch(
 
     if not GIT_COMMIT_PATTERN.fullmatch(code_commit):
         raise BenchmarkBuildError("invalid-code-commit")
+    if not isinstance(code_dirty, bool):
+        raise BenchmarkBuildError("invalid-code-dirty-flag")
     if code_dirty:
         raise BenchmarkBuildError("code-worktree-dirty")
     singles: dict[str, dict[str, Any]] = {}
@@ -1067,11 +1231,16 @@ def derive_multi_review_batch(
         raise BenchmarkBuildError("accepted-single-proposals-empty")
     bindings.sort(key=lambda binding: binding["proposed_path"])
     source_binding_hash = _sha256_json(bindings)
-    multi = _multi_panel_proposals(
-        list(singles.values()),
-        input_candidates_sha256=source_binding_hash,
-        code_commit=code_commit,
-    )
+    try:
+        multi = _multi_panel_proposals(
+            list(singles.values()),
+            input_candidates_sha256=source_binding_hash,
+            code_commit=code_commit,
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        raise BenchmarkBuildError(
+            f"derived-multi-generation-failed:{exc}"
+        ) from exc
     proposals = sorted(
         [*singles.values(), *multi],
         key=lambda proposal: proposal["candidate_id"],
@@ -1086,8 +1255,16 @@ def derive_multi_review_batch(
         "derived_multi_panel_proposals": len(multi),
         "proposals_total": len(proposals),
         "eligible_for_experiment": 0,
+        "proposal_rule_versions": sorted(
+            {
+                _resolve_proposal_rule_version(proposal)
+                for proposal in singles.values()
+            }
+        ),
     }
-    return {"proposals": proposals, "summary": summary}
+    result = {"proposals": proposals, "summary": summary}
+    _validate_derived_review_batch(result)
+    return result
 
 
 def write_derived_proposal_outputs(
@@ -1096,6 +1273,7 @@ def write_derived_proposal_outputs(
 ) -> dict[str, Any]:
     """Write a non-overwriting derived review batch and its provenance."""
 
+    _validate_derived_review_batch(result)
     output = Path(output_root).expanduser().resolve()
     if output.exists() and any(output.iterdir()):
         raise BenchmarkBuildError(f"derived-proposal-output-not-empty:{output}")

@@ -178,6 +178,10 @@ def test_figure_panel_mapping(
         "Figure 5b,c",
         "Figure2BC",
         "Supplementary Figure 2B",
+        "Sup Fig 1A",
+        "Sup_Fig_1A",
+        "Supp_Figure_1A",
+        "Supplementary_Figure_2B",
     ],
 )
 def test_non_unique_or_missing_panel_reference_is_ambiguous(name: str) -> None:
@@ -226,16 +230,68 @@ def make_case_fixture(workdir: Path) -> tuple[Path, Path]:
             )
         },
     )
+    file_entries = []
+    for path in sorted(
+        [
+            item
+            for folder in (figures, source_data)
+            for item in folder.iterdir()
+            if item.is_file()
+        ]
+    ):
+        kind = (
+            "source_data"
+            if path.parent == source_data
+            else "caption"
+            if path.suffix == ".txt"
+            else "figure"
+        )
+        entry = {
+            "kind": kind,
+            "path": path.relative_to(article).as_posix(),
+            "sha256": sha256_file(path),
+            "size_bytes": path.stat().st_size,
+            "source_url": f"https://example.test/{path.name}",
+            "download_status": "downloaded",
+            "rejection_reason": None,
+        }
+        if kind == "source_data":
+            entry.update(
+                {
+                    "source_data_origin": "supplementary_information",
+                    "verification_status": "source-provided",
+                    "verification_evidence": "test fixture",
+                }
+            )
+        file_entries.append(entry)
     (meta / "provenance.json").write_text(
         json.dumps(
             {
+                "schema_version": "1.0",
                 "doi": DOI,
+                "journal": "Nature Communications",
+                "article_url": (
+                    f"https://www.nature.com/articles/{ARTICLE_ID}"
+                ),
+                "journal_allowed": True,
+                "require_cc_by": True,
                 "download_eligible": True,
+                "download_status": "downloaded",
+                "rejection_reasons": [],
+                "source_data_origin": "supplementary_information",
+                "license_source": "crossref",
+                "license_evidence": {
+                    "URL": "https://creativecommons.org/licenses/by/4.0/",
+                    "content-version": "vor",
+                },
                 "license": {
                     "normalized_url": (
                         "https://creativecommons.org/licenses/by/4.0/"
-                    )
+                    ),
+                    "source": "crossref",
+                    "content_version": "vor",
                 },
+                "files": file_entries,
             }
         ),
         encoding="utf-8",
@@ -252,8 +308,12 @@ def make_case_fixture(workdir: Path) -> tuple[Path, Path]:
                         "https://creativecommons.org/licenses/by/4.0/"
                     ),
                     "version": "4.0",
+                    "content_version": "vor",
                     "source": "crossref",
-                    "evidence": {"URL": "https://creativecommons.org/licenses/by/4.0/"},
+                    "evidence": {
+                        "URL": "https://creativecommons.org/licenses/by/4.0/",
+                        "content-version": "vor",
+                    },
                 },
             }
         )
@@ -261,6 +321,17 @@ def make_case_fixture(workdir: Path) -> tuple[Path, Path]:
         encoding="utf-8",
     )
     return manifest, content
+
+
+def remove_provenance_file(content: Path, relative_path: str) -> None:
+    path = content / ARTICLE_ID / "meta" / "provenance.json"
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    manifest["files"] = [
+        entry
+        for entry in manifest["files"]
+        if entry.get("path") != relative_path
+    ]
+    path.write_text(json.dumps(manifest), encoding="utf-8")
 
 
 def test_case_builder_checksums_ambiguity_and_unverified_gate(workdir: Path) -> None:
@@ -283,6 +354,8 @@ def test_case_builder_checksums_ambiguity_and_unverified_gate(workdir: Path) -> 
     assert summary["verified"] == 0
     assert summary["eligible_for_experiment"] == 0
     assert summary["llm_calls"] == 0
+
+
     assert {item["figure_no"] for item in candidates} == {1, 2, 3}
     assert {item["panel_ids"][0] for item in candidates} == {"a", "b", "c", "j"}
     assert all(item["curation_status"] == "unverified" for item in candidates)
@@ -341,6 +414,120 @@ def test_case_builder_checksums_ambiguity_and_unverified_gate(workdir: Path) -> 
         for item in ambiguous
         if (item.get("source_table") or {}).get("sheet_name")
     } == {"Figure1", "Fig2G-H", "Figure 5b,c"}
+
+
+def test_case_builder_rejects_untracked_direct_source_data(workdir: Path) -> None:
+    manifest, content = make_case_fixture(workdir)
+    untracked = content / ARTICLE_ID / "source_data" / "Figure1B.csv"
+    untracked.write_text("x,y\n1,2\n", encoding="utf-8")
+
+    candidates, ambiguous, _ = build_cases(
+        corpus_manifest=manifest,
+        content_root=content,
+        output_root=workdir / "cases",
+    )
+
+    assert all(item["source_table"]["path"] != str(untracked) for item in candidates)
+    assert any(
+        item["source_table"]["path"] == str(untracked)
+        and "source-table-not-in-article-provenance" in item["reasons"]
+        for item in ambiguous
+        if item.get("source_table")
+    )
+
+
+def test_case_builder_requires_selected_archive_in_provenance(workdir: Path) -> None:
+    manifest, content = make_case_fixture(workdir)
+    remove_provenance_file(content, "source_data/source.zip")
+
+    candidates, ambiguous, _ = build_cases(
+        corpus_manifest=manifest,
+        content_root=content,
+        output_root=workdir / "cases",
+    )
+
+    assert all(item["source_table"]["archive"] is None for item in candidates)
+    assert any(
+        "source-table-not-in-article-provenance" in item.get("reasons", [])
+        and (item.get("source_table") or {}).get("archive") is not None
+        for item in ambiguous
+    )
+
+
+@pytest.mark.parametrize(
+    ("relative_path", "reason"),
+    [
+        ("figures/fig_002.png", "figure-not-in-article-provenance"),
+        ("figures/fig_002.txt", "caption-not-in-article-provenance"),
+    ],
+)
+def test_case_builder_requires_selected_figure_assets_in_provenance(
+    workdir: Path,
+    relative_path: str,
+    reason: str,
+) -> None:
+    manifest, content = make_case_fixture(workdir)
+    remove_provenance_file(content, relative_path)
+
+    candidates, ambiguous, _ = build_cases(
+        corpus_manifest=manifest,
+        content_root=content,
+        output_root=workdir / "cases",
+    )
+
+    assert all(item["figure_no"] != 2 for item in candidates)
+    assert any(
+        item.get("figure_no") == 2 and reason in item.get("reasons", [])
+        for item in ambiguous
+    )
+
+
+def test_case_builder_malformed_provenance_files_fails_closed(
+    workdir: Path,
+) -> None:
+    manifest, content = make_case_fixture(workdir)
+    path = content / ARTICLE_ID / "meta" / "provenance.json"
+    provenance = json.loads(path.read_text(encoding="utf-8"))
+    provenance["files"] = {"not": "a-list"}
+    path.write_text(json.dumps(provenance), encoding="utf-8")
+
+    candidates, ambiguous, _ = build_cases(
+        corpus_manifest=manifest,
+        content_root=content,
+        output_root=workdir / "cases",
+    )
+
+    assert candidates == []
+    assert any(
+        "article-provenance:files-invalid" in item.get("reasons", [])
+        for item in ambiguous
+    )
+
+
+def test_case_builder_rejects_file_changed_after_article_manifest(
+    workdir: Path,
+) -> None:
+    manifest, content = make_case_fixture(workdir)
+    changed = content / ARTICLE_ID / "source_data" / "Figure2B.csv"
+    changed.write_text("x,y\n1,999\n", encoding="utf-8")
+
+    candidates, ambiguous, summary = build_cases(
+        corpus_manifest=manifest,
+        content_root=content,
+        output_root=workdir / "cases",
+    )
+
+    assert candidates == []
+    assert summary["verified"] == 0
+    assert any(
+        any(
+            reason.startswith(
+                "article-provenance:checksum-mismatch:source_data/Figure2B.csv"
+            )
+            for reason in item.get("reasons") or []
+        )
+        for item in ambiguous
+    )
 
 
 def test_xlsx_sheet_limit_is_recorded_without_loading_cells(workdir: Path) -> None:
