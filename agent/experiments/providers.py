@@ -363,6 +363,17 @@ class SingleChainProvider:
                     ),
                     metric_config=request.spec.metric_config.get("evaluator"),
                 )
+        except Exception as exc:
+            partial = (
+                discovered_run_dir
+                if discovered_run_dir is not None
+                and discovered_run_dir.is_dir()
+                else core_runs_root
+            )
+            raise ProviderExecutionError(
+                f"Single-chain execution failed: {exc}",
+                artifacts={"partial_core_run": str(partial)},
+            ) from exc
         finally:
             single_chain_runner.RUNS_DIR = old_runs_dir
             single_chain_runner._LLM_CLIENT = old_client
@@ -632,6 +643,16 @@ class MultiPanelProvider:
                     memory_mode=memory_mode,
                     base_dir=manifest_base_dir,
                 )
+        except Exception as exc:
+            artifacts = (
+                {"partial_multi_panel_run": str(output_dir)}
+                if output_dir.is_dir()
+                else {}
+            )
+            raise ProviderExecutionError(
+                f"Multi-panel execution failed: {exc}",
+                artifacts=artifacts,
+            ) from exc
         finally:
             single_chain_runner._MODEL_CLIENT = old_model_client
             single_chain_runner._LLM_CLIENT = old_compat_client

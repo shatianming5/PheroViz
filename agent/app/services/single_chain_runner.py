@@ -248,21 +248,36 @@ Allowed variables: df, spec, ctx, pd, np.
         tasks = textwrap.dedent(
             """L3 duties:
 - Provide marks.* bodies for overlays: draw geometries, manage color/ordering, and respect ctx['_v2_meta'].
-- Use the provided axis argument `ax` to draw (e.g., `ax.bar`, `ax.plot`, `ax.scatter`); do not return raw data structures without plotting.
+- Slot keys must be exact registered keys. Use `marks.line.main`, never
+  `marks.line`; use `marks.bar.grouped`, never `marks.bar`.
+- Use the provided axis argument `ax` to draw (e.g., `ax.bar`, `ax.plot`,
+  `ax.scatter`); do not return raw data structures without plotting.
+- A marks.* body is called once per overlay. Read x/y/group/style from the
+  provided `overlay`; never hard-code one series column when the spec contains
+  multiple overlays.
 - Keep the overlays list intact; operate on overlay dictionaries without rewriting spec['overlays'] or introducing new top-level mark/encoding keys.
 - Configure scales.* or colorbar.apply when needed (log scale, dual axis limits, palettes).
 - Do not touch axes/legend/grid/theme slots.
 - Reuse palette via `meta = ctx.setdefault('_v2_meta', {})`; never call plt.get_cmap.
 - Access spec/ctx with `.get(...)` and fallbacks.
-Allowed variables: df, spec, ctx, meta = ctx.setdefault('_v2_meta', {}), ax_left, ax_right, fig, np, pd, theme.
+In marks.* slots, allowed variables are ax, df, overlay, spec, ctx, np, and pd.
+Do not use ax_left or ax_right inside a marks.* body.
 """
         )
         l3_example = textwrap.dedent(
-            """Example:
+            """Valid body for the exact key `marks.line.main`:
 meta = ctx.setdefault('_v2_meta', {})
-overlays = spec.get('overlays') or []
-overlay_cfg = overlays[0] if overlays else {}
-style_cfg = overlay_cfg.get('style') or {}
+x = overlay.get('x')
+y = overlay.get('y')
+style_cfg = overlay.get('style') or {}
+if not x or not y or x not in df.columns or y not in df.columns:
+    return []
+(line,) = ax.plot(
+    df[x], df[y],
+    label=str(overlay.get('label') or y),
+    alpha=float(style_cfg.get('alpha', 0.9)),
+)
+return [line]
 """
         )
         body_lines = [
@@ -1321,8 +1336,31 @@ def iter_chain(
                 and generation_mode == "model"
                 and not ok_layer
             ):
+                failure_path = (
+                    active_run_dir
+                    / f"model_failure_round_{round_idx}_{layer}.json"
+                )
+                failure_path.write_text(
+                    json.dumps(
+                        {
+                            "round": round_idx,
+                            "stage": layer,
+                            "prompt": out_dict.get("prompt"),
+                            "response": out_dict.get("response"),
+                            "model_metadata": out_dict.get("model_metadata"),
+                            "rejected_slots": rej_layer,
+                            "forbidden_slots": forbidden_map,
+                        },
+                        ensure_ascii=False,
+                        indent=2,
+                        sort_keys=True,
+                    )
+                    + "\n",
+                    encoding="utf-8",
+                )
                 raise ValueError(
-                    f"{layer} model initial generation produced no admissible slots"
+                    f"{layer} model initial generation produced no admissible "
+                    f"slots; evidence={failure_path}"
                 )
             if read_constraints:
                 freeze_decision = memory_store.check_invariant_freeze(
