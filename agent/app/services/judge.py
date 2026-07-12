@@ -13,6 +13,11 @@ import requests
 
 from PIL import Image
 
+from app.services.model_client import (
+    ModelClient,
+    ModelClientError,
+)
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -263,6 +268,100 @@ def _image_nonempty_score(png_path: str) -> float:
         return 0.0
 
 
+def _call_model_client_judge(
+    spec: Dict[str, Any],
+    df_cols: List[str],
+    png_path: str,
+    exec_log: str,
+) -> Dict[str, Any] | None:
+    model = (os.getenv("VLM_MODEL") or "").strip()
+    if not model:
+        return None
+    required = (os.getenv("VLM_REQUIRED") or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+    spec_json = json.dumps(spec, ensure_ascii=False)
+    prompt = textwrap.dedent(
+        f"""
+        Review this scientific chart and return strict JSON:
+        {{
+          "scores": {{
+            "visual_form": <number from 0 to 1>,
+            "data_fidelity": <number from 0 to 1>
+          }},
+          "diagnostics": [
+            {{"slot": "<slot>", "key": "<issue>", "hint": "<repair>", "sev": <1 or 2>}}
+          ],
+          "notes": "<brief rationale>"
+        }}
+
+        Judge visual form from the image. Data fidelity is only a secondary
+        diagnostic because the experiment uses a separate programmatic
+        source-table checker as its primary fidelity metric.
+
+        Figure spec:
+        {_truncate(spec_json, 3000)}
+
+        Source columns: {", ".join(df_cols) if df_cols else "n/a"}
+        Execution log:
+        {_truncate(exec_log or "", 600)}
+        """
+    ).strip()
+    try:
+        client = ModelClient.from_env(model=model)
+        response = client.evaluate_image_json(
+            prompt,
+            png_path,
+            model=model,
+            max_tokens=int(os.getenv("VLM_MAX_TOKENS", "1024")),
+        )
+    except (ModelClientError, ValueError) as exc:
+        if required:
+            raise ModelClientError(f"Required VLM judge failed: {exc}") from exc
+        if os.getenv("VLM_DEBUG"):
+            print(f"[judge] ModelClient VLM call failed: {exc}", file=sys.stderr)
+        return None
+
+    parsed = response.value
+    scores = parsed.get("scores") or {}
+    try:
+        visual_form = float(scores["visual_form"])
+        data_fidelity = float(scores["data_fidelity"])
+    except (KeyError, TypeError, ValueError) as exc:
+        if required:
+            raise ModelClientError(
+                "Required VLM judge returned invalid scores"
+            ) from exc
+        return None
+    diagnostics: List[Dict[str, Any]] = []
+    for item in parsed.get("diagnostics") or []:
+        if not isinstance(item, dict):
+            continue
+        diagnostics.append(
+            {
+                "slot": str(item.get("slot") or ""),
+                "key": str(item.get("key") or item.get("issue") or ""),
+                "hint": str(item.get("hint") or item.get("issue") or ""),
+                "sev": int(item.get("sev", 1)),
+            }
+        )
+    return {
+        "visual_form": max(0.0, min(1.0, visual_form)),
+        "data_fidelity": max(0.0, min(1.0, data_fidelity)),
+        "diagnostics": diagnostics,
+        "notes": str(parsed.get("notes") or ""),
+        "model_metadata": {
+            "model": response.model,
+            "request_id": response.request_id,
+            "usage": response.usage,
+            "stop_reason": response.stop_reason,
+            "latency_seconds": response.latency_seconds,
+        },
+    }
+
+
 def _diagnose(spec: Dict[str, Any], df_cols: List[str], overlays_n: int, png_path: str) -> List[Dict[str, Any]]:
     diagnostics: List[Dict[str, Any]] = []
     layout = (spec.get('layout') or {})
@@ -308,7 +407,7 @@ def judge(png_path: str, exec_log: str, df, spec: Dict[str, Any]) -> Dict[str, A
     overlays_n = len(overlays)
     df_cols = list(getattr(df, 'columns', []))
 
-    vlm_result = _call_vlm_judge(spec, df_cols, png_path, exec_log)
+    vlm_result = _call_model_client_judge(spec, df_cols, png_path, exec_log)
     if vlm_result:
         diagnostics = vlm_result.get('diagnostics') or []
         if not diagnostics:
@@ -333,4 +432,3 @@ def judge(png_path: str, exec_log: str, df, spec: Dict[str, Any]) -> Dict[str, A
 
     diagnostics = _diagnose(spec, df_cols, overlays_n, png_path)
     return {'visual_form': vf, 'data_fidelity': fid, 'diagnostics': diagnostics}
-

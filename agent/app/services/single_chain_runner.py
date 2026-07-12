@@ -697,7 +697,7 @@ def _memory_context_for_stage(
     untyped_log: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     if untyped_log is not None:
-        return {"untyped_log": copy.deepcopy(untyped_log[-12:])}
+        return {"untyped_log": copy.deepcopy(untyped_log[-6:])}
     if not include_constraints and not include_patches:
         return {}
     context = memory.reuse_context(
@@ -710,7 +710,25 @@ def _memory_context_for_stage(
         include_constraints=include_constraints,
         include_patches=include_patches,
     )
-    return context.to_prompt_dict()
+    prompt_context = context.to_prompt_dict()
+    constraints = prompt_context.get("constraints") or {}
+    if len(constraints) > 16:
+        ranked = sorted(
+            constraints.items(),
+            key=lambda item: (
+                not bool(item[1].get("hard")),
+                item[0],
+            ),
+        )[:16]
+        prompt_context["constraints"] = dict(ranked)
+        prompt_context["constraints_truncated"] = len(constraints) - len(ranked)
+    patches = prompt_context.get("eligible_patch_templates") or []
+    prompt_context["eligible_patch_templates"] = patches[:4]
+    if len(patches) > 4:
+        prompt_context["patch_templates_truncated"] = len(patches) - 4
+    rejections = prompt_context.get("patch_rejections") or []
+    prompt_context["patch_rejections"] = rejections[:8]
+    return prompt_context
 
 
 def _constraint_candidates_from_render(
@@ -1266,9 +1284,11 @@ def iter_chain(
                 },
             )
             if (
-                round_idx == 1
-                and (
-                    generation_mode == "defaults"
+                (
+                    (
+                        round_idx == 1
+                        and generation_mode == "defaults"
+                    )
                     or (
                         generation_mode == "model_spec"
                         and layer != "L1"
@@ -1653,6 +1673,7 @@ def iter_chain(
                     "visual_form": judge_result.get("visual_form", 0.0),
                     "data_fidelity": judge_result.get("data_fidelity", 0.0),
                 },
+                "judge_model_metadata": judge_result.get("model_metadata"),
                 "programmatic_fidelity": fidelity_ratio,
                 "programmatic_cohesion": cohesion_ratio,
                 "programmatic_evaluation_path": (
@@ -1677,6 +1698,7 @@ def iter_chain(
                 "visual_form": judge_result.get("visual_form", 0.0),
                 "data_fidelity": judge_result.get("data_fidelity", 0.0),
             },
+            "judge_model_metadata": judge_result.get("model_metadata"),
             "programmatic_evaluation": programmatic_result,
             "programmatic_evaluation_path": (
                 str(programmatic_path) if programmatic_path is not None else None

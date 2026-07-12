@@ -726,6 +726,20 @@ class MultiPanelProvider:
                         if metadata.get("model")
                     }
                 ),
+                "judge_models": sorted(
+                    {
+                        str(metadata.get("model"))
+                        for panel in result["panels"].values()
+                        if isinstance(panel.get("result"), Mapping)
+                        for metadata in [
+                            panel["result"].get(
+                                "judge_model_metadata"
+                            )
+                            or {}
+                        ]
+                        if metadata.get("model")
+                    }
+                ),
             },
         )
         if request.spec.schedule == "best_of_n":
