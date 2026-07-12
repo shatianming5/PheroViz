@@ -318,7 +318,7 @@ class ExternalBaselineProvider:
             home_dir=work_dir / "isolated_home",
         )
         python_bin = str(
-            Path(self.python_executable).expanduser().resolve().parent
+            Path(self.python_executable).expanduser().absolute().parent
         )
         started_environment["PATH"] = os.pathsep.join(
             [
