@@ -74,6 +74,7 @@ class ModelResponse:
     model: str
     request_id: str | None
     usage: dict[str, Any]
+    stop_reason: str | None
     latency_seconds: float
 
 
@@ -182,7 +183,8 @@ class ModelClient:
         choices = data.get("choices") or []
         if not choices:
             raise ModelClientError("Model response did not include choices")
-        message = choices[0].get("message") or {}
+        choice = choices[0]
+        message = choice.get("message") or {}
         content = message.get("content")
         if isinstance(content, list):
             content = "".join(
@@ -197,6 +199,7 @@ class ModelClient:
             model=str(data.get("model") or selected_model),
             request_id=_optional_str(data.get("id")),
             usage=dict(data.get("usage") or data.get("copilot_usage") or {}),
+            stop_reason=_optional_str(choice.get("finish_reason")),
             latency_seconds=time.monotonic() - started,
         )
 
@@ -247,12 +250,16 @@ class ModelClient:
             if isinstance(part, dict) and part.get("type") == "text"
         )
         if not text.strip():
-            raise ModelClientError("Vision response content was empty")
+            stop_reason = _optional_str(data.get("stop_reason"))
+            raise ModelClientError(
+                f"Vision response content was empty (stop_reason={stop_reason or 'unknown'})"
+            )
         return ModelResponse(
             value=_parse_json_text(text),
             model=str(data.get("model") or selected_model),
             request_id=_optional_str(data.get("id")),
             usage=dict(data.get("usage") or data.get("copilot_usage") or {}),
+            stop_reason=_optional_str(data.get("stop_reason")),
             latency_seconds=time.monotonic() - started,
         )
 

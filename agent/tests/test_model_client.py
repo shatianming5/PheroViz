@@ -75,6 +75,7 @@ def test_generate_json_uses_real_auth_and_model_safe_payload() -> None:
     assert call["headers"]["x-api-key"] == "secret"
     assert call["json"]["reasoning_effort"] == "max"
     assert "temperature" not in call["json"]
+    assert result.stop_reason is None
 
 
 def test_generate_json_parses_fenced_json() -> None:
