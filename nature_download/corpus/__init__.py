@@ -14,6 +14,7 @@ from .provenance import (
     sha256_file,
     validate_article_manifest,
 )
+from .proposals import propose_cases, write_proposal_outputs
 from .splits import generate_split_bundle
 
 __all__ = [
@@ -27,7 +28,9 @@ __all__ = [
     "is_allowed_journal",
     "normalize_cc_by_url",
     "parse_figure_panel",
+    "propose_cases",
     "safe_extract_tables",
     "sha256_file",
     "validate_article_manifest",
+    "write_proposal_outputs",
 ]

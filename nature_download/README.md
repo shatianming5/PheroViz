@@ -67,6 +67,16 @@
   `Fig. 1a` / `Figure 3C` 名称映射 panel；默认最多 256 sheets。无 panel、
   panel range/list、resource fork、supplementary 或损坏 workbook 均进入
   `ambiguous.jsonl`。
+- 从 `unverified` candidates 生成 deterministic case proposal：
+  ```bash
+  python nature_all_in_one.py propose-cases \
+    --candidates outputs/benchmark_candidates/candidates.jsonl \
+    --out outputs/case_proposals
+  ```
+  仅接受 2--6 列的简单二维 CSV 或指定 XLSX sheet；默认限制 64 MiB、
+  100,000 行和 64 列。输出 `proposed.jsonl`、`rejected.jsonl`、
+  `summary.json`。proposal 始终为 `curation_status=proposed`、
+  `eligible_for_experiment=false`，必须经外部或人工验证后才能进入实验。
 - 基础检索（合规、不抓取）：
   ```bash
   python nature_all_in_one.py search \

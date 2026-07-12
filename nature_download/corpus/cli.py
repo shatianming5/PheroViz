@@ -24,6 +24,13 @@ from .discovery import (
     write_jsonl,
 )
 from .policy import evaluate_crossref_item, evaluate_record, normalize_doi
+from .proposals import (
+    DEFAULT_MAX_COLUMNS,
+    DEFAULT_MAX_FILE_BYTES,
+    DEFAULT_MAX_ROWS,
+    propose_cases,
+    write_proposal_outputs,
+)
 from .provenance import (
     ProvenanceError,
     build_article_manifest,
@@ -215,6 +222,28 @@ def cmd_build_cases(args: argparse.Namespace) -> None:
         f"[done] Cases: candidates={summary['candidates']} "
         f"ambiguous={summary['ambiguous']} verified={summary['verified']} "
         f"eligible={summary['eligible_for_experiment']} out={args.out}"
+    )
+
+
+def cmd_propose_cases(args: argparse.Namespace) -> None:
+    candidates_path = Path(args.candidates).expanduser().resolve()
+    output_path = Path(args.out).expanduser().resolve()
+    if output_path == candidates_path.parent:
+        raise ValueError(
+            "proposal output must differ from the candidates directory "
+            "to avoid overwriting case-builder provenance"
+        )
+    proposed, rejected, summary = propose_cases(
+        candidates_path=candidates_path,
+        max_file_bytes=args.max_file_bytes,
+        max_rows=args.max_rows,
+        max_columns=args.max_columns,
+    )
+    write_proposal_outputs(output_path, proposed, rejected, summary)
+    print(
+        f"[done] Proposals: single={summary['single_proposals']} "
+        f"multi={summary['multi_panel_proposals']} "
+        f"rejected={summary['rejected']} eligible=0 out={output_path}"
     )
 
 
@@ -432,3 +461,26 @@ def add_corpus_subcommands(subparsers: argparse._SubParsersAction) -> None:
         default=DEFAULT_MAX_XLSX_SHEETS,
     )
     cases.set_defaults(func=cmd_build_cases)
+
+    proposals = subparsers.add_parser(
+        "propose-cases",
+        help="Deterministically propose experiment cases without verification",
+    )
+    proposals.add_argument("--candidates", required=True)
+    proposals.add_argument("--out", required=True)
+    proposals.add_argument(
+        "--max-file-bytes",
+        type=int,
+        default=DEFAULT_MAX_FILE_BYTES,
+    )
+    proposals.add_argument(
+        "--max-rows",
+        type=int,
+        default=DEFAULT_MAX_ROWS,
+    )
+    proposals.add_argument(
+        "--max-columns",
+        type=int,
+        default=DEFAULT_MAX_COLUMNS,
+    )
+    proposals.set_defaults(func=cmd_propose_cases)

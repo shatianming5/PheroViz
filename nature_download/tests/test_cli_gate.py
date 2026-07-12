@@ -7,7 +7,11 @@ from pathlib import Path
 import pytest
 
 import nature_download.nature_all_in_one as module
-from nature_download.corpus.cli import LicenseGateError, authorize_direct_download
+from nature_download.corpus.cli import (
+    LicenseGateError,
+    authorize_direct_download,
+    cmd_propose_cases,
+)
 from nature_download.nature_all_in_one import build_parser, cmd_auto, cmd_postfetch
 
 
@@ -35,10 +39,21 @@ def test_new_corpus_commands_enable_gate_by_default() -> None:
             "cases",
         ]
     )
+    proposals = parser.parse_args(
+        [
+            "propose-cases",
+            "--candidates",
+            "candidates.jsonl",
+            "--out",
+            "proposals",
+        ]
+    )
     assert discover.require_cc_by is True
     assert validate.require_cc_by is True
     assert manifest.require_cc_by is True
     assert cases.max_xlsx_sheets == 256
+    assert proposals.max_rows == 100_000
+    assert proposals.max_columns == 64
 
 
 def test_legacy_download_commands_require_explicit_gate() -> None:
@@ -127,3 +142,20 @@ def test_unreachable_article_returns_zero_not_none(
         )
         == 0
     )
+
+
+def test_proposal_output_cannot_overwrite_candidate_directory(
+    workdir: Path,
+) -> None:
+    candidates = workdir / "candidates.jsonl"
+    candidates.write_text("", encoding="utf-8")
+    with pytest.raises(ValueError, match="must differ"):
+        cmd_propose_cases(
+            argparse.Namespace(
+                candidates=str(candidates),
+                out=str(workdir),
+                max_file_bytes=1,
+                max_rows=1,
+                max_columns=2,
+            )
+        )
