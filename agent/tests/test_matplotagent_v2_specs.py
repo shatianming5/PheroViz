@@ -66,10 +66,10 @@ V1_MATRIX = (
     / "baseline_matplotagent_single_renderable_v1.yaml"
 )
 V1_SPEC_SHA256 = (
-    "33c52b5f48a851b5c69ec04fc58a7e9e6dbce5635df65bcf190f1f400682caad"
+    "6acde4f8f6e99d9eebf06dc009bff9bb58d39124a1e7e4c661118c8f3f21b394"
 )
 V1_MATRIX_SHA256 = (
-    "b7a34cb676bf57613ee9e23a68c60687355aa7abdbe13e5b58e0c45948d08cca"
+    "6e2542f402b49229851a91958ea1ae137316d8c0549b4a025651172de611ce2b"
 )
 OUTCOME_FIELDS = {
     "failed_case_ids",
