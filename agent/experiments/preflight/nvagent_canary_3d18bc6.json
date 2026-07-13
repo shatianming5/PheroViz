@@ -1,0 +1,104 @@
+{
+  "aborted_infrastructure_roots": [
+    {
+      "error": {
+        "attribution": "unclassified",
+        "message": "nvAgent subprocess failed with exit code 1",
+        "type": "ProviderExecutionError"
+      },
+      "model_call_started": false,
+      "never_merge": true,
+      "record_hash": "49f3882bdb52c93668627bde4741870ef9f57277b17e2b29c3e609371eaeee61",
+      "root": "/Users/tommy/Downloads/mayi/PheroViz-portable-3d18bc6/agent/experiments/runs/production/_aborted/baseline_nvagent_single_renderable_v1_gpt4omini_r1_missing_cairo_NEVER_MERGE",
+      "run_name": "baseline-nvagent-single-renderable-v1-gpt4omini-r1__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-nvagent_native__backbone-gpt-4o-mini__seed-0__budget-renders-1",
+      "run_record_file_sha256": "6830aecebd132beda2a814c003c1a798dc6eaba6db45fc3872dfd9fec52360d8",
+      "status": "failed"
+    },
+    {
+      "error": {
+        "attribution": "unclassified",
+        "message": "nvAgent preflight failed: clean_worktree",
+        "type": "BaselinePreflightError"
+      },
+      "model_call_started": false,
+      "never_merge": true,
+      "record_hash": "4159cf1ce69afdc6c03af72e005ac64d959f035d4b58bb8ed3f3c472c95c4a1e",
+      "root": "/Users/tommy/Downloads/mayi/PheroViz-portable-3d18bc6/agent/experiments/runs/production/_aborted/baseline_nvagent_single_renderable_v1_gpt4omini_r1_manual_import_cache_NEVER_MERGE",
+      "run_name": "baseline-nvagent-single-renderable-v1-gpt4omini-r1__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-nvagent_native__backbone-gpt-4o-mini__seed-0__budget-renders-1",
+      "run_record_file_sha256": "590b16664ac05f6aa91b2b0aeeb9f5ce626bc62ec1884d6aef91e074c318e93f",
+      "status": "failed"
+    }
+  ],
+  "code": {
+    "git_commit": "3d18bc6cda838523ffba53ea5b5307997b762be3",
+    "git_dirty": false
+  },
+  "contract": {
+    "all_completed": true,
+    "failures": 0,
+    "methods": [
+      "nvagent_native",
+      "pheroviz_model_spec"
+    ],
+    "record_count": 2,
+    "render_budget": 1,
+    "renders": 2,
+    "seeds": [
+      0
+    ],
+    "vlm_calls": 0
+  },
+  "dataset": {
+    "case_ids": [
+      "case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2"
+    ],
+    "materialized_manifest_sha256": "d3225159c7cced13e17ea98c81be47cbaf75cd845eac1de45f93e98f4d3b7a0a",
+    "panel_count": 1
+  },
+  "execution": {
+    "full_resume_pid": 4506,
+    "full_resume_started": true
+  },
+  "generated_at": "2026-07-13T13:43:59.592784Z",
+  "records": [
+    {
+      "record_hash": "96cc5d48fc852a00f74719e7716110150f972751ef83853851587e516f24551f",
+      "run_name": "baseline-nvagent-single-renderable-v1-gpt4omini-r1__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-nvagent_native__backbone-gpt-4o-mini__seed-0__budget-renders-1",
+      "run_record_file_sha256": "cd231021a58a772d6aa2680cc1dd66b45bb46d660b0a0615dec99927b97e67be",
+      "spec_hash": "d15b45c07ef2e3c6c1b860f90855753450ecc08928e8af7e6e1be4e4cd8b7fe2"
+    },
+    {
+      "record_hash": "4d2a8b3c2fb6427694c8630d765095e70549755f1fab6662b5416bb64c684498",
+      "run_name": "baseline-nvagent-single-renderable-v1-gpt4omini-r1__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-pheroviz_model_spec__backbone-gpt-4o-mini__seed-0__budget-renders-1",
+      "run_record_file_sha256": "9a9eb42cc8a5a6825d6769a0d67b7f7b4eb990dab3bdf95ff4acef30bf232958",
+      "spec_hash": "8b0d783c2caf3cdd1ff2872b18c929e0b27bcd24bc18669e503d6904b14a7b70"
+    }
+  ],
+  "report_hash": "06d43d4cecef492638a960ec7954ddb818da0ccb0f74015ef8ca4e659fa5dbeb",
+  "runtime_fix": {
+    "cairo_library_path": "/opt/homebrew/opt/cairo/lib",
+    "environment_variable": "NVAGENT_DYLD_FALLBACK_LIBRARY_PATH",
+    "external_checkout_clean_after_canary": true,
+    "python_bytecode_disabled_by_provider": true
+  },
+  "schema_version": "1.0",
+  "scientific_result": false,
+  "status": "passed_included_canary",
+  "subtrack": {
+    "baseline": "nvAgent",
+    "cohesion": "NA",
+    "external_repo_commit": "a37209e675813a25241e83f2fe56a87657a49ef6",
+    "input_track": "table_nl_instruction",
+    "license_status": "not_declared"
+  },
+  "validation": {
+    "all_artifact_hashes_verified": true,
+    "full_spec_count": 96,
+    "overlap_spec_hashes_match": true,
+    "remaining_after_canary": 94,
+    "strict_aggregate_passed": true,
+    "summary_file_sha256": "614e7511e43b493bbf663627ad3ba32fb1df0197c2208928bd6debe3eb451df6",
+    "summary_hash": "69140ff8ea9455b63a354041b7f9c3388f760727ca7d72c37652a718e4a5c95b",
+    "summary_path": "/Users/tommy/Downloads/mayi/PheroViz-portable-3d18bc6/agent/experiments/runs/production/_summaries/baseline_nvagent_single_renderable_v1_gpt4omini_r1.canary/summary.json"
+  }
+}
