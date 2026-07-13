@@ -1,22 +1,22 @@
 experiment_name: baseline-matplotagent-single-renderable-v1-gpt4omini-r1
-dataset_manifest: ../baseline_specs/manifests/matplotagent-single-test-renderable-v1.manifest.json
-dataset_manifest_sha256: 76d9315afffa46a7630c1512b5f741e5b540e2f5c27f8871b0dcdcc678f56945
+dataset_manifest: __MATERIALIZED_BY_BUILDER__
+dataset_manifest_sha256: __MATERIALIZED_BY_BUILDER__
 dataset_mode: sealed_benchmark
-artifact_root: ../runs/production/baseline_matplotagent_single_renderable_v1_gpt4omini_r1
+artifact_root: __MATERIALIZED_BY_BUILDER__
 methods:
 - name: matplotagent_native
   schedule: best_of_n
   provider: experiments.external_baselines:MatPlotAgentProvider
   provider_options:
-    repo_path: /Users/tommy/Downloads/mayi/baseline_repos/MatPlotAgent
-    python_executable: /Users/tommy/Downloads/mayi/.baseline_envs/matplotagent/bin/python
+    repo_path: __WORKSPACE_ROOT__/baseline_repos/MatPlotAgent
+    python_executable: __WORKSPACE_ROOT__/.baseline_envs/matplotagent/bin/python
   mode: direct
   visual_refine: false
 - name: pheroviz_model_spec
   schedule: best_of_n
   provider: experiments.providers:UnifiedBenchmarkProvider
   provider_options:
-    manifest_data_root: /Users/tommy/Downloads/mayi/PheroViz
+    manifest_data_root: __REPO_ROOT__
   memory_mode: none
   initial_generation: model_spec
   render_timeout_seconds: 120
@@ -39,7 +39,7 @@ metric:
       direction: maximize
 compatibility_subtrack:
   spec: ../baseline_specs/matplotagent-single-test-renderable-v1.json
-  spec_sha256: 83cddb92c54b4cae8636e35d202a20cf1ba0c196fd2317bb1d0b489d5636f2a7
+  spec_sha256: 33c52b5f48a851b5c69ec04fc58a7e9e6dbce5635df65bcf190f1f400682caad
   input_track: table_instruction
   selected_cases: 2
   paired_methods:
@@ -57,3 +57,11 @@ compatibility_subtrack:
   audit_sha256: 9528e845e67a26867c57d85f30e8982f715d8c23248765ba68f9e26b8038d4af
   chartcoder_result_row: false
   no_model_call_preflight: use --dry-run only
+portable_template:
+  builder: ../baseline_specs/build_portable_subtracks.py
+  artifact_root_name: baseline_matplotagent_single_renderable_v1_gpt4omini_r1
+  runtime_manifest_filename: matplotagent.manifest.json
+  runtime_matrix_filename: matplotagent.matrix.yaml
+  direct_dry_run: false
+  reason: runtime repository/workspace roots and materialized manifest SHA-256 are
+    bound by the builder

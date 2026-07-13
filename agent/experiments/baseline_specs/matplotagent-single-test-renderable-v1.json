@@ -1,6 +1,8 @@
 {
   "baseline": "matplotagent",
   "builder_contract": {
+    "builder_path": "agent/experiments/baseline_specs/build_portable_subtracks.py",
+    "builder_sha256": "2ca8bbb62ff3e6fd63ff32b41b4ca464ca52b27f027448bd13083ded8168b8b5",
     "canonical_json": "UTF-8, sorted keys, compact separators, finite JSON values",
     "implementation": "declarative; agent/tests/test_external_baseline_specs.py independently reproduces selection and verifies every binding",
     "steps": [
@@ -10,7 +12,7 @@
       "add exactly the declared input_track field",
       "bind parent/derived case, source, instruction, and expectation hashes",
       "preserve parent sealed source provenance and append sealed compatibility_derivation",
-      "recompute semantic manifest_hash and pin output file SHA-256 in matrix"
+      "materialize runtime-root-bound manifest and matrix, recompute semantic/file hashes, then dry-run"
     ],
     "version": "metadata-only-compatibility-manifest-v1"
   },
@@ -22,7 +24,10 @@
     "status": "blocked"
   },
   "compatibility_id": "matplotagent-single-test-renderable-v1",
-  "derived_manifest": "agent/experiments/baseline_specs/manifests/matplotagent-single-test-renderable-v1.manifest.json",
+  "derived_manifest": {
+    "materialized_filename": "matplotagent.manifest.json",
+    "tracked_absolute_manifest": false
+  },
   "evaluation_protocol": {
     "backbone": "gpt-4o-mini",
     "case_pairing": "same two-case derived manifest, case_id, input_track, backbone, budget, and seed for MatPlotAgent and PheroViz methods",
@@ -40,11 +45,23 @@
     "visual_refine": false
   },
   "external_runtime": {
+    "agent_evaluator_dependency_modules": [
+      "jsonschema",
+      "openpyxl",
+      "duckdb",
+      "matplotlib",
+      "pandas",
+      "numpy"
+    ],
     "audit": {
       "path": "agent/experiments/baseline_audits/matplotagent.json",
       "sha256": "9528e845e67a26867c57d85f30e8982f715d8c23248765ba68f9e26b8038d4af"
     },
-    "commit": "9cafa262aae7bdf85fccf6d02b2153fb772bc376",
+    "dependency_modules": [
+      "openai",
+      "tenacity",
+      "matplotlib"
+    ],
     "evaluator_files": [
       {
         "path": "agent/experiments/external_baselines.py",
@@ -56,9 +73,16 @@
       }
     ],
     "provider": "experiments.external_baselines:MatPlotAgentProvider",
-    "python_executable": "/Users/tommy/Downloads/mayi/.baseline_envs/matplotagent/bin/python",
-    "repo_path": "/Users/tommy/Downloads/mayi/baseline_repos/MatPlotAgent",
-    "required_runtime_gate": "clean worktree, exact evaluator hashes, required gateway environment only"
+    "python": {
+      "relative_path": ".baseline_envs/matplotagent/bin/python",
+      "root": "workspace_root"
+    },
+    "repo": {
+      "commit": "9cafa262aae7bdf85fccf6d02b2153fb772bc376",
+      "relative_path": "baseline_repos/MatPlotAgent",
+      "root": "workspace_root"
+    },
+    "required_runtime_gate": "materialize from a clean repository, exact evaluator/audit/checkout hashes, required gateway environment only"
   },
   "license_status": "not_declared",
   "parent_manifest": {
@@ -73,10 +97,18 @@
     "multi_panel_eligible": false,
     "single_panel_only": true
   },
+  "runtime_root_remap": {
+    "builder": "agent/experiments/baseline_specs/build_portable_subtracks.py",
+    "repo_root_argument": "--repo-root",
+    "source_path_rule": "preserve repository-relative suffix and source SHA-256",
+    "tracked_absolute_paths_forbidden": true,
+    "workspace_root_argument": "--workspace-root"
+  },
   "schema_version": "1.0",
   "selection": {
     "allowed_case_mutations": [
-      "input_track"
+      "input_track",
+      "runtime_root_remap"
     ],
     "case_order": "parent_manifest_order",
     "declared_field_addition": {

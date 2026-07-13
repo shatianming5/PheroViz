@@ -128,8 +128,11 @@ metadata，从 SHA-256 为
 的 sealed renderable benchmark 选择兼容 test singles：MatPlotAgent 固定 venv
 没有 XLSX engine，故仅纳入 2 个 CSV cases；nvAgent adapter 会先把 16 个
 CSV/XLSX cases 规范化为 CSV。每个子轨内的 PheroViz comparator 使用完全相同
-case 集。derived manifest 只新增各自的 `input_track`，并逐 case 绑定
-parent/source/instruction/expectation hash。对应矩阵为
+case 集。tracked spec/matrix 不保存任何机器绝对路径；portable builder 在目标
+机器上验证 parent/audit/evaluator/checkout/venv/dependency hash 后，按
+repo-relative suffix 重映射 source/provenance 路径。materialized manifest
+只新增各自的 `input_track` 和显式 runtime-root remap，并逐 case 绑定
+parent/source/instruction/expectation hash。矩阵模板为
 `experiments/matrices/baseline_matplotagent_single_renderable_v1.yaml` 与
 `baseline_nvagent_single_renderable_v1.yaml`：external 与 PheroViz 均使用
 `gpt-4o-mini`、render budget 1、seeds `0/1/2` 和相同 case/input track。
@@ -137,13 +140,22 @@ parent/source/instruction/expectation hash。对应矩阵为
 完成状态报告；single-only 因而 cohesion `C=NA`。两项外部基线 license 均为
 `not_declared`，三次 seed 是 paired replicate 标识，公开 adapter 不保证向
 上游模型注入 seed。ChartCoder 仍因 checkpoint/license provenance 阻塞，不在
-任何 method 或结果行中。只做无模型展开：
+任何 method 或结果行中。remote workspace 需将 PheroViz、`baseline_repos/`
+与 `.baseline_envs/` 放在同一父目录；执行前还必须提供 gateway 环境变量并保持
+PheroViz worktree clean。只做无模型 materialize + dry-run：
 
 ```bash
+cd /path/to/PheroViz
+python agent/experiments/baseline_specs/build_portable_subtracks.py \
+  --repo-root . --workspace-root .. --require-clean \
+  --out agent/experiments/runs/preflight/external_baseline_subtracks
+cd agent
 python -m experiments run \
-  experiments/matrices/baseline_matplotagent_single_renderable_v1.yaml --dry-run
+  experiments/runs/preflight/external_baseline_subtracks/matplotagent.matrix.yaml \
+  --dry-run
 python -m experiments run \
-  experiments/matrices/baseline_nvagent_single_renderable_v1.yaml --dry-run
+  experiments/runs/preflight/external_baseline_subtracks/nvagent.matrix.yaml \
+  --dry-run
 ```
 
 C1/C3 的首个 production 矩阵位于
