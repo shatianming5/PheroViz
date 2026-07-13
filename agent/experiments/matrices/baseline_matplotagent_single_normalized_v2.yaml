@@ -1,0 +1,69 @@
+experiment_name: baseline-matplotagent-single-normalized-v2-gpt4omini-r1
+dataset_manifest: __MATERIALIZED_BY_BUILDER__
+dataset_manifest_sha256: __MATERIALIZED_BY_BUILDER__
+dataset_mode: sealed_benchmark
+artifact_root: __MATERIALIZED_BY_BUILDER__
+methods:
+- name: matplotagent_native_normalized_v2
+  schedule: best_of_n
+  provider: experiments.external_baselines:MatPlotAgentProvider
+  provider_options:
+    repo_path: __WORKSPACE_ROOT__/baseline_repos/MatPlotAgent
+    python_executable: __WORKSPACE_ROOT__/.baseline_envs/matplotagent/bin/python
+  mode: direct
+  visual_refine: false
+- name: pheroviz_model_spec_normalized_v2
+  schedule: best_of_n
+  provider: experiments.providers:UnifiedBenchmarkProvider
+  provider_options:
+    manifest_data_root: __REPO_ROOT__
+  memory_mode: none
+  initial_generation: model_spec
+  render_timeout_seconds: 120
+backbones:
+- gpt-4o-mini
+seeds:
+- 0
+- 1
+- 2
+budgets:
+- type: renders
+  value: 1
+splits:
+- test
+metric:
+  version: programmatic-v2
+  config:
+    selection:
+      metric: data_fidelity
+      direction: maximize
+compatibility_subtrack:
+  spec: ../baseline_specs/matplotagent-single-test-normalized-v2.json
+  spec_sha256: 3ceee3257c99f6e97938797d440a51c53ae9dc88159b897f3610bbf0c38d1270
+  input_track: table_instruction
+  selected_cases: 16
+  selected_dois: 6
+  paired_methods:
+  - matplotagent_native_normalized_v2
+  - pheroviz_model_spec_normalized_v2
+  reported_metrics:
+  - data_fidelity
+  - execution_success
+  execution_success_definition: 1 iff completed with exact render budget; 0 for failed/not-completed
+    run
+  cohesion: NA
+  multi_panel_cases: 0
+  license_status: not_declared
+  chartcoder_result_row: false
+  normalized_input_equality: same normalized CSV path and SHA-256 in the shared derived
+    manifest
+  v1_artifact_root_untouched: true
+  no_model_call_preflight: materialize then use --dry-run only
+portable_template:
+  builder: ../baseline_specs/build_matplotagent_v2.py
+  artifact_root_name: baseline_matplotagent_single_normalized_v2_gpt4omini_r1
+  runtime_manifest_filename: matplotagent_v2.manifest.json
+  runtime_matrix_filename: matplotagent_v2.matrix.yaml
+  direct_dry_run: false
+  reason: runtime roots, normalized CSV hashes, and materialized manifest SHA-256
+    are bound by builder

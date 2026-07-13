@@ -1,0 +1,173 @@
+{
+  "baseline": "matplotagent",
+  "builder_contract": {
+    "builder_path": "agent/experiments/baseline_specs/build_matplotagent_v2.py",
+    "builder_sha256": "eeacea98c1819932d9d57612a130728f695c8a868a7904451e59aecbdd01573f",
+    "normalization_code_sha256": "38e8f0d0420004d2676df1e487f067bc48a58bcfe435cc7cc520bd9fa1a87046",
+    "runtime_output_manifest": "matplotagent_v2.manifest.json",
+    "runtime_output_matrix": "matplotagent_v2.matrix.yaml",
+    "tracked_absolute_paths_forbidden": true
+  },
+  "chartcoder": {
+    "license_status": "not_declared",
+    "result_row": false,
+    "status": "blocked"
+  },
+  "compatibility_id": "matplotagent-single-test-normalized-v2",
+  "evaluation_protocol": {
+    "backbone": "gpt-4o-mini",
+    "case_pairing": "same materialized normalized manifest, case_id, CSV bytes/hash, input_track, instruction, expectation, backbone, budget, and seed",
+    "cohesion": "NA",
+    "primary_metric": "programmatic data_fidelity",
+    "render_budget": 1,
+    "render_budget_justification": "one complete normalized single-panel render admitted per adapter/PheroViz call",
+    "schedule": "best_of_n",
+    "secondary_metric": "execution_success = 1 iff completed with exact render budget, else 0",
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "visual_refine": false
+  },
+  "external_runtime": {
+    "agent_builder_dependency_modules": [
+      "openpyxl",
+      "jsonschema",
+      "matplotlib",
+      "pandas",
+      "numpy"
+    ],
+    "bound_files": [
+      {
+        "path": "agent/experiments/baseline_audits/matplotagent.json",
+        "sha256": "9528e845e67a26867c57d85f30e8982f715d8c23248765ba68f9e26b8038d4af"
+      },
+      {
+        "path": "agent/experiments/external_baselines.py",
+        "sha256": "ac7d1228fc821ab31d4d07fb30c4e1daa41d6efeff7620d260c4bd8d3f72ae6b"
+      },
+      {
+        "path": "agent/experiments/baseline_evaluation.py",
+        "sha256": "55b9968543a3ee36c7157c51d91ccf275bec8db563d656881eda61eecf353fe7"
+      },
+      {
+        "path": "nature_download/outputs/combined_verified_400/final_benchmark_renderable_v1_seed0/renderability_audit.json",
+        "sha256": "a61c986aa368857e8c12d872f0759adc84c6b26b5644fc396bca1be6f682e5d3"
+      }
+    ],
+    "dependency_modules": [
+      "openai",
+      "tenacity",
+      "matplotlib",
+      "pandas"
+    ],
+    "provider": "experiments.external_baselines:MatPlotAgentProvider",
+    "python": {
+      "relative_path": ".baseline_envs/matplotagent/bin/python",
+      "root": "workspace_root"
+    },
+    "repo": {
+      "commit": "9cafa262aae7bdf85fccf6d02b2153fb772bc376",
+      "relative_path": "baseline_repos/MatPlotAgent",
+      "root": "workspace_root"
+    },
+    "required_runtime_gate": "materialize from clean repository; exact parent/source/builder/runtime hashes; gateway environment only"
+  },
+  "license_status": "not_declared",
+  "normalization": {
+    "canonical_encoding": "UTF-8 without BOM",
+    "canonical_newline": "LF",
+    "code_sha256": "38e8f0d0420004d2676df1e487f067bc48a58bcfe435cc7cc520bd9fa1a87046",
+    "csv_dialect": "excel, minimal quoting",
+    "fail_closed_on": [
+      "missing or symlink source",
+      "source hash mismatch",
+      "missing/ambiguous sheet",
+      "unsupported format or cell type",
+      "uncached formula or error cell",
+      "duplicate/empty headers",
+      "mixed nonnumeric dtypes",
+      "empty columns/table",
+      "row/column limit"
+    ],
+    "max_columns": 64,
+    "max_rows": 100000,
+    "one_output_csv_per_case": true,
+    "policy_id": "matplotagent-table-to-csv-v1",
+    "xlsx_mode": "read_only, data_only cached values, keep_links=false"
+  },
+  "parent_manifest": {
+    "manifest_hash": "9d19b3edc9b18ada9e5f0400069e7bc1febba873af026018a992a128dbfb7222",
+    "path": "nature_download/outputs/combined_verified_400/final_benchmark_renderable_v1_seed0/benchmark_manifest.json",
+    "renderability_audit_hash": "d818334f9f9b25141e0825d7a10b36a68c0ec4717d3c29047b334da4fc9db4d2",
+    "renderability_audit_sha256": "a61c986aa368857e8c12d872f0759adc84c6b26b5644fc396bca1be6f682e5d3",
+    "renderability_policy_hash": "283f0520bf1fda98773958602be6206c1776c573a00273391dbfeb6acd565cec",
+    "sha256": "6c6c5cb50603d899a9be0f41c9e562517c92ae15477610e9111f6504cd1757b3"
+  },
+  "public_interface": {
+    "cohesion_metric": "NA",
+    "input_equating": "MatPlotAgent and PheroViz consume the same normalized_csv_path and normalized_csv_sha256",
+    "input_track": "table_instruction",
+    "interface": "workspace receives exactly one normalized CSV plus simple/expert instruction and model_type",
+    "multi_panel_eligible": false,
+    "single_panel_only": true
+  },
+  "schema_version": "1.0",
+  "selection": {
+    "case_order": "parent_manifest_order",
+    "declared_mutations": [
+      "input_track",
+      "runtime_root_remap",
+      "table_to_csv_normalization"
+    ],
+    "forbidden_inputs": [
+      "run_records",
+      "method_results",
+      "method_scores",
+      "failed_case_ids",
+      "production_artifacts",
+      "review_outcomes"
+    ],
+    "predicate_version": "public-interface-metadata-v2-normalized-csv",
+    "required_case_metadata": {
+      "data_path_suffixes": [
+        ".csv",
+        ".xlsm",
+        ".xlsx"
+      ],
+      "evaluation_expectation": "single-panel object with panel_groups=[]",
+      "nonempty_instruction": "user_goal",
+      "panel_count": 1,
+      "split": "test",
+      "xlsx_sheet": "one explicit non-empty sheet"
+    },
+    "selected_case_ids": [
+      "case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2",
+      "case-s41467-021-25210-5-figure2-panele-40ed0f36fcb1",
+      "case-s41467-021-25210-5-figure2-panelf-61e8e08ae424",
+      "case-s41467-021-25210-5-figure2-panelj-e3cae44c267a",
+      "case-s41467-021-25210-5-figure2-panelk-bc7896822a15",
+      "case-s41467-021-25210-5-figure2-panell-67238825b9a0",
+      "case-s41467-022-30582-3-figure2-paneld-ff845a0a901a",
+      "case-s41467-022-30582-3-figure5-paneld-a54aba949d21",
+      "case-s41467-023-38847-1-figure1-panelg-263d16873f98",
+      "case-s41467-023-38847-1-figure3-panelc-006bf9b00122",
+      "case-s41467-023-38847-1-figure3-paneld-b45f8bba270c",
+      "case-s41467-023-42692-7-figure1-panelb-5ac7fb84108f",
+      "case-s41467-023-42692-7-figure1-panelg-9bbb48c5e7fd",
+      "case-s41467-023-42692-7-figure1-panelh-53463702bfd3",
+      "case-s41467-024-47988-w-figure3-panelh-685adf502ff4",
+      "case-s41467-024-48317-x-figure5-panelh-proteomics-pathways-e101deb98b92"
+    ],
+    "selected_case_set_sha256": "e8726db8bdbb5c9485a5d4685f22cbf9a057bc11b686d71ccbacc54de6c16b74",
+    "selected_count": 16,
+    "selected_parent_cases_sha256": "80ad7b4742223a0b35c5bf8eee2eba47d5f2e58d3cfab9a7892349ff60d56b48",
+    "unique_dois": 6
+  },
+  "spec_type": "external-baseline-normalized-compatibility-derivation",
+  "v1_isolation": {
+    "completed_v1_artifact_root_name": "baseline_matplotagent_single_renderable_v1_gpt4omini_r1",
+    "overwrite_or_merge": false
+  }
+}

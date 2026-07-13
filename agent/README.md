@@ -158,6 +158,30 @@ python -m experiments run \
   --dry-run
 ```
 
+MatPlotAgent v2 是与已完成 v1 完全隔离的新子轨。它由
+`experiments/baseline_specs/matplotagent-single-test-normalized-v2.json`
+预声明，并使用 `build_matplotagent_v2.py` 将全部 16 个兼容 test singles 的
+CSV 或指定 XLSX sheet fail-closed 地规范化为一 case 一份 canonical UTF-8
+CSV。MatPlotAgent 与 PheroViz 共享 materialized manifest 中完全相同的 CSV
+路径和 SHA-256；derivation 同时绑定 parent source hash/sheet、normalizer
+代码/hash、normalized CSV hash、instruction 和 expectation，并保留 parent
+renderability policy/audit seal。该子轨覆盖 6 个 DOI、3 个 paired seeds、
+render budget 1、`gpt-4o-mini`，且仍为 P=1、`C=NA`、license
+`not_declared`。v2 使用新的
+`baseline_matplotagent_single_normalized_v2_gpt4omini_r1` root，绝不覆盖或
+合并 v1。仅做无模型 materialize + dry-run：
+
+```bash
+cd /path/to/PheroViz
+python agent/experiments/baseline_specs/build_matplotagent_v2.py \
+  --repo-root . --workspace-root .. --require-clean \
+  --out agent/experiments/runs/preflight/matplotagent_v2
+cd agent
+python -m experiments run \
+  experiments/runs/preflight/matplotagent_v2/matplotagent_v2.matrix.yaml \
+  --dry-run
+```
+
 C1/C3 的首个 production 矩阵位于
 `experiments/matrices/c1_c3_final_benchmark_v2_seed0.yaml`。它只选择
 `final_benchmark_renderable_v1_seed0` 的 test split，固定 `B_R=6`、backbone
