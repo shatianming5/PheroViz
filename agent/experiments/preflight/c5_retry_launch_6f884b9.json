@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "status": "SIX_BOUNDED_BATCHES_RUNNING",
+  "code_commit": "6f884b91bab08a7c35b4dbe5b1235db868e296c5",
+  "code_dirty": false,
+  "validation_attempts_per_render": 3,
+  "retry_policy": {
+    "retry_only_without_valid_score": true,
+    "retryable": [
+      "invalid response schema",
+      "empty diagnostics",
+      "empty or truncated max_tokens response"
+    ],
+    "non_retryable": [
+      "served identity mismatch",
+      "authentication or provider outage",
+      "provenance mismatch",
+      "input mutation",
+      "any valid score"
+    ],
+    "select_among_valid_scores": false
+  },
+  "processes": {
+    "frontier.primary": 3286168,
+    "frontier.secondary": 3286170,
+    "mid.primary": 3286172,
+    "mid.secondary": 3286174,
+    "open.primary": 3286176,
+    "open.secondary": 3286178
+  },
+  "expected": {
+    "selected_renders": 513,
+    "judge_batches": 6,
+    "minimum_calls": 1026,
+    "maximum_calls": 3078
+  },
+  "previous_batches": "ABORTED_NEVER_MERGE"
+}
