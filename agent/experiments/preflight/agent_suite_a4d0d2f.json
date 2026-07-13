@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "status": "PASSED",
+  "code_commit": "a4d0d2fd8ec8d0e7082bdef0efa6a4d74b42f099",
+  "code_dirty": false,
+  "validation": {
+    "full_suite_passed": 318,
+    "fixture_rerun_passed": 1,
+    "total_tests_passed": 319,
+    "failed": 0
+  },
+  "fixture_note": {
+    "initial_failure": "The detached clean worktree did not contain the ignored superseded-parent benchmark manifest used only by one rejection test.",
+    "resolution": "Hard-linked the exact existing fixture bytes into the detached worktree and reran the rejection test.",
+    "code_change_required": false
+  },
+  "scope": [
+    "runtime",
+    "experiment harness",
+    "programmatic evaluation",
+    "C3 protocol and timing",
+    "C5 dual-judge provenance",
+    "external baseline adapters and portable specs"
+  ]
+}
