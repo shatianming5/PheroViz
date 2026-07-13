@@ -643,7 +643,7 @@ def test_ordinal_panel_trend_and_holm_use_doi_clusters() -> None:
             result["comparison_families"]["panel_trend"]["adjustment"]
             == "holm"
         )
-        assert analysis["analysis_version"] == "3.2"
+        assert analysis["analysis_version"] == "3.3"
         assert analysis["right_censored_rmst"]["status"] == "not_implemented"
         assert "censoring" in analysis["right_censored_rmst"]["reason"]
 

@@ -21,9 +21,21 @@ from experiments.models import (
 )
 from experiments.production_statistics import (
     StatisticsError,
+    ValidatedSummary,
     analyze_summary,
+    load_render_only_trajectory_bundle,
     load_provenance_summary,
     normalize_trajectory_threshold_config,
+)
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
+RENDER_THRESHOLD = (
+    REPO_ROOT
+    / "agent/experiments/thresholds/c3_joint_quality_threshold_v1.json"
+)
+RENDER_STATUS = (
+    REPO_ROOT
+    / "agent/experiments/thresholds/c3_joint_threshold_status_v1.json"
 )
 
 
@@ -421,6 +433,85 @@ def _analysis(
         bootstrap_resamples=20,
         monte_carlo_permutations=20,
     )
+
+
+def _render_only_analysis(
+    summary_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> dict[str, Any]:
+    monkeypatch.setattr(
+        statistics,
+        "_git_provenance",
+        lambda: ("9" * 40, False),
+    )
+    monkeypatch.setattr(
+        statistics,
+        "utc_now",
+        lambda: "2026-01-01T00:00:00Z",
+    )
+    threshold, provenance = load_render_only_trajectory_bundle(
+        RENDER_THRESHOLD,
+        RENDER_STATUS,
+    )
+    return analyze_summary(
+        load_provenance_summary(summary_path),
+        reference="memory_none",
+        methods=[
+            "memory_constraints",
+            "memory_patches",
+            "memory_full",
+        ],
+        metric="metric.data_fidelity",
+        panel_scope="multi_panel",
+        trajectory_threshold=threshold,
+        trajectory_threshold_provenance=provenance,
+        bootstrap_resamples=20,
+        monte_carlo_permutations=20,
+    )
+
+
+def _render_only_records(
+    run_root: Path,
+) -> list[tuple[RunRecord, str]]:
+    records = []
+    quality = {
+        "memory_none": (
+            (0.4, 0.8, 1.0),
+            (0.4, 0.8, 1.0),
+        ),
+        "memory_constraints": (
+            (0.5, 1.0, 1.0),
+            (0.5, 1.0, 1.0),
+        ),
+        "memory_patches": (
+            (1.0, 1.0, 1.0),
+            (1.0, 1.0, 1.0),
+        ),
+        "memory_full": (
+            (1.0, 1.0, 1.0),
+            (1.0, 1.0, 1.0),
+        ),
+    }
+    for method, (fidelity, cohesion) in quality.items():
+        for case_id, doi in (
+            ("case-a", "10.1234/a"),
+            ("case-b", "10.1234/b"),
+        ):
+            for seed in (0, 1):
+                records.append(
+                    (
+                        _write_completed_record(
+                            run_root,
+                            method=method,
+                            case_id=case_id,
+                            seed=seed,
+                            fidelity=fidelity,
+                            cohesion=cohesion,
+                        ),
+                        doi,
+                    )
+                )
+    return records
 
 
 def test_observed_censored_and_seed_task_doi_aggregation(
@@ -1055,3 +1146,326 @@ def test_cli_requires_an_explicit_threshold_file(
         assert reloaded["right_censored_rmst"] == persisted[
             "right_censored_rmst"
         ]
+
+
+def test_render_only_config_schema_and_blocked_wall_clock() -> None:
+    schema = json.loads(
+        (
+            Path(__file__).resolve().parents[1]
+            / "schemas/c3_trajectory_threshold.schema.json"
+        ).read_text(encoding="utf-8")
+    )
+    threshold, provenance = load_render_only_trajectory_bundle(
+        RENDER_THRESHOLD,
+        RENDER_STATUS,
+    )
+
+    validate(instance=threshold, schema=schema)
+    assert threshold["restriction"] == {"renders": 6}
+    assert provenance["threshold_config_file_sha256"] == sha256_file(
+        RENDER_THRESHOLD
+    )
+    with pytest.raises(StatisticsError, match="frozen F=1"):
+        normalize_trajectory_threshold_config(
+            {
+                **threshold,
+                "fidelity": {
+                    "metric": "data_fidelity",
+                    "threshold": 0.9,
+                },
+            }
+        )
+
+
+def test_render_only_attainment_contrasts_and_holm(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _workspace("render-only-inference") as workspace:
+        run_root = workspace / "runs"
+        run_root.mkdir()
+        analysis = _render_only_analysis(
+            _write_summary(workspace, _render_only_records(run_root)),
+            monkeypatch,
+        )
+
+        trajectory = analysis["right_censored_rmst"]
+        assert trajectory["status"] == "ok_render_only"
+        assert trajectory["wall_clock_analysis"] == {
+            "status": "NA_BLOCKED",
+            "reason_code": (
+                "missing_prospective_wall_clock_restriction"
+            ),
+            "restriction_wall_clock_seconds": None,
+            "attainment_rate": None,
+            "restricted_mean_seconds_to_threshold": None,
+            "contrasts": None,
+            "claim_permitted": False,
+        }
+        result = trajectory["slices"][0]
+        none = next(
+            item for item in result["methods"]
+            if item["method"] == "memory_none"
+        )
+        constraints = next(
+            item for item in result["methods"]
+            if item["method"] == "memory_constraints"
+        )
+        assert none["render_attainment_rate"] == 1.0
+        assert none["restricted_mean_renders_to_threshold"] == 6.0
+        assert constraints["restricted_mean_renders_to_threshold"] == 4.0
+        assert none["attainment_rate"] is None
+        assert none["wall_clock_status"] == "NA_BLOCKED"
+        contrasts = result["render_contrasts"]
+        assert [item["method"] for item in contrasts] == [
+            "memory_constraints",
+            "memory_patches",
+            "memory_full",
+        ]
+        constraints_contrast = contrasts[0]["endpoints"]
+        assert set(
+            constraints_contrast[
+                "restricted_mean_renders_to_threshold"
+            ]["doi_gaps"].values()
+        ) == {-2.0}
+        assert (
+            constraints_contrast[
+                "restricted_mean_renders_to_threshold"
+            ]["bootstrap"]["mean_gap"]
+            == -2.0
+        )
+        assert (
+            constraints_contrast["render_attainment_rate"]["bootstrap"][
+                "mean_gap"
+            ]
+            == 0.0
+        )
+        family = result["render_holm_family"]
+        assert family["name"] == "c3_render_confirmatory"
+        assert len(family["members"]) == 6
+        assert set(family["members"]) == {
+            f"{method}:{endpoint}"
+            for method in (
+                "memory_constraints",
+                "memory_patches",
+                "memory_full",
+            )
+            for endpoint in (
+                "render_attainment_rate",
+                "restricted_mean_renders_to_threshold",
+            )
+        }
+        observations = result["run_observations"]
+        assert all(
+            item["wall_clock_status"] == "NA_BLOCKED"
+            and item["time_event_observed"] is None
+            and item["joint_attainment"] is None
+            and item[
+                "restricted_wall_clock_seconds_to_threshold"
+            ]
+            is None
+            for item in observations
+        )
+        assert all(
+            "cumulative_wall_clock_seconds" not in point
+            for item in observations
+            for point in item["trajectory_points"]
+        )
+
+
+@pytest.mark.parametrize("target", ["threshold", "status"])
+def test_render_only_threshold_bundle_tampering_fails_closed(
+    target: str,
+) -> None:
+    with _workspace(f"render-bundle-{target}") as workspace:
+        threshold = workspace / RENDER_THRESHOLD.name
+        status = workspace / RENDER_STATUS.name
+        threshold.write_bytes(RENDER_THRESHOLD.read_bytes())
+        status.write_bytes(RENDER_STATUS.read_bytes())
+        path = threshold if target == "threshold" else status
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if target == "threshold":
+            payload["fidelity"]["threshold"] = 0.9
+        else:
+            payload["render_analysis_ready"] = False
+            unhashed = dict(payload)
+            unhashed.pop("status_hash")
+            payload["status_hash"] = sha256_json(unhashed)
+        path.write_text(
+            json.dumps(payload, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+
+        with pytest.raises(StatisticsError):
+            load_render_only_trajectory_bundle(threshold, status)
+
+
+def test_render_only_pairing_and_preregistered_methods_fail_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _workspace("render-only-pairing") as workspace:
+        run_root = workspace / "runs"
+        run_root.mkdir()
+        records = _render_only_records(run_root)
+        incomplete = [
+            item
+            for item in records
+            if not (
+                item[0].method == "memory_patches"
+                and item[0].case_id == "case-b"
+                and item[0].seed == 1
+            )
+        ]
+
+        with pytest.raises(StatisticsError, match="Paired case mismatch"):
+            _render_only_analysis(
+                _write_summary(workspace, incomplete),
+                monkeypatch,
+            )
+
+
+def test_render_only_method_failure_is_censored_at_six(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _workspace("render-only-method-failure") as workspace:
+        run_root = workspace / "runs"
+        run_root.mkdir()
+        records = _render_only_records(run_root)
+        failed_run_name = _run_name("memory_full", "case-a", 0)
+        records = [
+            item
+            for item in records
+            if not (
+                item[0].method == "memory_full"
+                and item[0].case_id == "case-a"
+                and item[0].seed == 0
+            )
+        ]
+        shutil.rmtree(run_root / failed_run_name)
+        records.append(
+            (
+                _write_failed_record(
+                    run_root,
+                    method="memory_full",
+                    case_id="case-a",
+                    seed=0,
+                ),
+                "10.1234/a",
+            )
+        )
+        analysis = _render_only_analysis(
+            _write_summary(workspace, records),
+            monkeypatch,
+        )
+        observation = next(
+            item
+            for item in analysis["right_censored_rmst"]["slices"][0][
+                "run_observations"
+            ]
+            if item["method"] == "memory_full"
+            and item["case_id"] == "case-a"
+            and item["seed"] == 0
+        )
+        assert observation["status"] == "method_failure_censored"
+        assert observation["restricted_renders_to_threshold"] == 6.0
+        assert not observation["render_event_observed"]
+
+
+def test_render_only_single_panel_is_inapplicable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    threshold, provenance = load_render_only_trajectory_bundle(
+        RENDER_THRESHOLD,
+        RENDER_STATUS,
+    )
+    monkeypatch.setattr(
+        statistics,
+        "_git_provenance",
+        lambda: ("9" * 40, False),
+    )
+    with _workspace("render-only-single-panel") as workspace:
+        manifest = workspace / "summary.json"
+        manifest.write_text("{}", encoding="utf-8")
+        summary = ValidatedSummary(
+            path=manifest,
+            summary_hash="0" * 64,
+            source_root=workspace,
+            rows=(),
+            payload={},
+        )
+        with pytest.raises(StatisticsError, match="panel_scope='multi_panel'"):
+            analyze_summary(
+                summary,
+                reference="memory_none",
+                methods=list(statistics._C3_RENDER_CONTRASTS),
+                metric="metric.data_fidelity",
+                panel_scope="single_panel",
+                trajectory_threshold=threshold,
+                trajectory_threshold_provenance=provenance,
+            )
+
+
+def test_render_only_cli_round_trip(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with _workspace("render-only-cli") as workspace:
+        run_root = workspace / "runs"
+        run_root.mkdir()
+        summary = _write_summary(
+            workspace,
+            _render_only_records(run_root),
+        )
+        output = workspace / "analysis"
+        monkeypatch.setattr(
+            statistics,
+            "_git_provenance",
+            lambda: ("9" * 40, False),
+        )
+        monkeypatch.setattr(
+            statistics,
+            "utc_now",
+            lambda: "2026-01-01T00:00:00Z",
+        )
+
+        exit_code = main(
+            [
+                "analyze",
+                str(summary),
+                "--reference",
+                "memory_none",
+                "--methods",
+                "memory_constraints",
+                "memory_patches",
+                "memory_full",
+                "--metric",
+                "metric.data_fidelity",
+                "--panel-scope",
+                "multi_panel",
+                "--trajectory-threshold-config",
+                str(RENDER_THRESHOLD),
+                "--trajectory-threshold-status",
+                str(RENDER_STATUS),
+                "--bootstrap-resamples",
+                "20",
+                "--permutations",
+                "20",
+                "--out",
+                str(output),
+            ]
+        )
+
+        assert exit_code == 0
+        result = json.loads(capsys.readouterr().out)
+        persisted = json.loads(
+            Path(result["analysis_json"]).read_text(encoding="utf-8")
+        )
+        assert persisted["analysis_version"] == "3.3"
+        assert (
+            persisted["right_censored_rmst"]["wall_clock_analysis"][
+                "status"
+            ]
+            == "NA_BLOCKED"
+        )
+        statistics._load_analysis_artifact(
+            Path(result["analysis_json"])
+        )

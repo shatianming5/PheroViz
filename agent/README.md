@@ -220,8 +220,10 @@ tracked 文件不含绝对路径。正式运行前，必须在 clean relocated c
 `experiments.c3_runtime_materializer` 生成 Git-ignored runtime matrix、spec
 hash manifest 和 summary。materializer 会重映射 `manifest_data_root`、绑定
 runtime commit/代码/manifest hashes，并拒绝未被 ignore policy 覆盖的 artifact
-root。F=1、C=1、renders=6 仅为 outcome-independent prospective quality
-threshold；wall-clock tau 仍为 BLOCKED，因此不存在可运行的 RMST config。
+root。F=1、C=1、renders=6 是 outcome-independent prospective threshold，
+可用于 confirmatory render-horizon attainment 与 restricted mean
+renders-to-threshold。wall-clock tau 仍为 `NA_BLOCKED`；不得计算 wall-clock
+attainment/RMST，也不得据此声称 latency 或 speed。
 
 ### C4 backbone tiers
 

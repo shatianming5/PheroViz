@@ -24,7 +24,6 @@ from experiments.c3_matrix_builder import (
 )
 from experiments.matrix import load_and_expand_matrix
 from experiments.production_statistics import (
-    StatisticsError,
     load_trajectory_threshold_config,
 )
 from experiments.c3_runtime_materializer import (
@@ -608,7 +607,7 @@ def test_manifest_tampering_and_selection_requirements_fail_closed() -> None:
         )
 
 
-def test_blocked_threshold_evidence_is_prospective_and_hash_bound() -> None:
+def test_render_threshold_evidence_is_prospective_and_hash_bound() -> None:
     quality_path = (
         REPO_ROOT
         / "agent/experiments/thresholds/c3_joint_quality_threshold_v1.json"
@@ -635,8 +634,10 @@ def test_blocked_threshold_evidence_is_prospective_and_hash_bound() -> None:
     assert quality["fidelity"]["threshold"] == 1.0
     assert quality["cohesion"]["threshold"] == 1.0
     assert quality["restriction"] == {"renders": 6}
-    assert status["status"] == "BLOCKED_PENDING_WALL_CLOCK_RESTRICTION"
-    assert status["analysis_ready"] is False
+    assert status["status"] == "RENDER_ONLY_READY_WALL_CLOCK_BLOCKED"
+    assert status["analysis_ready"] is True
+    assert status["render_analysis_ready"] is True
+    assert status["wall_clock_analysis_ready"] is False
     assert status["wall_clock_seconds"] is None
     assert status["missing_analysis_field"] == "restriction.wall_clock_seconds"
     assert report["production_or_partial_outcomes_read"] is False
@@ -646,11 +647,9 @@ def test_blocked_threshold_evidence_is_prospective_and_hash_bound() -> None:
     )
     assert report["execution_policy"] == {
         "matrix_can_run": True,
+        "render_only_analysis_can_run": True,
+        "wall_clock_analysis_can_run": False,
         "rmst_analysis_can_run": False,
         "required_unblock": status["required_unblock"],
     }
-    with pytest.raises(
-        StatisticsError,
-        match="restriction must contain renders and wall_clock_seconds",
-    ):
-        load_trajectory_threshold_config(quality_path)
+    assert load_trajectory_threshold_config(quality_path) == quality

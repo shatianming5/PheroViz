@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://pheroviz.local/schemas/c3-trajectory-threshold-1.0.json",
-  "title": "PheroViz C3 trajectory threshold configuration",
+  "$id": "https://pheroviz.local/schemas/c3-trajectory-threshold-1.1.json",
+  "title": "PheroViz C3 render or joint trajectory threshold configuration",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -24,8 +24,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "renders",
-        "wall_clock_seconds"
+        "renders"
       ],
       "properties": {
         "renders": {

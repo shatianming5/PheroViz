@@ -22,6 +22,7 @@ from .models import (
     ProvenanceError,
     RunRecord,
     canonical_json,
+    sha256_file,
     sha256_json,
     utc_now,
     verify_artifacts,
@@ -35,8 +36,8 @@ _PANEL_STRATUM_SCORES = {
     stratum: float(index)
     for index, stratum in enumerate(_PANEL_STRATA, 1)
 }
-_ANALYSIS_VERSION = "3.2"
-_SUPPORTED_ANALYSIS_VERSIONS = {"3.1", "3.2"}
+_ANALYSIS_VERSION = "3.3"
+_SUPPORTED_ANALYSIS_VERSIONS = {"3.1", "3.2", "3.3"}
 _HOLM_FAMILY_VERSION = "1.0"
 _PANEL_SCOPES = {"all", "single_panel", "multi_panel"}
 _C5_POINT_THRESHOLD = 0.5
@@ -45,6 +46,15 @@ _C5_METRICS = {
     "metric.visual_form.claude-sonnet-4.6": "visual-form-primary-v1",
     "metric.visual_form.gemini-3.5-flash": "visual-form-secondary-v1",
 }
+_C3_RENDER_REFERENCE = "memory_none"
+_C3_RENDER_CONTRASTS = (
+    "memory_constraints",
+    "memory_patches",
+    "memory_full",
+)
+_C3_WALL_CLOCK_BLOCK_REASON = (
+    "missing_prospective_wall_clock_restriction"
+)
 
 
 class StatisticsError(ProvenanceError):
@@ -1159,31 +1169,41 @@ def normalize_trajectory_threshold_config(
         }
 
     restriction = raw.get("restriction")
-    if not isinstance(restriction, Mapping) or set(restriction) != {
-        "renders",
-        "wall_clock_seconds",
-    }:
+    restriction_keys = set(restriction) if isinstance(restriction, Mapping) else set()
+    if restriction_keys not in (
+        {"renders"},
+        {"renders", "wall_clock_seconds"},
+    ):
         raise StatisticsError(
-            "trajectory restriction must contain renders and wall_clock_seconds"
+            "trajectory restriction must contain renders and may contain "
+            "wall_clock_seconds"
         )
     renders = restriction.get("renders")
     if isinstance(renders, bool) or not isinstance(renders, int) or renders < 1:
         raise StatisticsError("trajectory restriction.renders must be positive")
-    wall_clock_seconds = _finite_number(
-        restriction.get("wall_clock_seconds"),
-        "trajectory.restriction.wall_clock_seconds",
-    )
-    if wall_clock_seconds <= 0:
+    normalized_restriction: Dict[str, Any] = {"renders": renders}
+    if "wall_clock_seconds" in restriction:
+        wall_clock_seconds = _finite_number(
+            restriction.get("wall_clock_seconds"),
+            "trajectory.restriction.wall_clock_seconds",
+        )
+        if wall_clock_seconds <= 0:
+            raise StatisticsError(
+                "trajectory restriction.wall_clock_seconds must be positive"
+            )
+        normalized_restriction["wall_clock_seconds"] = wall_clock_seconds
+    elif (
+        metrics["fidelity"]["threshold"] != 1.0
+        or metrics["cohesion"]["threshold"] != 1.0
+        or renders != 6
+    ):
         raise StatisticsError(
-            "trajectory restriction.wall_clock_seconds must be positive"
+            "render-only C3 analysis requires frozen F=1, C=1, and renders=6"
         )
     return {
         "schema_version": "1.0",
         **metrics,
-        "restriction": {
-            "renders": renders,
-            "wall_clock_seconds": wall_clock_seconds,
-        },
+        "restriction": normalized_restriction,
     }
 
 
@@ -1203,6 +1223,99 @@ def load_trajectory_threshold_config(path: Path) -> Dict[str, Any]:
             f"Invalid trajectory threshold config: {exc}"
         ) from exc
     return normalize_trajectory_threshold_config(raw)
+
+
+def _normalize_trajectory_threshold_status(
+    raw: Mapping[str, Any],
+    *,
+    quality_threshold_name: str,
+    quality_threshold_file_sha256: str,
+) -> Dict[str, Any]:
+    if not isinstance(raw, Mapping):
+        raise StatisticsError("trajectory threshold status must be an object")
+    expected_keys = {
+        "analysis_ready",
+        "matrix_can_run",
+        "missing_analysis_field",
+        "quality_threshold",
+        "quality_threshold_file_sha256",
+        "render_analysis_ready",
+        "render_restricted_mean_analysis_can_run",
+        "required_unblock",
+        "rmst_analysis_can_run",
+        "status",
+        "status_hash",
+        "status_version",
+        "wall_clock_analysis_ready",
+        "wall_clock_rmst_analysis_can_run",
+        "wall_clock_seconds",
+    }
+    if set(raw) != expected_keys:
+        raise StatisticsError(
+            "trajectory threshold status fields changed"
+        )
+    unhashed = dict(raw)
+    status_hash = unhashed.pop("status_hash", None)
+    if (
+        not isinstance(status_hash, str)
+        or not _SHA256_RE.fullmatch(status_hash)
+        or sha256_json(unhashed) != status_hash
+    ):
+        raise StatisticsError("trajectory threshold status hash is invalid")
+    if (
+        raw.get("status_version") != "1.1"
+        or raw.get("status") != "RENDER_ONLY_READY_WALL_CLOCK_BLOCKED"
+        or raw.get("analysis_ready") is not True
+        or raw.get("render_analysis_ready") is not True
+        or raw.get("render_restricted_mean_analysis_can_run") is not True
+        or raw.get("wall_clock_analysis_ready") is not False
+        or raw.get("wall_clock_rmst_analysis_can_run") is not False
+        or raw.get("rmst_analysis_can_run") is not False
+        or raw.get("matrix_can_run") is not True
+        or raw.get("wall_clock_seconds") is not None
+        or raw.get("missing_analysis_field")
+        != "restriction.wall_clock_seconds"
+        or raw.get("quality_threshold_file_sha256")
+        != quality_threshold_file_sha256
+        or raw.get("quality_threshold") != quality_threshold_name
+        or not isinstance(raw.get("required_unblock"), str)
+        or not str(raw.get("required_unblock")).strip()
+    ):
+        raise StatisticsError(
+            "trajectory threshold status does not authorize render-only analysis"
+        )
+    return dict(raw)
+
+
+def load_render_only_trajectory_bundle(
+    threshold_path: Path,
+    status_path: Path,
+) -> tuple[Dict[str, Any], Dict[str, Any]]:
+    threshold_resolved = threshold_path.expanduser().resolve(strict=True)
+    status_resolved = status_path.expanduser().resolve(strict=True)
+    threshold = load_trajectory_threshold_config(threshold_resolved)
+    if "wall_clock_seconds" in threshold["restriction"]:
+        raise StatisticsError(
+            "render-only threshold bundle cannot contain wall_clock_seconds"
+        )
+    status = _trajectory_json(
+        status_resolved,
+        "trajectory threshold status",
+    )
+    threshold_file_sha256 = sha256_file(threshold_resolved)
+    normalized_status = _normalize_trajectory_threshold_status(
+        status,
+        quality_threshold_name=threshold_resolved.name,
+        quality_threshold_file_sha256=threshold_file_sha256,
+    )
+    provenance = {
+        "threshold_config_path": str(threshold_resolved),
+        "threshold_config_file_sha256": threshold_file_sha256,
+        "threshold_status_path": str(status_resolved),
+        "threshold_status_file_sha256": sha256_file(status_resolved),
+        "threshold_status_hash": normalized_status["status_hash"],
+    }
+    return threshold, provenance
 
 
 def _trajectory_json(path: Path, label: str) -> Dict[str, Any]:
@@ -1505,9 +1618,13 @@ def _trajectory_observation(
 ) -> Dict[str, Any]:
     record, run_dir = _trajectory_record(summary, row)
     render_horizon = int(threshold["restriction"]["renders"])
-    time_horizon = float(
-        threshold["restriction"]["wall_clock_seconds"]
+    raw_time_horizon = threshold["restriction"].get(
+        "wall_clock_seconds"
     )
+    time_horizon = (
+        float(raw_time_horizon) if raw_time_horizon is not None else None
+    )
+    render_only = time_horizon is None
     if record.budget_type != "renders":
         raise StatisticsError(
             f"C3 trajectory requires a render budget: {record.run_name}"
@@ -1643,15 +1760,15 @@ def _trajectory_observation(
             run_dir,
             candidate,
         )
-        points.append(
-            {
-                "candidate_id": expected_id,
-                "cumulative_render_count": global_render,
-                "cumulative_wall_clock_seconds": global_time,
-                "data_fidelity": fidelity,
-                "series_cohesion": cohesion,
-            }
-        )
+        point = {
+            "candidate_id": expected_id,
+            "cumulative_render_count": global_render,
+            "data_fidelity": fidelity,
+            "series_cohesion": cohesion,
+        }
+        if not render_only:
+            point["cumulative_wall_clock_seconds"] = global_time
+        points.append(point)
         if (
             crossing is None
             and fidelity >= fidelity_threshold
@@ -1674,16 +1791,18 @@ def _trajectory_observation(
         crossing_render is not None and crossing_render <= render_horizon
     )
     time_observed = (
-        crossing_time is not None and crossing_time <= time_horizon
+        crossing_time is not None
+        and time_horizon is not None
+        and crossing_time <= time_horizon
     )
-    joint = render_observed and time_observed
+    joint = render_observed and time_observed if not render_only else None
     if method_failed and crossing is None:
         trajectory_status = "method_failure_censored"
         censor_reason = "explicit_method_failure_before_threshold"
-    elif method_failed and joint:
+    elif method_failed and (render_observed if render_only else joint):
         trajectory_status = "observed_before_method_failure"
         censor_reason = None
-    elif joint:
+    elif (render_observed if render_only else joint):
         trajectory_status = "observed"
         censor_reason = None
     else:
@@ -1693,7 +1812,7 @@ def _trajectory_observation(
             if crossing is None
             else "wall_clock_restriction_exceeded"
         )
-    return {
+    result = {
         "run_name": record.run_name,
         "method": record.method,
         "case_id": record.case_id,
@@ -1703,39 +1822,50 @@ def _trajectory_observation(
         "status": trajectory_status,
         "threshold_crossing_candidate": crossing_id,
         "threshold_crossing_render": crossing_render,
-        "threshold_crossing_wall_clock_seconds": crossing_time,
         "render_event_observed": render_observed,
-        "time_event_observed": time_observed,
-        "joint_attainment": joint,
         "restricted_renders_to_threshold": float(
             crossing_render if render_observed else render_horizon
-        ),
-        "restricted_wall_clock_seconds_to_threshold": float(
-            crossing_time if time_observed else time_horizon
         ),
         "censor_reason": censor_reason,
         "record_hash": record.record_hash,
         "trajectory_points": points,
     }
+    if render_only:
+        result.update(
+            {
+                "wall_clock_status": "NA_BLOCKED",
+                "wall_clock_reason": _C3_WALL_CLOCK_BLOCK_REASON,
+                "quality_attained_within_render_horizon": render_observed,
+                "threshold_crossing_wall_clock_seconds": None,
+                "time_event_observed": None,
+                "joint_attainment": None,
+                "restricted_wall_clock_seconds_to_threshold": None,
+                "timing_artifact_status": "verified_not_analyzed",
+            }
+        )
+    else:
+        result.update(
+            {
+                "threshold_crossing_wall_clock_seconds": crossing_time,
+                "time_event_observed": time_observed,
+                "joint_attainment": joint,
+                "restricted_wall_clock_seconds_to_threshold": float(
+                    crossing_time if time_observed else time_horizon
+                ),
+            }
+        )
+    return result
 
 
 def _trajectory_means(
     observations: Sequence[Mapping[str, Any]],
-) -> Dict[str, float]:
+) -> Dict[str, Any]:
     if not observations:
         raise StatisticsError("Cannot aggregate an empty trajectory group")
     n = len(observations)
-    return {
-        "attainment_rate": sum(
-            bool(item["joint_attainment"]) for item in observations
-        )
-        / n,
+    result: Dict[str, Any] = {
         "render_attainment_rate": sum(
             bool(item["render_event_observed"]) for item in observations
-        )
-        / n,
-        "time_attainment_rate": sum(
-            bool(item["time_event_observed"]) for item in observations
         )
         / n,
         "restricted_mean_renders_to_threshold": sum(
@@ -1743,30 +1873,264 @@ def _trajectory_means(
             for item in observations
         )
         / n,
-        "restricted_mean_wall_clock_seconds_to_threshold": sum(
-            float(item["restricted_wall_clock_seconds_to_threshold"])
-            for item in observations
-        )
-        / n,
     }
+    render_only = all(
+        item.get("wall_clock_status") == "NA_BLOCKED"
+        for item in observations
+    )
+    if render_only:
+        result.update(
+            {
+                "attainment_rate": None,
+                "time_attainment_rate": None,
+                "restricted_mean_wall_clock_seconds_to_threshold": None,
+                "wall_clock_status": "NA_BLOCKED",
+            }
+        )
+    else:
+        result.update(
+            {
+                "attainment_rate": sum(
+                    bool(item["joint_attainment"]) for item in observations
+                )
+                / n,
+                "time_attainment_rate": sum(
+                    bool(item["time_event_observed"]) for item in observations
+                )
+                / n,
+                "restricted_mean_wall_clock_seconds_to_threshold": sum(
+                    float(
+                        item[
+                            "restricted_wall_clock_seconds_to_threshold"
+                        ]
+                    )
+                    for item in observations
+                )
+                / n,
+            }
+        )
+    return result
 
 
 def _trajectory_summary_means(
     summaries: Sequence[Mapping[str, Any]],
-) -> Dict[str, float]:
+) -> Dict[str, Any]:
     if not summaries:
         raise StatisticsError("Cannot aggregate empty trajectory summaries")
-    fields = (
-        "attainment_rate",
+    render_fields = (
         "render_attainment_rate",
-        "time_attainment_rate",
         "restricted_mean_renders_to_threshold",
-        "restricted_mean_wall_clock_seconds_to_threshold",
     )
-    return {
+    result: Dict[str, Any] = {
         field: sum(float(item[field]) for item in summaries) / len(summaries)
-        for field in fields
+        for field in render_fields
     }
+    render_only = all(
+        item.get("wall_clock_status") == "NA_BLOCKED" for item in summaries
+    )
+    if render_only:
+        result.update(
+            {
+                "attainment_rate": None,
+                "time_attainment_rate": None,
+                "restricted_mean_wall_clock_seconds_to_threshold": None,
+                "wall_clock_status": "NA_BLOCKED",
+            }
+        )
+    else:
+        for field in (
+            "attainment_rate",
+            "time_attainment_rate",
+            "restricted_mean_wall_clock_seconds_to_threshold",
+        ):
+            result[field] = sum(
+                float(item[field]) for item in summaries
+            ) / len(summaries)
+    return result
+
+
+def _c3_inference_seed(
+    base_seed: int,
+    slice_key: Sequence[Any],
+    method: str,
+    endpoint: str,
+) -> int:
+    binding = {
+        "base_seed": base_seed,
+        "slice": list(slice_key),
+        "method": method,
+        "endpoint": endpoint,
+    }
+    return int(sha256_json(binding)[:16], 16)
+
+
+def _c3_render_contrasts(
+    method_results: Sequence[Mapping[str, Any]],
+    *,
+    slice_key: Sequence[Any],
+    seed: int,
+    bootstrap_resamples: int,
+    monte_carlo_permutations: int,
+    exact_max_n: int,
+) -> tuple[list[Dict[str, Any]], Dict[str, Any]]:
+    by_method = {
+        str(item["method"]): item
+        for item in method_results
+    }
+    required = {_C3_RENDER_REFERENCE, *_C3_RENDER_CONTRASTS}
+    if not required.issubset(by_method):
+        raise StatisticsError(
+            "Render-only C3 inference requires preregistered methods "
+            f"{sorted(required)}"
+        )
+    endpoint_contracts = (
+        (
+            "render_attainment_rate",
+            "positive",
+            "higher",
+        ),
+        (
+            "restricted_mean_renders_to_threshold",
+            "negative",
+            "lower",
+        ),
+    )
+    reference_dois = {
+        str(item["doi"]): item
+        for item in by_method[_C3_RENDER_REFERENCE]["doi_clusters"]
+    }
+    contrasts: list[Dict[str, Any]] = []
+    raw_p_values: Dict[str, float] = {}
+    for method in _C3_RENDER_CONTRASTS:
+        comparison_dois = {
+            str(item["doi"]): item
+            for item in by_method[method]["doi_clusters"]
+        }
+        if set(comparison_dois) != set(reference_dois):
+            raise StatisticsError(
+                f"C3 DOI pairing changed for {method}"
+            )
+        endpoints: Dict[str, Any] = {}
+        for endpoint, favorable_sign, favorable_direction in endpoint_contracts:
+            doi_gaps = {
+                doi: float(comparison_dois[doi][endpoint])
+                - float(reference_dois[doi][endpoint])
+                for doi in sorted(reference_dois)
+            }
+            endpoint_seed = _c3_inference_seed(
+                seed,
+                slice_key,
+                method,
+                endpoint,
+            )
+            bootstrap = paired_bootstrap(
+                list(doi_gaps.values()),
+                seed=endpoint_seed,
+                resamples=bootstrap_resamples,
+                sampling_unit="doi",
+            )
+            permutation = paired_sign_flip_permutation(
+                list(doi_gaps.values()),
+                seed=endpoint_seed,
+                monte_carlo_permutations=monte_carlo_permutations,
+                exact_max_n=exact_max_n,
+                sampling_unit="doi",
+            )
+            member = f"{method}:{endpoint}"
+            raw_p_values[member] = permutation["p_value"]
+            endpoints[endpoint] = {
+                "gap_definition": (
+                    f"{method} - {_C3_RENDER_REFERENCE}"
+                ),
+                "favorable_sign": favorable_sign,
+                "favorable_direction": favorable_direction,
+                "doi_gaps": doi_gaps,
+                "bootstrap": bootstrap,
+                "permutation": permutation,
+                "holm_member": member,
+            }
+        contrasts.append(
+            {
+                "method": method,
+                "reference": _C3_RENDER_REFERENCE,
+                "endpoints": endpoints,
+            }
+        )
+
+    adjusted = holm_adjust(raw_p_values)
+    for contrast in contrasts:
+        endpoint_decisions = []
+        for endpoint, result in contrast["endpoints"].items():
+            member = result["holm_member"]
+            adjusted_p = adjusted[member]
+            result["permutation"]["p_value_holm"] = adjusted_p
+            result["permutation"]["holm_family"] = (
+                "c3_render_confirmatory"
+            )
+            ci_lower, ci_upper = result["bootstrap"]["ci95"]
+            favorable_ci = (
+                ci_lower > 0.0
+                if result["favorable_sign"] == "positive"
+                else ci_upper < 0.0
+            )
+            passed = adjusted_p <= 0.05 and favorable_ci
+            result["decision"] = {
+                "status": "pass" if passed else "not_established",
+                "alpha": 0.05,
+                "holm_adjusted": True,
+                "ci_entirely_favorable": favorable_ci,
+            }
+            endpoint_decisions.append(passed)
+        contrast["decision"] = {
+            "status": (
+                "pass" if all(endpoint_decisions) else "not_established"
+            ),
+            "claim": "superior_on_both_render_trajectory_endpoints",
+            "requires_all_endpoints": True,
+        }
+    family = {
+        "status": "ok",
+        "name": "c3_render_confirmatory",
+        "adjustment": "holm",
+        "scope": "within_slice",
+        "alpha": 0.05,
+        "members": sorted(raw_p_values),
+        "raw_p_values": raw_p_values,
+        "adjusted_p_values": adjusted,
+    }
+    return contrasts, family
+
+
+def _verify_render_threshold_provenance(
+    threshold: Mapping[str, Any],
+    provenance: Optional[Mapping[str, Any]],
+) -> Dict[str, Any]:
+    if not isinstance(provenance, Mapping):
+        raise StatisticsError(
+            "Render-only C3 analysis requires frozen threshold/status provenance"
+        )
+    expected_keys = {
+        "threshold_config_path",
+        "threshold_config_file_sha256",
+        "threshold_status_path",
+        "threshold_status_file_sha256",
+        "threshold_status_hash",
+    }
+    if set(provenance) != expected_keys:
+        raise StatisticsError(
+            "Render-only C3 threshold provenance fields changed"
+        )
+    loaded_threshold, loaded_provenance = load_render_only_trajectory_bundle(
+        Path(str(provenance["threshold_config_path"])),
+        Path(str(provenance["threshold_status_path"])),
+    )
+    if loaded_threshold != dict(threshold) or loaded_provenance != dict(
+        provenance
+    ):
+        raise StatisticsError(
+            "Render-only C3 threshold provenance binding changed"
+        )
+    return loaded_provenance
 
 
 def _trajectory_analysis(
@@ -1775,7 +2139,28 @@ def _trajectory_analysis(
     *,
     methods: Sequence[str],
     threshold: Mapping[str, Any],
+    reference: str,
+    seed: int,
+    bootstrap_resamples: int,
+    monte_carlo_permutations: int,
+    exact_max_n: int,
+    threshold_provenance: Optional[Mapping[str, Any]],
 ) -> Dict[str, Any]:
+    render_only = (
+        "wall_clock_seconds" not in threshold["restriction"]
+    )
+    if render_only and reference != _C3_RENDER_REFERENCE:
+        raise StatisticsError(
+            "Render-only C3 reference must be memory_none"
+        )
+    normalized_provenance = (
+        _verify_render_threshold_provenance(
+            threshold,
+            threshold_provenance,
+        )
+        if render_only
+        else None
+    )
     by_slice: Dict[tuple[Any, ...], list[Mapping[str, Any]]] = {}
     for row in rows:
         by_slice.setdefault(_slice_key(row), []).append(row)
@@ -1887,22 +2272,32 @@ def _trajectory_analysis(
                     **_trajectory_summary_means(doi_results),
                 }
             )
-        slices.append(
-            {
-                "backbone": backbone,
-                "budget_type": budget_type,
-                "budget_value": budget_value,
-                "split": split,
-                "seed_count": len(seeds),
-                "task_count": len(case_ids),
-                "doi_count": len(
-                    {str(item["doi"]) for item in observations}
-                ),
-                "methods": method_results,
-                "run_observations": observations,
-            }
-        )
-    return {
+        slice_result = {
+            "backbone": backbone,
+            "budget_type": budget_type,
+            "budget_value": budget_value,
+            "split": split,
+            "seed_count": len(seeds),
+            "task_count": len(case_ids),
+            "doi_count": len(
+                {str(item["doi"]) for item in observations}
+            ),
+            "methods": method_results,
+            "run_observations": observations,
+        }
+        if render_only:
+            contrasts, holm_family = _c3_render_contrasts(
+                method_results,
+                slice_key=key,
+                seed=seed,
+                bootstrap_resamples=bootstrap_resamples,
+                monte_carlo_permutations=monte_carlo_permutations,
+                exact_max_n=exact_max_n,
+            )
+            slice_result["render_contrasts"] = contrasts
+            slice_result["render_holm_family"] = holm_family
+        slices.append(slice_result)
+    result = {
         "status": "ok",
         "estimand": "joint_fidelity_cohesion_threshold_attainment",
         "threshold_config": dict(threshold),
@@ -1923,6 +2318,58 @@ def _trajectory_analysis(
         },
         "slices": slices,
     }
+    if render_only:
+        result.update(
+            {
+                "status": "ok_render_only",
+                "analysis_mode": "render_only",
+                "threshold_provenance": normalized_provenance,
+                "aggregation_order": [
+                    "seed_mean",
+                    "task_mean",
+                    "doi_cluster",
+                ],
+                "render_analysis": {
+                    "status": "ok",
+                    "restriction": {
+                        "renders": int(
+                            threshold["restriction"]["renders"]
+                        )
+                    },
+                    "estimands": [
+                        "joint_quality_attainment_by_render_horizon",
+                        (
+                            "restricted_mean_renders_to_"
+                            "joint_quality_threshold"
+                        ),
+                    ],
+                    "sampling_unit": "doi",
+                    "preregistered_reference": _C3_RENDER_REFERENCE,
+                    "preregistered_contrasts": list(
+                        _C3_RENDER_CONTRASTS
+                    ),
+                    "claim_policy": {
+                        "superiority_requires": (
+                            "both Holm-adjusted endpoint decisions pass"
+                        ),
+                        "failure_wording": (
+                            "confirmatory superiority was not established"
+                        ),
+                        "non_significance_is_not_equivalence": True,
+                    },
+                },
+                "wall_clock_analysis": {
+                    "status": "NA_BLOCKED",
+                    "reason_code": _C3_WALL_CLOCK_BLOCK_REASON,
+                    "restriction_wall_clock_seconds": None,
+                    "attainment_rate": None,
+                    "restricted_mean_seconds_to_threshold": None,
+                    "contrasts": None,
+                    "claim_permitted": False,
+                },
+            }
+        )
+    return result
 
 
 def analyze_summary(
@@ -1934,18 +2381,20 @@ def analyze_summary(
     panel_scope: str = "all",
     second_judge_metric: Optional[str] = None,
     trajectory_threshold: Optional[Mapping[str, Any]] = None,
+    trajectory_threshold_provenance: Optional[Mapping[str, Any]] = None,
     seed: int = 17_029,
     bootstrap_resamples: int = 10_000,
     monte_carlo_permutations: int = 100_000,
     exact_max_n: int = 16,
 ) -> Dict[str, Any]:
-    """Build analysis schema v3.2.
+    """Build analysis schema v3.3.
 
     Version 3.1 adds a provenance-recorded panel scope so structurally
     inapplicable single-panel cohesion rows can be excluded before pairing.
     When and only when an explicit trajectory threshold is supplied, the same
     schema also emits the provenance-checked C3 right-censored extension.
     Version 3.2 adds provenance-bound dual-judge C5 decisions.
+    Version 3.3 adds provenance-bound render-only C3 trajectory inference.
     No production quality threshold is defined in code.
     """
 
@@ -1976,6 +2425,18 @@ def analyze_summary(
                 "C3 trajectory thresholds require panel_scope='multi_panel'; "
                 "single-panel trajectories are inapplicable"
             )
+        if (
+            "wall_clock_seconds"
+            not in normalized_trajectory["restriction"]
+        ):
+            _verify_render_threshold_provenance(
+                normalized_trajectory,
+                trajectory_threshold_provenance,
+            )
+    elif trajectory_threshold_provenance is not None:
+        raise StatisticsError(
+            "trajectory threshold provenance requires a threshold config"
+        )
     comparison_methods = list(methods)
     if not comparison_methods:
         raise StatisticsError("At least one comparison method is required")
@@ -2275,6 +2736,40 @@ def analyze_summary(
         }
     if normalized_trajectory is not None:
         config["trajectory_threshold"] = normalized_trajectory
+        if trajectory_threshold_provenance is not None:
+            config["trajectory_threshold_provenance"] = dict(
+                trajectory_threshold_provenance
+            )
+        if (
+            "wall_clock_seconds"
+            not in normalized_trajectory["restriction"]
+        ):
+            config["c3_render_inference"] = {
+                "reference": _C3_RENDER_REFERENCE,
+                "contrasts": list(_C3_RENDER_CONTRASTS),
+                "endpoints": [
+                    {
+                        "name": "render_attainment_rate",
+                        "favorable_direction": "higher",
+                    },
+                    {
+                        "name": (
+                            "restricted_mean_renders_to_threshold"
+                        ),
+                        "favorable_direction": "lower",
+                    },
+                ],
+                "sampling_unit": "doi",
+                "adjustment": "holm",
+                "holm_family": "c3_render_confirmatory",
+                "alpha": 0.05,
+                "combined_claim_requires_all_endpoints": True,
+                "wall_clock_status": "NA_BLOCKED",
+                "wall_clock_reason": _C3_WALL_CLOCK_BLOCK_REASON,
+            }
+            config["multiple_comparisons"]["families"].append(
+                "c3_render_confirmatory"
+            )
     commit, dirty = _git_provenance()
     if (normalized_trajectory is not None or c5_provenance is not None) and dirty:
         raise StatisticsError(
@@ -2317,6 +2812,12 @@ def analyze_summary(
             selected_rows,
             methods=selected_methods,
             threshold=normalized_trajectory,
+            reference=reference,
+            seed=seed,
+            bootstrap_resamples=bootstrap_resamples,
+            monte_carlo_permutations=monte_carlo_permutations,
+            exact_max_n=exact_max_n,
+            threshold_provenance=trajectory_threshold_provenance,
         )
         if normalized_trajectory is not None
         else {
@@ -2417,6 +2918,9 @@ def _load_analysis_artifact(path: Path) -> Dict[str, Any]:
             panel_scope=str(config.get("panel_scope", "all")),
             second_judge_metric=config.get("second_judge_metric"),
             trajectory_threshold=config.get("trajectory_threshold"),
+            trajectory_threshold_provenance=config.get(
+                "trajectory_threshold_provenance"
+            ),
             seed=config.get("seed"),
             bootstrap_resamples=config.get("bootstrap_resamples"),
             monte_carlo_permutations=config.get(

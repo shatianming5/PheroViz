@@ -1,5 +1,23 @@
 {
-  "analysis_threshold_config": null,
+  "analysis_threshold_config": {
+    "enabled_estimands": [
+      "joint_quality_attainment_by_render_horizon",
+      "restricted_mean_renders_to_joint_quality_threshold"
+    ],
+    "preregistered_contrasts": [
+      "memory_constraints",
+      "memory_patches",
+      "memory_full"
+    ],
+    "preregistered_reference": "memory_none",
+    "quality_threshold": "agent/experiments/thresholds/c3_joint_quality_threshold_v1.json",
+    "quality_threshold_file_sha256": "a97bd9ecf824d4fae5a49cd6857d1e339033c22fa368936301560da8e00ef5a3",
+    "threshold_status": "agent/experiments/thresholds/c3_joint_threshold_status_v1.json",
+    "threshold_status_file_sha256": "3aec324dcefa6d3cc5cb063817ca366a2812f9627bba54943aad1c6e70cfb811",
+    "threshold_status_hash": "c07fc4eea408dc70f4482bdc426f59280d41953871d73cbf839c0ce47be5ebf3",
+    "wall_clock_reason": "missing_prospective_wall_clock_restriction",
+    "wall_clock_status": "NA_BLOCKED"
+  },
   "cohesion_fixture_semantics": {
     "defect_classes": [
       "shared_scale",
@@ -14,8 +32,10 @@
   },
   "execution_policy": {
     "matrix_can_run": true,
-    "required_unblock": "Prospectively freeze wall_clock_seconds from an outcome-independent SLA or predeclared systems budget, then issue a separate complete analysis threshold config.",
-    "rmst_analysis_can_run": false
+    "render_only_analysis_can_run": true,
+    "required_unblock": "Prospectively freeze wall_clock_seconds from an outcome-independent SLA or predeclared systems budget before any wall-clock attainment or restricted-mean analysis.",
+    "rmst_analysis_can_run": false,
+    "wall_clock_analysis_can_run": false
   },
   "policy": "prospective_outcome_independent",
   "production_or_partial_outcomes_read": false,
@@ -38,21 +58,21 @@
       "value": null
     }
   },
-  "provenance_version": "1.0",
+  "provenance_version": "1.1",
   "quality_threshold": "agent/experiments/thresholds/c3_joint_quality_threshold_v1.json",
   "quality_threshold_file_sha256": "a97bd9ecf824d4fae5a49cd6857d1e339033c22fa368936301560da8e00ef5a3",
   "quality_threshold_semantic_hash": "b8f7995911a30a7b8c6422e7a74d1b95c468aac700276f6abed256a5e5ed49a3",
-  "report_hash": "fcf99fbbd4031631177d8d8203b41ca1eca83f8feaa405b132df9d1ce831a684",
-  "repository_commit": "f633a546151784df3969f254cbce0225e42e1b86",
+  "report_hash": "ae411e0e4ea67964fdd99cdb2d9210f2e621f6c4e3077992d9d8200d481a642a",
+  "repository_commit": "a10996f0a525cec3cc769492b95428885830b298",
   "synthetic_evidence_file_hashes": {
     "agent/app/evaluation/models.py": "6c4904c4cc2db9ec70464d13ac9d97c48ab6aa243326b48456047d976c2e74d6",
     "agent/experiments/calibration/cohesion_margin_fixture_bank_v1.json": "219c53b2bba85a2589a324247cae3d1c901f557ae8892df0059ff429298be334",
     "agent/experiments/preflight/cohesion_margin_repeatability.json": "ee8779c380cb7d144514cd43101747517ef5a46309b8ce37a3376086175d8414",
     "agent/experiments/preflight/cohesion_margin_run_a/cohesion_margin_report.json": "a22165577c92ac5b9eeb1f02861d964f7225fb535fa6df6592fc53bf807febc9",
     "agent/experiments/preflight/cohesion_margin_run_b/cohesion_margin_report.json": "2352ce55d9ece1fb8d62a417089f416a59b283b9dcb8227b597dd436e630517d",
-    "agent/experiments/schemas/c3_trajectory_threshold.schema.json": "9df4cb1d7256b190587d880ce07578efa94706f01d4a267355439202d6d0dc36",
+    "agent/experiments/schemas/c3_trajectory_threshold.schema.json": "de2824809fe3b81672018a80f66432879a00cb1d918746e6a1daed9217532286",
     "agent/tests/test_programmatic_evaluation.py": "148cf37ec72ce57585c3160a675a64bee8e9865f1be80fb0eb976e938a15f2f6"
   },
   "threshold_status": "agent/experiments/thresholds/c3_joint_threshold_status_v1.json",
-  "threshold_status_file_sha256": "0adc9e7a6515055eead63e82bad38e0df3b672ffd5da91379ead5e42dc5e5b93"
+  "threshold_status_file_sha256": "3aec324dcefa6d3cc5cb063817ca366a2812f9627bba54943aad1c6e70cfb811"
 }

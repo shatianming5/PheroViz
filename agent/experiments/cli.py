@@ -11,8 +11,10 @@ from .harness import ExistingRunError, execute_experiment
 from .matrix import MatrixError, load_and_expand_matrix
 from .models import ProvenanceError
 from .production_statistics import (
+    StatisticsError,
     analyze_summary,
     build_holm_family,
+    load_render_only_trajectory_bundle,
     load_provenance_summary,
     load_trajectory_threshold_config,
     write_analysis_outputs,
@@ -80,6 +82,15 @@ def _build_parser() -> argparse.ArgumentParser:
         help=(
             "Explicit frozen C3 joint fidelity/cohesion threshold JSON; "
             "requires --panel-scope multi_panel"
+        ),
+    )
+    analyze_parser.add_argument(
+        "--trajectory-threshold-status",
+        type=Path,
+        default=None,
+        help=(
+            "Frozen C3 wall-clock blocker status required for a render-only "
+            "trajectory threshold"
         ),
     )
     analyze_parser.add_argument("--out", type=Path, required=True)
@@ -199,6 +210,26 @@ def _aggregate_command(args: argparse.Namespace) -> int:
 
 def _analyze_command(args: argparse.Namespace) -> int:
     summary = load_provenance_summary(args.summary)
+    trajectory_threshold = None
+    trajectory_threshold_provenance = None
+    if args.trajectory_threshold_config is not None:
+        if args.trajectory_threshold_status is not None:
+            (
+                trajectory_threshold,
+                trajectory_threshold_provenance,
+            ) = load_render_only_trajectory_bundle(
+                args.trajectory_threshold_config,
+                args.trajectory_threshold_status,
+            )
+        else:
+            trajectory_threshold = load_trajectory_threshold_config(
+                args.trajectory_threshold_config
+            )
+    elif args.trajectory_threshold_status is not None:
+        raise StatisticsError(
+            "--trajectory-threshold-status requires "
+            "--trajectory-threshold-config"
+        )
     analysis = analyze_summary(
         summary,
         reference=args.reference,
@@ -206,12 +237,9 @@ def _analyze_command(args: argparse.Namespace) -> int:
         metric=args.metric,
         panel_scope=args.panel_scope,
         second_judge_metric=args.second_judge_metric,
-        trajectory_threshold=(
-            load_trajectory_threshold_config(
-                args.trajectory_threshold_config
-            )
-            if args.trajectory_threshold_config is not None
-            else None
+        trajectory_threshold=trajectory_threshold,
+        trajectory_threshold_provenance=(
+            trajectory_threshold_provenance
         ),
         seed=args.seed,
         bootstrap_resamples=args.bootstrap_resamples,

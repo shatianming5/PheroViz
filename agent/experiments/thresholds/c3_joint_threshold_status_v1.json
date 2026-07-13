@@ -1,13 +1,17 @@
 {
-  "analysis_ready": false,
+  "analysis_ready": true,
   "matrix_can_run": true,
   "missing_analysis_field": "restriction.wall_clock_seconds",
   "quality_threshold": "c3_joint_quality_threshold_v1.json",
   "quality_threshold_file_sha256": "a97bd9ecf824d4fae5a49cd6857d1e339033c22fa368936301560da8e00ef5a3",
-  "required_unblock": "Prospectively freeze wall_clock_seconds from an outcome-independent SLA or predeclared systems budget, then issue a separate complete analysis threshold config.",
+  "render_analysis_ready": true,
+  "render_restricted_mean_analysis_can_run": true,
+  "required_unblock": "Prospectively freeze wall_clock_seconds from an outcome-independent SLA or predeclared systems budget before any wall-clock attainment or restricted-mean analysis.",
   "rmst_analysis_can_run": false,
-  "status": "BLOCKED_PENDING_WALL_CLOCK_RESTRICTION",
-  "status_hash": "e84e2c4dc55c33c044dd04366ed0c95d19802d63cfe35330635e4e02794a76e3",
-  "status_version": "1.0",
+  "status": "RENDER_ONLY_READY_WALL_CLOCK_BLOCKED",
+  "status_hash": "c07fc4eea408dc70f4482bdc426f59280d41953871d73cbf839c0ce47be5ebf3",
+  "status_version": "1.1",
+  "wall_clock_analysis_ready": false,
+  "wall_clock_rmst_analysis_can_run": false,
   "wall_clock_seconds": null
 }
