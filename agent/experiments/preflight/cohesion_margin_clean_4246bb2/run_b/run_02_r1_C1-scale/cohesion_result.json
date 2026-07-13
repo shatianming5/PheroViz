@@ -1,0 +1,125 @@
+{
+  "aggregation": "sum_applicable_check_counts",
+  "applicable": true,
+  "checks": {
+    "legend_deduplication": {
+      "applicable": true,
+      "denominator": 1,
+      "details": {},
+      "items": [
+        {
+          "group_id": "shared-measurement",
+          "occurrences": 1,
+          "passed": true,
+          "series_id": "signal"
+        }
+      ],
+      "mismatches": [],
+      "name": "legend_deduplication",
+      "numerator": 1,
+      "ratio": 1.0,
+      "status": "pass"
+    },
+    "palette_mapping": {
+      "applicable": true,
+      "denominator": 1,
+      "details": {},
+      "items": [
+        {
+          "colors": {
+            "panel-a": "#1f77b4ff",
+            "panel-b": "#1f77b4ff"
+          },
+          "group_id": "shared-measurement",
+          "passed": true,
+          "series_id": "signal"
+        }
+      ],
+      "mismatches": [],
+      "name": "palette_mapping",
+      "numerator": 1,
+      "ratio": 1.0,
+      "status": "pass"
+    },
+    "shared_scale": {
+      "applicable": true,
+      "denominator": 1,
+      "details": {},
+      "items": [
+        {
+          "dimension": "y",
+          "group_id": "shared-measurement",
+          "observed": {
+            "panel-a": "linear",
+            "panel-b": "log"
+          },
+          "passed": false
+        }
+      ],
+      "mismatches": [
+        {
+          "code": "shared_scale_mismatch",
+          "expected": "one shared scale",
+          "location": {
+            "dimension": "y",
+            "group_id": "shared-measurement"
+          },
+          "message": "Panels in group 'shared-measurement' do not share one y-axis scale.",
+          "observed": {
+            "panel-a": "linear",
+            "panel-b": "log"
+          },
+          "panel_id": null,
+          "series_id": null
+        }
+      ],
+      "name": "shared_scale",
+      "numerator": 0,
+      "ratio": 0.0,
+      "status": "fail"
+    },
+    "shared_unit": {
+      "applicable": true,
+      "denominator": 1,
+      "details": {},
+      "items": [
+        {
+          "dimension": "y",
+          "group_id": "shared-measurement",
+          "observed": {
+            "panel-a": "mg",
+            "panel-b": "mg"
+          },
+          "passed": true
+        }
+      ],
+      "mismatches": [],
+      "name": "shared_unit",
+      "numerator": 1,
+      "ratio": 1.0,
+      "status": "pass"
+    }
+  },
+  "denominator": 4,
+  "mismatches": [
+    {
+      "code": "shared_scale_mismatch",
+      "expected": "one shared scale",
+      "location": {
+        "dimension": "y",
+        "group_id": "shared-measurement"
+      },
+      "message": "Panels in group 'shared-measurement' do not share one y-axis scale.",
+      "observed": {
+        "panel-a": "linear",
+        "panel-b": "log"
+      },
+      "panel_id": null,
+      "series_id": null
+    }
+  ],
+  "name": "cohesion",
+  "numerator": 3,
+  "ratio": 0.75,
+  "status": "fail"
+}

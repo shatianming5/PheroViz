@@ -1,0 +1,539 @@
+{
+  "cohesion": {
+    "aggregation": "sum_applicable_check_counts",
+    "applicable": true,
+    "checks": {
+      "legend_deduplication": {
+        "applicable": true,
+        "denominator": 1,
+        "details": {},
+        "items": [
+          {
+            "group_id": "shared-measurement",
+            "occurrences": 2,
+            "passed": false,
+            "series_id": "signal"
+          }
+        ],
+        "mismatches": [
+          {
+            "code": "legend_not_deduplicated",
+            "expected": 1,
+            "location": {
+              "group_id": "shared-measurement"
+            },
+            "message": "Shared series 'signal' must appear exactly once across the group legend scope.",
+            "observed": 2,
+            "panel_id": null,
+            "series_id": "signal"
+          }
+        ],
+        "name": "legend_deduplication",
+        "numerator": 0,
+        "ratio": 0.0,
+        "status": "fail"
+      },
+      "palette_mapping": {
+        "applicable": true,
+        "denominator": 1,
+        "details": {},
+        "items": [
+          {
+            "colors": {
+              "panel-a": "#1f77b4ff",
+              "panel-b": "#1f77b4ff"
+            },
+            "group_id": "shared-measurement",
+            "passed": true,
+            "series_id": "signal"
+          }
+        ],
+        "mismatches": [],
+        "name": "palette_mapping",
+        "numerator": 1,
+        "ratio": 1.0,
+        "status": "pass"
+      },
+      "shared_scale": {
+        "applicable": true,
+        "denominator": 1,
+        "details": {},
+        "items": [
+          {
+            "dimension": "y",
+            "group_id": "shared-measurement",
+            "observed": {
+              "panel-a": "linear",
+              "panel-b": "linear"
+            },
+            "passed": true
+          }
+        ],
+        "mismatches": [],
+        "name": "shared_scale",
+        "numerator": 1,
+        "ratio": 1.0,
+        "status": "pass"
+      },
+      "shared_unit": {
+        "applicable": true,
+        "denominator": 1,
+        "details": {},
+        "items": [
+          {
+            "dimension": "y",
+            "group_id": "shared-measurement",
+            "observed": {
+              "panel-a": "mg",
+              "panel-b": "mg"
+            },
+            "passed": true
+          }
+        ],
+        "mismatches": [],
+        "name": "shared_unit",
+        "numerator": 1,
+        "ratio": 1.0,
+        "status": "pass"
+      }
+    },
+    "denominator": 4,
+    "mismatches": [
+      {
+        "code": "legend_not_deduplicated",
+        "expected": 1,
+        "location": {
+          "group_id": "shared-measurement"
+        },
+        "message": "Shared series 'signal' must appear exactly once across the group legend scope.",
+        "observed": 2,
+        "panel_id": null,
+        "series_id": "signal"
+      }
+    ],
+    "name": "cohesion",
+    "numerator": 3,
+    "ratio": 0.75,
+    "status": "fail"
+  },
+  "fidelity": {
+    "aggregation": "sum_applicable_check_counts",
+    "applicable": true,
+    "checks": {
+      "label_match": {
+        "applicable": true,
+        "denominator": 4,
+        "details": {},
+        "items": [
+          {
+            "field": "series_label",
+            "panel_id": "panel-a",
+            "passed": true,
+            "series_id": "signal"
+          },
+          {
+            "field": "ylabel",
+            "panel_id": "panel-a",
+            "passed": true
+          },
+          {
+            "field": "series_label",
+            "panel_id": "panel-b",
+            "passed": true,
+            "series_id": "signal"
+          },
+          {
+            "field": "ylabel",
+            "panel_id": "panel-b",
+            "passed": true
+          }
+        ],
+        "mismatches": [],
+        "name": "label_match",
+        "numerator": 4,
+        "ratio": 1.0,
+        "status": "pass"
+      },
+      "numeric_match": {
+        "applicable": true,
+        "denominator": 12,
+        "details": {
+          "definition": "2 * matched / (expected + observed)",
+          "expected_points": 6,
+          "matched_points": 6,
+          "observed_points": 6,
+          "tolerance": {
+            "absolute": 1e-08,
+            "relative": 1e-06
+          }
+        },
+        "items": [
+          {
+            "expected_points": 3,
+            "matched_points": 3,
+            "observed_points": 3,
+            "panel_id": "panel-a",
+            "series_id": "signal"
+          },
+          {
+            "expected_points": 3,
+            "matched_points": 3,
+            "observed_points": 3,
+            "panel_id": "panel-b",
+            "series_id": "signal"
+          }
+        ],
+        "mismatches": [],
+        "name": "numeric_match",
+        "numerator": 12,
+        "ratio": 1.0,
+        "status": "pass"
+      },
+      "scale_match": {
+        "applicable": true,
+        "denominator": 2,
+        "details": {},
+        "items": [
+          {
+            "dimension": "y",
+            "panel_id": "panel-a",
+            "passed": true
+          },
+          {
+            "dimension": "y",
+            "panel_id": "panel-b",
+            "passed": true
+          }
+        ],
+        "mismatches": [],
+        "name": "scale_match",
+        "numerator": 2,
+        "ratio": 1.0,
+        "status": "pass"
+      },
+      "series_coverage": {
+        "applicable": true,
+        "denominator": 2,
+        "details": {},
+        "items": [
+          {
+            "panel_id": "panel-a",
+            "passed": true,
+            "series_id": "signal"
+          },
+          {
+            "panel_id": "panel-b",
+            "passed": true,
+            "series_id": "signal"
+          }
+        ],
+        "mismatches": [],
+        "name": "series_coverage",
+        "numerator": 2,
+        "ratio": 1.0,
+        "status": "pass"
+      },
+      "series_purity": {
+        "applicable": true,
+        "denominator": 2,
+        "details": {},
+        "items": [
+          {
+            "panel_id": "panel-a",
+            "passed": true,
+            "series_id": "signal"
+          },
+          {
+            "panel_id": "panel-b",
+            "passed": true,
+            "series_id": "signal"
+          }
+        ],
+        "mismatches": [],
+        "name": "series_purity",
+        "numerator": 2,
+        "ratio": 1.0,
+        "status": "pass"
+      },
+      "unit_match": {
+        "applicable": true,
+        "denominator": 2,
+        "details": {},
+        "items": [
+          {
+            "dimension": "y",
+            "panel_id": "panel-a",
+            "passed": true
+          },
+          {
+            "dimension": "y",
+            "panel_id": "panel-b",
+            "passed": true
+          }
+        ],
+        "mismatches": [],
+        "name": "unit_match",
+        "numerator": 2,
+        "ratio": 1.0,
+        "status": "pass"
+      }
+    },
+    "denominator": 24,
+    "mismatches": [],
+    "name": "fidelity",
+    "numerator": 24,
+    "ratio": 1.0,
+    "status": "pass"
+  },
+  "figure_manifest": {
+    "axes": [
+      {
+        "annotations": [],
+        "axis_id": "panel-a",
+        "axis_slot": "primary",
+        "bbox": [
+          0.125,
+          0.11,
+          0.352272727273,
+          0.77
+        ],
+        "index": 0,
+        "legend": {
+          "entries": [
+            {
+              "color": "#1f77b4ff",
+              "label": "signal",
+              "linestyle": "-",
+              "marker": "None"
+            }
+          ],
+          "location": 0,
+          "present": true
+        },
+        "panel_id": "panel-a",
+        "parent_axis_id": null,
+        "role": "panel",
+        "series": [
+          {
+            "axis_slot": "primary",
+            "color": "#1f77b4ff",
+            "colors": [
+              "#1f77b4ff"
+            ],
+            "kind": "line",
+            "label": "signal",
+            "metadata": {
+              "artist_class": "Line2D",
+              "point_count": 3,
+              "zorder": 2
+            },
+            "series_id": "signal",
+            "style": {
+              "linestyle": "-",
+              "linewidth": 1.5,
+              "marker": "None",
+              "markersize": 6.0
+            },
+            "value": [
+              10,
+              20,
+              30
+            ],
+            "x": [
+              1,
+              2,
+              3
+            ],
+            "x_labels": [],
+            "y": [
+              10,
+              20,
+              30
+            ]
+          }
+        ],
+        "source_index": 0,
+        "title": "",
+        "x_axis": {
+          "label": "",
+          "limits": [
+            0.9,
+            3.1
+          ],
+          "offset_text": "",
+          "scale": "linear",
+          "tick_labels": [
+            "0.5",
+            "1.0",
+            "1.5",
+            "2.0",
+            "2.5",
+            "3.0",
+            "3.5"
+          ],
+          "unit": null
+        },
+        "y_axis": {
+          "label": "Value (mg)",
+          "limits": [
+            9.0,
+            31.0
+          ],
+          "offset_text": "",
+          "scale": "linear",
+          "tick_labels": [
+            "5",
+            "10",
+            "15",
+            "20",
+            "25",
+            "30",
+            "35"
+          ],
+          "unit": "mg"
+        }
+      },
+      {
+        "annotations": [],
+        "axis_id": "panel-b",
+        "axis_slot": "primary",
+        "bbox": [
+          0.547727272727,
+          0.11,
+          0.352272727273,
+          0.77
+        ],
+        "index": 1,
+        "legend": {
+          "entries": [
+            {
+              "color": "#1f77b4ff",
+              "label": "signal",
+              "linestyle": "-",
+              "marker": "None"
+            }
+          ],
+          "location": 0,
+          "present": true
+        },
+        "panel_id": "panel-b",
+        "parent_axis_id": null,
+        "role": "panel",
+        "series": [
+          {
+            "axis_slot": "primary",
+            "color": "#1f77b4ff",
+            "colors": [
+              "#1f77b4ff"
+            ],
+            "kind": "line",
+            "label": "signal",
+            "metadata": {
+              "artist_class": "Line2D",
+              "point_count": 3,
+              "zorder": 2
+            },
+            "series_id": "signal",
+            "style": {
+              "linestyle": "-",
+              "linewidth": 1.5,
+              "marker": "None",
+              "markersize": 6.0
+            },
+            "value": [
+              10,
+              20,
+              30
+            ],
+            "x": [
+              1,
+              2,
+              3
+            ],
+            "x_labels": [],
+            "y": [
+              10,
+              20,
+              30
+            ]
+          }
+        ],
+        "source_index": 1,
+        "title": "",
+        "x_axis": {
+          "label": "",
+          "limits": [
+            0.9,
+            3.1
+          ],
+          "offset_text": "",
+          "scale": "linear",
+          "tick_labels": [
+            "0.5",
+            "1.0",
+            "1.5",
+            "2.0",
+            "2.5",
+            "3.0",
+            "3.5"
+          ],
+          "unit": null
+        },
+        "y_axis": {
+          "label": "Value (mg)",
+          "limits": [
+            9.0,
+            31.0
+          ],
+          "offset_text": "",
+          "scale": "linear",
+          "tick_labels": [
+            "5",
+            "10",
+            "15",
+            "20",
+            "25",
+            "30",
+            "35"
+          ],
+          "unit": "mg"
+        }
+      }
+    ],
+    "figure": {
+      "dpi": 100,
+      "facecolor": "#ffffffff",
+      "size_inches": [
+        6.4,
+        3.2
+      ]
+    },
+    "figure_legends": [],
+    "schema_version": "1.1.0"
+  },
+  "metric_config": {
+    "allow_missing_shared_units": false,
+    "case_sensitive_labels": true,
+    "float_precision": 12,
+    "limit_tolerance": {
+      "absolute": 1e-08,
+      "relative": 1e-08
+    },
+    "metric_version": "1.0.0",
+    "numeric_tolerance": {
+      "absolute": 1e-08,
+      "relative": 1e-06
+    },
+    "schema_version": "1.0.0",
+    "unit_aliases": {
+      "microgram": "ug",
+      "micrograms": "ug",
+      "percent": "%",
+      "second": "s",
+      "seconds": "s",
+      "µg": "ug",
+      "μg": "ug"
+    }
+  },
+  "schema_version": "1.1.0"
+}

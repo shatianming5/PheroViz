@@ -1,0 +1,25 @@
+{
+  "backend": "Agg",
+  "dependency_hashes": {
+    "agent/app/evaluation/__init__.py": "a81cf51823555958df23986b57d2dffa4f5395bc05c98d497b0b61e447e181f6",
+    "agent/app/evaluation/evaluator.py": "fb5b7bc1267f035bdd1ddb869fc54f6a68cdda004cc875f3bdb768cd66388e9a",
+    "agent/app/evaluation/manifest.py": "591521e83479682d9a82b73653e6bf97b4975038ca290ba2b52a722758478fab",
+    "agent/app/evaluation/models.py": "6c4904c4cc2db9ec70464d13ac9d97c48ab6aa243326b48456047d976c2e74d6",
+    "agent/app/evaluation/schema.py": "4ee5ee2063c9969054d6530c76cd6d9ed824e5fe5f73511f00d2b4d627b609c9",
+    "agent/app/evaluation/schemas/expectation.schema.json": "4ef2707f2b7afebd7f620160ad110c1eb3c18cc7d3804d40866a09e7ed93dd39",
+    "agent/app/evaluation/schemas/figure_manifest.schema.json": "d475e4267664f487e800dd66669db1a5a0145e4901764c6bbcdbde9cf0307b5d",
+    "agent/app/evaluation/schemas/metric_config.schema.json": "8263edd8606a8359fd0c5b9b93e7cec4aeb11b2a09fcff7cc4fe647e2797d8ed",
+    "agent/experiments/models.py": "c4bcf3fd3189fc1888d0f1bcfb03888385c86b83e3e0eb8bb263ee121b068ff0"
+  },
+  "git": {
+    "commit": "4246bb26aa580931c2c4f6bbd6755d33dc351cdd",
+    "dependency_tree_clean": true,
+    "dirty": false
+  },
+  "matplotlib": "3.11.0",
+  "numpy": "2.4.6",
+  "pandas": "3.0.3",
+  "platform": "Linux-6.8.0-65-generic-x86_64-with-glibc2.35",
+  "python": "3.11.15",
+  "script_sha256": "e4364e247465f22dd326601b5ffe5f680fffd4663d769b1d71f21c6697f13d70"
+}

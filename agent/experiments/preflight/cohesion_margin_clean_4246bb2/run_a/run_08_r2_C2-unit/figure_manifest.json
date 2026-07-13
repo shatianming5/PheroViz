@@ -1,0 +1,225 @@
+{
+  "axes": [
+    {
+      "annotations": [],
+      "axis_id": "panel-a",
+      "axis_slot": "primary",
+      "bbox": [
+        0.125,
+        0.11,
+        0.352272727273,
+        0.77
+      ],
+      "index": 0,
+      "legend": {
+        "entries": [],
+        "location": null,
+        "present": false
+      },
+      "panel_id": "panel-a",
+      "parent_axis_id": null,
+      "role": "panel",
+      "series": [
+        {
+          "axis_slot": "primary",
+          "color": "#1f77b4ff",
+          "colors": [
+            "#1f77b4ff"
+          ],
+          "kind": "line",
+          "label": "signal",
+          "metadata": {
+            "artist_class": "Line2D",
+            "point_count": 3,
+            "zorder": 2
+          },
+          "series_id": "signal",
+          "style": {
+            "linestyle": "-",
+            "linewidth": 1.5,
+            "marker": "None",
+            "markersize": 6.0
+          },
+          "value": [
+            10,
+            20,
+            30
+          ],
+          "x": [
+            1,
+            2,
+            3
+          ],
+          "x_labels": [],
+          "y": [
+            10,
+            20,
+            30
+          ]
+        }
+      ],
+      "source_index": 0,
+      "title": "",
+      "x_axis": {
+        "label": "",
+        "limits": [
+          0.9,
+          3.1
+        ],
+        "offset_text": "",
+        "scale": "linear",
+        "tick_labels": [
+          "0.5",
+          "1.0",
+          "1.5",
+          "2.0",
+          "2.5",
+          "3.0",
+          "3.5"
+        ],
+        "unit": null
+      },
+      "y_axis": {
+        "label": "Value (mg)",
+        "limits": [
+          9.0,
+          31.0
+        ],
+        "offset_text": "",
+        "scale": "linear",
+        "tick_labels": [
+          "5",
+          "10",
+          "15",
+          "20",
+          "25",
+          "30",
+          "35"
+        ],
+        "unit": "mg"
+      }
+    },
+    {
+      "annotations": [],
+      "axis_id": "panel-b",
+      "axis_slot": "primary",
+      "bbox": [
+        0.547727272727,
+        0.11,
+        0.352272727273,
+        0.77
+      ],
+      "index": 1,
+      "legend": {
+        "entries": [],
+        "location": null,
+        "present": false
+      },
+      "panel_id": "panel-b",
+      "parent_axis_id": null,
+      "role": "panel",
+      "series": [
+        {
+          "axis_slot": "primary",
+          "color": "#1f77b4ff",
+          "colors": [
+            "#1f77b4ff"
+          ],
+          "kind": "line",
+          "label": "signal",
+          "metadata": {
+            "artist_class": "Line2D",
+            "point_count": 3,
+            "zorder": 2
+          },
+          "series_id": "signal",
+          "style": {
+            "linestyle": "-",
+            "linewidth": 1.5,
+            "marker": "None",
+            "markersize": 6.0
+          },
+          "value": [
+            10,
+            20,
+            30
+          ],
+          "x": [
+            1,
+            2,
+            3
+          ],
+          "x_labels": [],
+          "y": [
+            10,
+            20,
+            30
+          ]
+        }
+      ],
+      "source_index": 1,
+      "title": "",
+      "x_axis": {
+        "label": "",
+        "limits": [
+          0.9,
+          3.1
+        ],
+        "offset_text": "",
+        "scale": "linear",
+        "tick_labels": [
+          "0.5",
+          "1.0",
+          "1.5",
+          "2.0",
+          "2.5",
+          "3.0",
+          "3.5"
+        ],
+        "unit": null
+      },
+      "y_axis": {
+        "label": "Value (kg)",
+        "limits": [
+          9.0,
+          31.0
+        ],
+        "offset_text": "",
+        "scale": "linear",
+        "tick_labels": [
+          "5",
+          "10",
+          "15",
+          "20",
+          "25",
+          "30",
+          "35"
+        ],
+        "unit": "kg"
+      }
+    }
+  ],
+  "figure": {
+    "dpi": 100,
+    "facecolor": "#ffffffff",
+    "size_inches": [
+      6.4,
+      3.2
+    ]
+  },
+  "figure_legends": [
+    {
+      "entries": [
+        {
+          "color": "#1f77b4ff",
+          "label": "signal",
+          "linestyle": "-",
+          "marker": "None"
+        }
+      ],
+      "location": 1,
+      "present": true
+    }
+  ],
+  "schema_version": "1.1.0"
+}

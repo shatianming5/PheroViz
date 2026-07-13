@@ -1,0 +1,702 @@
+{
+  "generated_at": "2026-07-13T09:41:33.440523+00:00",
+  "report_hash": "b7715486b7f1492710260b8a062b7fa50d508ba0bca1bee5cc65d5b51816104a",
+  "schema_version": "1.0",
+  "semantic_hash": "4b1998464d01cca22bed5f40674215447261ed2ddce2b70aeca3d959f2ea78d9",
+  "semantic_hash_scope": "sha256_json(semantic_payload); generated_at and report_hash excluded",
+  "semantic_payload": {
+    "acceptance_checks": {
+      "all_class_drops_exact": true,
+      "candidate_rule_exact": true,
+      "dependency_tree_clean": true,
+      "exact_fixture_counts": true,
+      "exact_run_count": true,
+      "input_hashes_exact": true,
+      "leakage_declaration_clean": true,
+      "within_run_repeatability": true
+    },
+    "calibration_id": "cohesion-margin-v1",
+    "candidate_delta_C": 0.25,
+    "candidate_rule": {
+      "class_aggregation": "median",
+      "defect_classes": [
+        "shared_scale",
+        "shared_unit",
+        "legend_deduplication",
+        "palette_mapping"
+      ],
+      "expected_candidate_delta_C": 0.25,
+      "final_aggregation": "minimum",
+      "replicates": 3
+    },
+    "class_drops": {
+      "legend_deduplication": [
+        0.25,
+        0.25,
+        0.25
+      ],
+      "palette_mapping": [
+        0.25,
+        0.25,
+        0.25
+      ],
+      "shared_scale": [
+        0.25,
+        0.25,
+        0.25
+      ],
+      "shared_unit": [
+        0.25,
+        0.25,
+        0.25
+      ]
+    },
+    "class_medians": {
+      "legend_deduplication": 0.25,
+      "palette_mapping": 0.25,
+      "shared_scale": 0.25,
+      "shared_unit": 0.25
+    },
+    "delta_C_status": "FROZEN",
+    "environment": {
+      "backend": "Agg",
+      "dependency_hashes": {
+        "agent/app/evaluation/__init__.py": "a81cf51823555958df23986b57d2dffa4f5395bc05c98d497b0b61e447e181f6",
+        "agent/app/evaluation/evaluator.py": "fb5b7bc1267f035bdd1ddb869fc54f6a68cdda004cc875f3bdb768cd66388e9a",
+        "agent/app/evaluation/manifest.py": "591521e83479682d9a82b73653e6bf97b4975038ca290ba2b52a722758478fab",
+        "agent/app/evaluation/models.py": "6c4904c4cc2db9ec70464d13ac9d97c48ab6aa243326b48456047d976c2e74d6",
+        "agent/app/evaluation/schema.py": "4ee5ee2063c9969054d6530c76cd6d9ed824e5fe5f73511f00d2b4d627b609c9",
+        "agent/app/evaluation/schemas/expectation.schema.json": "4ef2707f2b7afebd7f620160ad110c1eb3c18cc7d3804d40866a09e7ed93dd39",
+        "agent/app/evaluation/schemas/figure_manifest.schema.json": "d475e4267664f487e800dd66669db1a5a0145e4901764c6bbcdbde9cf0307b5d",
+        "agent/app/evaluation/schemas/metric_config.schema.json": "8263edd8606a8359fd0c5b9b93e7cec4aeb11b2a09fcff7cc4fe647e2797d8ed",
+        "agent/experiments/models.py": "c4bcf3fd3189fc1888d0f1bcfb03888385c86b83e3e0eb8bb263ee121b068ff0"
+      },
+      "git": {
+        "commit": "4246bb26aa580931c2c4f6bbd6755d33dc351cdd",
+        "dependency_tree_clean": true,
+        "dirty": false
+      },
+      "matplotlib": "3.11.0",
+      "numpy": "2.4.6",
+      "pandas": "3.0.3",
+      "platform": "Linux-6.8.0-65-generic-x86_64-with-glibc2.35",
+      "python": "3.11.15",
+      "script_sha256": "e4364e247465f22dd326601b5ffe5f680fffd4663d769b1d71f21c6697f13d70"
+    },
+    "final_delta_C": 0.25,
+    "input_hashes": {
+      "bank_spec_sha256": "9c48098a2a838f7a29bfbc46b6c91dba530d7bb7e61e8c8f0c85b3e3d7b49182",
+      "dependency_hashes": {
+        "agent/app/evaluation/__init__.py": "a81cf51823555958df23986b57d2dffa4f5395bc05c98d497b0b61e447e181f6",
+        "agent/app/evaluation/evaluator.py": "fb5b7bc1267f035bdd1ddb869fc54f6a68cdda004cc875f3bdb768cd66388e9a",
+        "agent/app/evaluation/manifest.py": "591521e83479682d9a82b73653e6bf97b4975038ca290ba2b52a722758478fab",
+        "agent/app/evaluation/models.py": "6c4904c4cc2db9ec70464d13ac9d97c48ab6aa243326b48456047d976c2e74d6",
+        "agent/app/evaluation/schema.py": "4ee5ee2063c9969054d6530c76cd6d9ed824e5fe5f73511f00d2b4d627b609c9",
+        "agent/app/evaluation/schemas/expectation.schema.json": "4ef2707f2b7afebd7f620160ad110c1eb3c18cc7d3804d40866a09e7ed93dd39",
+        "agent/app/evaluation/schemas/figure_manifest.schema.json": "d475e4267664f487e800dd66669db1a5a0145e4901764c6bbcdbde9cf0307b5d",
+        "agent/app/evaluation/schemas/metric_config.schema.json": "8263edd8606a8359fd0c5b9b93e7cec4aeb11b2a09fcff7cc4fe647e2797d8ed",
+        "agent/experiments/models.py": "c4bcf3fd3189fc1888d0f1bcfb03888385c86b83e3e0eb8bb263ee121b068ff0"
+      },
+      "evaluator_config_sha256": "5a3039a6b238e5ca01ada69335ed7d1602b17a05223a884119355f66a752e555",
+      "expectation_sha256": "fefa6b3402a41a4509e9a831ecb191214cfc8a668f3cf3722053e84a6eef2350",
+      "fixture_bank_file_sha256": "219c53b2bba85a2589a324247cae3d1c901f557ae8892df0059ff429298be334",
+      "script_sha256": "e4364e247465f22dd326601b5ffe5f680fffd4663d769b1d71f21c6697f13d70",
+      "source_sha256": "fcea3980d2b630f7556ce1a09f235f52b5d1c57ad8b97c3f00ad4f380490bb17"
+    },
+    "leakage_declaration": {
+      "uses_human_ratings": false,
+      "uses_method_outputs": false,
+      "uses_model_outputs": false,
+      "uses_network": false,
+      "uses_randomness": false,
+      "uses_test_inputs": false,
+      "uses_test_metrics": false
+    },
+    "results": [
+      {
+        "artifact_hashes": {
+          "cohesion_result.json": "5be17c6e90fdd100308f2671ac3dfb523ebaad9d66f5610021f6c1411b2f6d7b",
+          "evaluation.json": "76a764b99c5a2af3cc8d80d8dde85b91e26a149c4c20d5690d71f9858a00aa20",
+          "figure_manifest.json": "15cd5fecd48df56f80101d6b2dd871e55ed55a2b115d8c8ffecd7175c200e92d",
+          "fixture_result.json": "d4a00c22bfb968f373a807ee8356e47eb10cbcb1d0372211c6aadd4d66cd4b5c",
+          "render.png": "e1a1938e748484f6a890c7e4417322ade976f70208274070ba6fc40eeb2d21f2"
+        },
+        "cohesion": [
+          4,
+          4
+        ],
+        "defect": "none",
+        "fixture_id": "C0",
+        "fixture_spec_sha256": "c44160a5726923a49bf06e4fa8a1c00ca2b8729b5be27bd0fae0f261c941df3b",
+        "legend_deduplication": [
+          1,
+          1
+        ],
+        "mismatch_codes": [],
+        "palette_mapping": [
+          1,
+          1
+        ],
+        "ratio": 1.0,
+        "replicate": 1,
+        "run_index": 1,
+        "shared_scale": [
+          1,
+          1
+        ],
+        "shared_unit": [
+          1,
+          1
+        ]
+      },
+      {
+        "artifact_hashes": {
+          "cohesion_result.json": "449260ead4b5ad5c119e371d693d93c0a62fd3da655e534dbc452d50de9eae2b",
+          "evaluation.json": "55528791d7103e6d72839c2fb8a799b7435809505329760dbafca76c30813daa",
+          "figure_manifest.json": "b67bf0a2d9b666ed93cf1347375bd1d06f2f7774b2c2074ffc71e52d164b8fa5",
+          "fixture_result.json": "ca61b3e526dcb925364fc3251652a1a3801e71b0b692a10e09cd7de7eeb08ae4",
+          "render.png": "a6ff9138bbf4b8a0d776f330497107ce8ea4f0693fae5a72a8fa80c77cd74d14"
+        },
+        "cohesion": [
+          3,
+          4
+        ],
+        "defect": "shared_scale",
+        "fixture_id": "C1-scale",
+        "fixture_spec_sha256": "eded69b94d3804a46ebca66bfdbf343b573d58d841897084d66418b5209b1d71",
+        "legend_deduplication": [
+          1,
+          1
+        ],
+        "mismatch_codes": [
+          "shared_scale_mismatch"
+        ],
+        "palette_mapping": [
+          1,
+          1
+        ],
+        "ratio": 0.75,
+        "replicate": 1,
+        "run_index": 2,
+        "shared_scale": [
+          0,
+          1
+        ],
+        "shared_unit": [
+          1,
+          1
+        ]
+      },
+      {
+        "artifact_hashes": {
+          "cohesion_result.json": "75f969703dd4630873091a413b2b1849d95aaf6bd5a12ce9c8182b42954b3c87",
+          "evaluation.json": "4abf3de0b1444756b9b1acbfe827a00fc7b67dc32a1077deb0963f3b74bde463",
+          "figure_manifest.json": "a1d7971d7465ec94af495000e3d1682d3690efd6072175378f89e3e23aa9895e",
+          "fixture_result.json": "e3ddf7b700a24c4a71e0380c126141ca6476c6adbc34aef2babe4dfd7624d849",
+          "render.png": "a2900b1547bbbd1d3979a28832bd3231651311bc39a97dc417f9748ac159836f"
+        },
+        "cohesion": [
+          3,
+          4
+        ],
+        "defect": "shared_unit",
+        "fixture_id": "C2-unit",
+        "fixture_spec_sha256": "779bdc693eb16d424d803570653c583012b6d3b74918211ae68893e95d1b7f8c",
+        "legend_deduplication": [
+          1,
+          1
+        ],
+        "mismatch_codes": [
+          "shared_unit_mismatch"
+        ],
+        "palette_mapping": [
+          1,
+          1
+        ],
+        "ratio": 0.75,
+        "replicate": 1,
+        "run_index": 3,
+        "shared_scale": [
+          1,
+          1
+        ],
+        "shared_unit": [
+          0,
+          1
+        ]
+      },
+      {
+        "artifact_hashes": {
+          "cohesion_result.json": "1a997da09ccf85035909c6c8c003f484f7c56b50dca3c74b89fcb79cff30887b",
+          "evaluation.json": "ddb8209bf21f546d2c8ff309b25e48273643fdd51322b52051f5e43965c094a5",
+          "figure_manifest.json": "2ac825249203302746da290bd1e7573dd4694999b654444626d1d272714186a1",
+          "fixture_result.json": "b59c1478e4c74a273d44ecb937194ca746a83e79070738a8394f43730d20bf47",
+          "render.png": "5bbbfb437a625105cc81819ad7beaa2305a7e2545081f74212e70e91acb79f8a"
+        },
+        "cohesion": [
+          3,
+          4
+        ],
+        "defect": "legend_deduplication",
+        "fixture_id": "C3-legend",
+        "fixture_spec_sha256": "474e3c038099e8e5e4dfa251ebb7a694f37c21aee16994a5e09483bf606dea79",
+        "legend_deduplication": [
+          0,
+          1
+        ],
+        "mismatch_codes": [
+          "legend_not_deduplicated"
+        ],
+        "palette_mapping": [
+          1,
+          1
+        ],
+        "ratio": 0.75,
+        "replicate": 1,
+        "run_index": 4,
+        "shared_scale": [
+          1,
+          1
+        ],
+        "shared_unit": [
+          1,
+          1
+        ]
+      },
+      {
+        "artifact_hashes": {
+          "cohesion_result.json": "3224caaa34093e28d7c232b88369631628e5da2763d53a2f10f9e7dc8446792e",
+          "evaluation.json": "1e83b0c412badfc89caf91ac2f08bab56c03f571028217519ea953d1c6d9f95f",
+          "figure_manifest.json": "e0ffddd12f47c4d36b197abd5d1a6f27abbd94b90fc58eb3f95a660dfa20af01",
+          "fixture_result.json": "53b03f88db83350b554cf655c2209873d36b63d41415cc1739aaf56034ae7588",
+          "render.png": "4a14b933998ebaeca1f45bbc81b7970e4227e171f661bb18a7caa699c63b3f30"
+        },
+        "cohesion": [
+          3,
+          4
+        ],
+        "defect": "palette_mapping",
+        "fixture_id": "C4-palette",
+        "fixture_spec_sha256": "4a8c604c0737f6c4cd6dc9e0a441c7959584f78964e6313685308315f44e1452",
+        "legend_deduplication": [
+          1,
+          1
+        ],
+        "mismatch_codes": [
+          "palette_mapping_mismatch"
+        ],
+        "palette_mapping": [
+          0,
+          1
+        ],
+        "ratio": 0.75,
+        "replicate": 1,
+        "run_index": 5,
+        "shared_scale": [
+          1,
+          1
+        ],
+        "shared_unit": [
+          1,
+          1
+        ]
+      },
+      {
+        "artifact_hashes": {
+          "cohesion_result.json": "5be17c6e90fdd100308f2671ac3dfb523ebaad9d66f5610021f6c1411b2f6d7b",
+          "evaluation.json": "76a764b99c5a2af3cc8d80d8dde85b91e26a149c4c20d5690d71f9858a00aa20",
+          "figure_manifest.json": "15cd5fecd48df56f80101d6b2dd871e55ed55a2b115d8c8ffecd7175c200e92d",
+          "fixture_result.json": "d4a00c22bfb968f373a807ee8356e47eb10cbcb1d0372211c6aadd4d66cd4b5c",
+          "render.png": "e1a1938e748484f6a890c7e4417322ade976f70208274070ba6fc40eeb2d21f2"
+        },
+        "cohesion": [
+          4,
+          4
+        ],
+        "defect": "none",
+        "fixture_id": "C0",
+        "fixture_spec_sha256": "c44160a5726923a49bf06e4fa8a1c00ca2b8729b5be27bd0fae0f261c941df3b",
+        "legend_deduplication": [
+          1,
+          1
+        ],
+        "mismatch_codes": [],
+        "palette_mapping": [
+          1,
+          1
+        ],
+        "ratio": 1.0,
+        "replicate": 2,
+        "run_index": 6,
+        "shared_scale": [
+          1,
+          1
+        ],
+        "shared_unit": [
+          1,
+          1
+        ]
+      },
+      {
+        "artifact_hashes": {
+          "cohesion_result.json": "449260ead4b5ad5c119e371d693d93c0a62fd3da655e534dbc452d50de9eae2b",
+          "evaluation.json": "55528791d7103e6d72839c2fb8a799b7435809505329760dbafca76c30813daa",
+          "figure_manifest.json": "b67bf0a2d9b666ed93cf1347375bd1d06f2f7774b2c2074ffc71e52d164b8fa5",
+          "fixture_result.json": "ca61b3e526dcb925364fc3251652a1a3801e71b0b692a10e09cd7de7eeb08ae4",
+          "render.png": "a6ff9138bbf4b8a0d776f330497107ce8ea4f0693fae5a72a8fa80c77cd74d14"
+        },
+        "cohesion": [
+          3,
+          4
+        ],
+        "defect": "shared_scale",
+        "fixture_id": "C1-scale",
+        "fixture_spec_sha256": "eded69b94d3804a46ebca66bfdbf343b573d58d841897084d66418b5209b1d71",
+        "legend_deduplication": [
+          1,
+          1
+        ],
+        "mismatch_codes": [
+          "shared_scale_mismatch"
+        ],
+        "palette_mapping": [
+          1,
+          1
+        ],
+        "ratio": 0.75,
+        "replicate": 2,
+        "run_index": 7,
+        "shared_scale": [
+          0,
+          1
+        ],
+        "shared_unit": [
+          1,
+          1
+        ]
+      },
+      {
+        "artifact_hashes": {
+          "cohesion_result.json": "75f969703dd4630873091a413b2b1849d95aaf6bd5a12ce9c8182b42954b3c87",
+          "evaluation.json": "4abf3de0b1444756b9b1acbfe827a00fc7b67dc32a1077deb0963f3b74bde463",
+          "figure_manifest.json": "a1d7971d7465ec94af495000e3d1682d3690efd6072175378f89e3e23aa9895e",
+          "fixture_result.json": "e3ddf7b700a24c4a71e0380c126141ca6476c6adbc34aef2babe4dfd7624d849",
+          "render.png": "a2900b1547bbbd1d3979a28832bd3231651311bc39a97dc417f9748ac159836f"
+        },
+        "cohesion": [
+          3,
+          4
+        ],
+        "defect": "shared_unit",
+        "fixture_id": "C2-unit",
+        "fixture_spec_sha256": "779bdc693eb16d424d803570653c583012b6d3b74918211ae68893e95d1b7f8c",
+        "legend_deduplication": [
+          1,
+          1
+        ],
+        "mismatch_codes": [
+          "shared_unit_mismatch"
+        ],
+        "palette_mapping": [
+          1,
+          1
+        ],
+        "ratio": 0.75,
+        "replicate": 2,
+        "run_index": 8,
+        "shared_scale": [
+          1,
+          1
+        ],
+        "shared_unit": [
+          0,
+          1
+        ]
+      },
+      {
+        "artifact_hashes": {
+          "cohesion_result.json": "1a997da09ccf85035909c6c8c003f484f7c56b50dca3c74b89fcb79cff30887b",
+          "evaluation.json": "ddb8209bf21f546d2c8ff309b25e48273643fdd51322b52051f5e43965c094a5",
+          "figure_manifest.json": "2ac825249203302746da290bd1e7573dd4694999b654444626d1d272714186a1",
+          "fixture_result.json": "b59c1478e4c74a273d44ecb937194ca746a83e79070738a8394f43730d20bf47",
+          "render.png": "5bbbfb437a625105cc81819ad7beaa2305a7e2545081f74212e70e91acb79f8a"
+        },
+        "cohesion": [
+          3,
+          4
+        ],
+        "defect": "legend_deduplication",
+        "fixture_id": "C3-legend",
+        "fixture_spec_sha256": "474e3c038099e8e5e4dfa251ebb7a694f37c21aee16994a5e09483bf606dea79",
+        "legend_deduplication": [
+          0,
+          1
+        ],
+        "mismatch_codes": [
+          "legend_not_deduplicated"
+        ],
+        "palette_mapping": [
+          1,
+          1
+        ],
+        "ratio": 0.75,
+        "replicate": 2,
+        "run_index": 9,
+        "shared_scale": [
+          1,
+          1
+        ],
+        "shared_unit": [
+          1,
+          1
+        ]
+      },
+      {
+        "artifact_hashes": {
+          "cohesion_result.json": "3224caaa34093e28d7c232b88369631628e5da2763d53a2f10f9e7dc8446792e",
+          "evaluation.json": "1e83b0c412badfc89caf91ac2f08bab56c03f571028217519ea953d1c6d9f95f",
+          "figure_manifest.json": "e0ffddd12f47c4d36b197abd5d1a6f27abbd94b90fc58eb3f95a660dfa20af01",
+          "fixture_result.json": "53b03f88db83350b554cf655c2209873d36b63d41415cc1739aaf56034ae7588",
+          "render.png": "4a14b933998ebaeca1f45bbc81b7970e4227e171f661bb18a7caa699c63b3f30"
+        },
+        "cohesion": [
+          3,
+          4
+        ],
+        "defect": "palette_mapping",
+        "fixture_id": "C4-palette",
+        "fixture_spec_sha256": "4a8c604c0737f6c4cd6dc9e0a441c7959584f78964e6313685308315f44e1452",
+        "legend_deduplication": [
+          1,
+          1
+        ],
+        "mismatch_codes": [
+          "palette_mapping_mismatch"
+        ],
+        "palette_mapping": [
+          0,
+          1
+        ],
+        "ratio": 0.75,
+        "replicate": 2,
+        "run_index": 10,
+        "shared_scale": [
+          1,
+          1
+        ],
+        "shared_unit": [
+          1,
+          1
+        ]
+      },
+      {
+        "artifact_hashes": {
+          "cohesion_result.json": "5be17c6e90fdd100308f2671ac3dfb523ebaad9d66f5610021f6c1411b2f6d7b",
+          "evaluation.json": "76a764b99c5a2af3cc8d80d8dde85b91e26a149c4c20d5690d71f9858a00aa20",
+          "figure_manifest.json": "15cd5fecd48df56f80101d6b2dd871e55ed55a2b115d8c8ffecd7175c200e92d",
+          "fixture_result.json": "d4a00c22bfb968f373a807ee8356e47eb10cbcb1d0372211c6aadd4d66cd4b5c",
+          "render.png": "e1a1938e748484f6a890c7e4417322ade976f70208274070ba6fc40eeb2d21f2"
+        },
+        "cohesion": [
+          4,
+          4
+        ],
+        "defect": "none",
+        "fixture_id": "C0",
+        "fixture_spec_sha256": "c44160a5726923a49bf06e4fa8a1c00ca2b8729b5be27bd0fae0f261c941df3b",
+        "legend_deduplication": [
+          1,
+          1
+        ],
+        "mismatch_codes": [],
+        "palette_mapping": [
+          1,
+          1
+        ],
+        "ratio": 1.0,
+        "replicate": 3,
+        "run_index": 11,
+        "shared_scale": [
+          1,
+          1
+        ],
+        "shared_unit": [
+          1,
+          1
+        ]
+      },
+      {
+        "artifact_hashes": {
+          "cohesion_result.json": "449260ead4b5ad5c119e371d693d93c0a62fd3da655e534dbc452d50de9eae2b",
+          "evaluation.json": "55528791d7103e6d72839c2fb8a799b7435809505329760dbafca76c30813daa",
+          "figure_manifest.json": "b67bf0a2d9b666ed93cf1347375bd1d06f2f7774b2c2074ffc71e52d164b8fa5",
+          "fixture_result.json": "ca61b3e526dcb925364fc3251652a1a3801e71b0b692a10e09cd7de7eeb08ae4",
+          "render.png": "a6ff9138bbf4b8a0d776f330497107ce8ea4f0693fae5a72a8fa80c77cd74d14"
+        },
+        "cohesion": [
+          3,
+          4
+        ],
+        "defect": "shared_scale",
+        "fixture_id": "C1-scale",
+        "fixture_spec_sha256": "eded69b94d3804a46ebca66bfdbf343b573d58d841897084d66418b5209b1d71",
+        "legend_deduplication": [
+          1,
+          1
+        ],
+        "mismatch_codes": [
+          "shared_scale_mismatch"
+        ],
+        "palette_mapping": [
+          1,
+          1
+        ],
+        "ratio": 0.75,
+        "replicate": 3,
+        "run_index": 12,
+        "shared_scale": [
+          0,
+          1
+        ],
+        "shared_unit": [
+          1,
+          1
+        ]
+      },
+      {
+        "artifact_hashes": {
+          "cohesion_result.json": "75f969703dd4630873091a413b2b1849d95aaf6bd5a12ce9c8182b42954b3c87",
+          "evaluation.json": "4abf3de0b1444756b9b1acbfe827a00fc7b67dc32a1077deb0963f3b74bde463",
+          "figure_manifest.json": "a1d7971d7465ec94af495000e3d1682d3690efd6072175378f89e3e23aa9895e",
+          "fixture_result.json": "e3ddf7b700a24c4a71e0380c126141ca6476c6adbc34aef2babe4dfd7624d849",
+          "render.png": "a2900b1547bbbd1d3979a28832bd3231651311bc39a97dc417f9748ac159836f"
+        },
+        "cohesion": [
+          3,
+          4
+        ],
+        "defect": "shared_unit",
+        "fixture_id": "C2-unit",
+        "fixture_spec_sha256": "779bdc693eb16d424d803570653c583012b6d3b74918211ae68893e95d1b7f8c",
+        "legend_deduplication": [
+          1,
+          1
+        ],
+        "mismatch_codes": [
+          "shared_unit_mismatch"
+        ],
+        "palette_mapping": [
+          1,
+          1
+        ],
+        "ratio": 0.75,
+        "replicate": 3,
+        "run_index": 13,
+        "shared_scale": [
+          1,
+          1
+        ],
+        "shared_unit": [
+          0,
+          1
+        ]
+      },
+      {
+        "artifact_hashes": {
+          "cohesion_result.json": "1a997da09ccf85035909c6c8c003f484f7c56b50dca3c74b89fcb79cff30887b",
+          "evaluation.json": "ddb8209bf21f546d2c8ff309b25e48273643fdd51322b52051f5e43965c094a5",
+          "figure_manifest.json": "2ac825249203302746da290bd1e7573dd4694999b654444626d1d272714186a1",
+          "fixture_result.json": "b59c1478e4c74a273d44ecb937194ca746a83e79070738a8394f43730d20bf47",
+          "render.png": "5bbbfb437a625105cc81819ad7beaa2305a7e2545081f74212e70e91acb79f8a"
+        },
+        "cohesion": [
+          3,
+          4
+        ],
+        "defect": "legend_deduplication",
+        "fixture_id": "C3-legend",
+        "fixture_spec_sha256": "474e3c038099e8e5e4dfa251ebb7a694f37c21aee16994a5e09483bf606dea79",
+        "legend_deduplication": [
+          0,
+          1
+        ],
+        "mismatch_codes": [
+          "legend_not_deduplicated"
+        ],
+        "palette_mapping": [
+          1,
+          1
+        ],
+        "ratio": 0.75,
+        "replicate": 3,
+        "run_index": 14,
+        "shared_scale": [
+          1,
+          1
+        ],
+        "shared_unit": [
+          1,
+          1
+        ]
+      },
+      {
+        "artifact_hashes": {
+          "cohesion_result.json": "3224caaa34093e28d7c232b88369631628e5da2763d53a2f10f9e7dc8446792e",
+          "evaluation.json": "1e83b0c412badfc89caf91ac2f08bab56c03f571028217519ea953d1c6d9f95f",
+          "figure_manifest.json": "e0ffddd12f47c4d36b197abd5d1a6f27abbd94b90fc58eb3f95a660dfa20af01",
+          "fixture_result.json": "53b03f88db83350b554cf655c2209873d36b63d41415cc1739aaf56034ae7588",
+          "render.png": "4a14b933998ebaeca1f45bbc81b7970e4227e171f661bb18a7caa699c63b3f30"
+        },
+        "cohesion": [
+          3,
+          4
+        ],
+        "defect": "palette_mapping",
+        "fixture_id": "C4-palette",
+        "fixture_spec_sha256": "4a8c604c0737f6c4cd6dc9e0a441c7959584f78964e6313685308315f44e1452",
+        "legend_deduplication": [
+          1,
+          1
+        ],
+        "mismatch_codes": [
+          "palette_mapping_mismatch"
+        ],
+        "palette_mapping": [
+          0,
+          1
+        ],
+        "ratio": 0.75,
+        "replicate": 3,
+        "run_index": 15,
+        "shared_scale": [
+          1,
+          1
+        ],
+        "shared_unit": [
+          1,
+          1
+        ]
+      }
+    ],
+    "run_count": 15,
+    "run_order": [
+      "r1:C0",
+      "r1:C1-scale",
+      "r1:C2-unit",
+      "r1:C3-legend",
+      "r1:C4-palette",
+      "r2:C0",
+      "r2:C1-scale",
+      "r2:C2-unit",
+      "r2:C3-legend",
+      "r2:C4-palette",
+      "r3:C0",
+      "r3:C1-scale",
+      "r3:C2-unit",
+      "r3:C3-legend",
+      "r3:C4-palette"
+    ],
+    "schema_version": "1.0",
+    "status": "passed"
+  }
+}

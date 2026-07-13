@@ -1,0 +1,24 @@
+{
+  "allow_missing_shared_units": false,
+  "case_sensitive_labels": true,
+  "float_precision": 12,
+  "limit_tolerance": {
+    "absolute": 1e-08,
+    "relative": 1e-08
+  },
+  "metric_version": "1.0.0",
+  "numeric_tolerance": {
+    "absolute": 1e-08,
+    "relative": 1e-06
+  },
+  "schema_version": "1.0.0",
+  "unit_aliases": {
+    "microgram": "ug",
+    "micrograms": "ug",
+    "percent": "%",
+    "second": "s",
+    "seconds": "s",
+    "µg": "ug",
+    "μg": "ug"
+  }
+}

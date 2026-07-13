@@ -1,0 +1,55 @@
+{
+  "panel_groups": [
+    {
+      "checks": {
+        "legend_deduplicated": true,
+        "palette_consistent": true,
+        "shared_y_scale": true,
+        "shared_y_unit": true
+      },
+      "group_id": "shared-measurement",
+      "panels": [
+        "panel-a",
+        "panel-b"
+      ],
+      "series": [
+        "signal"
+      ]
+    }
+  ],
+  "panels": [
+    {
+      "axis_index": 0,
+      "panel_id": "panel-a",
+      "series": [
+        {
+          "kind": "line",
+          "label": "signal",
+          "series_id": "signal",
+          "x": "x",
+          "y": "y"
+        }
+      ],
+      "y_scale": "linear",
+      "y_unit": "mg",
+      "ylabel": "Value (mg)"
+    },
+    {
+      "axis_index": 1,
+      "panel_id": "panel-b",
+      "series": [
+        {
+          "kind": "line",
+          "label": "signal",
+          "series_id": "signal",
+          "x": "x",
+          "y": "y"
+        }
+      ],
+      "y_scale": "linear",
+      "y_unit": "mg",
+      "ylabel": "Value (mg)"
+    }
+  ],
+  "schema_version": "1.1.0"
+}
