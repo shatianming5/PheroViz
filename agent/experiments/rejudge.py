@@ -93,6 +93,10 @@ _REQUIRED_JUDGE_FIELDS = {
     "prompt_hash",
     "model_cutoff",
 }
+_EXPECTED_SERVED_BY_REQUEST = {
+    "claude-sonnet-4.6": "claude-sonnet-4-6",
+    "gemini-3.5-flash": "gemini-3.5-flash",
+}
 
 
 class RejudgeError(ProvenanceError):
@@ -215,8 +219,12 @@ def _load_judge_config(request_model: str) -> JudgeConfig:
     for field in ("judge_id", "request_model", "served_model", "base_url_env", "api_key_env"):
         if not isinstance(raw[field], str) or not raw[field].strip():
             raise RejudgeError(f"Judge registry {field} must be a non-empty string")
-    if raw["served_model"] != raw["request_model"]:
-        raise RejudgeError("Frozen served_model must exactly equal request_model")
+    if raw["served_model"] != _EXPECTED_SERVED_BY_REQUEST.get(
+        str(raw["request_model"])
+    ):
+        raise RejudgeError(
+            "Frozen served_model does not match the registered gateway identity"
+        )
     if (
         isinstance(raw["retries"], bool)
         or not isinstance(raw["retries"], int)

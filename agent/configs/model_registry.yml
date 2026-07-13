@@ -32,7 +32,7 @@ visual_judges:
   primary:
     judge_id: visual-form-primary-v1
     request_model: claude-sonnet-4.6
-    served_model: claude-sonnet-4.6
+    served_model: claude-sonnet-4-6
     protocol: anthropic_messages
     endpoint_class: anthropic_compatibility_gateway
     base_url_env: ANTHROPIC_BASE_URL

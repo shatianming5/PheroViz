@@ -41,7 +41,7 @@
       "enum": ["claude-sonnet-4.6", "gemini-3.5-flash"]
     },
     "judge_expected_served_model": {
-      "enum": ["claude-sonnet-4.6", "gemini-3.5-flash"]
+      "enum": ["claude-sonnet-4-6", "gemini-3.5-flash"]
     },
     "judge_protocol": {"const": "anthropic_messages"},
     "judge_endpoint_class": {"const": "anthropic_compatibility_gateway"},

@@ -73,8 +73,9 @@ def test_visual_judges_are_exactly_frozen_for_c5() -> None:
         judges["primary"]["judge_id"],
         judges["secondary"]["judge_id"],
     } == {"visual-form-primary-v1", "visual-form-secondary-v1"}
+    assert judges["primary"]["served_model"] == "claude-sonnet-4-6"
+    assert judges["secondary"]["served_model"] == "gemini-3.5-flash"
     for judge in judges.values():
-        assert judge["served_model"] == judge["request_model"]
         assert judge["protocol"] == "anthropic_messages"
         assert judge["endpoint_class"] == "anthropic_compatibility_gateway"
         assert judge["base_url_env"] == "ANTHROPIC_BASE_URL"

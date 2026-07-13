@@ -118,7 +118,14 @@ class FakeModelClient:
                 "visual_form": self.score,
                 "diagnostics": ["Text and layout are legible."],
             },
-            model=self.served_model or str(kwargs["model"]),
+            model=(
+                self.served_model
+                or (
+                    "claude-sonnet-4-6"
+                    if kwargs["model"] == "claude-sonnet-4.6"
+                    else str(kwargs["model"])
+                )
+            ),
             request_id="request-123",
             usage={"input_tokens": 10, "output_tokens": 5},
             stop_reason=self.stop_reason,
@@ -231,7 +238,7 @@ def test_rejudge_binds_best_render_is_read_only_and_resumes() -> None:
             client.calls[0]["image_path"]
         )
         assert payload["judge_request_model"] == "claude-sonnet-4.6"
-        assert payload["judge_served_model"] == "claude-sonnet-4.6"
+        assert payload["judge_served_model"] == "claude-sonnet-4-6"
         assert payload["rubric_hash"] == VISUAL_FORM_RUBRIC_HASH
         assert payload["code_git_commit"] == CLEAN_CODE_COMMIT
         assert payload["code_git_dirty"] is False
