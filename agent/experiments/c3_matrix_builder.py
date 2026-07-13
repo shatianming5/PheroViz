@@ -10,7 +10,11 @@ from typing import Any, Mapping, Sequence
 
 import yaml
 
-from .manifest import ManifestError, load_dataset_manifest
+from .manifest import (
+    ManifestError,
+    load_dataset_manifest,
+    normalize_manifest_data_root,
+)
 from .matrix import expand_matrix
 from .models import sha256_file, sha256_json
 
@@ -415,10 +419,14 @@ def verify_c3_matrix(
         raise C3MatrixError("C3 matrix contract hash changed")
     expansion_matrix = dict(matrix)
     if manifest_data_root is not None:
-        expansion_matrix["provider_options"] = {
-            "manifest_data_root": str(
-                manifest_data_root.expanduser().resolve(strict=True)
+        try:
+            normalized_manifest_data_root = normalize_manifest_data_root(
+                manifest_data_root
             )
+        except ManifestError as exc:
+            raise C3MatrixError(str(exc)) from exc
+        expansion_matrix["provider_options"] = {
+            "manifest_data_root": str(normalized_manifest_data_root)
         }
     specs = expand_matrix(
         expansion_matrix,

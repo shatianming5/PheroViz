@@ -226,6 +226,8 @@ def _synthetic_portable_repositories(
     runtime_template = (
         runtime_repo / template.relative_to(source_repo)
     )
+    shutil.rmtree(source_repo)
+    assert not source_repo.exists()
     return source_repo, runtime_repo, runtime_template, manifest_sha256
 
 
@@ -287,6 +289,13 @@ def test_tracked_template_is_hash_bound_and_superseded_parent_is_rejected() -> N
                 output_path=workspace / "matrix.yaml",
                 repo_root=REPO_ROOT,
             )
+
+    with pytest.raises(C3MatrixError, match="manifest_data_root must be an absolute"):
+        verify_c3_matrix(
+            TRACKED_TEMPLATE,
+            repo_root=REPO_ROOT,
+            manifest_data_root=Path("relative/original-root"),
+        )
 
 
 def test_spec_hash_manifest_requires_and_binds_clean_expansion(
@@ -363,6 +372,7 @@ def test_runtime_materialization_relocates_sealed_paths_and_pairs_54_specs() -> 
             output_root=output_root,
             expected_manifest_sha256=manifest_sha256,
         )
+        assert not source_repo.exists()
         runtime_matrix = yaml.safe_load(
             Path(result["matrix_path"]).read_text(encoding="utf-8")
         )
@@ -403,6 +413,35 @@ def test_runtime_materialization_relocates_sealed_paths_and_pairs_54_specs() -> 
             frozenset(name for name, _ in MEMORY_MODES)
         }
         assert not _git(runtime_repo, "status", "--porcelain")
+
+
+@pytest.mark.parametrize(
+    "original_root",
+    [
+        Path("relative/original-root"),
+        Path("/recorded/source/../source"),
+    ],
+)
+def test_runtime_materialization_rejects_nonabsolute_or_unnormalized_prefix(
+    original_root: Path,
+) -> None:
+    with _workspace("runtime-invalid-prefix") as workspace:
+        _, runtime_repo, template, manifest_sha256 = (
+            _synthetic_portable_repositories(workspace)
+        )
+        output_root = runtime_repo / "agent/experiments/runs/materialized/c3"
+
+        with pytest.raises(
+            C3RuntimeMaterializationError,
+            match="original_manifest_data_root",
+        ):
+            materialize_runtime_c3_matrix(
+                template_path=template,
+                runtime_repo_root=runtime_repo,
+                original_manifest_data_root=original_root,
+                output_root=output_root,
+                expected_manifest_sha256=manifest_sha256,
+            )
 
 
 @pytest.mark.parametrize(

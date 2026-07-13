@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import hashlib
+import os
 from dataclasses import dataclass
 from pathlib import Path
 import re
@@ -19,6 +20,16 @@ class ManifestError(ProvenanceError):
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _BENCHMARK_SPLITS = {"train", "val", "test"}
+
+
+def normalize_manifest_data_root(value: str | Path) -> Path:
+    path = Path(value)
+    if not path.is_absolute() or path.anchor != os.sep:
+        raise ManifestError("manifest_data_root must be an absolute path")
+    normalized = Path(os.path.normpath(str(path)))
+    if normalized != path or ".." in path.parts:
+        raise ManifestError("manifest_data_root must be lexically normalized")
+    return normalized
 
 
 def _sha256_json(value: Any) -> str:
@@ -69,18 +80,17 @@ def _remap_absolute_path(
         raise ManifestError(
             "runtime_repo_root is required when manifest_data_root is set"
         )
-    source_root = Path(manifest_data_root).expanduser()
+    source_root = normalize_manifest_data_root(manifest_data_root)
     target_root = Path(runtime_repo_root).expanduser()
-    if not source_root.is_absolute() or not target_root.is_absolute():
+    if not target_root.is_absolute():
         raise ManifestError(
             "Manifest and runtime data roots must be absolute paths"
         )
-    source_root = source_root.resolve()
-    target_root = target_root.resolve()
+    target_root = target_root.resolve(strict=True)
     try:
-        relative = path.resolve().relative_to(source_root)
+        relative = path.relative_to(source_root)
     except ValueError:
-        return path.resolve()
+        return path
     remapped = (target_root / relative).resolve()
     try:
         remapped.relative_to(target_root)

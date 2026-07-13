@@ -16,6 +16,7 @@ from .c3_matrix_builder import (
     C3MatrixError,
     verify_c3_matrix,
 )
+from .manifest import ManifestError, normalize_manifest_data_root
 from .matrix import expand_matrix
 from .models import sha256_file, sha256_json
 
@@ -26,6 +27,15 @@ _SECRET_TOKENS = ("api_key", "apikey", "password", "secret", "auth_token")
 
 class C3RuntimeMaterializationError(C3MatrixError):
     """Raised when a portable C3 template cannot be bound to a runtime root."""
+
+
+def _normalize_original_manifest_data_root(value: Path) -> Path:
+    try:
+        return normalize_manifest_data_root(value)
+    except ManifestError as exc:
+        raise C3RuntimeMaterializationError(
+            f"Invalid original_manifest_data_root: {exc}"
+        ) from exc
 
 
 def _git_output(repo_root: Path, *args: str) -> str:
@@ -134,10 +144,9 @@ def verify_runtime_c3_matrix(
         runtime_repo_root,
         "portable template",
     )
-    if not original_manifest_data_root.is_absolute():
-        raise C3RuntimeMaterializationError(
-            "original_manifest_data_root must be absolute"
-        )
+    original_manifest_data_root = _normalize_original_manifest_data_root(
+        original_manifest_data_root
+    )
     template_result = verify_c3_matrix(
         template_path,
         repo_root=runtime_repo_root,
@@ -269,10 +278,9 @@ def materialize_runtime_c3_matrix(
         runtime_repo_root,
         "portable template",
     )
-    if not original_manifest_data_root.is_absolute():
-        raise C3RuntimeMaterializationError(
-            "original_manifest_data_root must be absolute"
-        )
+    original_manifest_data_root = _normalize_original_manifest_data_root(
+        original_manifest_data_root
+    )
     commit = _git_output(runtime_repo_root, "rev-parse", "HEAD")
     dirty = bool(
         _git_output(
