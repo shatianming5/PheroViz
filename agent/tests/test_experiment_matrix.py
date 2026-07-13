@@ -478,10 +478,10 @@ def test_production_c1_c3_matrix_contract_expands_cleanly() -> None:
 
     assert production["dataset_mode"] == "sealed_benchmark"
     assert production["dataset_manifest"].endswith(
-        "final_benchmark_v2_seed0/benchmark_manifest.json"
+        "final_benchmark_renderable_v1_seed0/benchmark_manifest.json"
     )
     assert production["dataset_manifest_sha256"] == (
-        "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b"
+        "6c6c5cb50603d899a9be0f41c9e562517c92ae15477610e9111f6504cd1757b3"
     )
     assert production["splits"] == ["test"]
     assert production["backbones"] == ["gpt-5.6-sol"]
@@ -491,7 +491,7 @@ def test_production_c1_c3_matrix_contract_expands_cleanly() -> None:
         matrix_path.parents[1]
         / "runs"
         / "production"
-        / "c1_c3_final_benchmark_v2_seed0_br6_gpt56sol"
+        / "c1_c3_renderable_v1_seed0_br6_gpt56sol"
     )
     assert subprocess.run(
         ["git", "check-ignore", "--quiet", str(artifact_root)],
@@ -619,9 +619,9 @@ def test_c4_backbone_matrices_share_the_frozen_contract() -> None:
         "open": "Qwen/Qwen2.5-Coder-7B-Instruct",
     }
     expected_root_names = {
-        "frontier": "c1_c3_final_benchmark_v2_seed0_br6_gpt56sol",
-        "mid": "c4_mid_final_benchmark_v2_seed0_br6_gpt4omini",
-        "open": "c4_open_final_benchmark_v2_seed0_br6_qwen2p5coder7b",
+        "frontier": "c1_c3_renderable_v1_seed0_br6_gpt56sol",
+        "mid": "c4_mid_renderable_v1_seed0_br6_gpt4omini",
+        "open": "c4_open_renderable_v1_seed0_br6_qwen2p5coder7b",
     }
     artifact_roots = {
         tier: (path.parent / matrices[tier]["artifact_root"]).resolve()
@@ -642,15 +642,15 @@ def test_c4_backbone_matrices_share_the_frozen_contract() -> None:
     all_run_names: set[str] = set()
     normalized_contracts: dict[str, set[str]] = {}
     for tier, specs in specs_by_tier.items():
-        assert len(specs) == 180
+        assert len(specs) == 171
         run_names = {spec.run_name for spec in specs}
-        assert len(run_names) == 180
+        assert len(run_names) == 171
         assert all_run_names.isdisjoint(run_names)
         all_run_names.update(run_names)
 
         case_panels = {spec.case_id: spec.panel_count for spec in specs}
-        assert len(case_panels) == 20
-        assert Counter(case_panels.values()) == {1: 17, 2: 1, 3: 1, 6: 1}
+        assert len(case_panels) == 19
+        assert Counter(case_panels.values()) == {1: 16, 2: 1, 3: 1, 6: 1}
         assert {spec.backbone for spec in specs} == {
             expected_backbones[tier]
         }
@@ -671,7 +671,7 @@ def test_c4_backbone_matrices_share_the_frozen_contract() -> None:
             spec.method_config["initial_generation"] for spec in specs
         } == {"model_spec"}
         assert {spec.dataset_manifest_hash for spec in specs} == {
-            "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b"
+            "6c6c5cb50603d899a9be0f41c9e562517c92ae15477610e9111f6504cd1757b3"
         }
         assert {spec.split for spec in specs} == {"test"}
 
@@ -690,7 +690,7 @@ def test_c4_backbone_matrices_share_the_frozen_contract() -> None:
             normalized.add(json.dumps(payload, sort_keys=True))
         normalized_contracts[tier] = normalized
 
-    assert len(all_run_names) == 540
+    assert len(all_run_names) == 513
     assert normalized_contracts["frontier"] == normalized_contracts["mid"]
     assert normalized_contracts["frontier"] == normalized_contracts["open"]
     assert {

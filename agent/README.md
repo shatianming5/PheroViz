@@ -122,7 +122,7 @@ OS sandbox，危险/不支持代码、非唯一 Figure、越界 artifact 或评�
 
 C1/C3 的首个 production 矩阵位于
 `experiments/matrices/c1_c3_final_benchmark_v2_seed0.yaml`。它只选择
-`final_benchmark_v2_seed0` 的 test split，固定 `B_R=6`、backbone
+`final_benchmark_renderable_v1_seed0` 的 test split，固定 `B_R=6`、backbone
 `gpt-5.6-sol` 和 seeds `0/1/2`，并声明三个统一 provider 方法：
 
 - `best_of_n`：`schedule=best_of_n`、`memory_mode=none`，进行
@@ -150,10 +150,10 @@ python -m experiments run \
 C4 复用上述 frontier 矩阵，并新增
 `c4_mid_final_benchmark_v2_seed0.yaml`（`gpt-4o-mini`）和
 `c4_open_final_benchmark_v2_seed0.yaml`
-（`Qwen/Qwen2.5-Coder-7B-Instruct`）。三个 tier 的 20 个 test cases、
+（`Qwen/Qwen2.5-Coder-7B-Instruct`）。三个 tier 的 19 个 test cases、
 方法、seeds、`B_R=6`、metric 和 dataset hash 完全一致，但必须在不同
 进程/环境中运行，并写入各自被 Git 忽略的 artifact root。每个矩阵展开
-180 个互异 spec，三者 run name 的并集为 540。
+171 个互异 spec，三者 run name 的并集为 513。
 
 Mid tier 按 registry 固定 `temperature=0.2`。Open tier 的 registry 尚未
 声明可复现的 temperature/seed 契约，因此矩阵不设置 temperature；正式启动

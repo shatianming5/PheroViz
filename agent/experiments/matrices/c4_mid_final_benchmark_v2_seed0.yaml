@@ -1,8 +1,8 @@
-experiment_name: c4-mid-final-benchmark-v2-seed0-br6
-dataset_manifest: ../../../nature_download/outputs/combined_verified_400/final_benchmark_v2_seed0/benchmark_manifest.json
-dataset_manifest_sha256: 6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b
+experiment_name: c4-mid-renderable-v1-seed0-br6
+dataset_manifest: ../../../nature_download/outputs/combined_verified_400/final_benchmark_renderable_v1_seed0/benchmark_manifest.json
+dataset_manifest_sha256: 6c6c5cb50603d899a9be0f41c9e562517c92ae15477610e9111f6504cd1757b3
 dataset_mode: sealed_benchmark
-artifact_root: ../runs/production/c4_mid_final_benchmark_v2_seed0_br6_gpt4omini
+artifact_root: ../runs/production/c4_mid_renderable_v1_seed0_br6_gpt4omini
 
 provider: experiments.providers:UnifiedBenchmarkProvider
 provider_options:
