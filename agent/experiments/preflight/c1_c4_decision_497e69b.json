@@ -1,0 +1,64 @@
+{
+  "schema_version": "1.0",
+  "status": "COMPLETED_NEGATIVE_RESULT",
+  "experiment": {
+    "git_commit": "d90d655b96bfb3b95bfdc37665692957969d8968",
+    "dataset_manifest_sha256": "6c6c5cb50603d899a9be0f41c9e562517c92ae15477610e9111f6504cd1757b3",
+    "tiers": 3,
+    "records": 513,
+    "completed": 513,
+    "failed": 0,
+    "renders": 3078
+  },
+  "analysis": {
+    "code_commit": "497e69b91c6ec7774057aba03cc5b8ff9153c5cc",
+    "code_dirty": false,
+    "frontier_fidelity_hash": "9e03a264629a63a1bd2dfc2a92228cadb34045c08914617fe29f89869eaabf81",
+    "frontier_cohesion_hash": "ee225b0c3702202b33cda1bf26708432c572ef760727c262e438097ab6b9d6d0",
+    "mid_fidelity_hash": "ef5665911c61d40275cea28131a47540c79eb9586143fcaa4980af656fb29842",
+    "mid_cohesion_hash": "6fabe50dbc8735fa0119dc9acfea235fdf7a25d9f8b4daacef499250ee659398",
+    "open_fidelity_hash": "fdb4e927f74a01eb144981b6bda7e64bde210b315e552a0f3c3dd6f2cc5b4af3",
+    "open_cohesion_hash": "b19041a76f64fd9b9f4de9a325d515bd705ec420d6b6ff55e924d9d45f1c6476",
+    "holm_family_hash": "edacdcc6fbe019be9b277a4fd9a8bc87de859a60ca8cfb9e80005d9dd7e6a491",
+    "holm_file_sha256": "231508818638b1fc0c2b929eb739ab5f172858abeaef6b3746b50339ca56150c",
+    "decision_report_hash": "de63121bb9e0b3315ab0ac19cc07f586a43663589dbe1a6c805f93199129bf5c",
+    "decision_file_sha256": "32c9ddcb036b832d58e0269127609fc24557c840f847c3e17582239a9cc9bd60"
+  },
+  "doi_means": {
+    "frontier": {
+      "best_of_n": {"fidelity": 1.0, "cohesion": 0.8333333333333334},
+      "flat_iterative": {"fidelity": 1.0, "cohesion": 0.8333333333333334},
+      "pheroviz_full": {"fidelity": 1.0, "cohesion": 0.8333333333333334}
+    },
+    "mid": {
+      "best_of_n": {"fidelity": 1.0, "cohesion": 0.8333333333333334},
+      "flat_iterative": {"fidelity": 1.0, "cohesion": 0.8333333333333334},
+      "pheroviz_full": {"fidelity": 1.0, "cohesion": 0.8333333333333334}
+    },
+    "open": {
+      "best_of_n": {"fidelity": 1.0, "cohesion": 0.8333333333333334},
+      "flat_iterative": {"fidelity": 1.0, "cohesion": 0.8333333333333334},
+      "pheroviz_full": {"fidelity": 1.0, "cohesion": 0.8333333333333334}
+    }
+  },
+  "c1": {
+    "status": "UNSUPPORTED",
+    "all_render_budget_effects": 0.0,
+    "all_ci95": [0.0, 0.0],
+    "all_raw_p_values": 1.0,
+    "wall_clock": "UNAVAILABLE"
+  },
+  "c4": {
+    "status": "TIER_SCOPED_FALLBACK",
+    "cross_tier_claim_permitted": false,
+    "all_six_effects": 0.0,
+    "all_holm_p_values": 1.0,
+    "all_tier_decisions": "REPORT_EFFECTS_ONLY"
+  },
+  "decision": {
+    "budget_matched_superiority_supported": false,
+    "backbone_persistence_supported": false,
+    "allowed_wording": "Under the frozen six-render programmatic evaluation, all three methods tied at every backbone tier; neither budget-matched superiority nor cross-backbone scaffold persistence was supported.",
+    "metric_saturation_observed": true
+  }
+}

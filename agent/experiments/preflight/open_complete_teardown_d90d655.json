@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "status": "COMPLETED_AGGREGATED_SERVER_RELEASED",
+  "tier": "open",
+  "backbone": "Qwen/Qwen2.5-Coder-7B-Instruct",
+  "experiment": {
+    "git_commit": "d90d655b96bfb3b95bfdc37665692957969d8968",
+    "git_dirty": false,
+    "dataset_manifest_sha256": "6c6c5cb50603d899a9be0f41c9e562517c92ae15477610e9111f6504cd1757b3",
+    "records": 171,
+    "completed": 171,
+    "failed": 0,
+    "cases": 19,
+    "dois": 6,
+    "renders": 1026
+  },
+  "model": {
+    "revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+    "served_identity": "Qwen/Qwen2.5-Coder-7B-Instruct",
+    "device": "cuda:1",
+    "server_pid": 2479211
+  },
+  "summary": {
+    "remote_path": "/mnt/SSD1_8TB/zechuan/PheroViz-mid-d90d655/agent/experiments/runs/production/_summaries/c4_open_renderable_v1_seed0_br6_qwen2p5coder7b/summary.json",
+    "summary_hash": "4ad39832d6740004d78739d7bcb622ae9acdbf4fa03a702b3162817956a4a3f1",
+    "file_sha256": "3f29307bf1dbb295490b51ae40c1fb1b61aa52463ee3121a7bbd0d24449f69fd",
+    "record_bindings_hash": "efbb109e8db58653dbdba929333c3bd822188ff906a6db3849863656107db726"
+  },
+  "analysis": {
+    "code_commit": "497e69b91c6ec7774057aba03cc5b8ff9153c5cc",
+    "fidelity_analysis_hash": "fdb4e927f74a01eb144981b6bda7e64bde210b315e552a0f3c3dd6f2cc5b4af3",
+    "cohesion_analysis_hash": "b19041a76f64fd9b9f4de9a325d515bd705ec420d6b6ff55e924d9d45f1c6476"
+  },
+  "teardown": {
+    "status": "STOPPED_GPU_RELEASED",
+    "gpu_release_requested": true,
+    "gpu_memory_mib_after": 0,
+    "process_absent": true,
+    "secret_material_deleted": true,
+    "report_hash": "c9303e88c8934774e106a2cb1eab6cec3813b61af8c5dfc66b07430698ef09af",
+    "report_file_sha256": "8b82de3da854ee42dac8a460cb3c34e26b970d3c3f8603c0c05f5fc4987b5591"
+  }
+}
