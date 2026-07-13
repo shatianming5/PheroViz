@@ -16,6 +16,18 @@ match the registry. Registry, prompt, rubric, input-summary, input-manifest,
 record, selected-candidate, and selected-render hashes are sealed into batches
 and sidecars.
 
+Both judges freeze `validation_attempts=3`. Per render, C5 makes at most three
+total calls and retries only response-level failures that leave no valid strict
+schema score: empty/invalid JSON, extra or missing keys, invalid score or
+diagnostics, and `max_tokens` truncation. It stops on the first valid response
+and never selects among valid scores. Served-identity mismatch,
+authentication/outage, provenance failure, and input mutation are not retried.
+
+Each v3 sidecar binds the ordered attempt ledger and actual call count. Only
+the final successful attempt may contain `valid_score`; three invalid responses
+remain a failure. The v3 batch binds per-run attempt counts and their exact
+total. All earlier C5 batches are incompatible and `NEVER_MERGE`.
+
 The request contains one selected image and the fixed visual-form prompt only.
 Source data, method metadata, prior scores, generation feedback, and editing
 feedback are excluded. Dirty code, run-root input, stale summaries or renders,

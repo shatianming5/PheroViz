@@ -14,6 +14,7 @@
     "judge_protocol",
     "judge_endpoint_class",
     "judge_max_tokens",
+    "judge_validation_attempts",
     "judge_config_hash",
     "model_registry_sha256",
     "rubric_hash",
@@ -29,10 +30,12 @@
     "resumed",
     "failures",
     "sidecar_hashes",
+    "attempt_count_by_run",
+    "total_attempts",
     "batch_hash"
   ],
   "properties": {
-    "schema_version": {"const": "2.0"},
+    "schema_version": {"const": "3.0"},
     "status": {"enum": ["completed", "failed"]},
     "judge_id": {
       "enum": ["visual-form-primary-v1", "visual-form-secondary-v1"]
@@ -46,6 +49,7 @@
     "judge_protocol": {"const": "anthropic_messages"},
     "judge_endpoint_class": {"const": "anthropic_compatibility_gateway"},
     "judge_max_tokens": {"const": 1024},
+    "judge_validation_attempts": {"const": 3},
     "code_git_dirty": {"const": false},
     "input_manifest": {"type": "object"},
     "completed": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
@@ -55,6 +59,15 @@
       "type": "object",
       "additionalProperties": {"$ref": "#/$defs/sha256"}
     },
+    "attempt_count_by_run": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 3
+      }
+    },
+    "total_attempts": {"type": "integer", "minimum": 0},
     "selected_render_hashes": {
       "type": "object",
       "additionalProperties": {"$ref": "#/$defs/sha256"}

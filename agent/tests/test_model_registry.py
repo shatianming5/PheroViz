@@ -81,6 +81,7 @@ def test_visual_judges_are_exactly_frozen_for_c5() -> None:
         assert judge["base_url_env"] == "ANTHROPIC_BASE_URL"
         assert judge["api_key_env"] == "ANTHROPIC_AUTH_TOKEN"
         assert judge["max_tokens"] == 1024
+        assert judge["validation_attempts"] == 3
         assert judge["timeout_seconds"] == 180
         assert judge["connect_timeout_seconds"] == 10
         assert judge["retries"] == 2
@@ -96,12 +97,13 @@ def test_visual_judges_are_exactly_frozen_for_c5() -> None:
 
 def test_c5_provenance_schemas_are_versioned() -> None:
     schema_root = AGENT_ROOT / "experiments" / "schemas"
-    for name in (
-        "c5_rejudge_batch.schema.json",
-        "c5_rejudge_sidecar.schema.json",
-        "c5_summary_provenance.schema.json",
-    ):
+    versions = {
+        "c5_rejudge_batch.schema.json": "3.0",
+        "c5_rejudge_sidecar.schema.json": "3.0",
+        "c5_summary_provenance.schema.json": "2.0",
+    }
+    for name, version in versions.items():
         schema = json.loads((schema_root / name).read_text(encoding="utf-8"))
         assert schema["$schema"].endswith("2020-12/schema")
         assert schema["type"] == "object"
-        assert schema["properties"]["schema_version"]["const"] == "2.0"
+        assert schema["properties"]["schema_version"]["const"] == version

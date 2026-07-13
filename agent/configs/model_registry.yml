@@ -38,6 +38,7 @@ visual_judges:
     base_url_env: ANTHROPIC_BASE_URL
     api_key_env: ANTHROPIC_AUTH_TOKEN
     max_tokens: 1024
+    validation_attempts: 3
     timeout_seconds: 180
     connect_timeout_seconds: 10
     retries: 2
@@ -54,6 +55,7 @@ visual_judges:
     base_url_env: ANTHROPIC_BASE_URL
     api_key_env: ANTHROPIC_AUTH_TOKEN
     max_tokens: 1024
+    validation_attempts: 3
     timeout_seconds: 180
     connect_timeout_seconds: 10
     retries: 2

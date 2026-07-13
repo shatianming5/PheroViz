@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import hashlib
 import math
 import os
@@ -35,7 +34,7 @@ from .models import (
 from .production_statistics import load_provenance_summary
 
 
-REJUDGE_SCHEMA_VERSION = "2.0"
+REJUDGE_SCHEMA_VERSION = "3.0"
 REJUDGED_SUMMARY_VERSION = "2.0"
 SIDECAR_BATCH_FILENAME = "rejudge_batch.json"
 MODEL_REGISTRY_PATH = Path(__file__).resolve().parents[1] / "configs" / "model_registry.yml"
@@ -85,6 +84,7 @@ _REQUIRED_JUDGE_FIELDS = {
     "base_url_env",
     "api_key_env",
     "max_tokens",
+    "validation_attempts",
     "timeout_seconds",
     "connect_timeout_seconds",
     "retries",
@@ -101,6 +101,10 @@ _EXPECTED_SERVED_BY_REQUEST = {
 
 class RejudgeError(ProvenanceError):
     """Raised when post-hoc visual rejudging cannot remain provenance-safe."""
+
+
+class RetryableResponseValidationError(RejudgeError):
+    """Raised only for bounded, response-level C5 validation retries."""
 
 
 @dataclass(frozen=True)
@@ -120,6 +124,7 @@ class JudgeConfig:
     base_url_env: str
     api_key_env: str
     max_tokens: int
+    validation_attempts: int
     timeout_seconds: float
     connect_timeout_seconds: float
     retries: int
@@ -210,6 +215,7 @@ def _load_judge_config(request_model: str) -> JudgeConfig:
         raw["protocol"] != "anthropic_messages"
         or raw["endpoint_class"] != "anthropic_compatibility_gateway"
         or raw["max_tokens"] != 1024
+        or raw["validation_attempts"] != 3
         or raw["rubric_version"] != VISUAL_FORM_RUBRIC["rubric_version"]
         or raw["rubric_hash"] != VISUAL_FORM_RUBRIC_HASH
         or raw["prompt_hash"] != VISUAL_FORM_PROMPT_HASH
@@ -231,6 +237,8 @@ def _load_judge_config(request_model: str) -> JudgeConfig:
         or raw["retries"] < 0
     ):
         raise RejudgeError("Judge registry retries must be a non-negative integer")
+    if raw["validation_attempts"] != 3:
+        raise RejudgeError("Judge registry validation_attempts must be exactly 3")
     for field in ("timeout_seconds", "connect_timeout_seconds"):
         if (
             isinstance(raw[field], bool)
@@ -252,6 +260,7 @@ def _load_judge_config(request_model: str) -> JudgeConfig:
         base_url_env=str(raw["base_url_env"]),
         api_key_env=str(raw["api_key_env"]),
         max_tokens=int(raw["max_tokens"]),
+        validation_attempts=int(raw["validation_attempts"]),
         timeout_seconds=float(raw["timeout_seconds"]),
         connect_timeout_seconds=float(raw["connect_timeout_seconds"]),
         retries=int(raw["retries"]),
@@ -652,6 +661,7 @@ def _binding_fields(
         "judge_protocol": judge.protocol,
         "judge_endpoint_class": judge.endpoint_class,
         "judge_max_tokens": judge.max_tokens,
+        "judge_validation_attempts": judge.validation_attempts,
         "judge_config_hash": judge.config_hash,
         "model_registry_sha256": judge.registry_sha256,
         "rubric_hash": VISUAL_FORM_RUBRIC_HASH,
@@ -693,28 +703,175 @@ def _validate_model_response(response: ModelResponse) -> tuple[float, list[str]]
         raise RejudgeError("Vision response did not identify the served model")
     stop_reason = (response.stop_reason or "").strip().casefold()
     if stop_reason in _TRUNCATED_STOP_REASONS:
-        raise RejudgeError(
+        raise RetryableResponseValidationError(
             f"Vision response was truncated (stop_reason={response.stop_reason})"
         )
     value = response.value
+    if not isinstance(value, Mapping):
+        raise RetryableResponseValidationError(
+            "Vision response JSON must be an object"
+        )
     if set(value) != {"visual_form", "diagnostics"}:
-        raise RejudgeError(
+        raise RetryableResponseValidationError(
             "Vision response must contain exactly visual_form and diagnostics"
         )
     score = value["visual_form"]
     if isinstance(score, bool) or not isinstance(score, (int, float)):
-        raise RejudgeError("visual_form must be numeric")
+        raise RetryableResponseValidationError("visual_form must be numeric")
     score = float(score)
     if not math.isfinite(score) or not 0.0 <= score <= 1.0:
-        raise RejudgeError("visual_form must be finite and in [0,1]")
+        raise RetryableResponseValidationError(
+            "visual_form must be finite and in [0,1]"
+        )
     diagnostics = value["diagnostics"]
     if (
         not isinstance(diagnostics, list)
         or not diagnostics
         or any(not isinstance(item, str) or not item.strip() for item in diagnostics)
     ):
-        raise RejudgeError("diagnostics must be a non-empty array of strings")
+        raise RetryableResponseValidationError(
+            "diagnostics must be a non-empty array of strings"
+        )
     return score, [item.strip() for item in diagnostics]
+
+
+def _retryable_model_client_error(error: Exception) -> bool:
+    if not isinstance(error, ModelClientError):
+        return False
+    message = str(error).casefold()
+    return message.startswith(
+        (
+            "vision response content was empty",
+            "model response did not contain a json object",
+            "model response json must be an object",
+        )
+    )
+
+
+def _attempt_entry(
+    attempt_index: int,
+    request_model: str,
+    *,
+    response: ModelResponse | None = None,
+    error: Exception | None = None,
+    valid_score: float | None = None,
+) -> Dict[str, Any]:
+    stop_reason = response.stop_reason if response is not None else None
+    if response is None and error is not None:
+        match = re.search(r"stop_reason=([^)]+)", str(error))
+        if match is not None:
+            stop_reason = match.group(1)
+    entry: Dict[str, Any] = {
+        "attempt_index": attempt_index,
+        "request_model": request_model,
+        "served_model": response.model if response is not None else None,
+        "request_id": response.request_id if response is not None else None,
+        "stop_reason": stop_reason,
+        "usage": dict(response.usage) if response is not None else {},
+        "latency_seconds": (
+            float(response.latency_seconds) if response is not None else None
+        ),
+        "validation_error": str(error) if error is not None else None,
+    }
+    if valid_score is not None:
+        entry["valid_score"] = valid_score
+    canonical_json(entry)
+    return entry
+
+
+def _validate_attempt_ledger(
+    payload: Mapping[str, Any],
+    *,
+    completed: bool,
+) -> None:
+    attempts = payload.get("attempt_ledger")
+    count = payload.get("attempt_count")
+    if (
+        isinstance(count, bool)
+        or not isinstance(count, int)
+        or count < 0
+        or count > 3
+        or not isinstance(attempts, list)
+        or len(attempts) != count
+    ):
+        raise RejudgeError("Sidecar has invalid attempt count/ledger")
+    valid_indices: list[int] = []
+    for expected_index, attempt in enumerate(attempts, start=1):
+        if not isinstance(attempt, Mapping):
+            raise RejudgeError("Sidecar attempt ledger entry must be an object")
+        required = {
+            "attempt_index",
+            "request_model",
+            "served_model",
+            "request_id",
+            "stop_reason",
+            "usage",
+            "latency_seconds",
+            "validation_error",
+        }
+        attempt_fields = set(attempt)
+        if attempt_fields not in (required, required | {"valid_score"}):
+            raise RejudgeError("Sidecar attempt ledger entry is incomplete")
+        latency = attempt.get("latency_seconds")
+        error = attempt.get("validation_error")
+        if (
+            attempt.get("attempt_index") != expected_index
+            or attempt.get("request_model") != payload.get("judge_request_model")
+            or not isinstance(attempt.get("usage"), Mapping)
+            or (
+                latency is not None
+                and (
+                    isinstance(latency, bool)
+                    or not isinstance(latency, (int, float))
+                    or not math.isfinite(float(latency))
+                    or float(latency) < 0
+                )
+            )
+            or (
+                error is not None
+                and (not isinstance(error, str) or not error.strip())
+            )
+        ):
+            raise RejudgeError("Sidecar attempt ledger ordering/binding mismatch")
+        if "valid_score" in attempt:
+            score = attempt["valid_score"]
+            if (
+                isinstance(score, bool)
+                or not isinstance(score, (int, float))
+                or not math.isfinite(float(score))
+                or not 0.0 <= float(score) <= 1.0
+            ):
+                raise RejudgeError("Sidecar attempt ledger score is invalid")
+            valid_indices.append(expected_index)
+    if completed:
+        if count < 1 or valid_indices != [count]:
+            raise RejudgeError(
+                "Completed sidecar must bind one valid score on its final attempt"
+            )
+        if attempts[-1].get("valid_score") != payload.get("score"):
+            raise RejudgeError("Final attempt score disagrees with sidecar score")
+        if attempts[-1].get("validation_error") is not None:
+            raise RejudgeError("Final valid attempt cannot have a validation error")
+        if any(
+            not isinstance(attempt.get("validation_error"), str)
+            for attempt in attempts[:-1]
+        ):
+            raise RejudgeError("Every prior attempt must bind a validation error")
+        final = attempts[-1]
+        if (
+            final.get("served_model") != payload.get("judge_served_model")
+            or final.get("request_id") != payload.get("judge_request_id")
+            or final.get("stop_reason") != payload.get("stop_reason")
+            or final.get("usage") != payload.get("usage")
+        ):
+            raise RejudgeError("Final attempt metadata disagrees with sidecar")
+    elif valid_indices:
+        raise RejudgeError("Failed sidecar attempt ledger contains a valid score")
+    elif any(
+        not isinstance(attempt.get("validation_error"), str)
+        for attempt in attempts
+    ):
+        raise RejudgeError("Every failed attempt must bind an error")
 
 
 def _validate_completed_sidecar(payload: Mapping[str, Any]) -> None:
@@ -766,6 +923,10 @@ def _validate_completed_sidecar(payload: Mapping[str, Any]) -> None:
         raise RejudgeError("Completed C5 sidecar cannot come from dirty code")
     if payload.get("judge_max_tokens") != 1024:
         raise RejudgeError("Completed sidecar has non-frozen judge_max_tokens")
+    if payload.get("judge_validation_attempts") != 3:
+        raise RejudgeError(
+            "Completed sidecar has non-frozen judge_validation_attempts"
+        )
     if payload.get("judge_served_model") != payload.get(
         "judge_expected_served_model"
     ):
@@ -786,6 +947,7 @@ def _validate_completed_sidecar(payload: Mapping[str, Any]) -> None:
             latency_seconds=0.0,
         )
     )
+    _validate_attempt_ledger(payload, completed=True)
 
 
 def _success_sidecar(
@@ -795,6 +957,7 @@ def _success_sidecar(
     judge: JudgeConfig,
     input_manifest: Mapping[str, Any],
     code_git_state: CodeGitState,
+    attempt_ledger: Sequence[Mapping[str, Any]],
 ) -> Dict[str, Any]:
     score, diagnostics = _validate_model_response(response)
     if response.model != judge.served_model:
@@ -817,9 +980,12 @@ def _success_sidecar(
         "stop_reason": response.stop_reason,
         "score": score,
         "diagnostics": diagnostics,
+        "attempt_ledger": [dict(item) for item in attempt_ledger],
+        "attempt_count": len(attempt_ledger),
         "timestamp": utc_now(),
     }
     canonical_json(payload)
+    _validate_attempt_ledger(payload, completed=True)
     return _seal_payload(payload, "sidecar_hash")
 
 
@@ -830,6 +996,7 @@ def _failure_sidecar(
     input_manifest: Mapping[str, Any],
     code_git_state: CodeGitState,
     error: Exception,
+    attempt_ledger: Sequence[Mapping[str, Any]],
 ) -> Dict[str, Any]:
     payload = {
         "schema_version": REJUDGE_SCHEMA_VERSION,
@@ -845,12 +1012,15 @@ def _failure_sidecar(
         "stop_reason": None,
         "score": None,
         "diagnostics": [],
+        "attempt_ledger": [dict(item) for item in attempt_ledger],
+        "attempt_count": len(attempt_ledger),
         "timestamp": utc_now(),
         "error": {
             "type": type(error).__name__,
             "message": str(error),
         },
     }
+    _validate_attempt_ledger(payload, completed=False)
     return _seal_payload(payload, "sidecar_hash")
 
 
@@ -913,11 +1083,13 @@ def rejudge_batch(
     resumed: list[str] = []
     failures: list[Dict[str, str]] = []
     sidecar_hashes: Dict[str, str] = {}
+    attempt_counts: Dict[str, int] = {}
     started_at = utc_now()
 
     for target in targets:
         sidecar_path = _sidecar_path(destination, target.run_name)
         sealed = sealed_by_name[target.run_name]
+        attempt_ledger: list[Dict[str, Any]] = []
         try:
             _assert_source_unchanged(source, input_manifest)
             if sha256_file(sealed.render_path) != sealed.render_sha256:
@@ -940,33 +1112,110 @@ def rejudge_batch(
                 if existing.get("status") == "completed":
                     _validate_completed_sidecar(existing)
                     resumed.append(target.run_name)
+                    attempt_counts[target.run_name] = int(
+                        existing["attempt_count"]
+                    )
                     sidecar_hashes[target.run_name] = str(
                         existing["sidecar_hash"]
                     )
                     continue
+                _validate_attempt_ledger(existing, completed=False)
+                raise RejudgeError(
+                    "Failed C5 sidecar cannot be resumed; start a new batch"
+                )
 
             if client_error is not None:
                 raise RejudgeError(f"Cannot initialize judge client: {client_error}")
             if client is None:
                 raise RejudgeError("Judge client is unavailable")
             _assert_no_request_leakage(sealed, source)
-            response = client.evaluate_image_json(
-                VISUAL_FORM_PROMPT,
-                sealed.render_path,
-                model=judge.request_model,
-                max_tokens=judge.max_tokens,
-            )
-            if not isinstance(response, ModelResponse):
-                raise RejudgeError("ModelClient returned an invalid response type")
+            response: ModelResponse | None = None
+            for attempt_index in range(1, judge.validation_attempts + 1):
+                _assert_source_unchanged(source, input_manifest)
+                if sha256_file(sealed.render_path) != sealed.render_sha256:
+                    raise RejudgeError(
+                        "Selected render changed between validation attempts: "
+                        f"{target.run_name}"
+                    )
+                try:
+                    candidate = client.evaluate_image_json(
+                        VISUAL_FORM_PROMPT,
+                        sealed.render_path,
+                        model=judge.request_model,
+                        max_tokens=judge.max_tokens,
+                    )
+                except Exception as exc:
+                    attempt_ledger.append(
+                        _attempt_entry(
+                            attempt_index,
+                            judge.request_model,
+                            error=exc,
+                        )
+                    )
+                    if (
+                        _retryable_model_client_error(exc)
+                        and attempt_index < judge.validation_attempts
+                    ):
+                        continue
+                    raise
+                if not isinstance(candidate, ModelResponse):
+                    error = RejudgeError(
+                        "ModelClient returned an invalid response type"
+                    )
+                    attempt_ledger.append(
+                        _attempt_entry(
+                            attempt_index,
+                            judge.request_model,
+                            error=error,
+                        )
+                    )
+                    raise error
+                try:
+                    if candidate.model != judge.served_model:
+                        raise RejudgeError(
+                            "Served judge identity mismatch: "
+                            f"expected {judge.served_model!r}, "
+                            f"got {candidate.model!r}"
+                        )
+                    score, _ = _validate_model_response(candidate)
+                except Exception as exc:
+                    attempt_ledger.append(
+                        _attempt_entry(
+                            attempt_index,
+                            judge.request_model,
+                            response=candidate,
+                            error=exc,
+                        )
+                    )
+                    if (
+                        isinstance(exc, RetryableResponseValidationError)
+                        and attempt_index < judge.validation_attempts
+                    ):
+                        continue
+                    raise
+                attempt_ledger.append(
+                    _attempt_entry(
+                        attempt_index,
+                        judge.request_model,
+                        response=candidate,
+                        valid_score=score,
+                    )
+                )
+                response = candidate
+                break
+            if response is None:
+                raise RejudgeError("C5 validation attempts produced no valid score")
             payload = _success_sidecar(
                 sealed,
                 response,
                 judge=judge,
                 input_manifest=input_manifest,
                 code_git_state=code_git_state,
+                attempt_ledger=attempt_ledger,
             )
             write_json_atomic(sidecar_path, payload)
             completed.append(target.run_name)
+            attempt_counts[target.run_name] = len(attempt_ledger)
             sidecar_hashes[target.run_name] = str(payload["sidecar_hash"])
         except Exception as exc:
             failures.append(
@@ -990,14 +1239,20 @@ def rejudge_batch(
                     continue
                 if existing.get("status") == "completed":
                     continue
+                _validate_attempt_ledger(existing, completed=False)
+                attempt_counts[target.run_name] = int(existing["attempt_count"])
+                sidecar_hashes[target.run_name] = str(existing["sidecar_hash"])
+                continue
             payload = _failure_sidecar(
                 sealed,
                 judge=judge,
                 input_manifest=input_manifest,
                 code_git_state=code_git_state,
                 error=exc,
+                attempt_ledger=attempt_ledger,
             )
             write_json_atomic(sidecar_path, payload)
+            attempt_counts[target.run_name] = len(attempt_ledger)
             sidecar_hashes[target.run_name] = str(payload["sidecar_hash"])
 
     try:
@@ -1041,6 +1296,7 @@ def rejudge_batch(
         "judge_protocol": judge.protocol,
         "judge_endpoint_class": judge.endpoint_class,
         "judge_max_tokens": judge.max_tokens,
+        "judge_validation_attempts": judge.validation_attempts,
         "judge_config_hash": judge.config_hash,
         "model_registry_sha256": judge.registry_sha256,
         "rubric_hash": VISUAL_FORM_RUBRIC_HASH,
@@ -1062,6 +1318,8 @@ def rejudge_batch(
         "resumed": resumed,
         "failures": failures,
         "sidecar_hashes": sidecar_hashes,
+        "attempt_count_by_run": dict(sorted(attempt_counts.items())),
+        "total_attempts": sum(attempt_counts.values()),
     }
     batch_payload = _seal_payload(batch_payload, "batch_hash")
     batch_path = destination / SIDECAR_BATCH_FILENAME
@@ -1167,6 +1425,10 @@ def _load_completed_sidecars(
             raise RejudgeError(f"Rejudge batch has invalid {name}")
     if batch.get("judge_max_tokens") != 1024:
         raise RejudgeError("Rejudge batch has non-frozen judge_max_tokens")
+    if batch.get("judge_validation_attempts") != 3:
+        raise RejudgeError(
+            "Rejudge batch has non-frozen judge_validation_attempts"
+        )
     if batch.get("judge_served_models") not in (
         [batch["judge_expected_served_model"]],
         [],
@@ -1200,6 +1462,8 @@ def _load_completed_sidecars(
             or payload.get("judge_protocol") != batch["judge_protocol"]
             or payload.get("judge_endpoint_class") != batch["judge_endpoint_class"]
             or payload.get("judge_max_tokens") != batch["judge_max_tokens"]
+            or payload.get("judge_validation_attempts")
+            != batch["judge_validation_attempts"]
             or payload.get("judge_config_hash") != batch["judge_config_hash"]
             or payload.get("model_registry_sha256")
             != batch["model_registry_sha256"]
@@ -1221,6 +1485,17 @@ def _load_completed_sidecars(
         raise RejudgeError("Batch sidecars do not exactly cover input manifest")
     if set(batch.get("completed", [])) | set(batch.get("resumed", [])) != expected_runs:
         raise RejudgeError("Batch completed/resumed lists lack exact coverage")
+    attempt_count_by_run = batch.get("attempt_count_by_run")
+    if (
+        not isinstance(attempt_count_by_run, Mapping)
+        or attempt_count_by_run
+        != {
+            run_name: sidecars[run_name]["attempt_count"]
+            for run_name in sorted(sidecars)
+        }
+        or batch.get("total_attempts") != sum(attempt_count_by_run.values())
+    ):
+        raise RejudgeError("Batch attempt totals disagree with sidecars")
     return sidecars, batch
 
 
@@ -1305,6 +1580,8 @@ def merge_rejudged_summary(
                 != common_input_manifest_hash
                 or existing.get("source_summary_hash") != original_summary_hash
                 or existing.get("code_git_dirty") is not False
+                or existing.get("judge_validation_attempts") != 3
+                or not isinstance(existing.get("total_attempts"), int)
                 or not isinstance(metric, str)
                 or not isinstance(values_hash, str)
                 or not _SHA256_RE.fullmatch(values_hash)
@@ -1429,6 +1706,7 @@ def merge_rejudged_summary(
         "judge_protocol": batch["judge_protocol"],
         "judge_endpoint_class": batch["judge_endpoint_class"],
         "judge_max_tokens": batch["judge_max_tokens"],
+        "judge_validation_attempts": batch["judge_validation_attempts"],
         "judge_config_hash": batch["judge_config_hash"],
         "model_registry_sha256": batch["model_registry_sha256"],
         "metric": metric_name,
@@ -1439,6 +1717,7 @@ def merge_rejudged_summary(
         "source_summary_hash": batch["source_summary_hash"],
         "source_summary_sha256": batch["source_summary_sha256"],
         "batch_hash": batch["batch_hash"],
+        "total_attempts": batch["total_attempts"],
         "code_git_commit": batch["code_git_commit"],
         "code_git_dirty": batch["code_git_dirty"],
         "sidecar_hashes": {

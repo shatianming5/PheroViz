@@ -13,7 +13,7 @@ from app.services.model_client import ModelClientError, ModelResponse
 from experiments.aggregate import aggregate_runs
 from experiments.cli import main
 from experiments.harness import execute_experiment
-from experiments.models import RunRecord, sha256_file, sha256_json
+from experiments.models import sha256_file, sha256_json
 from experiments.production_statistics import load_provenance_summary
 from experiments.providers import (
     CandidateResult,
@@ -131,6 +131,47 @@ class FakeModelClient:
             stop_reason=self.stop_reason,
             latency_seconds=0.01,
         )
+
+
+class SequenceModelClient:
+    def __init__(self, outcomes: Sequence[ModelResponse | Exception]) -> None:
+        self.outcomes = list(outcomes)
+        self.calls: list[dict[str, Any]] = []
+
+    def evaluate_image_json(
+        self,
+        prompt: str,
+        image_path: str | Path,
+        **kwargs: Any,
+    ) -> ModelResponse:
+        self.calls.append(
+            {
+                "prompt": prompt,
+                "image_path": Path(image_path),
+                "kwargs": dict(kwargs),
+            }
+        )
+        outcome = self.outcomes[len(self.calls) - 1]
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+
+def _judge_response(
+    value: dict[str, Any],
+    *,
+    score_id: str,
+    model: str = "gemini-3.5-flash",
+    stop_reason: str = "end_turn",
+) -> ModelResponse:
+    return ModelResponse(
+        value=value,
+        model=model,
+        request_id=score_id,
+        usage={"input_tokens": 10, "output_tokens": 5},
+        stop_reason=stop_reason,
+        latency_seconds=0.01,
+    )
 
 
 CLEAN_CODE_COMMIT = "d" * 40
@@ -421,6 +462,175 @@ def test_model_failure_or_truncation_never_falls_back(
         assert sidecar["diagnostics"] == []
 
 
+@pytest.mark.parametrize(
+    "invalid",
+    [
+        _judge_response(
+            {
+                "visual_form": 0.1,
+                "diagnostics": ["legible"],
+                "extra": "forbidden",
+            },
+            score_id="invalid-extra",
+        ),
+        ModelClientError(
+            "Vision response content was empty (stop_reason=max_tokens)"
+        ),
+        _judge_response(
+            {"visual_form": 0.1, "diagnostics": []},
+            score_id="invalid-diagnostics",
+        ),
+    ],
+)
+def test_rejudge_succeeds_after_one_bounded_invalid_response(
+    invalid: ModelResponse | Exception,
+) -> None:
+    with experiment_workspace("rejudge-validation-retry") as workspace:
+        spec, _ = _create_run(workspace, scores=(0.8,))
+        _, summary_path = aggregate_runs(Path(spec.artifact_root))
+        valid = _judge_response(
+            {
+                "visual_form": 0.73,
+                "diagnostics": ["Layout remains readable."],
+            },
+            score_id="valid-second",
+        )
+        client = SequenceModelClient([invalid, valid])
+
+        result = rejudge_batch(
+            summary_path,
+            judge_model="gemini-3.5-flash",
+            output_dir=workspace / "sidecars",
+            model_client=client,
+        )
+
+        assert result.exit_code == 0
+        assert len(client.calls) == 2
+        sidecar = json.loads(
+            _sidecar_path(result.output_dir).read_text(encoding="utf-8")
+        )
+        assert sidecar["attempt_count"] == 2
+        assert [item["attempt_index"] for item in sidecar["attempt_ledger"]] == [
+            1,
+            2,
+        ]
+        assert sidecar["attempt_ledger"][0]["validation_error"]
+        assert "valid_score" not in sidecar["attempt_ledger"][0]
+        assert sidecar["attempt_ledger"][1]["valid_score"] == 0.73
+        assert sidecar["score"] == 0.73
+        batch = json.loads(result.batch_path.read_text(encoding="utf-8"))
+        assert batch["judge_validation_attempts"] == 3
+        assert batch["total_attempts"] == 2
+        assert batch["attempt_count_by_run"] == {
+            sidecar["run_name"]: 2,
+        }
+
+
+def test_rejudge_three_invalid_responses_remain_failed() -> None:
+    with experiment_workspace("rejudge-validation-exhausted") as workspace:
+        spec, _ = _create_run(workspace, scores=(0.8,))
+        _, summary_path = aggregate_runs(Path(spec.artifact_root))
+        invalid = [
+            _judge_response(
+                {
+                    "visual_form": 0.2,
+                    "diagnostics": ["legible"],
+                    "extra": index,
+                },
+                score_id=f"invalid-{index}",
+            )
+            for index in range(1, 4)
+        ]
+        client = SequenceModelClient(invalid)
+
+        result = rejudge_batch(
+            summary_path,
+            judge_model="gemini-3.5-flash",
+            output_dir=workspace / "sidecars",
+            model_client=client,
+        )
+
+        assert result.exit_code == 1
+        assert len(client.calls) == 3
+        sidecar = json.loads(
+            _sidecar_path(result.output_dir).read_text(encoding="utf-8")
+        )
+        assert sidecar["status"] == "failed"
+        assert sidecar["attempt_count"] == 3
+        assert all(
+            item["validation_error"] and "valid_score" not in item
+            for item in sidecar["attempt_ledger"]
+        )
+        batch = json.loads(result.batch_path.read_text(encoding="utf-8"))
+        assert batch["total_attempts"] == 3
+
+
+def test_rejudge_stops_at_first_valid_score_without_selection() -> None:
+    with experiment_workspace("rejudge-first-valid") as workspace:
+        spec, _ = _create_run(workspace, scores=(0.8,))
+        _, summary_path = aggregate_runs(Path(spec.artifact_root))
+        first = _judge_response(
+            {"visual_form": 0.21, "diagnostics": ["First valid response."]},
+            score_id="valid-first",
+        )
+        later = _judge_response(
+            {"visual_form": 0.99, "diagnostics": ["Must never be requested."]},
+            score_id="valid-later",
+        )
+        client = SequenceModelClient([first, later])
+
+        result = rejudge_batch(
+            summary_path,
+            judge_model="gemini-3.5-flash",
+            output_dir=workspace / "sidecars",
+            model_client=client,
+        )
+
+        assert result.exit_code == 0
+        assert len(client.calls) == 1
+        sidecar = json.loads(
+            _sidecar_path(result.output_dir).read_text(encoding="utf-8")
+        )
+        assert sidecar["score"] == 0.21
+        assert sidecar["attempt_count"] == 1
+        assert sidecar["attempt_ledger"][0]["valid_score"] == 0.21
+
+
+@pytest.mark.parametrize(
+    "outcome",
+    [
+        _judge_response(
+            {"visual_form": 0.8, "diagnostics": ["Valid but wrong identity."]},
+            score_id="identity-mismatch",
+            model="gemini-3.5-flash-latest",
+        ),
+        ModelClientError("Model endpoint HTTP 401: unauthorized"),
+    ],
+)
+def test_rejudge_does_not_retry_identity_or_auth_failure(
+    outcome: ModelResponse | Exception,
+) -> None:
+    with experiment_workspace("rejudge-no-retry") as workspace:
+        spec, _ = _create_run(workspace, scores=(0.8,))
+        _, summary_path = aggregate_runs(Path(spec.artifact_root))
+        client = SequenceModelClient([outcome])
+
+        result = rejudge_batch(
+            summary_path,
+            judge_model="gemini-3.5-flash",
+            output_dir=workspace / "sidecars",
+            model_client=client,
+        )
+
+        assert result.exit_code == 1
+        assert len(client.calls) == 1
+        sidecar = json.loads(
+            _sidecar_path(result.output_dir).read_text(encoding="utf-8")
+        )
+        assert sidecar["attempt_count"] == 1
+        assert "valid_score" not in sidecar["attempt_ledger"][0]
+
+
 def test_merge_creates_new_hashed_summary_and_preserves_original() -> None:
     with experiment_workspace("rejudge-merge") as workspace:
         spec, record = _create_run(workspace, scores=(0.8,))
@@ -649,6 +859,7 @@ def test_cli_rejudge_returns_nonzero_and_records_batch_failure(
         )
         assert batch["status"] == "failed"
         assert batch["failures"][0]["message"] == "intentional outage"
+        assert len(fake.calls) == 1
 
 
 def test_rejudge_binds_frozen_manifest_and_excludes_request_leakage() -> None:
@@ -716,6 +927,7 @@ def test_rejudge_rejects_unregistered_or_mismatched_identity() -> None:
         )
         assert result.exit_code == 1
         assert "Served judge identity mismatch" in result.failures[0]["message"]
+        assert len(mismatch.calls) == 1
 
 
 def test_judge_client_uses_only_exact_registry_environment(
@@ -743,14 +955,23 @@ def test_rejudge_marks_batch_failed_if_source_changes_during_calls() -> None:
         def mutate_summary() -> None:
             summary_path.write_bytes(summary_path.read_bytes() + b"\n")
 
+        client = FakeModelClient(on_call=mutate_summary)
         result = rejudge_batch(
             summary_path,
             judge_model="claude-sonnet-4.6",
             output_dir=workspace / "sidecars",
-            model_client=FakeModelClient(on_call=mutate_summary),
+            model_client=client,
         )
 
         assert result.exit_code == 1
+        assert len(client.calls) == 1
+        assert len(result.completed) == 1
+        assert len(result.failures) == 1
+        assert len(
+            json.loads(result.batch_path.read_text(encoding="utf-8"))[
+                "attempt_count_by_run"
+            ]
+        ) == 1
         assert result.failures[-1]["run_name"] == "__source_summary__"
         batch = json.loads(result.batch_path.read_text(encoding="utf-8"))
         assert batch["status"] == "failed"

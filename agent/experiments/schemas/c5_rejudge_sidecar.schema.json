@@ -18,6 +18,7 @@
     "judge_protocol",
     "judge_endpoint_class",
     "judge_max_tokens",
+    "judge_validation_attempts",
     "rubric_hash",
     "prompt_hash",
     "input_manifest_hash",
@@ -27,10 +28,12 @@
     "code_git_dirty",
     "score",
     "diagnostics",
+    "attempt_ledger",
+    "attempt_count",
     "sidecar_hash"
   ],
   "properties": {
-    "schema_version": {"const": "2.0"},
+    "schema_version": {"const": "3.0"},
     "status": {"enum": ["completed", "failed"]},
     "render_sha256": {"$ref": "#/$defs/sha256"},
     "record_hash": {"$ref": "#/$defs/sha256"},
@@ -52,12 +55,49 @@
     "judge_protocol": {"const": "anthropic_messages"},
     "judge_endpoint_class": {"const": "anthropic_compatibility_gateway"},
     "judge_max_tokens": {"const": 1024},
+    "judge_validation_attempts": {"const": 3},
     "code_git_dirty": {"const": false},
     "score": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
-    "diagnostics": {"type": "array", "items": {"type": "string"}}
+    "diagnostics": {"type": "array", "items": {"type": "string"}},
+    "attempt_count": {"type": "integer", "minimum": 0, "maximum": 3},
+    "attempt_ledger": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 3,
+      "items": {"$ref": "#/$defs/attempt"}
+    }
   },
   "$defs": {
-    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "attempt": {
+      "type": "object",
+      "required": [
+        "attempt_index",
+        "request_model",
+        "served_model",
+        "request_id",
+        "stop_reason",
+        "usage",
+        "latency_seconds",
+        "validation_error"
+      ],
+      "properties": {
+        "attempt_index": {"type": "integer", "minimum": 1, "maximum": 3},
+        "request_model": {
+          "enum": ["claude-sonnet-4.6", "gemini-3.5-flash"]
+        },
+        "served_model": {
+          "type": ["string", "null"]
+        },
+        "request_id": {"type": ["string", "null"]},
+        "stop_reason": {"type": ["string", "null"]},
+        "usage": {"type": "object"},
+        "latency_seconds": {"type": ["number", "null"], "minimum": 0},
+        "validation_error": {"type": ["string", "null"]},
+        "valid_score": {"type": "number", "minimum": 0, "maximum": 1}
+      },
+      "additionalProperties": false
+    }
   },
   "additionalProperties": true
 }
