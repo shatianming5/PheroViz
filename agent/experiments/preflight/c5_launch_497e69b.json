@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "status": "SIX_BATCHES_RUNNING",
+  "code_commit": "497e69b91c6ec7774057aba03cc5b8ff9153c5cc",
+  "code_dirty": false,
+  "source": {
+    "tiers": [
+      "frontier",
+      "mid",
+      "open"
+    ],
+    "runs_per_tier": 171,
+    "total_selected_renders": 513
+  },
+  "judges": {
+    "primary": {
+      "judge_id": "visual-form-primary-v1",
+      "model": "claude-sonnet-4.6"
+    },
+    "secondary": {
+      "judge_id": "visual-form-secondary-v1",
+      "model": "gemini-3.5-flash"
+    }
+  },
+  "expected_calls": {
+    "per_judge": 513,
+    "total": 1026
+  },
+  "processes": {
+    "frontier.primary": 3229122,
+    "frontier.secondary": 3229124,
+    "mid.primary": 3229126,
+    "mid.secondary": 3229129,
+    "open.primary": 3229131,
+    "open.secondary": 3229133
+  },
+  "protocol": {
+    "source_data_sent": false,
+    "method_labels_sent": false,
+    "prior_scores_sent": false,
+    "generation_feedback_sent": false,
+    "selected_render_hash_bound": true,
+    "served_identity_must_match": true,
+    "merge_waits_for_all_batches": true
+  }
+}
