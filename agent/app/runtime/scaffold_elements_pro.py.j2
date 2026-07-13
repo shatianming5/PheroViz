@@ -540,6 +540,27 @@ def run(df: pd.DataFrame, intent: Dict[str, Any], ctx: Dict[str, Any], out_png: 
                 current[key] = nested
             current = nested
         current[path[-1]] = binding.get("value")
+
+    theme = spec.get("theme")
+    if not isinstance(theme, dict):
+        theme = {}
+        spec["theme"] = theme
+    requested_palette = theme.get("palette_global", "tab10")
+    palette_name = (
+        requested_palette.strip()
+        if isinstance(requested_palette, str)
+        else ""
+    )
+    try:
+        if not palette_name:
+            raise ValueError("palette_global must be a non-empty colormap name")
+        plt.get_cmap(palette_name)
+    except (TypeError, ValueError):
+        palette_name = "tab10"
+        ctx.setdefault("_v2_meta", {}).setdefault(
+            "palette_fallbacks", {}
+        )[str(requested_palette)] = palette_name
+    theme["palette_global"] = palette_name
     ctx['spec'] = spec
 
     # Sanitize overlays/x/y/group to ensure they reference real df columns
