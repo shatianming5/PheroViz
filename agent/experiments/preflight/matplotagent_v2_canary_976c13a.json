@@ -1,0 +1,69 @@
+{
+  "code": {
+    "git_commit": "976c13a742b02791345c19eda4df29c5eb60f9b7",
+    "git_dirty": false
+  },
+  "contract": {
+    "all_completed": true,
+    "methods": [
+      "matplotagent_native_normalized_v2",
+      "pheroviz_model_spec_normalized_v2"
+    ],
+    "record_count": 2,
+    "render_budget": 1,
+    "renders": 2,
+    "seeds": [
+      0
+    ],
+    "vlm_calls": 0
+  },
+  "dataset": {
+    "case_ids": [
+      "case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2"
+    ],
+    "materialized_manifest_sha256": "44d7e585b52357fe7e4be7d10d4101a294f81cfca0b603c7c1a4a2af1b3d4d71",
+    "panel_count": 1,
+    "total_cases": 16,
+    "total_dois": 6
+  },
+  "execution": {
+    "full_resume_pid": 58482,
+    "full_resume_started": true
+  },
+  "generated_at": "2026-07-13T14:23:12.301988Z",
+  "records": [
+    {
+      "record_hash": "50c2a8be1e1e26dacaef2d73fd4eee648c5773aaa329e4a0d99fc0b0f300714c",
+      "run_name": "baseline-matplotagent-single-normalized-v2-gpt4omini-r1__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-matplotagent_native_normalized_v2__backbone-gpt-4o-mini__seed-0__budget-renders-1",
+      "run_record_file_sha256": "21243c8ca33e008c6154b2ec0668129ecfacf698277009f199761aa7af73cb7e",
+      "spec_hash": "48d447bf4d4d81f9431005f7712a98520f3363ad5abb72eb78ff0aa2b90945f1"
+    },
+    {
+      "record_hash": "d1635ccb5554d9e68268f992f5bfab830b086755764f060e2b03a71440222327",
+      "run_name": "baseline-matplotagent-single-normalized-v2-gpt4omini-r1__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-pheroviz_model_spec_normalized_v2__backbone-gpt-4o-mini__seed-0__budget-renders-1",
+      "run_record_file_sha256": "eb19d5495bbb5abde0234e067d456aa2daf258aa0158aa040fd870aa173edcca",
+      "spec_hash": "3ec719648d2f2ca3c25c033bde6cfc9147e975f4d3bcef062055107b5506ff86"
+    }
+  ],
+  "report_hash": "e4a6bc71a7e5386b3f60f2a234653cc9eadce3dda10fec75c255a1a98c31c91e",
+  "schema_version": "1.0",
+  "scientific_result": false,
+  "status": "passed_included_canary",
+  "subtrack": {
+    "baseline": "MatPlotAgent",
+    "cohesion": "NA",
+    "external_repo_commit": "9cafa262aae7bdf85fccf6d02b2153fb772bc376",
+    "license_status": "not_declared",
+    "version": "normalized-v2"
+  },
+  "validation": {
+    "all_artifact_hashes_verified": true,
+    "full_spec_count": 96,
+    "overlap_spec_hashes_match": true,
+    "remaining_after_canary": 94,
+    "strict_aggregate_passed": true,
+    "summary_file_sha256": "998e6359da8beb160be93b535aa0c49e12e283588e7bd4ef6c9398fc90cee06c",
+    "summary_hash": "6bd5df7819aa199c24f2d2fd2cf562baaa0bc749773b545ccec85f082a3e7ca6",
+    "summary_path": "/Users/tommy/Downloads/mayi/PheroViz-matplot-v2-976c13a/agent/experiments/runs/production/_summaries/baseline_matplotagent_single_normalized_v2_gpt4omini_r1.canary/summary.json"
+  }
+}
