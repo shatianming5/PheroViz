@@ -1,0 +1,65 @@
+{
+  "schema_version": "1.0",
+  "status": "MATERIALIZED_AND_LAUNCHED",
+  "runtime": {
+    "commit": "b1bb4d4f4e9dad0b3437356f39bf2f8e8ae03561",
+    "clean": true,
+    "host": "7352-10x4090-183",
+    "runner_pid": 2873907
+  },
+  "benchmark": {
+    "name": "final_benchmark_renderable_v1_seed0",
+    "manifest_sha256": "6c6c5cb50603d899a9be0f41c9e562517c92ae15477610e9111f6504cd1757b3",
+    "selected_panel_counts": [
+      2,
+      3,
+      6
+    ],
+    "selected_case_count": 3,
+    "selected_doi_count": 3
+  },
+  "matrix": {
+    "methods": [
+      "memory_none",
+      "memory_ephemeral",
+      "memory_untyped",
+      "memory_constraints",
+      "memory_patches",
+      "memory_full"
+    ],
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "render_budget": 6,
+    "run_count": 54,
+    "portable_template_sha256": "ea3ccae0a29621933df54812b76ef072d1441946b587e03259385cf73a8ea347",
+    "runtime_matrix_sha256": "f0fc786af10198f7af328d68d4412dd160d7ffced95d3e32a792cb76a93cf68d",
+    "runtime_contract_hash": "f6595e6e7f19f936df184910acdaec2efb86ad5af6c4994e3f3713a0925195a0",
+    "runtime_spec_set_hash": "4c28f6ff1bb80a40c114884cdea8c2821096d305d2dadf0d37bb951c316a4a54"
+  },
+  "materialization": {
+    "summary_hash": "04df2b4c98f20170f1fb9a1705df48d9eae9fa48dcafdf569fba5e079dd967bb",
+    "summary_file_sha256": "bb9553d6dca9bd9fb3fbfbf729124aea21ab59b16ba49f9d527dd8467bcbdaed",
+    "spec_manifest_hash": "4b3fd0efb8962afcec70b92cf86d2132d1cad8a6bfd1ba031acfb99f392a8b0e",
+    "spec_manifest_file_sha256": "5cbb2a6a4716ca3cfca7bbbbc7be634e5c9f61c39302d1ba1aa5f817ed8594d7",
+    "original_manifest_data_root_is_absent_remap_prefix": true,
+    "secrets_in_matrix": false
+  },
+  "threshold_policy": {
+    "fidelity": 1.0,
+    "cohesion": 1.0,
+    "renders": 6,
+    "wall_clock_seconds": null,
+    "rmst_analysis_ready": false,
+    "blocker": "No outcome-independent wall-clock restriction is frozen"
+  },
+  "validation": {
+    "core_tests": "101 passed",
+    "run_names_unique": true,
+    "spec_hashes_unique": true,
+    "partial_outcomes_read": false,
+    "vlm_calls_planned": 0
+  }
+}
