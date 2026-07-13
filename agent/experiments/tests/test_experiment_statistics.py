@@ -10,11 +10,13 @@ from typing import Any, Iterator, Mapping, Sequence
 
 import pytest
 
+import experiments.production_statistics as production_statistics
 from experiments.cli import main
 from experiments.models import SCHEMA_VERSION, sha256_json, write_json_atomic
 from experiments.production_statistics import (
     StatisticsError,
     analyze_summary,
+    build_holm_family,
     holm_adjust,
     kendall_tau_b,
     load_provenance_summary,
@@ -553,9 +555,306 @@ def test_ordinal_panel_trend_and_holm_use_doi_clusters() -> None:
             result["comparison_families"]["panel_trend"]["adjustment"]
             == "holm"
         )
-        assert analysis["analysis_version"] == "3.0"
+        assert analysis["analysis_version"] == "3.1"
         assert analysis["right_censored_rmst"]["status"] == "not_implemented"
         assert "censoring" in analysis["right_censored_rmst"]["reason"]
+
+
+def test_multi_panel_scope_excludes_structural_single_panel_na() -> None:
+    with _workspace("multi-panel-scope") as workspace:
+        rows = []
+        for method, offset in (("reference", 0.0), ("method", 0.25)):
+            single = _row(
+                method,
+                "single-case",
+                1.0 + offset,
+                panel_count=1,
+                doi="10.1234/single",
+            )
+            rows.append(single)
+            for case_id, panel_count in (("multi-a", 2), ("multi-b", 3)):
+                row = _row(
+                    method,
+                    case_id,
+                    1.0 + offset,
+                    panel_count=panel_count,
+                    doi=f"10.1234/{case_id}",
+                )
+                row["metric.series_cohesion"] = 0.5 + offset
+                rows.append(row)
+        summary = load_provenance_summary(
+            _write_summary(workspace / "summary.json", rows)
+        )
+
+        analysis = analyze_summary(
+            summary,
+            reference="reference",
+            methods=["method"],
+            metric="metric.series_cohesion",
+            panel_scope="multi_panel",
+            bootstrap_resamples=20,
+            monte_carlo_permutations=20,
+        )
+
+        assert analysis["analysis_config"]["panel_scope"] == "multi_panel"
+        assert analysis["slices"][0]["case_ids"] == ["multi-a", "multi-b"]
+        assert analysis["slices"][0]["doi_count"] == 2
+        assert (
+            analysis["slices"][0]["comparisons"][0]["overall"]["mean_gap"]
+            == pytest.approx(0.25)
+        )
+
+
+def _write_family_analyses(
+    workspace: Path,
+) -> tuple[Path, dict[str, Path], dict[str, dict[str, Any]]]:
+    rows = []
+    for backbone in ("frontier", "mid", "open"):
+        for method, offset in (
+            ("flat_iterative", 0.0),
+            ("pheroviz_full", 0.25),
+        ):
+            for case_id, panel_count in (("multi-a", 2), ("multi-b", 3)):
+                row = _row(
+                    method,
+                    case_id,
+                    1.0 + offset,
+                    panel_count=panel_count,
+                    doi=f"10.1234/{case_id}",
+                )
+                row["backbone"] = backbone
+                row["metric.series_cohesion"] = 0.5 + offset
+                row["run_name"] = f"{backbone}-{method}-{case_id}-7"
+                row["record_hash"] = _digest(f"record-{row['run_name']}")
+                row["spec_hash"] = _digest(f"spec-{row['run_name']}")
+                rows.append(row)
+    summary_path = _write_summary(workspace / "summary.json", rows)
+    summary = load_provenance_summary(summary_path)
+    paths: dict[str, Path] = {}
+    analyses: dict[str, dict[str, Any]] = {}
+    for label, metric, panel_scope in (
+        ("fidelity", "metric.data_fidelity", "all"),
+        ("cohesion", "metric.series_cohesion", "multi_panel"),
+    ):
+        analysis = analyze_summary(
+            summary,
+            reference="flat_iterative",
+            methods=["pheroviz_full"],
+            metric=metric,
+            panel_scope=panel_scope,
+            bootstrap_resamples=20,
+            monte_carlo_permutations=20,
+        )
+        analysis["code_git_dirty"] = False
+        analysis.pop("analysis_hash")
+        analysis["analysis_hash"] = sha256_json(analysis)
+        path = workspace / f"{label}-analysis.json"
+        write_json_atomic(path, analysis)
+        paths[label] = path
+        analyses[label] = analysis
+    return summary_path, paths, analyses
+
+
+def test_declared_cross_analysis_holm_family_is_provenance_bound(
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _workspace("cross-analysis-holm") as workspace:
+        monkeypatch.setattr(
+            production_statistics,
+            "_git_provenance",
+            lambda: ("9" * 40, False),
+        )
+        _, analysis_paths, analyses = _write_family_analyses(workspace)
+        members = []
+        for backbone, metric, scope, analysis_label in (
+            ("frontier", "metric.data_fidelity", "all", "fidelity"),
+            (
+                "frontier",
+                "metric.series_cohesion",
+                "multi_panel",
+                "cohesion",
+            ),
+            ("mid", "metric.data_fidelity", "all", "fidelity"),
+            ("mid", "metric.series_cohesion", "multi_panel", "cohesion"),
+            ("open", "metric.data_fidelity", "all", "fidelity"),
+            ("open", "metric.series_cohesion", "multi_panel", "cohesion"),
+        ):
+            members.append(
+                {
+                    "name": f"{backbone}.{metric.rsplit('.', 1)[-1]}",
+                    "analysis_path": analysis_paths[analysis_label].name,
+                    "analysis_hash": analyses[analysis_label][
+                        "analysis_hash"
+                    ],
+                    "backbone": backbone,
+                    "budget_type": "renders",
+                    "budget_value": 3,
+                    "split": "test",
+                    "reference": "flat_iterative",
+                    "method": "pheroviz_full",
+                    "metric": metric,
+                    "panel_scope": scope,
+                }
+            )
+        manifest = {
+            "schema_version": "1.0",
+            "family_name": "c4-six-member-family",
+            "members": members,
+        }
+        manifest_path = workspace / "family.json"
+        write_json_atomic(manifest_path, manifest)
+
+        family = build_holm_family(manifest_path)
+
+        assert len(family["members"]) == 6
+        assert {
+            member["adjusted_p_value"] for member in family["members"]
+        } == {1.0}
+        assert family["input_summary_hash"] == analyses["fidelity"][
+            "input_summary_hash"
+        ]
+        assert family["common_experiment_provenance"][
+            "experiment_git_commit"
+        ] == "c" * 40
+        assert family["code_git_commit"] == "9" * 40
+        assert family["code_git_dirty"] is False
+
+        output = workspace / "holm-output"
+        exit_code = main(
+            [
+                "holm-family",
+                str(manifest_path),
+                "--out",
+                str(output),
+            ]
+        )
+        assert exit_code == 0
+        cli_result = json.loads(capsys.readouterr().out)
+        output_path = Path(cli_result["holm_family"])
+        assert output_path.is_file()
+        persisted = json.loads(output_path.read_text(encoding="utf-8"))
+        assert persisted["family_hash"] == cli_result["family_hash"]
+        assert cli_result["code_git_dirty"] is False
+
+
+def test_holm_family_rejects_forged_analysis_and_duplicate_selector(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _workspace("cross-analysis-holm-forgery") as workspace:
+        monkeypatch.setattr(
+            production_statistics,
+            "_git_provenance",
+            lambda: ("9" * 40, False),
+        )
+        _, analysis_paths, analyses = _write_family_analyses(workspace)
+        base_member = {
+            "name": "frontier.fidelity",
+            "analysis_path": analysis_paths["fidelity"].name,
+            "analysis_hash": analyses["fidelity"]["analysis_hash"],
+            "backbone": "frontier",
+            "budget_type": "renders",
+            "budget_value": 3,
+            "split": "test",
+            "reference": "flat_iterative",
+            "method": "pheroviz_full",
+            "metric": "metric.data_fidelity",
+            "panel_scope": "all",
+        }
+        second_member = {
+            **base_member,
+            "name": "mid.fidelity",
+            "backbone": "mid",
+        }
+        manifest_path = workspace / "family.json"
+        write_json_atomic(
+            manifest_path,
+            {
+                "schema_version": "1.0",
+                "family_name": "c4",
+                "members": [base_member, second_member],
+            },
+        )
+
+        forged = json.loads(
+            analysis_paths["fidelity"].read_text(encoding="utf-8")
+        )
+        forged["slices"][0]["comparisons"][0]["permutation"][
+            "p_value"
+        ] = 0.001
+        forged.pop("analysis_hash")
+        forged["analysis_hash"] = sha256_json(forged)
+        write_json_atomic(analysis_paths["fidelity"], forged)
+        forged_manifest = json.loads(
+            manifest_path.read_text(encoding="utf-8")
+        )
+        for member in forged_manifest["members"]:
+            member["analysis_hash"] = forged["analysis_hash"]
+        write_json_atomic(manifest_path, forged_manifest)
+        with pytest.raises(
+            StatisticsError,
+            match="source-summary recomputation",
+        ):
+            build_holm_family(manifest_path)
+
+        write_json_atomic(analysis_paths["fidelity"], analyses["fidelity"])
+        duplicate = {
+            **base_member,
+            "name": "frontier.fidelity.duplicate",
+        }
+        write_json_atomic(
+            manifest_path,
+            {
+                "schema_version": "1.0",
+                "family_name": "c4",
+                "members": [base_member, duplicate],
+            },
+        )
+        with pytest.raises(
+            StatisticsError,
+            match="Duplicate Holm hypothesis selector",
+        ):
+            build_holm_family(manifest_path)
+
+        wrong_scope = {
+            **base_member,
+            "panel_scope": "multi_panel",
+        }
+        write_json_atomic(
+            manifest_path,
+            {
+                "schema_version": "1.0",
+                "family_name": "c4",
+                "members": [wrong_scope, second_member],
+            },
+        )
+        with pytest.raises(
+            StatisticsError,
+            match="panel_scope disagrees",
+        ):
+            build_holm_family(manifest_path)
+
+
+def test_holm_family_rejects_dirty_worktree(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _workspace("cross-analysis-holm-dirty") as workspace:
+        monkeypatch.setattr(
+            production_statistics,
+            "_git_provenance",
+            lambda: ("9" * 40, True),
+        )
+        manifest_path = workspace / "family.json"
+        write_json_atomic(
+            manifest_path,
+            {
+                "schema_version": "1.0",
+                "family_name": "c4",
+                "members": [{"name": "a"}, {"name": "b"}],
+            },
+        )
+        with pytest.raises(StatisticsError, match="clean worktree"):
+            build_holm_family(manifest_path)
 
 
 def test_kendall_tau_b_handles_ties() -> None:

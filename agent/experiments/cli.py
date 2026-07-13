@@ -12,8 +12,10 @@ from .matrix import MatrixError, load_and_expand_matrix
 from .models import ProvenanceError
 from .production_statistics import (
     analyze_summary,
+    build_holm_family,
     load_provenance_summary,
     write_analysis_outputs,
+    write_holm_family_output,
 )
 from .rejudge import merge_rejudged_summary, rejudge_batch
 
@@ -56,6 +58,11 @@ def _build_parser() -> argparse.ArgumentParser:
     analyze_parser.add_argument("--reference", required=True)
     analyze_parser.add_argument("--methods", nargs="+", required=True)
     analyze_parser.add_argument("--metric", required=True)
+    analyze_parser.add_argument(
+        "--panel-scope",
+        choices=("all", "single_panel", "multi_panel"),
+        default="all",
+    )
     analyze_parser.add_argument("--second-judge-metric", default=None)
     analyze_parser.add_argument("--out", type=Path, required=True)
     analyze_parser.add_argument("--seed", type=int, default=17_029)
@@ -70,6 +77,13 @@ def _build_parser() -> argparse.ArgumentParser:
         default=100_000,
     )
     analyze_parser.add_argument("--exact-max-n", type=int, default=16)
+
+    holm_parser = subparsers.add_parser(
+        "holm-family",
+        help="Apply Holm adjustment to a declared cross-analysis family",
+    )
+    holm_parser.add_argument("manifest", type=Path)
+    holm_parser.add_argument("--out", type=Path, required=True)
 
     rejudge_parser = subparsers.add_parser(
         "rejudge",
@@ -161,6 +175,7 @@ def _analyze_command(args: argparse.Namespace) -> int:
         reference=args.reference,
         methods=args.methods,
         metric=args.metric,
+        panel_scope=args.panel_scope,
         second_judge_metric=args.second_judge_metric,
         seed=args.seed,
         bootstrap_resamples=args.bootstrap_resamples,
@@ -174,6 +189,25 @@ def _analyze_command(args: argparse.Namespace) -> int:
                 "analysis_json": str(json_path),
                 "analysis_csv": str(csv_path),
                 "analysis_hash": analysis["analysis_hash"],
+            },
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return 0
+
+
+def _holm_family_command(args: argparse.Namespace) -> int:
+    family = build_holm_family(args.manifest)
+    path = write_holm_family_output(family, args.out)
+    print(
+        json.dumps(
+            {
+                "holm_family": str(path),
+                "family_hash": family["family_hash"],
+                "code_git_commit": family["code_git_commit"],
+                "code_git_dirty": family["code_git_dirty"],
             },
             ensure_ascii=False,
             indent=2,
@@ -231,6 +265,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return _aggregate_command(args)
         if args.command == "analyze":
             return _analyze_command(args)
+        if args.command == "holm-family":
+            return _holm_family_command(args)
         if args.command == "rejudge":
             return _rejudge_command(args)
         if args.command == "merge-rejudge":

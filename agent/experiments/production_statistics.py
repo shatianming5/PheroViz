@@ -29,7 +29,9 @@ _PANEL_STRATUM_SCORES = {
     stratum: float(index)
     for index, stratum in enumerate(_PANEL_STRATA, 1)
 }
-_ANALYSIS_VERSION = "3.0"
+_ANALYSIS_VERSION = "3.1"
+_HOLM_FAMILY_VERSION = "1.0"
+_PANEL_SCOPES = {"all", "single_panel", "multi_panel"}
 
 
 class StatisticsError(ProvenanceError):
@@ -899,16 +901,17 @@ def analyze_summary(
     reference: str,
     methods: Sequence[str],
     metric: str,
+    panel_scope: str = "all",
     second_judge_metric: Optional[str] = None,
     seed: int = 17_029,
     bootstrap_resamples: int = 10_000,
     monte_carlo_permutations: int = 100_000,
     exact_max_n: int = 16,
 ) -> Dict[str, Any]:
-    """Build analysis schema v3.0.
+    """Build analysis schema v3.1.
 
-    Version 3 adds declared Holm families, DOI-level ordinal panel trends,
-    DOI-bootstrap Kendall uncertainty, and an explicit RMST blocker.
+    Version 3.1 adds a provenance-recorded panel scope so structurally
+    inapplicable single-panel cohesion rows can be excluded before pairing.
     """
 
     if isinstance(seed, bool) or not isinstance(seed, int):
@@ -919,6 +922,10 @@ def analyze_summary(
         raise StatisticsError("permutation count must be positive")
     if exact_max_n < 1:
         raise StatisticsError("exact_max_n must be positive")
+    if panel_scope not in _PANEL_SCOPES:
+        raise StatisticsError(
+            f"panel_scope must be one of {sorted(_PANEL_SCOPES)}"
+        )
     comparison_methods = list(methods)
     if not comparison_methods:
         raise StatisticsError("At least one comparison method is required")
@@ -930,6 +937,14 @@ def analyze_summary(
     selected_rows = [
         row for row in summary.rows if row["method"] in selected_methods
     ]
+    if panel_scope == "single_panel":
+        selected_rows = [
+            row for row in selected_rows if int(row["panel_count"]) == 1
+        ]
+    elif panel_scope == "multi_panel":
+        selected_rows = [
+            row for row in selected_rows if int(row["panel_count"]) > 1
+        ]
     if not selected_rows:
         raise StatisticsError("No rows match the requested methods")
     available_methods = {row["method"] for row in selected_rows}
@@ -1174,6 +1189,7 @@ def analyze_summary(
         "reference": reference,
         "methods": comparison_methods,
         "metric": metric,
+        "panel_scope": panel_scope,
         "second_judge_metric": second_judge_metric,
         "seed": seed,
         "bootstrap_resamples": bootstrap_resamples,
@@ -1227,6 +1243,364 @@ def analyze_summary(
     return output
 
 
+def _load_analysis_artifact(path: Path) -> Dict[str, Any]:
+    resolved = path.expanduser().resolve()
+    try:
+        analysis = json.loads(
+            resolved.read_text(encoding="utf-8"),
+            parse_constant=_reject_json_constant,
+        )
+    except OSError as exc:
+        raise StatisticsError(
+            f"Cannot read analysis artifact {resolved}: {exc}"
+        ) from exc
+    except json.JSONDecodeError as exc:
+        raise StatisticsError(f"Invalid analysis JSON: {exc}") from exc
+    if not isinstance(analysis, dict):
+        raise StatisticsError("Analysis artifact must be an object")
+    if analysis.get("analysis_version") != _ANALYSIS_VERSION:
+        raise StatisticsError(
+            f"Holm family requires analysis_version {_ANALYSIS_VERSION}"
+        )
+    recorded_hash = analysis.get("analysis_hash")
+    if not isinstance(recorded_hash, str) or not _SHA256_RE.fullmatch(
+        recorded_hash
+    ):
+        raise StatisticsError("Analysis artifact has no valid analysis_hash")
+    unhashed = dict(analysis)
+    unhashed.pop("analysis_hash", None)
+    if sha256_json(unhashed) != recorded_hash:
+        raise StatisticsError("Analysis artifact failed its integrity hash")
+    if analysis.get("code_git_dirty") is not False:
+        raise StatisticsError(
+            "Holm family refuses analysis produced from a dirty worktree"
+        )
+    analysis_commit = _required_string(analysis, "code_git_commit")
+    if not re.fullmatch(r"[0-9a-f]{7,64}", analysis_commit):
+        raise StatisticsError("Analysis code_git_commit is invalid")
+    config = analysis.get("analysis_config")
+    if not isinstance(config, Mapping):
+        raise StatisticsError("Analysis artifact lacks analysis_config")
+    config_hash = analysis.get("analysis_config_hash")
+    if (
+        not isinstance(config_hash, str)
+        or not _SHA256_RE.fullmatch(config_hash)
+        or sha256_json(config) != config_hash
+    ):
+        raise StatisticsError("Analysis artifact has invalid analysis_config_hash")
+    if not isinstance(analysis.get("slices"), list):
+        raise StatisticsError("Analysis artifact lacks slices")
+    summary_path_raw = _required_string(analysis, "input_summary_path")
+    summary_path = Path(summary_path_raw).expanduser()
+    if not summary_path.is_absolute():
+        summary_path = resolved.parent / summary_path
+    summary = load_provenance_summary(summary_path)
+    if analysis.get("input_summary_hash") != summary.summary_hash:
+        raise StatisticsError(
+            "Analysis input_summary_hash disagrees with source summary"
+        )
+    try:
+        recomputed = analyze_summary(
+            summary,
+            reference=_required_string(config, "reference"),
+            methods=config.get("methods"),
+            metric=_required_string(config, "metric"),
+            panel_scope=str(config.get("panel_scope", "all")),
+            second_judge_metric=config.get("second_judge_metric"),
+            seed=config.get("seed"),
+            bootstrap_resamples=config.get("bootstrap_resamples"),
+            monte_carlo_permutations=config.get(
+                "monte_carlo_permutations"
+            ),
+            exact_max_n=config.get("exact_max_n"),
+        )
+    except (TypeError, ValueError) as exc:
+        raise StatisticsError(
+            f"Analysis config cannot be recomputed: {exc}"
+        ) from exc
+    if recomputed["analysis_config"] != config:
+        raise StatisticsError(
+            "Analysis config does not match canonical recomputation"
+        )
+    if recomputed["slices"] != analysis["slices"]:
+        raise StatisticsError(
+            "Analysis slices do not match source-summary recomputation"
+        )
+    if recomputed["right_censored_rmst"] != analysis.get(
+        "right_censored_rmst"
+    ):
+        raise StatisticsError(
+            "Analysis RMST declaration does not match recomputation"
+        )
+    return analysis
+
+
+def _family_member_slice(
+    analysis: Mapping[str, Any],
+    member: Mapping[str, Any],
+) -> tuple[Mapping[str, Any], Mapping[str, Any]]:
+    config = analysis["analysis_config"]
+    expected_metric = _required_string(member, "metric")
+    expected_method = _required_string(member, "method")
+    expected_reference = _required_string(member, "reference")
+    expected_panel_scope = _required_string(member, "panel_scope")
+    if config.get("metric") != expected_metric:
+        raise StatisticsError(
+            f"Family member metric disagrees with analysis: {expected_metric}"
+        )
+    methods = config.get("methods")
+    if not isinstance(methods, list) or expected_method not in methods:
+        raise StatisticsError(
+            f"Family method is absent from analysis: {expected_method}"
+        )
+    if config.get("reference") != expected_reference:
+        raise StatisticsError(
+            f"Family reference disagrees with analysis: {expected_reference}"
+        )
+    if config.get("panel_scope", "all") != expected_panel_scope:
+        raise StatisticsError(
+            "Family panel_scope disagrees with analysis: "
+            f"{expected_panel_scope}"
+        )
+    backbone = _required_string(member, "backbone")
+    budget_type = _required_string(member, "budget_type")
+    budget_value = _finite_number(
+        member.get("budget_value"),
+        f"{member.get('name')}.budget_value",
+    )
+    split = _required_string(member, "split")
+    matches = []
+    for index, slice_result in enumerate(analysis["slices"]):
+        if not isinstance(slice_result, Mapping):
+            raise StatisticsError(
+                f"Analysis slice {index} must be an object"
+            )
+        slice_budget = _finite_number(
+            slice_result.get("budget_value"),
+            f"analysis.slices[{index}].budget_value",
+        )
+        if (
+            slice_result.get("backbone") == backbone
+            and slice_result.get("budget_type") == budget_type
+            and slice_budget == budget_value
+            and slice_result.get("split") == split
+        ):
+            matches.append(slice_result)
+    if len(matches) != 1:
+        raise StatisticsError(
+            f"Family member must select exactly one analysis slice; "
+            f"found={len(matches)}"
+        )
+    comparisons = matches[0].get("comparisons")
+    if not isinstance(comparisons, list):
+        raise StatisticsError("Selected analysis slice lacks comparisons")
+    comparison_matches = [
+        comparison
+        for comparison in comparisons
+        if isinstance(comparison, Mapping)
+        and comparison.get("method") == expected_method
+    ]
+    if len(comparison_matches) != 1:
+        raise StatisticsError(
+            "Family member must select exactly one method comparison"
+        )
+    return matches[0], comparison_matches[0]
+
+
+def build_holm_family(manifest_path: Path) -> Dict[str, Any]:
+    resolved_manifest = manifest_path.expanduser().resolve()
+    try:
+        manifest = json.loads(
+            resolved_manifest.read_text(encoding="utf-8"),
+            parse_constant=_reject_json_constant,
+        )
+    except OSError as exc:
+        raise StatisticsError(
+            f"Cannot read Holm family manifest {resolved_manifest}: {exc}"
+        ) from exc
+    except json.JSONDecodeError as exc:
+        raise StatisticsError(
+            f"Invalid Holm family manifest JSON: {exc}"
+        ) from exc
+    if not isinstance(manifest, dict):
+        raise StatisticsError("Holm family manifest must be an object")
+    if manifest.get("schema_version") != _HOLM_FAMILY_VERSION:
+        raise StatisticsError(
+            f"Unsupported Holm family schema_version: "
+            f"{manifest.get('schema_version')!r}"
+        )
+    family_name = _required_string(manifest, "family_name")
+    raw_members = manifest.get("members")
+    if not isinstance(raw_members, list) or len(raw_members) < 2:
+        raise StatisticsError("Holm family requires at least two members")
+    code_commit, code_dirty = _git_provenance()
+    if code_dirty:
+        raise StatisticsError(
+            "Holm family must be produced from a clean worktree"
+        )
+
+    names: set[str] = set()
+    selectors: set[tuple[Any, ...]] = set()
+    materialized: list[Dict[str, Any]] = []
+    common_provenance: Optional[Dict[str, Any]] = None
+    analysis_code_commits: set[str] = set()
+    summary_hashes: set[str] = set()
+    raw_p_values: Dict[str, float] = {}
+    analysis_cache: Dict[Path, Dict[str, Any]] = {}
+    for raw_member in raw_members:
+        if not isinstance(raw_member, Mapping):
+            raise StatisticsError("Every Holm family member must be an object")
+        member = dict(raw_member)
+        name = _required_string(member, "name")
+        if name in names:
+            raise StatisticsError(f"Duplicate Holm family member: {name}")
+        names.add(name)
+        raw_path = _required_string(member, "analysis_path")
+        analysis_path = Path(raw_path).expanduser()
+        if not analysis_path.is_absolute():
+            analysis_path = resolved_manifest.parent / analysis_path
+        analysis_path = analysis_path.resolve()
+        analysis = analysis_cache.get(analysis_path)
+        if analysis is None:
+            analysis = _load_analysis_artifact(analysis_path)
+            analysis_cache[analysis_path] = analysis
+        expected_analysis_hash = _required_string(
+            member,
+            "analysis_hash",
+        )
+        if analysis["analysis_hash"] != expected_analysis_hash:
+            raise StatisticsError(
+                f"Family member analysis_hash mismatch: {name}"
+            )
+        selected_slice, comparison = _family_member_slice(analysis, member)
+        selector = (
+            analysis["input_summary_hash"],
+            member["metric"],
+            member["panel_scope"],
+            member["backbone"],
+            member["budget_type"],
+            float(member["budget_value"]),
+            member["split"],
+            member["reference"],
+            member["method"],
+        )
+        if selector in selectors:
+            raise StatisticsError(
+                f"Duplicate Holm hypothesis selector: {name}"
+            )
+        selectors.add(selector)
+        permutation = comparison.get("permutation")
+        if not isinstance(permutation, Mapping):
+            raise StatisticsError(
+                f"Family comparison lacks permutation result: {name}"
+            )
+        p_value = _finite_number(
+            permutation.get("p_value"),
+            f"{name}.p_value",
+        )
+        if not 0.0 <= p_value <= 1.0:
+            raise StatisticsError(f"{name}.p_value must be in [0,1]")
+        provenance = {
+            "dataset_manifest_hash": selected_slice.get(
+                "dataset_manifest_hash"
+            ),
+            "metric_config_hash": selected_slice.get("metric_config_hash"),
+            "metric_version": selected_slice.get("metric_version"),
+            "experiment_git_commit": selected_slice.get(
+                "experiment_git_commit"
+            ),
+            "budget_type": selected_slice.get("budget_type"),
+            "budget_value": selected_slice.get("budget_value"),
+            "split": selected_slice.get("split"),
+        }
+        if common_provenance is None:
+            common_provenance = provenance
+        elif provenance != common_provenance:
+            raise StatisticsError(
+                "Holm family members mix experiment provenance"
+            )
+        analysis_code_commit = _required_string(
+            analysis,
+            "code_git_commit",
+        )
+        analysis_code_commits.add(analysis_code_commit)
+        summary_hash = _required_string(analysis, "input_summary_hash")
+        if not _SHA256_RE.fullmatch(summary_hash):
+            raise StatisticsError("Analysis input_summary_hash is invalid")
+        summary_hashes.add(summary_hash)
+        raw_p_values[name] = p_value
+        materialized.append(
+            {
+                "name": name,
+                "analysis_path": str(analysis_path.resolve()),
+                "analysis_hash": analysis["analysis_hash"],
+                "metric": member["metric"],
+                "panel_scope": member["panel_scope"],
+                "backbone": member["backbone"],
+                "method": member["method"],
+                "reference": member["reference"],
+                "raw_p_value": p_value,
+            }
+        )
+    if len(analysis_code_commits) != 1:
+        raise StatisticsError("Holm family mixes analysis code commits")
+    if len(summary_hashes) != 1:
+        raise StatisticsError("Holm family mixes input summaries")
+
+    adjusted = holm_adjust(raw_p_values)
+    for member in materialized:
+        member["adjusted_p_value"] = adjusted[member["name"]]
+    config = {
+        "family_name": family_name,
+        "adjustment": "holm",
+        "members": [
+            {
+                key: member[key]
+                for key in (
+                    "name",
+                    "analysis_hash",
+                    "metric",
+                    "panel_scope",
+                    "backbone",
+                    "method",
+                    "reference",
+                )
+            }
+            for member in materialized
+        ],
+    }
+    output = {
+        "family_version": _HOLM_FAMILY_VERSION,
+        "generated_at": utc_now(),
+        "family_name": family_name,
+        "adjustment": "holm",
+        "scope": "declared_cross_analysis_family",
+        "manifest_path": str(resolved_manifest),
+        "manifest_hash": sha256_json(manifest),
+        "family_config": config,
+        "family_config_hash": sha256_json(config),
+        "input_summary_hash": next(iter(summary_hashes)),
+        "common_experiment_provenance": common_provenance,
+        "analysis_code_git_commit": next(iter(analysis_code_commits)),
+        "code_git_commit": code_commit,
+        "code_git_dirty": False,
+        "members": materialized,
+    }
+    output["family_hash"] = sha256_json(output)
+    return output
+
+
+def write_holm_family_output(
+    family: Mapping[str, Any],
+    out: Path,
+) -> Path:
+    path = out.expanduser().resolve()
+    if path.suffix.lower() != ".json":
+        path = path / "holm_family.json"
+    write_json_atomic(path, family)
+    return path
+
+
 def _analysis_csv_rows(analysis: Mapping[str, Any]) -> list[Dict[str, Any]]:
     rows: list[Dict[str, Any]] = []
     for slice_result in analysis["slices"]:
@@ -1259,6 +1633,10 @@ def _analysis_csv_rows(analysis: Mapping[str, Any]) -> list[Dict[str, Any]]:
                 "reference": slice_result["reference"],
                 "method": comparison["method"],
                 "metric": analysis["analysis_config"]["metric"],
+                "panel_scope": analysis["analysis_config"].get(
+                    "panel_scope",
+                    "all",
+                ),
                 "second_judge_metric": ranking["second_judge_metric"],
                 "kendall_tau_b": ranking["kendall_tau_b"],
                 "kendall_tau_b_status": tau_uncertainty["status"],
