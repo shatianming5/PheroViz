@@ -120,6 +120,32 @@ MatPlotAgent 与 nvAgent 的单 panel case 若声明 `evaluation_expectation`，
 OS sandbox，危险/不支持代码、非唯一 Figure、越界 artifact 或评测错误均失败
 关闭，且不声称 nvAgent 支持 multi-panel cohesion。
 
+MatPlotAgent 与 nvAgent 的 paper-ready 单 panel 子轨分别由
+`experiments/baseline_specs/matplotagent-single-test-renderable-v1.json` 和
+`nvagent-single-test-renderable-v1.json` 声明。两者仅按公开接口和 parent case
+metadata，从 SHA-256 为
+`6c6c5cb50603d899a9be0f41c9e562517c92ae15477610e9111f6504cd1757b3`
+的 sealed renderable benchmark 选择兼容 test singles：MatPlotAgent 固定 venv
+没有 XLSX engine，故仅纳入 2 个 CSV cases；nvAgent adapter 会先把 16 个
+CSV/XLSX cases 规范化为 CSV。每个子轨内的 PheroViz comparator 使用完全相同
+case 集。derived manifest 只新增各自的 `input_track`，并逐 case 绑定
+parent/source/instruction/expectation hash。对应矩阵为
+`experiments/matrices/baseline_matplotagent_single_renderable_v1.yaml` 与
+`baseline_nvagent_single_renderable_v1.yaml`：external 与 PheroViz 均使用
+`gpt-4o-mini`、render budget 1、seeds `0/1/2` 和相同 case/input track。
+主指标为 programmatic `data_fidelity`，`execution_success` 由 exact-budget
+完成状态报告；single-only 因而 cohesion `C=NA`。两项外部基线 license 均为
+`not_declared`，三次 seed 是 paired replicate 标识，公开 adapter 不保证向
+上游模型注入 seed。ChartCoder 仍因 checkpoint/license provenance 阻塞，不在
+任何 method 或结果行中。只做无模型展开：
+
+```bash
+python -m experiments run \
+  experiments/matrices/baseline_matplotagent_single_renderable_v1.yaml --dry-run
+python -m experiments run \
+  experiments/matrices/baseline_nvagent_single_renderable_v1.yaml --dry-run
+```
+
 C1/C3 的首个 production 矩阵位于
 `experiments/matrices/c1_c3_final_benchmark_v2_seed0.yaml`。它只选择
 `final_benchmark_renderable_v1_seed0` 的 test split，固定 `B_R=6`、backbone

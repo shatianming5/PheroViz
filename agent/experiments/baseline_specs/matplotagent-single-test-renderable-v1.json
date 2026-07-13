@@ -1,0 +1,117 @@
+{
+  "baseline": "matplotagent",
+  "builder_contract": {
+    "canonical_json": "UTF-8, sorted keys, compact separators, finite JSON values",
+    "implementation": "declarative; agent/tests/test_external_baseline_specs.py independently reproduces selection and verifies every binding",
+    "steps": [
+      "verify exact parent file SHA-256 and semantic manifest_hash",
+      "select cases in parent order using only declared public-interface metadata predicate",
+      "deep-copy selected parent case without reading outcomes",
+      "add exactly the declared input_track field",
+      "bind parent/derived case, source, instruction, and expectation hashes",
+      "preserve parent sealed source provenance and append sealed compatibility_derivation",
+      "recompute semantic manifest_hash and pin output file SHA-256 in matrix"
+    ],
+    "version": "metadata-only-compatibility-manifest-v1"
+  },
+  "chartcoder": {
+    "license_status": "not_declared",
+    "path": "agent/experiments/baseline_audits/chartcoder.json",
+    "reason": "checkpoint and license provenance unresolved; excluded from matrices and result rows",
+    "sha256": "618257d93de09f1cb92630f1a22f0107bd4e4ceb6857edc4e558382f40849e92",
+    "status": "blocked"
+  },
+  "compatibility_id": "matplotagent-single-test-renderable-v1",
+  "derived_manifest": "agent/experiments/baseline_specs/manifests/matplotagent-single-test-renderable-v1.manifest.json",
+  "evaluation_protocol": {
+    "backbone": "gpt-4o-mini",
+    "case_pairing": "same two-case derived manifest, case_id, input_track, backbone, budget, and seed for MatPlotAgent and PheroViz methods",
+    "cohesion": "NA",
+    "primary_metric": "programmatic data_fidelity",
+    "render_budget": 1,
+    "render_budget_justification": "one complete single-panel render admitted per adapter/PheroViz provider call; no iterative refinement budget",
+    "schedule": "best_of_n",
+    "secondary_metric": "execution_success = 1 iff run completed with exact render budget, else 0",
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "visual_refine": false
+  },
+  "external_runtime": {
+    "audit": {
+      "path": "agent/experiments/baseline_audits/matplotagent.json",
+      "sha256": "9528e845e67a26867c57d85f30e8982f715d8c23248765ba68f9e26b8038d4af"
+    },
+    "commit": "9cafa262aae7bdf85fccf6d02b2153fb772bc376",
+    "evaluator_files": [
+      {
+        "path": "agent/experiments/external_baselines.py",
+        "sha256": "ac7d1228fc821ab31d4d07fb30c4e1daa41d6efeff7620d260c4bd8d3f72ae6b"
+      },
+      {
+        "path": "agent/experiments/baseline_evaluation.py",
+        "sha256": "55b9968543a3ee36c7157c51d91ccf275bec8db563d656881eda61eecf353fe7"
+      }
+    ],
+    "provider": "experiments.external_baselines:MatPlotAgentProvider",
+    "python_executable": "/Users/tommy/Downloads/mayi/.baseline_envs/matplotagent/bin/python",
+    "repo_path": "/Users/tommy/Downloads/mayi/baseline_repos/MatPlotAgent",
+    "required_runtime_gate": "clean worktree, exact evaluator hashes, required gateway environment only"
+  },
+  "license_status": "not_declared",
+  "parent_manifest": {
+    "manifest_hash": "9d19b3edc9b18ada9e5f0400069e7bc1febba873af026018a992a128dbfb7222",
+    "path": "nature_download/outputs/combined_verified_400/final_benchmark_renderable_v1_seed0/benchmark_manifest.json",
+    "sha256": "6c6c5cb50603d899a9be0f41c9e562517c92ae15477610e9111f6504cd1757b3"
+  },
+  "public_interface": {
+    "cohesion_metric": "NA",
+    "input_track": "table_instruction",
+    "interface": "workspace containing one CSV table plus simple/expert instruction and model_type; fixed venv has no XLSX engine",
+    "multi_panel_eligible": false,
+    "single_panel_only": true
+  },
+  "schema_version": "1.0",
+  "selection": {
+    "allowed_case_mutations": [
+      "input_track"
+    ],
+    "case_order": "parent_manifest_order",
+    "declared_field_addition": {
+      "input_track": "table_instruction"
+    },
+    "forbidden_inputs": [
+      "run_records",
+      "method_results",
+      "method_scores",
+      "failed_case_ids",
+      "production_artifacts",
+      "review_outcomes"
+    ],
+    "predicate_version": "public-interface-metadata-v1",
+    "required_case_metadata": {
+      "data_path_suffixes": [
+        ".csv"
+      ],
+      "evaluation_expectation": "single-panel object with panel_groups=[]",
+      "nonempty_instruction_fields": [
+        "instruction",
+        "user_goal",
+        "nl_instruction",
+        "query"
+      ],
+      "panel_count": 1,
+      "split": "test"
+    },
+    "selected_case_ids": [
+      "case-s41467-022-30582-3-figure2-paneld-ff845a0a901a",
+      "case-s41467-022-30582-3-figure5-paneld-a54aba949d21"
+    ],
+    "selected_case_set_sha256": "c0322341004517463f291e0151ea5e02b92296bdab6c5b7e2026654cceb7aac2",
+    "selected_count": 2,
+    "selected_parent_cases_sha256": "79e287eeb455a88c171c4d8f02fc53291cc74a2e88fb3dad926fc618b6b62019"
+  },
+  "spec_type": "external-baseline-compatibility-derivation"
+}

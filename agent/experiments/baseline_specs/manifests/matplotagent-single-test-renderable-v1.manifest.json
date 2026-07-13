@@ -1,0 +1,291 @@
+{
+  "cases": [
+    {
+      "candidate_id": "case-s41467-022-30582-3-figure2-paneld-ff845a0a901a",
+      "case_id": "case-s41467-022-30582-3-figure2-paneld-ff845a0a901a",
+      "chart_family": "bar",
+      "curation_status": "verified",
+      "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/verified_cases_final_v2/extracted/s41467-022-30582-3/41467_2022_30582_MOESM4_ESM-5112632f75ff/RawData_R2b/Fig2D.csv",
+      "data_sha256": "3a136ea70b573d09c1e9bce9b7f9669f6bb8c3f73edb6bdc6eb6d3af36b4168f",
+      "doi": "10.1038/s41467-022-30582-3",
+      "eligibility_reasons": [],
+      "eligible_for_experiment": true,
+      "evaluation_expectation": {
+        "panel_groups": [],
+        "panels": [
+          {
+            "axis_index": 0,
+            "panel_id": "d",
+            "series": [
+              {
+                "kind": "bar",
+                "series_id": "fraction.Predictive",
+                "x": "type",
+                "y": "fraction.Predictive"
+              }
+            ],
+            "x_scale": "linear"
+          }
+        ],
+        "schema_version": "1.1.0"
+      },
+      "input_track": "table_instruction",
+      "intent": {
+        "series": [
+          "fraction.Predictive"
+        ],
+        "units": {},
+        "x": "type",
+        "x_scale": "categorical",
+        "y": "fraction.Predictive"
+      },
+      "panel_count": 1,
+      "panel_id": "d",
+      "panels": [
+        {
+          "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/verified_cases_final_v2/extracted/s41467-022-30582-3/41467_2022_30582_MOESM4_ESM-5112632f75ff/RawData_R2b/Fig2D.csv",
+          "data_sha256": "3a136ea70b573d09c1e9bce9b7f9669f6bb8c3f73edb6bdc6eb6d3af36b4168f",
+          "panel_id": "d",
+          "sheet": null,
+          "user_goal": "Create a bar chart for Figure 2D showing `fraction.Predictive` against `type`."
+        }
+      ],
+      "sheet": null,
+      "split": "test",
+      "user_goal": "Create a bar chart for Figure 2D showing `fraction.Predictive` against `type`.",
+      "verification_evidence": {
+        "evidence_ref": "review:a799ada34aabbe682670bf80288fbb81f799889909e73a1f76a811f670b9c8f5",
+        "evidence_type": "external_validation",
+        "review_hash": "a799ada34aabbe682670bf80288fbb81f799889909e73a1f76a811f670b9c8f5",
+        "review_models": [
+          "claude-sonnet-4-6",
+          "gemini-3.5-flash"
+        ]
+      }
+    },
+    {
+      "candidate_id": "case-s41467-022-30582-3-figure5-paneld-a54aba949d21",
+      "case_id": "case-s41467-022-30582-3-figure5-paneld-a54aba949d21",
+      "chart_family": "bar",
+      "curation_status": "verified",
+      "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/verified_cases_final_v2/extracted/s41467-022-30582-3/41467_2022_30582_MOESM4_ESM-5112632f75ff/RawData_R2b/Fig5D.csv",
+      "data_sha256": "2efcd9edeacde5350f0a93f57713edfa2e047fbbc5f9fad4a3d1932f79071d6f",
+      "doi": "10.1038/s41467-022-30582-3",
+      "eligibility_reasons": [],
+      "eligible_for_experiment": true,
+      "evaluation_expectation": {
+        "panel_groups": [],
+        "panels": [
+          {
+            "axis_index": 0,
+            "panel_id": "d",
+            "series": [
+              {
+                "kind": "bar",
+                "series_id": "log2ratio",
+                "x": "Pathway",
+                "y": "log2ratio"
+              }
+            ],
+            "x_scale": "linear"
+          }
+        ],
+        "schema_version": "1.1.0"
+      },
+      "input_track": "table_instruction",
+      "intent": {
+        "series": [
+          "log2ratio"
+        ],
+        "units": {},
+        "x": "Pathway",
+        "x_scale": "categorical",
+        "y": "log2ratio"
+      },
+      "panel_count": 1,
+      "panel_id": "d",
+      "panels": [
+        {
+          "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/verified_cases_final_v2/extracted/s41467-022-30582-3/41467_2022_30582_MOESM4_ESM-5112632f75ff/RawData_R2b/Fig5D.csv",
+          "data_sha256": "2efcd9edeacde5350f0a93f57713edfa2e047fbbc5f9fad4a3d1932f79071d6f",
+          "panel_id": "d",
+          "sheet": null,
+          "user_goal": "Create a bar chart for Figure 5D showing `log2ratio` against `Pathway`."
+        }
+      ],
+      "sheet": null,
+      "split": "test",
+      "user_goal": "Create a bar chart for Figure 5D showing `log2ratio` against `Pathway`.",
+      "verification_evidence": {
+        "evidence_ref": "review:d2cde07b02fdc0f7eece91dd8f473a5895c6a403ae9ac94c5eeb609a20f15bcc",
+        "evidence_type": "external_validation",
+        "review_hash": "d2cde07b02fdc0f7eece91dd8f473a5895c6a403ae9ac94c5eeb609a20f15bcc",
+        "review_models": [
+          "claude-sonnet-4-6",
+          "gemini-3.5-flash"
+        ]
+      }
+    }
+  ],
+  "manifest_hash": "3f746dc066b5d0bb6518fddc6bae9c90b41edec14b330bccd5a1f1f0806494f6",
+  "provenance": {
+    "code_commit": "3a9f3b657f88e51b308509a6293f01ba96f20ab5",
+    "code_dirty": false,
+    "compatibility_derivation": {
+      "allowed_case_mutations": [
+        "input_track"
+      ],
+      "case_bindings": [
+        {
+          "case_id": "case-s41467-022-30582-3-figure2-paneld-ff845a0a901a",
+          "derived_case_sha256": "3cd15cf40b90478af21a70683e7675d55f910b07c73a11d5ceb7185db8a7a65d",
+          "expectation_sha256": "a10c1066f4c51f3e894818054b1cf71750ca8079a9cc2989ddad0e34499ca5a5",
+          "instruction_sha256": "91c3d9c901e4f79fdca22a164780dbf30e3bd97fbf83e4b05cf090984277767e",
+          "parent_case_sha256": "5c33a98d9bd19d3b2c516c85a96955e4d8c79ff395f627395afc9916f3c4bab8",
+          "source_sha256": "3a136ea70b573d09c1e9bce9b7f9669f6bb8c3f73edb6bdc6eb6d3af36b4168f"
+        },
+        {
+          "case_id": "case-s41467-022-30582-3-figure5-paneld-a54aba949d21",
+          "derived_case_sha256": "adb11ddfa5bb7a8f642ae7a1267a7022599a7c87cbefcc616cb421c007651d59",
+          "expectation_sha256": "0b84becf296191bda7e5e0cf2c27375fe1d96993131132ed88abcf176a219d18",
+          "instruction_sha256": "056f2b9811d04204737cabf8f2645ab6630f37bc987577d900f98a705c123730",
+          "parent_case_sha256": "fa8fd7fe85c1590f0121b735279a364c88a8832187e141e885813874da95b80b",
+          "source_sha256": "2efcd9edeacde5350f0a93f57713edfa2e047fbbc5f9fad4a3d1932f79071d6f"
+        }
+      ],
+      "compatibility_id": "matplotagent-single-test-renderable-v1",
+      "declared_field_addition": {
+        "input_track": "table_instruction"
+      },
+      "derivation_hash": "d097d3735c1853a65fe94dc5304103ccdf0bc02b8087fa429db78a03331cc7fd",
+      "forbidden_inputs": [
+        "run_records",
+        "method_results",
+        "method_scores",
+        "failed_case_ids",
+        "production_artifacts",
+        "review_outcomes"
+      ],
+      "license_status": "not_declared",
+      "parent_manifest_hash": "9d19b3edc9b18ada9e5f0400069e7bc1febba873af026018a992a128dbfb7222",
+      "parent_manifest_path": "nature_download/outputs/combined_verified_400/final_benchmark_renderable_v1_seed0/benchmark_manifest.json",
+      "parent_manifest_sha256": "6c6c5cb50603d899a9be0f41c9e562517c92ae15477610e9111f6504cd1757b3",
+      "schema_version": "1.0",
+      "selected_case_ids": [
+        "case-s41467-022-30582-3-figure2-paneld-ff845a0a901a",
+        "case-s41467-022-30582-3-figure5-paneld-a54aba949d21"
+      ],
+      "selected_case_set_sha256": "c0322341004517463f291e0151ea5e02b92296bdab6c5b7e2026654cceb7aac2",
+      "spec_path": "agent/experiments/baseline_specs/matplotagent-single-test-renderable-v1.json",
+      "spec_sha256": "83cddb92c54b4cae8636e35d202a20cf1ba0c196fd2317bb1d0b489d5636f2a7"
+    },
+    "parent_manifest_sha256": "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b",
+    "renderability_audit_hash": "d818334f9f9b25141e0825d7a10b36a68c0ec4717d3c29047b334da4fc9db4d2",
+    "renderability_audit_path": "renderability_audit.json",
+    "renderability_audit_sha256": "a61c986aa368857e8c12d872f0759adc84c6b26b5644fc396bca1be6f682e5d3",
+    "renderability_policy": {
+      "audit_counting": {
+        "expected_points": "sum_per_series_max_resolved_x_y_value_length",
+        "series_count": "all_expected_series_in_panel"
+      },
+      "declared_inputs": [
+        "source_table",
+        "source_sheet",
+        "evaluation_expectation"
+      ],
+      "explicitly_uncapped_series_kinds": [
+        "line",
+        "scatter"
+      ],
+      "forbidden_inputs": [
+        "run_records",
+        "method_names",
+        "method_scores",
+        "failed_case_ids",
+        "production_artifacts"
+      ],
+      "multi_panel_rule": "reject_case_if_any_panel_fails",
+      "non_bar_cardinality_action": "no_cap",
+      "panel_scope": "every_panel",
+      "policy_id": "outcome-independent-static-renderability-v1",
+      "rules": [
+        {
+          "comparison": "less_than_or_equal",
+          "expectation_series_kinds": [
+            "bar"
+          ],
+          "max_unique_categorical_x_per_panel": 200,
+          "missing_x_values": "count_as_one_category",
+          "rule_id": "bar-column-categorical-x-cardinality",
+          "semantic_families": [
+            "bar",
+            "column"
+          ],
+          "x_counting": "union_of_resolved_bar_series_x_after_expectation_filters"
+        }
+      ],
+      "schema_version": "1.0",
+      "split_scope": [
+        "train",
+        "val",
+        "test"
+      ]
+    },
+    "renderability_policy_hash": "283f0520bf1fda98773958602be6206c1776c573a00273391dbfeb6acd565cec",
+    "source_binding": {
+      "candidate_inputs": [
+        {
+          "candidates_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next150/verified_cases_final_v2_compat/candidates.jsonl",
+          "candidates_sha256": "5821a4153bfd13eb69a5e3d88d5f7794b944447198816265813767cc6f517ecf",
+          "code_commit": "6ba960f6f491fb01d970ffc2ac4049de8d687b1f",
+          "content_root": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next150/content",
+          "corpus_manifest": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next150/manifest_v1/corpus_manifest.jsonl",
+          "corpus_manifest_sha256": "35ef3648b74e3077b4b9e9d8714fb7aa1978fc877ccb6fca43f3d978f66e4c98",
+          "output_root": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next150/verified_cases_final_v2_compat",
+          "summary_hash": "cf0ed6a82375f23ed0fb6790f9a83afcb617bb099f1bd26e16becc9d5ec5f930",
+          "summary_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next150/verified_cases_final_v2_compat/summary.json",
+          "summary_sha256": "d534f4dde013096ca3ab0b91732e4dbc45b94488146899fd3f9cde68db0c3c61"
+        },
+        {
+          "candidates_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/verified_cases_final_v2/candidates.jsonl",
+          "candidates_sha256": "11a57c70bbf7c3bccc8ba5d7a12322592fb2bf5501eb9a047911741e41df0472",
+          "code_commit": "6ba960f6f491fb01d970ffc2ac4049de8d687b1f",
+          "content_root": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/content",
+          "corpus_manifest": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/manifest_v2/corpus_manifest.jsonl",
+          "corpus_manifest_sha256": "70bd6d8e3a5d6c31eae2393e7e9ed96d0fdfeb93a875a1bef3629fb9dbd2de3b",
+          "output_root": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/verified_cases_final_v2",
+          "summary_hash": "ac9f7db3f1a5bacd68c78ee62cd95dfbf9c6874fab988a90425d9b5dc21b987d",
+          "summary_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/verified_cases_final_v2/summary.json",
+          "summary_sha256": "8b5ea886f8526b2f827d00d2c1e458432b6cb6e522b91859da116c2f99cd0970"
+        }
+      ],
+      "review_bundles": [
+        {
+          "evidence": {
+            "evidence_hash": "92f848e45428a6b883cd562157e6d4fc24f5ab0592ce97903500cbb9e9b8e234",
+            "path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/combined_verified_400/final_union_reviews_v1/evidence.json",
+            "sha256": "2ad56bfc33f05ebf3d10091eaa8183f156e3698f754672df4f945b06c2d57478"
+          },
+          "proposed": {
+            "path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/combined_verified_400/final_union_proposals_v1/proposed.jsonl",
+            "sha256": "eeffba0a4df895f30e163b2b30b547f4faf59efc3a4bb5512098088d58296114"
+          },
+          "reviews": {
+            "path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/combined_verified_400/final_union_reviews_v1/reviews.jsonl",
+            "sha256": "eac4210f63c265a94afd495d645594528230d38553949db59af4685132b015a4",
+            "summary_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/combined_verified_400/final_union_reviews_v1/summary.json",
+            "summary_sha256": "a988dccc6915b8360dbc36bc5c8fbe421e7ed391144e4053a0d2e350775c5c86"
+          }
+        }
+      ]
+    },
+    "source_binding_hash": "ae6c2142b05b3e690bcbed6ea9c01f73fc349540118e2cdd29070b6b6b310013",
+    "split_ratios": {
+      "test": 0.8,
+      "train": 0.0,
+      "val": 0.2
+    },
+    "split_seed": 0
+  },
+  "schema_version": "1.0"
+}

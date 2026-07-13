@@ -1,0 +1,135 @@
+{
+  "baseline": "nvagent",
+  "builder_contract": {
+    "canonical_json": "UTF-8, sorted keys, compact separators, finite JSON values",
+    "implementation": "declarative; agent/tests/test_external_baseline_specs.py independently reproduces selection and verifies every binding",
+    "steps": [
+      "verify exact parent file SHA-256 and semantic manifest_hash",
+      "select cases in parent order using only declared public-interface metadata predicate",
+      "deep-copy selected parent case without reading outcomes",
+      "add exactly the declared input_track field",
+      "bind parent/derived case, source, instruction, and expectation hashes",
+      "preserve parent sealed source provenance and append sealed compatibility_derivation",
+      "recompute semantic manifest_hash and pin output file SHA-256 in matrix"
+    ],
+    "version": "metadata-only-compatibility-manifest-v1"
+  },
+  "chartcoder": {
+    "license_status": "not_declared",
+    "path": "agent/experiments/baseline_audits/chartcoder.json",
+    "reason": "checkpoint and license provenance unresolved; excluded from matrices and result rows",
+    "sha256": "618257d93de09f1cb92630f1a22f0107bd4e4ceb6857edc4e558382f40849e92",
+    "status": "blocked"
+  },
+  "compatibility_id": "nvagent-single-test-renderable-v1",
+  "derived_manifest": "agent/experiments/baseline_specs/manifests/nvagent-single-test-renderable-v1.manifest.json",
+  "evaluation_protocol": {
+    "backbone": "gpt-4o-mini",
+    "case_pairing": "same derived manifest, case_id, input_track, backbone, budget, and seed for external and PheroViz methods",
+    "cohesion": "NA",
+    "primary_metric": "programmatic data_fidelity",
+    "render_budget": 1,
+    "render_budget_justification": "one complete single-panel render admitted per adapter/PheroViz provider call; no iterative refinement budget",
+    "schedule": "best_of_n",
+    "secondary_metric": "execution_success = 1 iff run completed with exact render budget, else 0",
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "visual_refine": false
+  },
+  "external_runtime": {
+    "audit": {
+      "path": "agent/experiments/baseline_audits/nvagent.json",
+      "sha256": "6cd142519ab3a0ad1c5b33a9ca9924852e9617f57d26b23bbfe7427015961a99"
+    },
+    "commit": "a37209e675813a25241e83f2fe56a87657a49ef6",
+    "evaluator_files": [
+      {
+        "path": "agent/experiments/external_baselines.py",
+        "sha256": "ac7d1228fc821ab31d4d07fb30c4e1daa41d6efeff7620d260c4bd8d3f72ae6b"
+      },
+      {
+        "path": "agent/experiments/baseline_evaluation.py",
+        "sha256": "55b9968543a3ee36c7157c51d91ccf275bec8db563d656881eda61eecf353fe7"
+      }
+    ],
+    "provider": "experiments.external_baselines:NvAgentProvider",
+    "python_executable": "/Users/tommy/Downloads/mayi/.baseline_envs/nvagent/bin/python",
+    "repo_path": "/Users/tommy/Downloads/mayi/baseline_repos/nvAgent",
+    "required_runtime_gate": "clean worktree, exact evaluator hashes, required gateway environment only"
+  },
+  "license_status": "not_declared",
+  "parent_manifest": {
+    "manifest_hash": "9d19b3edc9b18ada9e5f0400069e7bc1febba873af026018a992a128dbfb7222",
+    "path": "nature_download/outputs/combined_verified_400/final_benchmark_renderable_v1_seed0/benchmark_manifest.json",
+    "sha256": "6c6c5cb50603d899a9be0f41c9e562517c92ae15477610e9111f6504cd1757b3"
+  },
+  "public_interface": {
+    "cohesion_metric": "NA",
+    "input_track": "table_nl_instruction",
+    "interface": "db_id, CSV table list, natural-language instruction, matplotlib selector",
+    "multi_panel_eligible": false,
+    "single_panel_only": true
+  },
+  "schema_version": "1.0",
+  "selection": {
+    "allowed_case_mutations": [
+      "input_track"
+    ],
+    "case_order": "parent_manifest_order",
+    "declared_field_addition": {
+      "input_track": "table_nl_instruction"
+    },
+    "forbidden_inputs": [
+      "run_records",
+      "method_results",
+      "method_scores",
+      "failed_case_ids",
+      "production_artifacts",
+      "review_outcomes"
+    ],
+    "predicate_version": "public-interface-metadata-v1",
+    "required_case_metadata": {
+      "data_path_suffixes": [
+        ".csv",
+        ".tsv",
+        ".xls",
+        ".xlsm",
+        ".xlsx"
+      ],
+      "evaluation_expectation": "single-panel object with panel_groups=[]",
+      "nonempty_instruction_fields": [
+        "instruction",
+        "user_goal",
+        "nl_instruction",
+        "query"
+      ],
+      "panel_count": 1,
+      "split": "test"
+    },
+    "selected_case_ids": [
+      "case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2",
+      "case-s41467-021-25210-5-figure2-panele-40ed0f36fcb1",
+      "case-s41467-021-25210-5-figure2-panelf-61e8e08ae424",
+      "case-s41467-021-25210-5-figure2-panelj-e3cae44c267a",
+      "case-s41467-021-25210-5-figure2-panelk-bc7896822a15",
+      "case-s41467-021-25210-5-figure2-panell-67238825b9a0",
+      "case-s41467-022-30582-3-figure2-paneld-ff845a0a901a",
+      "case-s41467-022-30582-3-figure5-paneld-a54aba949d21",
+      "case-s41467-023-38847-1-figure1-panelg-263d16873f98",
+      "case-s41467-023-38847-1-figure3-panelc-006bf9b00122",
+      "case-s41467-023-38847-1-figure3-paneld-b45f8bba270c",
+      "case-s41467-023-42692-7-figure1-panelb-5ac7fb84108f",
+      "case-s41467-023-42692-7-figure1-panelg-9bbb48c5e7fd",
+      "case-s41467-023-42692-7-figure1-panelh-53463702bfd3",
+      "case-s41467-024-47988-w-figure3-panelh-685adf502ff4",
+      "case-s41467-024-48317-x-figure5-panelh-proteomics-pathways-e101deb98b92"
+    ],
+    "selected_case_set_sha256": "e8726db8bdbb5c9485a5d4685f22cbf9a057bc11b686d71ccbacc54de6c16b74",
+    "selected_count": 16,
+    "selected_parent_cases_sha256": "80ad7b4742223a0b35c5bf8eee2eba47d5f2e58d3cfab9a7892349ff60d56b48"
+  },
+  "spec_type": "external-baseline-compatibility-derivation"
+}

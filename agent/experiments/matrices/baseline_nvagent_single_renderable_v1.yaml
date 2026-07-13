@@ -1,0 +1,59 @@
+experiment_name: baseline-nvagent-single-renderable-v1-gpt4omini-r1
+dataset_manifest: ../baseline_specs/manifests/nvagent-single-test-renderable-v1.manifest.json
+dataset_manifest_sha256: 092277a35581fd48418f3f088d488b763a07954495d3c2a7c71b8999e689c0c4
+dataset_mode: sealed_benchmark
+artifact_root: ../runs/production/baseline_nvagent_single_renderable_v1_gpt4omini_r1
+methods:
+- name: nvagent_native
+  schedule: best_of_n
+  provider: experiments.external_baselines:NvAgentProvider
+  provider_options:
+    repo_path: /Users/tommy/Downloads/mayi/baseline_repos/nvAgent
+    python_executable: /Users/tommy/Downloads/mayi/.baseline_envs/nvagent/bin/python
+    openai_compatible: true
+  openai_compatible: true
+- name: pheroviz_model_spec
+  schedule: best_of_n
+  provider: experiments.providers:UnifiedBenchmarkProvider
+  provider_options:
+    manifest_data_root: /Users/tommy/Downloads/mayi/PheroViz
+  memory_mode: none
+  initial_generation: model_spec
+  render_timeout_seconds: 120
+backbones:
+- gpt-4o-mini
+seeds:
+- 0
+- 1
+- 2
+budgets:
+- type: renders
+  value: 1
+splits:
+- test
+metric:
+  version: programmatic-v2
+  config:
+    selection:
+      metric: data_fidelity
+      direction: maximize
+compatibility_subtrack:
+  spec: ../baseline_specs/nvagent-single-test-renderable-v1.json
+  spec_sha256: e11a9c8b6e46ee636770d7d26f588c156e3d2a4e2632e527496d33cf76025a4d
+  input_track: table_nl_instruction
+  selected_cases: 16
+  paired_methods:
+  - nvagent_native
+  - pheroviz_model_spec
+  reported_metrics:
+  - data_fidelity
+  - execution_success
+  execution_success_definition: 1 iff completed with exact render budget; 0 for failed/not-completed
+    run
+  cohesion: NA
+  multi_panel_cases: 0
+  license_status: not_declared
+  audit_ref: agent/experiments/baseline_audits/nvagent.json
+  audit_sha256: 6cd142519ab3a0ad1c5b33a9ca9924852e9617f57d26b23bbfe7427015961a99
+  chartcoder_result_row: false
+  no_model_call_preflight: use --dry-run only
