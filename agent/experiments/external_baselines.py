@@ -13,6 +13,10 @@ from typing import Any, Callable, Dict, Mapping, Optional, Sequence
 
 import pandas as pd
 
+from .baseline_evaluation import (
+    BaselineEvaluationError,
+    run_programmatic_evaluation,
+)
 from .baseline_registry import (
     BASELINE_REGISTRY,
     BaselineDefinition,
@@ -26,6 +30,7 @@ from .manifest import (
     ManifestError,
     load_dataset_manifest,
     select_case,
+    verify_case_data_files,
     verify_case_metadata,
 )
 from .models import slug_identifier, write_json_atomic
@@ -184,6 +189,39 @@ def _table_inputs(
     return tables
 
 
+def _single_panel_evaluation_source(
+    case: DatasetCase,
+    *,
+    manifest_source: Path,
+) -> tuple[Path, str | int | None]:
+    raw_path = case.payload.get(
+        "data_path",
+        case.payload.get("table_path"),
+    )
+    if raw_path is None:
+        raw_paths = case.payload.get("table_paths")
+        if not isinstance(raw_paths, list) or len(raw_paths) != 1:
+            raise ProviderExecutionError(
+                "Single-panel programmatic evaluation requires exactly one "
+                "original source table"
+            )
+        raw_path = raw_paths[0]
+    source = _resolve_case_file(
+        raw_path,
+        manifest_source=manifest_source,
+        field_name="data_path",
+    )
+    sheet = case.payload.get("sheet")
+    if isinstance(sheet, bool) or (
+        sheet is not None and not isinstance(sheet, (str, int))
+    ):
+        raise ProviderExecutionError(
+            "Single-panel programmatic evaluation sheet must be a string, "
+            "integer, or null"
+        )
+    return source, sheet
+
+
 def _copy_inputs(paths: Sequence[Path], destination: Path) -> list[Path]:
     destination.mkdir(parents=True, exist_ok=False)
     copied: list[Path] = []
@@ -221,6 +259,7 @@ def _prepare_nvagent_tables(
     destination: Path,
     *,
     instruction: str,
+    sheet: str | int | None = None,
 ) -> tuple[list[Path], str, Path]:
     destination.mkdir(parents=True, exist_ok=False)
     copied: list[Path] = []
@@ -234,7 +273,10 @@ def _prepare_nvagent_tables(
         elif suffix == ".tsv":
             frame = pd.read_csv(source, sep="\t")
         elif suffix in {".xls", ".xlsx", ".xlsm"}:
-            frame = pd.read_excel(source)
+            frame = pd.read_excel(
+                source,
+                sheet_name=0 if sheet is None else sheet,
+            )
         else:
             raise ProviderExecutionError(
                 f"nvAgent cannot normalize table format: {source.suffix}"
@@ -264,6 +306,7 @@ def _prepare_nvagent_tables(
                 "source_name": source.name,
                 "table_alias": table_alias,
                 "column_aliases": column_aliases,
+                "sheet": sheet if suffix in {".xls", ".xlsx", ".xlsm"} else None,
             }
         )
 
@@ -350,6 +393,10 @@ class ExternalBaselineProvider:
                 panel_count=request.spec.panel_count,
                 split=request.spec.split,
             )
+            verify_case_data_files(
+                case,
+                manifest_path=request.dataset_manifest_path,
+            )
         except ManifestError as exc:
             raise ProviderExecutionError(str(exc)) from exc
         track = case.payload.get("input_track")
@@ -366,6 +413,9 @@ class ExternalBaselineProvider:
         case: DatasetCase,
     ) -> BaselineInvocation:
         raise NotImplementedError
+
+    def _programmatic_evaluation_kind(self) -> Optional[str]:
+        return None
 
     def _secret_values(self) -> list[str]:
         return [
@@ -391,6 +441,18 @@ class ExternalBaselineProvider:
         except BaselinePreflightError as exc:
             raise ProviderExecutionError(str(exc)) from exc
         case = self._case(request)
+        evaluation_kind = self._programmatic_evaluation_kind()
+        expectation = case.payload.get("evaluation_expectation")
+        if evaluation_kind is not None and expectation is not None:
+            if not isinstance(expectation, Mapping):
+                raise ProviderExecutionError(
+                    "evaluation_expectation must be an object"
+                )
+            if request.spec.panel_count != 1:
+                raise ProviderExecutionError(
+                    f"{self.definition.name} programmatic evaluation supports "
+                    "single-panel cases only"
+                )
         invocation = self._prepare_invocation(request, case)
         work_dir = request.output_dir.resolve()
         secret_values = self._secret_values()
@@ -541,6 +603,11 @@ class ExternalBaselineProvider:
             path = Path(str(raw_path))
             if not path.is_absolute():
                 path = work_dir / path
+            if path.is_symlink():
+                raise self._failure(
+                    f"External artifact {label!r} cannot be a symlink",
+                    artifacts=failure_artifacts,
+                )
             try:
                 resolved = path.resolve(strict=True)
                 resolved.relative_to(work_dir)
@@ -558,8 +625,152 @@ class ExternalBaselineProvider:
                 f"{self.definition.name} must produce code and image artifacts",
                 artifacts=failure_artifacts,
             )
+        output_artifacts["render"] = output_artifacts["image"]
+        metadata["native_image_artifact"] = "render"
+        metrics = {"execution_success": 1.0}
+        if evaluation_kind is not None and expectation is not None:
+            evaluation_failure_artifacts = {
+                **failure_artifacts,
+                **{
+                    label: Path(path)
+                    for label, path in output_artifacts.items()
+                },
+            }
+            try:
+                source_path, sheet = _single_panel_evaluation_source(
+                    case,
+                    manifest_source=Path(request.spec.dataset_manifest_path),
+                )
+            except ProviderExecutionError as exc:
+                raise self._failure(
+                    str(exc),
+                    artifacts=evaluation_failure_artifacts,
+                ) from exc
+            evaluator_config = request.spec.metric_config.get("evaluator")
+            if evaluator_config is not None and not isinstance(
+                evaluator_config,
+                Mapping,
+            ):
+                raise self._failure(
+                    "metric_config.evaluator must be an object",
+                    artifacts=evaluation_failure_artifacts,
+                )
+            alias_path = (
+                Path(output_artifacts["input_aliases"])
+                if evaluation_kind == "nvagent"
+                and "input_aliases" in output_artifacts
+                else None
+            )
+            if evaluation_kind == "nvagent" and alias_path is None:
+                raise self._failure(
+                    "nvAgent programmatic evaluation requires input_aliases",
+                    artifacts=evaluation_failure_artifacts,
+                )
+
+            evaluation_environment = _minimal_subprocess_environment(
+                {},
+                home_dir=work_dir / "programmatic_evaluation_home",
+            )
+            evaluation_environment["CUDA_VISIBLE_DEVICES"] = ""
+            evaluation_python_paths = [
+                str(Path(__file__).resolve().parents[1])
+            ]
+            evaluation_python_paths.extend(
+                path
+                for path in sys.path
+                if path
+                and Path(path).is_dir()
+                and (
+                    "site-packages" in Path(path).parts
+                    or "dist-packages" in Path(path).parts
+                )
+            )
+            evaluation_environment["PYTHONPATH"] = os.pathsep.join(
+                dict.fromkeys(evaluation_python_paths)
+            )
+            evaluation_python_bin = str(
+                Path(sys.executable).expanduser().absolute().parent
+            )
+            evaluation_environment["PATH"] = os.pathsep.join(
+                [
+                    evaluation_python_bin,
+                    evaluation_environment.get("PATH", ""),
+                ]
+            ).rstrip(os.pathsep)
+            evaluation_timeout = min(self.timeout_seconds, 120.0)
+            if request.deadline_monotonic is not None:
+                evaluation_timeout = min(
+                    evaluation_timeout,
+                    float(request.deadline_monotonic) - self.monotonic(),
+                )
+            elif request.remaining_seconds is not None:
+                evaluation_timeout = min(
+                    evaluation_timeout,
+                    float(request.remaining_seconds),
+                )
+            try:
+                evaluation = run_programmatic_evaluation(
+                    python_executable=sys.executable,
+                    work_dir=work_dir,
+                    code_path=Path(output_artifacts["code"]),
+                    source_path=source_path,
+                    sheet=sheet,
+                    expectation=expectation,
+                    metric_config=(
+                        evaluator_config
+                        if isinstance(evaluator_config, Mapping)
+                        else None
+                    ),
+                    environment=evaluation_environment,
+                    timeout_seconds=evaluation_timeout,
+                    alias_path=alias_path,
+                )
+            except BaselineEvaluationError as exc:
+                for path in exc.artifacts.values():
+                    _redact_text_artifact(path, secret_values)
+                metadata["programmatic_evaluation_error"] = str(exc)
+                write_json_atomic(metadata_path, metadata)
+                failure = self._failure(
+                    f"{self.definition.name} programmatic evaluation failed: "
+                    f"{exc}",
+                    artifacts={
+                        **evaluation_failure_artifacts,
+                        **exc.artifacts,
+                    },
+                )
+                if exc.timed_out:
+                    failure.failure_attribution = "method"
+                raise failure from exc
+            except Exception as exc:
+                discovered = {
+                    path.name: path
+                    for path in work_dir.glob("programmatic_evaluation*")
+                    if path.is_file() and not path.is_symlink()
+                }
+                metadata["programmatic_evaluation_error"] = (
+                    f"{type(exc).__name__}: {exc}"
+                )
+                write_json_atomic(metadata_path, metadata)
+                raise self._failure(
+                    f"{self.definition.name} programmatic evaluation setup "
+                    f"failed: {type(exc).__name__}: {exc}",
+                    artifacts={
+                        **evaluation_failure_artifacts,
+                        **discovered,
+                    },
+                ) from exc
+            metrics.update(evaluation.metrics)
+            output_artifacts.update(evaluation.artifacts)
+            output_artifacts["native_image"] = output_artifacts["image"]
+            output_artifacts["render"] = evaluation.artifacts[
+                "programmatic_evaluation_render"
+            ]
+            metadata["programmatic_evaluation"] = evaluation.metadata
+            metadata["programmatic_metric_render"] = "render"
+            metadata["native_image_artifact"] = "native_image"
+            write_json_atomic(metadata_path, metadata)
         return CandidateResult(
-            metrics={"execution_success": 1.0},
+            metrics=metrics,
             render_count=1,
             artifacts=output_artifacts,
             metadata=metadata,
@@ -592,6 +803,9 @@ class MatPlotAgentProvider(ExternalBaselineProvider):
             environ=environ,
         )
         self.mode = mode
+
+    def _programmatic_evaluation_kind(self) -> Optional[str]:
+        return "matplotagent"
 
     def _prepare_invocation(
         self,
@@ -684,6 +898,9 @@ class NvAgentProvider(ExternalBaselineProvider):
         )
         self.openai_compatible = bool(openai_compatible)
 
+    def _programmatic_evaluation_kind(self) -> Optional[str]:
+        return "nvagent"
+
     def _prepare_invocation(
         self,
         request: GenerationRequest,
@@ -704,6 +921,7 @@ class NvAgentProvider(ExternalBaselineProvider):
             tables,
             database_dir,
             instruction=_case_instruction(case),
+            sheet=case.payload.get("sheet"),
         )
         logs_dir = request.output_dir / "logs"
         logs_dir.mkdir()
@@ -726,7 +944,7 @@ class NvAgentProvider(ExternalBaselineProvider):
                 ),
                 "log_path": str(logs_dir / "nvagent.log"),
                 "code_path": str(request.output_dir / "generated.py"),
-                "image_path": str(request.output_dir / "figure.svg"),
+                "image_path": str(request.output_dir / "figure.png"),
                 "result_path": str(result_path),
             },
         )

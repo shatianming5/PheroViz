@@ -112,6 +112,14 @@ case/method/backbone/seed/budget 都有独立 run 名和冻结的数据 manifest
 commit 的外部 checkout 运行，审计记录位于
 `experiments/baseline_audits/`。
 
+MatPlotAgent 与 nvAgent 的单 panel case 若声明 `evaluation_expectation`，
+会在隔离的 agent evaluator Python 环境中经静态安全过滤后重新执行已生成
+代码，以原始 source table/sheet 调用同一 `evaluate_figure`，并归档
+`programmatic_evaluation.json`、subprocess 证据和 nvAgent 可逆 alias 映射。
+没有 expectation 的工程 manifest 仍只记录 `execution_success`；该流程不是
+OS sandbox，危险/不支持代码、非唯一 Figure、越界 artifact 或评测错误均失败
+关闭，且不声称 nvAgent 支持 multi-panel cohesion。
+
 C1/C3 的首个 production 矩阵位于
 `experiments/matrices/c1_c3_final_benchmark_v2_seed0.yaml`。它只选择
 `final_benchmark_v2_seed0` 的 test split，固定 `B_R=6`、backbone
