@@ -1,0 +1,60 @@
+{
+  "schema_version": "1.0",
+  "model_id": "Qwen/Qwen2.5-Coder-7B-Instruct",
+  "revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+  "license": "Apache-2.0",
+  "parameter_count": 7615616512,
+  "weight_bytes": 15231271864,
+  "official_revision_api": "https://huggingface.co/api/models/Qwen/Qwen2.5-Coder-7B-Instruct/revision/c03e6d358207e414f1eca0bb1891e29f1db0e242?blobs=true",
+  "verified_at": "2026-07-13",
+  "remote_cache": {
+    "host": "73F3-5x4090-134",
+    "path": "/mnt/HDD1_3TB/zechuan/models/Qwen2.5-Coder-7B-Instruct",
+    "gpu_model": "NVIDIA GeForce RTX 4090 D",
+    "gpu_memory_mib": 49140,
+    "allowed_gpu_indices": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "excluded_gpu_indices": [
+      0
+    ]
+  },
+  "files": [
+    {
+      "name": "model-00001-of-00004.safetensors",
+      "bytes": 4877660776,
+      "sha256": "0b6f069918b07c064cbba8ae4f00f529aa9bbf84b7cdfcb7fc2694a40f6aa8ef"
+    },
+    {
+      "name": "model-00002-of-00004.safetensors",
+      "bytes": 4932751008,
+      "sha256": "c3d46733e7aa054ea7b063fbccd0a5a08446e7bd1814bef26936c5aa1331da62"
+    },
+    {
+      "name": "model-00003-of-00004.safetensors",
+      "bytes": 4330865200,
+      "sha256": "9fe45dacee087385b3d2d6dd27a7413a8a56d95f145772facc148fa86fc73446"
+    },
+    {
+      "name": "model-00004-of-00004.safetensors",
+      "bytes": 1089994880,
+      "sha256": "5aa6e5cbe642377fd441fb4e60e83cca96b2bcd9820e245b9ea06d94653f17f2"
+    }
+  ],
+  "verification": {
+    "official_sha256_matches_remote_cache": true,
+    "official_bytes_match_remote_cache": true,
+    "all_required_weight_shards_present": true,
+    "model_service_started": false,
+    "gpu_workload_started": false
+  },
+  "operational_constraints": [
+    "Run only on a preflight-confirmed free GPU among indices 1-4.",
+    "Do not use GPU 0 because it is assigned to another workload.",
+    "Expose the service only through the controlled loopback server and SSH tunnel.",
+    "Shut down the exact service PID and tunnel after every experiment, then verify GPU memory release."
+  ]
+}
