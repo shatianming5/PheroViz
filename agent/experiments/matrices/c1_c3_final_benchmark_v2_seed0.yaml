@@ -5,6 +5,8 @@ dataset_mode: sealed_benchmark
 artifact_root: ../runs/production/c1_c3_final_benchmark_v2_seed0_br6_gpt56sol
 
 provider: experiments.providers:UnifiedBenchmarkProvider
+provider_options:
+  manifest_data_root: /Users/tommy/Downloads/mayi/PheroViz
 methods:
   - name: best_of_n
     schedule: best_of_n

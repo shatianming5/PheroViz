@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import importlib
 import inspect
 import json
@@ -14,6 +15,7 @@ from typing import Any, Dict, Iterator, Mapping, Optional, Protocol, Sequence
 from .manifest import (
     ManifestError,
     load_dataset_manifest,
+    resolve_case_data_path,
     select_case,
     verify_case_data_files,
     verify_case_metadata,
@@ -193,6 +195,7 @@ class SingleChainProvider:
         self,
         api_key_envs: Optional[Sequence[str]] = None,
         wall_clock_rounds: Optional[int] = None,
+        manifest_data_root: Optional[str] = None,
     ) -> None:
         self.api_key_envs = tuple(
             api_key_envs
@@ -204,6 +207,7 @@ class SingleChainProvider:
             )
         )
         self.wall_clock_rounds = wall_clock_rounds
+        self.manifest_data_root = manifest_data_root
 
     def check_available(self) -> None:
         try:
@@ -282,6 +286,8 @@ class SingleChainProvider:
             verify_case_data_files(
                 selected_case,
                 manifest_path=manifest_path,
+                manifest_data_root=self.manifest_data_root,
+                runtime_repo_root=request.spec.repo_root,
             )
         except ManifestError as exc:
             raise ProviderExecutionError(
@@ -305,10 +311,12 @@ class SingleChainProvider:
             raise ProviderExecutionError(
                 "Manifest case requires data_path, user_goal, and chart_family"
             )
-        data_path = Path(str(data_path_value)).expanduser()
-        if not data_path.is_absolute():
-            data_path = Path(request.spec.dataset_manifest_path).parent / data_path
-        data_path = data_path.resolve()
+        data_path = resolve_case_data_path(
+            str(data_path_value),
+            manifest_path=request.spec.dataset_manifest_path,
+            manifest_data_root=self.manifest_data_root,
+            runtime_repo_root=request.spec.repo_root,
+        )
         if not data_path.is_file():
             raise ProviderExecutionError(f"Case data file does not exist: {data_path}")
 
@@ -750,8 +758,13 @@ class MultiPanelProvider:
     name = "phero_viz_multi_panel"
     test_only = False
 
-    def __init__(self, wall_clock_rounds: Optional[int] = None) -> None:
+    def __init__(
+        self,
+        wall_clock_rounds: Optional[int] = None,
+        manifest_data_root: Optional[str] = None,
+    ) -> None:
         self.wall_clock_rounds = wall_clock_rounds
+        self.manifest_data_root = manifest_data_root
 
     def check_available(self) -> None:
         SingleChainProvider().check_available()
@@ -777,6 +790,8 @@ class MultiPanelProvider:
             verify_case_data_files(
                 selected_case,
                 manifest_path=request.dataset_manifest_path,
+                manifest_data_root=self.manifest_data_root,
+                runtime_repo_root=request.spec.repo_root,
             )
         except ManifestError as exc:
             raise ProviderExecutionError(
@@ -794,7 +809,7 @@ class MultiPanelProvider:
                 raise ProviderExecutionError(
                     "MultiPanelProvider requires multi_panel_manifest or panels"
                 )
-            panel_manifest = dict(case)
+            panel_manifest = copy.deepcopy(case)
         elif isinstance(raw_manifest, Mapping):
             panel_manifest = dict(raw_manifest)
         elif isinstance(raw_manifest, str) and raw_manifest.strip():
@@ -837,6 +852,20 @@ class MultiPanelProvider:
         evaluator_config = request.spec.metric_config.get("evaluator")
         if evaluator_config is not None:
             panel_manifest["metric_config"] = evaluator_config
+        for panel in panel_manifest.get("panels") or []:
+            if not isinstance(panel, dict) or not isinstance(
+                panel.get("data_path"),
+                str,
+            ):
+                continue
+            panel["data_path"] = str(
+                resolve_case_data_path(
+                    panel["data_path"],
+                    manifest_path=request.spec.dataset_manifest_path,
+                    manifest_data_root=self.manifest_data_root,
+                    runtime_repo_root=request.spec.repo_root,
+                )
+            )
 
         panel_count = len(panel_manifest.get("panels") or [])
         if panel_count < 2:
@@ -1054,13 +1083,16 @@ class PheroVizProvider:
         self,
         api_key_envs: Optional[Sequence[str]] = None,
         wall_clock_rounds: Optional[int] = None,
+        manifest_data_root: Optional[str] = None,
     ) -> None:
         self.single_provider = SingleChainProvider(
             api_key_envs=api_key_envs,
             wall_clock_rounds=wall_clock_rounds,
+            manifest_data_root=manifest_data_root,
         )
         self.multi_provider = MultiPanelProvider(
             wall_clock_rounds=wall_clock_rounds,
+            manifest_data_root=manifest_data_root,
         )
 
     def check_available(self) -> None:
@@ -1081,6 +1113,8 @@ class PheroVizProvider:
             verify_case_data_files(
                 selected,
                 manifest_path=request.dataset_manifest_path,
+                manifest_data_root=self.single_provider.manifest_data_root,
+                runtime_repo_root=request.spec.repo_root,
             )
         except ManifestError as exc:
             raise ProviderExecutionError(

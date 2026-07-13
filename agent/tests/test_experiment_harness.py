@@ -9,7 +9,8 @@ import pytest
 
 from experiments.aggregate import verify_frozen_manifest
 from experiments.harness import execute_experiment
-from experiments.models import RunRecord
+from experiments.manifest import DatasetCase, verify_case_data_files
+from experiments.models import RunRecord, sha256_file
 from experiments.providers import (
     CandidateResult,
     GenerationRequest,
@@ -31,6 +32,36 @@ from tests.test_experiment_support import (
 
 def _loader(provider: object):
     return lambda import_path, options: provider
+
+
+def test_manifest_data_root_remap_preserves_source_hash() -> None:
+    with experiment_workspace("manifest-data-root-remap") as workspace:
+        runtime_repo = workspace / "runtime-repo"
+        data = runtime_repo / "nature_download" / "source.csv"
+        data.parent.mkdir(parents=True)
+        data.write_text("x,y\n1,2\n", encoding="utf-8")
+        source_root = Path("/frozen/source/PheroViz")
+        case = DatasetCase(
+            case_id="remapped-case",
+            panel_count=1,
+            split="test",
+            payload={
+                "eligible_for_experiment": True,
+                "data_path": str(
+                    source_root / "nature_download" / "source.csv"
+                ),
+                "data_sha256": sha256_file(data),
+            },
+        )
+        manifest_path = workspace / "manifest.json"
+        manifest_path.write_text('{"cases":[]}', encoding="utf-8")
+
+        verify_case_data_files(
+            case,
+            manifest_path=manifest_path,
+            manifest_data_root=source_root,
+            runtime_repo_root=runtime_repo,
+        )
 
 
 def test_best_so_far_archive_keeps_highest_measured_candidate() -> None:

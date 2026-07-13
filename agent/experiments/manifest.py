@@ -637,6 +637,8 @@ def verify_case_data_files(
     case: DatasetCase,
     *,
     manifest_path: str | Path,
+    manifest_data_root: str | Path | None = None,
+    runtime_repo_root: str | Path | None = None,
 ) -> None:
     """Verify every declared source table immediately before generation."""
 
@@ -678,9 +680,12 @@ def verify_case_data_files(
             raise ManifestError(
                 f"case_id {case.case_id!r} {label} has an invalid data binding"
             )
-        path = Path(path_value).expanduser()
-        if not path.is_absolute():
-            path = manifest_parent / path
+        path = resolve_case_data_path(
+            path_value,
+            manifest_path=manifest_path,
+            manifest_data_root=manifest_data_root,
+            runtime_repo_root=runtime_repo_root,
+        )
         if path.is_symlink() or not path.is_file():
             raise ManifestError(
                 f"case_id {case.case_id!r} {label} data file is missing"
@@ -689,3 +694,43 @@ def verify_case_data_files(
             raise ManifestError(
                 f"case_id {case.case_id!r} {label} data SHA-256 changed"
             )
+
+
+def resolve_case_data_path(
+    path_value: str,
+    *,
+    manifest_path: str | Path,
+    manifest_data_root: str | Path | None = None,
+    runtime_repo_root: str | Path | None = None,
+) -> Path:
+    """Resolve a manifest path with an explicit, spec-bound root remapping."""
+
+    manifest_parent = Path(manifest_path).expanduser().resolve().parent
+    path = Path(path_value).expanduser()
+    if not path.is_absolute():
+        return (manifest_parent / path).resolve()
+    if (manifest_data_root is None) != (runtime_repo_root is None):
+        raise ManifestError(
+            "manifest_data_root and runtime_repo_root must be provided together"
+        )
+    if manifest_data_root is None:
+        return path.resolve()
+
+    source_root = Path(manifest_data_root).expanduser()
+    target_root = Path(runtime_repo_root).expanduser()
+    if not source_root.is_absolute() or not target_root.is_absolute():
+        raise ManifestError(
+            "Manifest and runtime data roots must be absolute paths"
+        )
+    source_root = source_root.resolve()
+    target_root = target_root.resolve()
+    try:
+        relative = path.resolve().relative_to(source_root)
+    except ValueError:
+        return path.resolve()
+    remapped = (target_root / relative).resolve()
+    try:
+        remapped.relative_to(target_root)
+    except ValueError as exc:
+        raise ManifestError("Remapped data path escaped runtime_repo_root") from exc
+    return remapped

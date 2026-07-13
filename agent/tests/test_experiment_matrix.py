@@ -439,6 +439,9 @@ def test_production_c1_c3_matrix_contract_expands_cleanly() -> None:
         production["provider"]
         == PHEROVIZ_PROVIDER_IMPORT_PATH
     )
+    assert production["provider_options"] == {
+        "manifest_data_root": "/Users/tommy/Downloads/mayi/PheroViz"
+    }
     assert isinstance(
         load_provider(production["provider"], {}),
         UnifiedBenchmarkProvider,
@@ -525,6 +528,9 @@ def test_production_c1_c3_matrix_contract_expands_cleanly() -> None:
         assert {spec.provider for spec in specs} == {
             PHEROVIZ_PROVIDER_IMPORT_PATH
         }
+        assert {
+            spec.provider_options["manifest_data_root"] for spec in specs
+        } == {"/Users/tommy/Downloads/mayi/PheroViz"}
         assert not artifact_root.exists()
 
 
