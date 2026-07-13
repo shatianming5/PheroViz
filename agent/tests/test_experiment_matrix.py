@@ -4,10 +4,12 @@ import hashlib
 import json
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 import yaml
 
+import experiments.cli as cli_module
 from experiments.cli import main
 from experiments.matrix import (
     MatrixError,
@@ -335,6 +337,66 @@ def test_dry_run_does_not_create_artifact_root(capsys: pytest.CaptureFixture[str
         assert "spec_hash" in payload[0]
         assert payload[0]["case_id"] == "dry-case"
         assert not artifact_root.exists()
+
+
+def test_run_fail_fast_stops_only_on_nonmethod_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with experiment_workspace("matrix-fail-fast") as workspace:
+        manifest = workspace / "manifest.json"
+        manifest.write_text(
+            json.dumps(
+                {
+                    "cases": [
+                        {
+                            "case_id": case_id,
+                            "panel_count": 1,
+                            "split": "test",
+                        }
+                        for case_id in ("case-1", "case-2", "case-3")
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+        matrix = _minimal_matrix(manifest, workspace / "runs")
+        path = workspace / "matrix.json"
+        path.write_text(json.dumps(matrix), encoding="utf-8")
+        calls: list[str] = []
+
+        def fake_execute(spec, *, resume: bool):
+            del resume
+            calls.append(spec.run_name)
+            attribution = "method" if len(calls) == 1 else "unclassified"
+            record = SimpleNamespace(
+                run_name=spec.run_name,
+                status="failed",
+                error={
+                    "type": "SyntheticFailure",
+                    "message": attribution,
+                    "attribution": attribution,
+                },
+            )
+            return SimpleNamespace(record=record, skipped=False)
+
+        monkeypatch.setattr(cli_module, "execute_experiment", fake_execute)
+
+        assert (
+            main(
+                [
+                    "run",
+                    str(path),
+                    "--resume",
+                    "--fail-fast-nonmethod",
+                ]
+            )
+            == 1
+        )
+        result = json.loads(capsys.readouterr().out)
+        assert len(calls) == len(result) == 2
+        assert result[0]["error"]["attribution"] == "method"
+        assert result[1]["error"]["attribution"] == "unclassified"
 
 
 def test_render_budget_preflight_rejects_partial_panel_checkpoint() -> None:

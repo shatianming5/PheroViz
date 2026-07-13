@@ -42,6 +42,14 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Skip valid completed runs and retry recorded failures",
     )
+    run_parser.add_argument(
+        "--fail-fast-nonmethod",
+        action="store_true",
+        help=(
+            "Stop after a failed run unless it has explicit method "
+            "attribution"
+        ),
+    )
 
     aggregate_parser = subparsers.add_parser(
         "aggregate",
@@ -145,6 +153,12 @@ def _run_command(args: argparse.Namespace) -> int:
                 "error": record.error,
             }
         )
+        if (
+            args.fail_fast_nonmethod
+            and record.status == "failed"
+            and (record.error or {}).get("attribution") != "method"
+        ):
+            break
     print(json.dumps(results, ensure_ascii=False, indent=2, sort_keys=True))
     return 1 if failures else 0
 
