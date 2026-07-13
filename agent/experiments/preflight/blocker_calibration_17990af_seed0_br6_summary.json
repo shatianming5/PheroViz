@@ -1,0 +1,116 @@
+{
+  "actual": {
+    "completed_runs": 3,
+    "panel_renders": 18,
+    "provider_invocations": 8,
+    "recorded_wall_clock_seconds": 315.84581533283927,
+    "text_model_calls": 18,
+    "text_model_latency_seconds": 249.9972793769557,
+    "usage_totals": {
+      "completion_tokens": 19609.0,
+      "prompt_tokens": 57771.0,
+      "total_tokens": 77380.0
+    },
+    "vlm_calls": 0
+  },
+  "artifact_root": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/blocker_null_category_17990af_seed0_br6",
+  "backbone": "gpt-5.6-sol",
+  "calibration_version": "1.0",
+  "case_id": "case-s41467-023-42692-7-figure1-panelb-5ac7fb84108f",
+  "elapsed_seconds": 317.32373900013044,
+  "expanded_specs": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/preflight/blocker_calibration_17990af_seed0_br6_expanded_specs.json",
+  "expanded_specs_sha256": "39c791e423dc735c791f7f7c95d97f588c4405c1ba6943f901397693788a11cc",
+  "finished_at": "2026-07-13T01:45:49.017359Z",
+  "methods": [
+    "best_of_n",
+    "flat_iterative",
+    "pheroviz_full"
+  ],
+  "panel_count": 1,
+  "post_validation": {
+    "aggregate_summary": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/blocker_null_category_17990af_seed0_br6/aggregate/summary.json",
+    "aggregate_summary_sha256": "7a29b713feeaf64197c62da3fd9a81d2316d86d6337613ac1f13e288b4e738a4",
+    "status": "passed",
+    "validation_artifact": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/preflight/blocker_calibration_17990af_seed0_br6_validation.json",
+    "validation_sha256": "f9e0256cbf30f439f1c97f277ae214c6ab51f4878d89fb2410aca97038aafc73"
+  },
+  "render_budget": 6,
+  "runs": [
+    {
+      "candidate_count": 6,
+      "error": null,
+      "method": "best_of_n",
+      "observed_seconds": 145.18279787502252,
+      "provider_invocations": 6,
+      "record_hash": "906b24e6789d33c4aebbdb9fc715e5e8db320eb9b5292642567dc8c3ed5b83b8",
+      "render_count": 6,
+      "run_dir": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/blocker_null_category_17990af_seed0_br6/blocker-calibration-17990af-seed0-br6__case-case-s41467-023-42692-7-figure1-panelb-5ac7fb84108f__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_name": "blocker-calibration-17990af-seed0-br6__case-case-s41467-023-42692-7-figure1-panelb-5ac7fb84108f__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/blocker_null_category_17990af_seed0_br6/blocker-calibration-17990af-seed0-br6__case-case-s41467-023-42692-7-figure1-panelb-5ac7fb84108f__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6/run_record.json",
+      "run_record_file_sha256": "dc0188e696eabef2a6cf85e712c095bc1e494ea70797d8f524a33054fb7cde82",
+      "status": "completed",
+      "text_model_calls": 6,
+      "text_model_latency_seconds": 106.2431955859065,
+      "usage_totals": {
+        "completion_tokens": 7960.0,
+        "prompt_tokens": 7302.0,
+        "total_tokens": 15262.0
+      },
+      "vlm_calls": 0,
+      "wall_clock_seconds": 143.95912337489426
+    },
+    {
+      "candidate_count": 6,
+      "error": null,
+      "method": "flat_iterative",
+      "observed_seconds": 91.83089824998751,
+      "provider_invocations": 1,
+      "record_hash": "6c3d2a5cca8b01d3dbdcd60fe3b020598b09acd963989d981c56ba3258c795bd",
+      "render_count": 6,
+      "run_dir": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/blocker_null_category_17990af_seed0_br6/blocker-calibration-17990af-seed0-br6__case-case-s41467-023-42692-7-figure1-panelb-5ac7fb84108f__method-flat_iterative__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_name": "blocker-calibration-17990af-seed0-br6__case-case-s41467-023-42692-7-figure1-panelb-5ac7fb84108f__method-flat_iterative__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/blocker_null_category_17990af_seed0_br6/blocker-calibration-17990af-seed0-br6__case-case-s41467-023-42692-7-figure1-panelb-5ac7fb84108f__method-flat_iterative__backbone-gpt-5.6-sol__seed-0__budget-renders-6/run_record.json",
+      "run_record_file_sha256": "38a76d15c9975f4dd713487e770bffc2cdad63d1cc07c76039b7c66464b04891",
+      "status": "completed",
+      "text_model_calls": 6,
+      "text_model_latency_seconds": 76.98830829211511,
+      "usage_totals": {
+        "completion_tokens": 6244.0,
+        "prompt_tokens": 8002.0,
+        "total_tokens": 14246.0
+      },
+      "vlm_calls": 0,
+      "wall_clock_seconds": 91.71307916706428
+    },
+    {
+      "candidate_count": 6,
+      "error": null,
+      "method": "pheroviz_full",
+      "observed_seconds": 80.30650291685015,
+      "provider_invocations": 1,
+      "record_hash": "55761ad95387e5f3db660cd8f7fad5a8ba86e550d46b5dcad890936d047470c3",
+      "render_count": 6,
+      "run_dir": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/blocker_null_category_17990af_seed0_br6/blocker-calibration-17990af-seed0-br6__case-case-s41467-023-42692-7-figure1-panelb-5ac7fb84108f__method-pheroviz_full__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_name": "blocker-calibration-17990af-seed0-br6__case-case-s41467-023-42692-7-figure1-panelb-5ac7fb84108f__method-pheroviz_full__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/blocker_null_category_17990af_seed0_br6/blocker-calibration-17990af-seed0-br6__case-case-s41467-023-42692-7-figure1-panelb-5ac7fb84108f__method-pheroviz_full__backbone-gpt-5.6-sol__seed-0__budget-renders-6/run_record.json",
+      "run_record_file_sha256": "8b214b42ea9e1149e627ab53c645e5c77edf4ebf57652900c8ad7c144c7d7b3c",
+      "status": "completed",
+      "text_model_calls": 6,
+      "text_model_latency_seconds": 66.76577549893409,
+      "usage_totals": {
+        "completion_tokens": 5405.0,
+        "prompt_tokens": 42467.0,
+        "total_tokens": 47872.0
+      },
+      "vlm_calls": 0,
+      "wall_clock_seconds": 80.17361279088072
+    }
+  ],
+  "seed": 0,
+  "source_clean_at_expansion": true,
+  "source_commit": "17990af8188b9994d88233ba226159d2b498a2d7",
+  "started_at": "2026-07-13T01:40:31.520517Z",
+  "status": "passed",
+  "vlm_model": "",
+  "vlm_required": ""
+}

@@ -1,0 +1,89 @@
+{
+  "actual_accounting": {
+    "blocking_run_renders": 0,
+    "inferred_additional_blocking_text_calls": 1,
+    "verified_completed_renders": 72,
+    "verified_completed_text_calls": 72,
+    "vlm_calls": 0
+  },
+  "artifact_root": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/production/c1_c3_final_benchmark_v2_seed0_br6_gpt56sol",
+  "blocking_run": {
+    "attribution": "unclassified",
+    "error": {
+      "attribution": "unclassified",
+      "message": "Single-chain execution failed: Programmatic evaluation was requested but the sandbox did not produce a result: Traceback (most recent call last):\n  File \"/var/folders/1s/r3q115nx2px5d9y6l_7pbc440000gn/T/tmpnlssxenw/shim.py\", line 19, in <module>\n    scaffold.run(df, intent, ctx, str(out_png))\n    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/private/var/folders/1s/r3q115nx2px5d9y6l_7pbc440000gn/T/tmpnlssxenw/scaffold.py\", line 1235, in run\n    prep = slot_data_prepare(df.copy(), spec, intent, ctx)\n  File \"/private/var/folders/1s/r3q115nx2px5d9y6l_7pbc440000gn/T/tmpnlssxenw/scaffold.py\", line 125, ",
+      "type": "ProviderExecutionError"
+    },
+    "partial_artifact": "attempt_001/provider/call_0001/core_runs/20260713T092434_821336000",
+    "partial_artifact_sha256": "b50893d182f5baf1c93634d5c8d58b1d19760194f580a932cf2d57ff13536abc",
+    "record_hash": "45889232faa8907642fb58ff3c4c74b9b440a8456782804e379242815ffad6f6",
+    "run_name": "c1-c3-final-benchmark-v2-seed0-br6__case-case-s41467-023-42692-7-figure1-panelb-5ac7fb84108f__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+    "run_record": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/production/c1_c3_final_benchmark_v2_seed0_br6_gpt56sol/c1-c3-final-benchmark-v2-seed0-br6__case-case-s41467-023-42692-7-figure1-panelb-5ac7fb84108f__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6/run_record.json",
+    "run_record_file_sha256": "ecf2a2632bf4896c0b58017cf5613fd0e2e35f68176413280844286b5f31c5af",
+    "status": "failed"
+  },
+  "completed_totals": {
+    "completed_runs": 12,
+    "method_failures": 0,
+    "model_latency_seconds": 1240.2110853709746,
+    "panel_renders": 72,
+    "provider_invocations": 67,
+    "recorded_wall_clock_seconds": 1414.574993665563,
+    "terminal_runs": 12,
+    "text_model_calls": 72,
+    "usage_totals": {
+      "completion_tokens": 92366.0,
+      "prompt_tokens": 86952.0,
+      "total_tokens": 179318.0
+    },
+    "vlm_calls": 0
+  },
+  "diagnosis_artifact": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/production/c1_c3_final_benchmark_v2_seed0_br6_gpt56sol/_supervisor/blocker_diagnosis.json",
+  "diagnosis_sha256": "f89985b396416ed9ea0c7b0f99de436634300ac516158f26fa220390f2c68d22",
+  "first_gate": {
+    "dataset_manifest_hash": "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b",
+    "git_commit": "2092d3ce81771dfc9354f266b505bf3b0468feff",
+    "git_dirty": false,
+    "metric_config_hash": "78757dbaff8ffbbd1a97cc1cd777ea566fb8e0c280ba5214e85c58a326105224",
+    "record_hash": "9ba8ef76ddc1aa72ae40794eaacd1adee34b269ad50cfdbaab5d6f5dcab3b4b3",
+    "render_count": 6,
+    "run_name": "c1-c3-final-benchmark-v2-seed0-br6__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-flat_iterative__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+    "status": "passed",
+    "text_model_calls": 6,
+    "vlm_calls": 0
+  },
+  "full_180_run_generation_complete": false,
+  "not_started_runs": 167,
+  "policy_action": "Supervisor stopped immediately; no further runs launched. All record and artifact hashes verified.",
+  "recommended_resolution": [
+    "Fix or runtime-pin categorical null handling, commit the resolution, and start a new provenance root; do not mix a new commit with these 2092d3c records.",
+    "Add a pandas 3 regression test for categorical x columns containing null separator rows.",
+    "Do not reclassify this deterministic renderer/runtime defect as a method failure."
+  ],
+  "record_counts": {
+    "completed": 12,
+    "failed": 1,
+    "running": 0
+  },
+  "report_version": "1.0",
+  "root_cause": {
+    "classification": "infrastructure_runtime_compatibility",
+    "exception": "ValueError: Categorical categories cannot be null",
+    "generated_location": "slot_data_prepare -> pd.Categorical(categories=meta['x_categories'])",
+    "mechanism": "On pandas 3.0.3, Series.astype(str) on StringDtype preserves missing values as null. The deterministic default data.prepare slot puts that null into x_categories; pd.Categorical rejects null categories.",
+    "model_generated_spec_valid": true,
+    "pandas_version": "3.0.3",
+    "render_produced": false
+  },
+  "scope": {
+    "projected_affected_matrix_runs": 18,
+    "reason": "Each risky case appears for 3 methods x 3 seeds.",
+    "risky_panels": 2,
+    "risky_test_cases": [
+      "case-s41467-023-42692-7-figure1-panelb-5ac7fb84108f",
+      "multi-s41467-023-42692-7-figure1-a9a94a3008e4"
+    ]
+  },
+  "source_commit": "2092d3ce81771dfc9354f266b505bf3b0468feff",
+  "status": "blocked"
+}

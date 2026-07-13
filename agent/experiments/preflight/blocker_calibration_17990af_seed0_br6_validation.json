@@ -1,0 +1,102 @@
+{
+  "actual": {
+    "completed_runs": 3,
+    "elapsed_seconds": 317.32373900013044,
+    "panel_renders": 18,
+    "provider_invocations": 8,
+    "recorded_wall_clock_seconds": 315.84581533283927,
+    "text_latency_max_seconds": 22.153388499980792,
+    "text_latency_p50_seconds": 13.275706792017445,
+    "text_model_calls": 18,
+    "text_model_latency_seconds": 249.9972793769557,
+    "unique_request_ids": 18,
+    "usage_totals": {
+      "completion_tokens": 19609,
+      "prompt_tokens": 57771,
+      "total_tokens": 77380
+    },
+    "vlm_calls": 0
+  },
+  "aggregate_summary": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/blocker_null_category_17990af_seed0_br6/aggregate/summary.json",
+  "aggregate_summary_sha256": "7a29b713feeaf64197c62da3fd9a81d2316d86d6337613ac1f13e288b4e738a4",
+  "artifact_root": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/blocker_null_category_17990af_seed0_br6",
+  "bugs": [],
+  "case_id": "case-s41467-023-42692-7-figure1-panelb-5ac7fb84108f",
+  "checks": [
+    "three methods completed",
+    "six renders/run",
+    "all candidate data_fidelity=1.0",
+    "18 unique gpt-5.6-sol text calls",
+    "zero VLM calls",
+    "provider invocation contract",
+    "clean 17990af provenance",
+    "record and artifact hashes",
+    "strict 3-row aggregation"
+  ],
+  "runs": [
+    {
+      "all_candidate_data_fidelity": 1.0,
+      "method": "best_of_n",
+      "provider_invocations": 6,
+      "record_hash": "906b24e6789d33c4aebbdb9fc715e5e8db320eb9b5292642567dc8c3ed5b83b8",
+      "render_count": 6,
+      "run_dir": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/blocker_null_category_17990af_seed0_br6/blocker-calibration-17990af-seed0-br6__case-case-s41467-023-42692-7-figure1-panelb-5ac7fb84108f__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_name": "blocker-calibration-17990af-seed0-br6__case-case-s41467-023-42692-7-figure1-panelb-5ac7fb84108f__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/blocker_null_category_17990af_seed0_br6/blocker-calibration-17990af-seed0-br6__case-case-s41467-023-42692-7-figure1-panelb-5ac7fb84108f__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6/run_record.json",
+      "run_record_file_sha256": "dc0188e696eabef2a6cf85e712c095bc1e494ea70797d8f524a33054fb7cde82",
+      "status": "completed",
+      "text_model_calls": 6,
+      "usage_totals": {
+        "completion_tokens": 7960.0,
+        "prompt_tokens": 7302.0,
+        "total_tokens": 15262.0
+      },
+      "vlm_calls": 0,
+      "wall_clock_seconds": 143.95912337489426
+    },
+    {
+      "all_candidate_data_fidelity": 1.0,
+      "method": "flat_iterative",
+      "provider_invocations": 1,
+      "record_hash": "6c3d2a5cca8b01d3dbdcd60fe3b020598b09acd963989d981c56ba3258c795bd",
+      "render_count": 6,
+      "run_dir": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/blocker_null_category_17990af_seed0_br6/blocker-calibration-17990af-seed0-br6__case-case-s41467-023-42692-7-figure1-panelb-5ac7fb84108f__method-flat_iterative__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_name": "blocker-calibration-17990af-seed0-br6__case-case-s41467-023-42692-7-figure1-panelb-5ac7fb84108f__method-flat_iterative__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/blocker_null_category_17990af_seed0_br6/blocker-calibration-17990af-seed0-br6__case-case-s41467-023-42692-7-figure1-panelb-5ac7fb84108f__method-flat_iterative__backbone-gpt-5.6-sol__seed-0__budget-renders-6/run_record.json",
+      "run_record_file_sha256": "38a76d15c9975f4dd713487e770bffc2cdad63d1cc07c76039b7c66464b04891",
+      "status": "completed",
+      "text_model_calls": 6,
+      "usage_totals": {
+        "completion_tokens": 6244.0,
+        "prompt_tokens": 8002.0,
+        "total_tokens": 14246.0
+      },
+      "vlm_calls": 0,
+      "wall_clock_seconds": 91.71307916706428
+    },
+    {
+      "all_candidate_data_fidelity": 1.0,
+      "method": "pheroviz_full",
+      "provider_invocations": 1,
+      "record_hash": "55761ad95387e5f3db660cd8f7fad5a8ba86e550d46b5dcad890936d047470c3",
+      "render_count": 6,
+      "run_dir": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/blocker_null_category_17990af_seed0_br6/blocker-calibration-17990af-seed0-br6__case-case-s41467-023-42692-7-figure1-panelb-5ac7fb84108f__method-pheroviz_full__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_name": "blocker-calibration-17990af-seed0-br6__case-case-s41467-023-42692-7-figure1-panelb-5ac7fb84108f__method-pheroviz_full__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/blocker_null_category_17990af_seed0_br6/blocker-calibration-17990af-seed0-br6__case-case-s41467-023-42692-7-figure1-panelb-5ac7fb84108f__method-pheroviz_full__backbone-gpt-5.6-sol__seed-0__budget-renders-6/run_record.json",
+      "run_record_file_sha256": "8b214b42ea9e1149e627ab53c645e5c77edf4ebf57652900c8ad7c144c7d7b3c",
+      "status": "completed",
+      "text_model_calls": 6,
+      "usage_totals": {
+        "completion_tokens": 5405.0,
+        "prompt_tokens": 42467.0,
+        "total_tokens": 47872.0
+      },
+      "vlm_calls": 0,
+      "wall_clock_seconds": 80.17361279088072
+    }
+  ],
+  "source_clean": true,
+  "source_commit": "17990af8188b9994d88233ba226159d2b498a2d7",
+  "status": "passed",
+  "validation_version": "1.0"
+}
