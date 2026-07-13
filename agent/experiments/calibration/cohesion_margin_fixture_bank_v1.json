@@ -1,0 +1,341 @@
+{
+  "bank_id": "cohesion-margin-v1",
+  "bank_spec_hash": "9c48098a2a838f7a29bfbc46b6c91dba530d7bb7e61e8c8f0c85b3e3d7b49182",
+  "candidate_rule": {
+    "class_aggregation": "median",
+    "defect_classes": [
+      "shared_scale",
+      "shared_unit",
+      "legend_deduplication",
+      "palette_mapping"
+    ],
+    "expected_candidate_delta_C": 0.25,
+    "final_aggregation": "minimum",
+    "replicates": 3
+  },
+  "evaluator_config": {
+    "allow_missing_shared_units": false,
+    "case_sensitive_labels": true,
+    "float_precision": 12,
+    "limit_tolerance": {
+      "absolute": 1e-08,
+      "relative": 1e-08
+    },
+    "metric_version": "1.0.0",
+    "numeric_tolerance": {
+      "absolute": 1e-08,
+      "relative": 1e-06
+    },
+    "schema_version": "1.0.0",
+    "unit_aliases": {
+      "microgram": "ug",
+      "micrograms": "ug",
+      "percent": "%",
+      "second": "s",
+      "seconds": "s",
+      "µg": "ug",
+      "μg": "ug"
+    }
+  },
+  "evaluator_config_sha256": "5a3039a6b238e5ca01ada69335ed7d1602b17a05223a884119355f66a752e555",
+  "expectation": {
+    "panel_groups": [
+      {
+        "checks": {
+          "legend_deduplicated": true,
+          "palette_consistent": true,
+          "shared_y_scale": true,
+          "shared_y_unit": true
+        },
+        "group_id": "shared-measurement",
+        "panels": [
+          "panel-a",
+          "panel-b"
+        ],
+        "series": [
+          "signal"
+        ]
+      }
+    ],
+    "panels": [
+      {
+        "axis_index": 0,
+        "panel_id": "panel-a",
+        "series": [
+          {
+            "kind": "line",
+            "label": "signal",
+            "series_id": "signal",
+            "x": "x",
+            "y": "y"
+          }
+        ],
+        "y_scale": "linear",
+        "y_unit": "mg",
+        "ylabel": "Value (mg)"
+      },
+      {
+        "axis_index": 1,
+        "panel_id": "panel-b",
+        "series": [
+          {
+            "kind": "line",
+            "label": "signal",
+            "series_id": "signal",
+            "x": "x",
+            "y": "y"
+          }
+        ],
+        "y_scale": "linear",
+        "y_unit": "mg",
+        "ylabel": "Value (mg)"
+      }
+    ],
+    "schema_version": "1.1.0"
+  },
+  "expectation_sha256": "fefa6b3402a41a4509e9a831ecb191214cfc8a668f3cf3722053e84a6eef2350",
+  "fixtures": [
+    {
+      "defect": "none",
+      "expected": {
+        "cohesion": [
+          4,
+          4
+        ],
+        "legend_deduplication": [
+          1,
+          1
+        ],
+        "mismatch_codes": [],
+        "palette_mapping": [
+          1,
+          1
+        ],
+        "ratio": 1.0,
+        "shared_scale": [
+          1,
+          1
+        ],
+        "shared_unit": [
+          1,
+          1
+        ]
+      },
+      "fixture_id": "C0",
+      "legend_mode": "figure_single",
+      "panel_a": {
+        "color": "#1f77b4",
+        "scale": "linear",
+        "ylabel": "Value (mg)"
+      },
+      "panel_b": {
+        "color": "#1f77b4",
+        "scale": "linear",
+        "ylabel": "Value (mg)"
+      },
+      "schema_version": "1.0",
+      "spec_sha256": "c44160a5726923a49bf06e4fa8a1c00ca2b8729b5be27bd0fae0f261c941df3b"
+    },
+    {
+      "defect": "shared_scale",
+      "expected": {
+        "cohesion": [
+          3,
+          4
+        ],
+        "legend_deduplication": [
+          1,
+          1
+        ],
+        "mismatch_codes": [
+          "shared_scale_mismatch"
+        ],
+        "palette_mapping": [
+          1,
+          1
+        ],
+        "ratio": 0.75,
+        "shared_scale": [
+          0,
+          1
+        ],
+        "shared_unit": [
+          1,
+          1
+        ]
+      },
+      "fixture_id": "C1-scale",
+      "legend_mode": "figure_single",
+      "panel_a": {
+        "color": "#1f77b4",
+        "scale": "linear",
+        "ylabel": "Value (mg)"
+      },
+      "panel_b": {
+        "color": "#1f77b4",
+        "scale": "log",
+        "ylabel": "Value (mg)"
+      },
+      "schema_version": "1.0",
+      "spec_sha256": "eded69b94d3804a46ebca66bfdbf343b573d58d841897084d66418b5209b1d71"
+    },
+    {
+      "defect": "shared_unit",
+      "expected": {
+        "cohesion": [
+          3,
+          4
+        ],
+        "legend_deduplication": [
+          1,
+          1
+        ],
+        "mismatch_codes": [
+          "shared_unit_mismatch"
+        ],
+        "palette_mapping": [
+          1,
+          1
+        ],
+        "ratio": 0.75,
+        "shared_scale": [
+          1,
+          1
+        ],
+        "shared_unit": [
+          0,
+          1
+        ]
+      },
+      "fixture_id": "C2-unit",
+      "legend_mode": "figure_single",
+      "panel_a": {
+        "color": "#1f77b4",
+        "scale": "linear",
+        "ylabel": "Value (mg)"
+      },
+      "panel_b": {
+        "color": "#1f77b4",
+        "scale": "linear",
+        "ylabel": "Value (kg)"
+      },
+      "schema_version": "1.0",
+      "spec_sha256": "779bdc693eb16d424d803570653c583012b6d3b74918211ae68893e95d1b7f8c"
+    },
+    {
+      "defect": "legend_deduplication",
+      "expected": {
+        "cohesion": [
+          3,
+          4
+        ],
+        "legend_deduplication": [
+          0,
+          1
+        ],
+        "mismatch_codes": [
+          "legend_not_deduplicated"
+        ],
+        "palette_mapping": [
+          1,
+          1
+        ],
+        "ratio": 0.75,
+        "shared_scale": [
+          1,
+          1
+        ],
+        "shared_unit": [
+          1,
+          1
+        ]
+      },
+      "fixture_id": "C3-legend",
+      "legend_mode": "two_axis_legends",
+      "panel_a": {
+        "color": "#1f77b4",
+        "scale": "linear",
+        "ylabel": "Value (mg)"
+      },
+      "panel_b": {
+        "color": "#1f77b4",
+        "scale": "linear",
+        "ylabel": "Value (mg)"
+      },
+      "schema_version": "1.0",
+      "spec_sha256": "474e3c038099e8e5e4dfa251ebb7a694f37c21aee16994a5e09483bf606dea79"
+    },
+    {
+      "defect": "palette_mapping",
+      "expected": {
+        "cohesion": [
+          3,
+          4
+        ],
+        "legend_deduplication": [
+          1,
+          1
+        ],
+        "mismatch_codes": [
+          "palette_mapping_mismatch"
+        ],
+        "palette_mapping": [
+          0,
+          1
+        ],
+        "ratio": 0.75,
+        "shared_scale": [
+          1,
+          1
+        ],
+        "shared_unit": [
+          1,
+          1
+        ]
+      },
+      "fixture_id": "C4-palette",
+      "legend_mode": "figure_single",
+      "panel_a": {
+        "color": "#1f77b4",
+        "scale": "linear",
+        "ylabel": "Value (mg)"
+      },
+      "panel_b": {
+        "color": "#d62728",
+        "scale": "linear",
+        "ylabel": "Value (mg)"
+      },
+      "schema_version": "1.0",
+      "spec_sha256": "4a8c604c0737f6c4cd6dc9e0a441c7959584f78964e6313685308315f44e1452"
+    }
+  ],
+  "leakage_declaration": {
+    "uses_human_ratings": false,
+    "uses_method_outputs": false,
+    "uses_model_outputs": false,
+    "uses_network": false,
+    "uses_randomness": false,
+    "uses_test_inputs": false,
+    "uses_test_metrics": false
+  },
+  "run_order": [
+    "r1:C0",
+    "r1:C1-scale",
+    "r1:C2-unit",
+    "r1:C3-legend",
+    "r1:C4-palette",
+    "r2:C0",
+    "r2:C1-scale",
+    "r2:C2-unit",
+    "r2:C3-legend",
+    "r2:C4-palette",
+    "r3:C0",
+    "r3:C1-scale",
+    "r3:C2-unit",
+    "r3:C3-legend",
+    "r3:C4-palette"
+  ],
+  "schema_version": "1.0",
+  "source_csv": "x,y\n1,10\n2,20\n3,30\n",
+  "source_sha256": "fcea3980d2b630f7556ce1a09f235f52b5d1c57ad8b97c3f00ad4f380490bb17"
+}
