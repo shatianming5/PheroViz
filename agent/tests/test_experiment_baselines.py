@@ -285,6 +285,7 @@ def test_nvagent_openai_compatible_mode_is_explicit() -> None:
                 "NVAGENT_AZURE_OPENAI_API_KEY": "test-key",
                 "NVAGENT_AZURE_OPENAI_ENDPOINT": "https://example.test/v1",
                 "NVAGENT_OPENAI_API_VERSION": "2024-02-01",
+                "NVAGENT_DYLD_FALLBACK_LIBRARY_PATH": "/opt/cairo/lib",
             },
         )
 
@@ -298,6 +299,10 @@ def test_nvagent_openai_compatible_mode_is_explicit() -> None:
         assert config["openai_compatible"] is True
         assert invocation.environment["PHEROVIZ_AZURE_OPENAI_API_KEY"] == (
             "test-key"
+        )
+        assert (
+            invocation.environment["DYLD_FALLBACK_LIBRARY_PATH"]
+            == "/opt/cairo/lib"
         )
         assert "PROVIDER_NAME = core_const.PROCESSOR_NAME" in _NVAGENT_DRIVER
 

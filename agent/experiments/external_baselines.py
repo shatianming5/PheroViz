@@ -627,6 +627,10 @@ class NvAgentProvider(ExternalBaselineProvider):
         driver = _write_driver(request.output_dir, _NVAGENT_DRIVER)
         environment = {
             "PYTHONPATH": str(self.repo_path),
+            "DYLD_FALLBACK_LIBRARY_PATH": self.environ.get(
+                "NVAGENT_DYLD_FALLBACK_LIBRARY_PATH",
+                "",
+            ),
             "PHEROVIZ_AZURE_OPENAI_API_KEY": self.environ.get(
                 "NVAGENT_AZURE_OPENAI_API_KEY",
                 "",
