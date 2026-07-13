@@ -1,0 +1,91 @@
+{
+  "schema_version": "1.0",
+  "captured_at": "2026-07-13T16:55:17+08:00",
+  "selected": {
+    "host": "7352-10x4090-183",
+    "ssh_port": 20183,
+    "reason": "Lowest observed load, ten idle 48 GiB GPUs, and the largest combined free experiment storage.",
+    "source_commit": "9aaef1f7ca391b3864fc8ad7572bbae686c1fe44",
+    "repository_path": "/mnt/SSD1_8TB/zechuan/PheroViz-6628a00",
+    "environment_path": "/mnt/SSD1_8TB/zechuan/venvs/pheroviz-6628a00-conda",
+    "production_pid": 2237426,
+    "production_root": "/mnt/SSD1_8TB/zechuan/PheroViz-6628a00/agent/experiments/runs/production/c1_c3_final_benchmark_v2_seed0_br6_gpt56sol"
+  },
+  "probes": [
+    {
+      "host": "7352-10x4090-183",
+      "ssh_port": 20183,
+      "cpu_count": 96,
+      "load_averages": [0.05, 0.23, 0.89],
+      "storage": [
+        {
+          "mount": "/mnt/HDD_6TB",
+          "available": "1.7T"
+        },
+        {
+          "mount": "/mnt/SSD1_8TB",
+          "available": "1.5T"
+        }
+      ],
+      "gpus": {
+        "count": 10,
+        "model": "NVIDIA GeForce RTX 4090 D",
+        "memory_mib": 49140,
+        "observed_used_mib": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    },
+    {
+      "host": "73F3-5x4090-134",
+      "ssh_port": 20134,
+      "cpu_count": 32,
+      "load_averages": [6.77, 6.93, 7.17],
+      "largest_available_storage": "1.7T",
+      "gpus": {
+        "count": 5,
+        "model": "NVIDIA GeForce RTX 4090 D",
+        "memory_mib": 49140,
+        "observed_used_mib": [1, 1, 1, 1, 1]
+      }
+    },
+    {
+      "host": "7443-5x4090-136",
+      "ssh_port": 20136,
+      "cpu_count": 48,
+      "load_averages": [20.26, 21.37, 18.76],
+      "largest_available_storage": "239G",
+      "gpus_busy": true
+    },
+    {
+      "host": "73F3-5x4090-138",
+      "ssh_port": 20138,
+      "cpu_count": 32,
+      "load_averages": [5.34, 5.41, 5.34],
+      "largest_available_storage": "165G",
+      "gpus_busy": true
+    },
+    {
+      "host": "7T83-8xA100-9",
+      "ssh_port": 20009,
+      "cpu_count": 256,
+      "load_averages": [66.41, 62.06, 52.74],
+      "largest_available_storage": "798G",
+      "gpus_partially_busy": true
+    },
+    {
+      "host": "7T83-8xA100-67",
+      "access": "ProxyJump through port 20009 to 192.168.15.67",
+      "cpu_count": 256,
+      "load_averages": [12.24, 12.77, 14.59],
+      "largest_available_storage": "2.1T",
+      "gpus_partially_busy": true
+    }
+  ],
+  "verification": {
+    "sealed_manifest_sha256": "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b",
+    "sealed_data_files_verified": 30,
+    "agent_tests": "219 passed in 33.14s",
+    "remote_timeout_calibration_summary_hash": "6a9326d7c8fbad81a4b978a816450385109d29b51a3780dd9ead6f4a935d707b",
+    "first_production_record_hash": "2eab7d73710bf485385f41b9df43b5fa8271badefb51c55b7a8881f2faa0b5c6",
+    "credentials_persisted_in_audit": false
+  }
+}
