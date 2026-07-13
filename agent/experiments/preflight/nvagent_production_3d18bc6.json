@@ -1,0 +1,124 @@
+{
+  "dataset": {
+    "cases": 16,
+    "dois": 6,
+    "materialized_manifest_sha256": "d3225159c7cced13e17ea98c81be47cbaf75cd845eac1de45f93e98f4d3b7a0a",
+    "seeds": [
+      0,
+      1,
+      2
+    ]
+  },
+  "decision": "PheroViz has a positive fidelity point gap and positive 95% DOI-bootstrap interval, but the prespecified exact two-sided DOI sign-flip test is not significant at 0.05 (p=0.125); execution success is tied. Report as a descriptive specialized-baseline result, not a significant superiority claim.",
+  "execution": {
+    "completed": 96,
+    "failed": 0,
+    "methods": [
+      "nvagent_native",
+      "pheroviz_model_spec"
+    ],
+    "records": 96,
+    "renders": 96
+  },
+  "experiment": {
+    "code_commit": "3d18bc6cda838523ffba53ea5b5307997b762be3",
+    "cohesion": "NA",
+    "external_repo_commit": "a37209e675813a25241e83f2fe56a87657a49ef6",
+    "git_dirty": false,
+    "input_track": "table_nl_instruction",
+    "license_status": "not_declared",
+    "panel_scope": "single_panel"
+  },
+  "generated_at": "2026-07-13T14:36:47.976322Z",
+  "method_doi_means": {
+    "nvagent_native": {
+      "metric.data_fidelity": {
+        "doi_mean": 0.5502608234879555,
+        "doi_scores": {
+          "10.1038/s41467-021-25210-5": 0.060811204735399936,
+          "10.1038/s41467-022-30582-3": 0.5237166991552956,
+          "10.1038/s41467-023-38847-1": 0.68,
+          "10.1038/s41467-023-42692-7": 1.0,
+          "10.1038/s41467-024-47988-w": 1.0,
+          "10.1038/s41467-024-48317-x": 0.037037037037037035
+        }
+      },
+      "metric.execution_success": {
+        "doi_mean": 1.0,
+        "doi_scores": {
+          "10.1038/s41467-021-25210-5": 1.0,
+          "10.1038/s41467-022-30582-3": 1.0,
+          "10.1038/s41467-023-38847-1": 1.0,
+          "10.1038/s41467-023-42692-7": 1.0,
+          "10.1038/s41467-024-47988-w": 1.0,
+          "10.1038/s41467-024-48317-x": 1.0
+        }
+      }
+    },
+    "pheroviz_model_spec": {
+      "metric.data_fidelity": {
+        "doi_mean": 1.0,
+        "doi_scores": {
+          "10.1038/s41467-021-25210-5": 1.0,
+          "10.1038/s41467-022-30582-3": 1.0,
+          "10.1038/s41467-023-38847-1": 1.0,
+          "10.1038/s41467-023-42692-7": 1.0,
+          "10.1038/s41467-024-47988-w": 1.0,
+          "10.1038/s41467-024-48317-x": 1.0
+        }
+      },
+      "metric.execution_success": {
+        "doi_mean": 1.0,
+        "doi_scores": {
+          "10.1038/s41467-021-25210-5": 1.0,
+          "10.1038/s41467-022-30582-3": 1.0,
+          "10.1038/s41467-023-38847-1": 1.0,
+          "10.1038/s41467-023-42692-7": 1.0,
+          "10.1038/s41467-024-47988-w": 1.0,
+          "10.1038/s41467-024-48317-x": 1.0
+        }
+      }
+    }
+  },
+  "paired_analyses": {
+    "data_fidelity": {
+      "analysis_file_sha256": "432b45c33b935928ab80d5db2a2bb9470f8c74d2533edb305106c0fed68858eb",
+      "analysis_hash": "da75e72fe920e6bdb781235b89623f1e9fd2dcb6518e3c69b34067387251a6d1",
+      "analysis_path": "/Users/tommy/Downloads/mayi/PheroViz-portable-3d18bc6/agent/experiments/runs/production/_analyses/baseline_nvagent_single_renderable_v1_gpt4omini_r1.data_fidelity/analysis.json",
+      "case_count": 16,
+      "ci95": [
+        0.1327138834741174,
+        0.7707268308330323
+      ],
+      "doi_count": 6,
+      "exact_two_sided_p": 0.125,
+      "gap_definition": "pheroviz_model_spec - nvagent_native",
+      "holm_p_within_single_comparison_family": 0.125,
+      "mean_gap": 0.4497391765120446
+    },
+    "execution_success": {
+      "analysis_file_sha256": "3d0f28202e8128f82aa88d804939216220040e36d5f2293cb5a510765d738e19",
+      "analysis_hash": "49ae235f79a607bd5c2cbd7131ed3856491bdfbda51a75e39cacb1b382e3e01a",
+      "analysis_path": "/Users/tommy/Downloads/mayi/PheroViz-portable-3d18bc6/agent/experiments/runs/production/_analyses/baseline_nvagent_single_renderable_v1_gpt4omini_r1.execution_success/analysis.json",
+      "case_count": 16,
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "doi_count": 6,
+      "exact_two_sided_p": 1.0,
+      "gap_definition": "pheroviz_model_spec - nvagent_native",
+      "holm_p_within_single_comparison_family": 1.0,
+      "mean_gap": 0.0
+    }
+  },
+  "record_bindings_hash": "750534c1b780bd3ab6e732358446ea0dbe179d63d6571201a9f9446650c9be51",
+  "report_hash": "c0c5cf869d0fabc6353a1d053e6a6fa77c9ca68e348a234a734ee86818e293d3",
+  "schema_version": "1.0",
+  "status": "completed_audited",
+  "summary": {
+    "file_sha256": "0fc54c420d01452c55a90d5306f153c04cbd548ba53b1c7020403aef2e3c6cfb",
+    "path": "/Users/tommy/Downloads/mayi/PheroViz-portable-3d18bc6/agent/experiments/runs/production/_summaries/baseline_nvagent_single_renderable_v1_gpt4omini_r1/summary.json",
+    "summary_hash": "76a0b71f53ad1c8112b788d4481b7fea846be45d694142e8844e482352fe9054"
+  }
+}
