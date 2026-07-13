@@ -1,0 +1,35 @@
+{
+  "cases": 2,
+  "dois_by_stratum": {
+    "P=2": [
+      "10.1038/s41467-026-70718-3"
+    ],
+    "P=3-4": [
+      "10.1038/s41467-026-70718-3"
+    ],
+    "P=5+": []
+  },
+  "downstream_experiment_outcomes_used": false,
+  "panel_strata": {
+    "P=2": 1,
+    "P=3-4": 1,
+    "P=5+": 0
+  },
+  "schema_version": "1.0",
+  "selection_rule": "all sealed verified multi-panel cases from the fixed clean 8ba5346 NC2026 proposal batches; no ranking or downstream outcome filtering",
+  "source_benchmarks": [
+    {
+      "benchmark": "initial_benchmark_v1",
+      "manifest_sha256": "a52a4e7af9924cf6b5bda4c4297a5d632ddc332bd71f8e0e319e9f518ea6b651",
+      "summary_hash": "c76b310f4dd16f4f9b9a77b5795d70f4647f8e3b861e28e3986a6481dbb3220d"
+    },
+    {
+      "benchmark": "canonical_benchmark_v1",
+      "manifest_sha256": "01b100e3703a8bd719827d6f1c5e95cce19b806903856e4c8a7c4d0bdba41bad",
+      "summary_hash": "136cdad5f17aefdb02f242937ffc34b79060e64e48a1bfa4b8a4b06dd4325f24"
+    }
+  ],
+  "summary_hash": "6043d69830fd2c731c248e8bc43fe13cb76bf966d8141a8e85309c1d675b0990",
+  "unique_dois": 1,
+  "verified_multi_cases_sha256": "a844c1bffd2a46f2fbab5bf6b329bf2b6fefd301a1985e82be09e65223ffb085"
+}

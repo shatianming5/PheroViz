@@ -1,0 +1,25 @@
+{
+  "counts": {
+    "test": 0,
+    "train": 1,
+    "val": 0
+  },
+  "model_cutoff_date": null,
+  "papers": [
+    {
+      "doi": "10.1038/s41467-026-70718-3",
+      "model_cutoff_stratum": "unconfigured",
+      "published_date": null,
+      "split": "train",
+      "year": null
+    }
+  ],
+  "ratios": {
+    "test": 0.1,
+    "train": 0.8,
+    "val": 0.1
+  },
+  "schema_version": "1.0",
+  "seed": 20260712,
+  "source_manifest_sha256": "3cba17bc1d4b3a20f12d03fcca80e018bff3eef93e682b2c79684b076dab3013"
+}

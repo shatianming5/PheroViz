@@ -1,0 +1,183 @@
+{
+  "batch": "ccby_asset_nc_2026_remaining40_clean_8ba5346",
+  "c2_readiness": {
+    "baseline_report_hash": "e8ec75e1c83161d77389f4a771405cc4d2eb1173caa5714e73ebe522282f5cca",
+    "baseline_report_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200b/pipeline_report.json",
+    "batch_contribution_independent_dois": {
+      "P=2": 1,
+      "P=3-4": 1,
+      "P=5+": 0
+    },
+    "cumulative_verified_independent_dois": {
+      "P=2": 2,
+      "P=3-4": 3,
+      "P=5+": 1
+    },
+    "deficient_strata": [
+      "P=5+"
+    ],
+    "minimum_independent_dois_per_stratum": 2,
+    "ready": false
+  },
+  "canonical": {
+    "canonical_benchmark_sha256": "01b100e3703a8bd719827d6f1c5e95cce19b806903856e4c8a7c4d0bdba41bad",
+    "canonical_cases": 4,
+    "canonical_multi_cases": 1,
+    "canonical_panel_strata": {
+      "1": 3,
+      "3": 1
+    },
+    "canonical_single_cases": 3,
+    "derived_multi_proposals": 1,
+    "derived_single_proposals": 3,
+    "evidence_hash": "3f24ed585f1b00c83437184acd86063874d72c78444c8e849fd3659112dac41a",
+    "initial_benchmark_sha256": "a52a4e7af9924cf6b5bda4c4297a5d632ddc332bd71f8e0e319e9f518ea6b651",
+    "multi_accepted": 1,
+    "multi_reviewed": 1,
+    "proposed_sha256": "644801a79c95b3cfd62668f28bf14fcb2949035e79838ae85e6b0084bb5cb83d",
+    "review_summary_hash": "4fcc774370c30c520d3af7e93188555f8ca1c1b7f07a208d3d96f002da7206de",
+    "single_accepted": 3,
+    "single_reviewed": 3
+  },
+  "cases": {
+    "ambiguous": 336,
+    "candidates": 206,
+    "summary_hash": "4e9e64cef0ab5fb068424a8ee51ecbc2db56fce6ec9ee865c43ab5fab43529e5"
+  },
+  "code_commit": "8ba5346d8778ba51060fd52b313669bb6ffe5ebc",
+  "code_dirty": false,
+  "downloader": {
+    "accepted": 40,
+    "article_dirs": 27,
+    "complete_source_data_articles": 26,
+    "finished": true,
+    "initial_processed": 40,
+    "reachable_without_complete_source": 14,
+    "remaining_unreachable": 0,
+    "retry_round_1_processed": 15,
+    "retry_round_2_processed": 14
+  },
+  "hashes": {
+    "accepted_jsonl": "94822246a644f09e744bd16d77f5273c11845cd0c9a8842d0f41a0a579d7c8b7",
+    "accepted_with_source_jsonl": "ddd1ae69f284e65eaa823ffcb60f48bbc09c797e4572af5676174743c4161a94",
+    "candidates_jsonl": "d47c1ff23f55e067caf677c6e039808504487d2dcd0315cc4ba248e5d968e4b1",
+    "canonical_benchmark_manifest_json": "01b100e3703a8bd719827d6f1c5e95cce19b806903856e4c8a7c4d0bdba41bad",
+    "canonical_evidence_json": "548a0805ff3404a044b7dfcbeff0653415a799735d9873b860e5c0d4e3ef740f",
+    "canonical_proposed_jsonl": "644801a79c95b3cfd62668f28bf14fcb2949035e79838ae85e6b0084bb5cb83d",
+    "canonical_reviews_jsonl": "b86b9ca1407f520e57ab2225d7eb2f307b9ee161ad9f9514ea5a30be2ee7fc22",
+    "corpus_manifest_jsonl": "f4b191d2ff5dde6b47c297a1b53f3508641224892a88be1354e768d43ac8c580",
+    "initial_benchmark_manifest_json": "a52a4e7af9924cf6b5bda4c4297a5d632ddc332bd71f8e0e319e9f518ea6b651",
+    "initial_evidence_json": "d619ec1619aec74d51a6f3c611bc0192f9204733b9b628382d6bbe79b245b30d",
+    "initial_reviews_jsonl": "1122b19226b679f523b2a411543156d1bea6b63be4811b2df2e9b13d0cc78201",
+    "proposed_jsonl": "9291bf22def0602792300ad789479470470bc767b9c8f2c4bfd82cecae3cd754",
+    "sealed_multi_subset_jsonl": "a844c1bffd2a46f2fbab5bf6b329bf2b6fefd301a1985e82be09e65223ffb085"
+  },
+  "initial_dual_review": {
+    "evidence_hash": "97388cf957cf8b67105a98a340ec2704483ed61798a727147282581b28f50aa4",
+    "evidence_records": 4,
+    "human_claims": 0,
+    "models": [
+      "claude-sonnet-4.6",
+      "gemini-3.5-flash"
+    ],
+    "multi_accepted": 1,
+    "multi_reviewed": 3,
+    "single_accepted": 3,
+    "single_reviewed": 14,
+    "summary_hash": "a5765a3812f0bc4bfd24a06f82d386e0f4e65101ec8d288bd6794a7d7b071c47",
+    "validated": true
+  },
+  "manifest": {
+    "articles": 26,
+    "invalid": 0,
+    "sha256": "f4b191d2ff5dde6b47c297a1b53f3508641224892a88be1354e768d43ac8c580",
+    "valid": 26
+  },
+  "proposals": {
+    "multi": 3,
+    "multi_strata": {
+      "P=2": {
+        "dois": [
+          "10.1038/s41467-026-70718-3"
+        ],
+        "proposals": 2,
+        "unique_dois": 1
+      },
+      "P=3-4": {
+        "dois": [
+          "10.1038/s41467-026-69370-8"
+        ],
+        "proposals": 1,
+        "unique_dois": 1
+      },
+      "P=5+": {
+        "dois": [],
+        "proposals": 0,
+        "unique_dois": 0
+      }
+    },
+    "proposed_sha256": "9291bf22def0602792300ad789479470470bc767b9c8f2c4bfd82cecae3cd754",
+    "rejected": 192,
+    "rule": "simple-2d-v2",
+    "single": 14
+  },
+  "provenance_correction": {
+    "accepted_bytes": 53802,
+    "accepted_bytes_identical_to_fixed_input": true,
+    "accepted_lines": 40,
+    "accepted_sha256": "94822246a644f09e744bd16d77f5273c11845cd0c9a8842d0f41a0a579d7c8b7",
+    "old_root_merged_or_overwritten": false,
+    "same_label_url_preservation": true
+  },
+  "report_hash": "f4cf8dc30d5cf227b0af12a1cc261bed74f855d51e9d3eb8a99b7b69f0965baf",
+  "schema_version": "1.0",
+  "sealed_multi": {
+    "cases": 2,
+    "dois_by_stratum": {
+      "P=2": [
+        "10.1038/s41467-026-70718-3"
+      ],
+      "P=3-4": [
+        "10.1038/s41467-026-70718-3"
+      ],
+      "P=5+": []
+    },
+    "panel_strata": {
+      "P=2": 1,
+      "P=3-4": 1,
+      "P=5+": 0
+    },
+    "subset_sha256": "a844c1bffd2a46f2fbab5bf6b329bf2b6fefd301a1985e82be09e65223ffb085",
+    "subset_summary_hash": "6043d69830fd2c731c248e8bc43fe13cb76bf966d8141a8e85309c1d675b0990",
+    "unique_dois": 1
+  },
+  "selection": {
+    "accepted_sha256": "94822246a644f09e744bd16d77f5273c11845cd0c9a8842d0f41a0a579d7c8b7",
+    "accepted_with_source_sha256": "ddd1ae69f284e65eaa823ffcb60f48bbc09c797e4572af5676174743c4161a94",
+    "fixed_before_review": true,
+    "review_or_experiment_outcomes_used": false,
+    "strict_vor_complete_dois": 26
+  },
+  "selection_policy": {
+    "canonical_subset_rule": "all sealed verified multi-panel cases from the fixed clean 8ba5346 NC2026 proposal batches; no ranking or downstream outcome filtering",
+    "downstream_experiment_outcomes_used": false,
+    "fixed_before_review": true,
+    "review_or_experiment_outcomes_used": false,
+    "source_selection_rule": "all fixed accepted strict-VOR CC-BY articles with complete recorded Source Data after two outcome-independent retry rounds; fixed before proposal/review"
+  },
+  "status": "final",
+  "validation": {
+    "accepted_bytes_and_hash": true,
+    "article_manifests": "26/26 valid",
+    "canonical_benchmark_rebuilt_exactly": true,
+    "canonical_review_trust_chain": true,
+    "initial_benchmark_rebuilt_exactly": true,
+    "initial_review_trust_chain": true,
+    "secret_like_fields_persisted": false,
+    "summary_hashes_and_sidecars": true,
+    "tests": {
+      "cli_gate": "8 passed",
+      "full_corpus": "146 passed"
+    }
+  }
+}

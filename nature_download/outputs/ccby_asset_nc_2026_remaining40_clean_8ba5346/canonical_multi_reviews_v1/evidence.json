@@ -1,0 +1,369 @@
+{
+  "code_commit": "8ba5346d8778ba51060fd52b313669bb6ffe5ebc",
+  "code_dirty": false,
+  "evidence_hash": "3f24ed585f1b00c83437184acd86063874d72c78444c8e849fd3659112dac41a",
+  "evidence_type": "external_validation",
+  "human_claims": 0,
+  "input_proposed_sha256": "644801a79c95b3cfd62668f28bf14fcb2949035e79838ae85e6b0084bb5cb83d",
+  "judge_models": [
+    "claude-sonnet-4.6",
+    "gemini-3.5-flash"
+  ],
+  "rubric_hash": "14f600b260f0233a655c156afb50323a8fec0a895f8d174241e84bb034b06220",
+  "schema_version": "1.0",
+  "verifications": [
+    {
+      "candidate_id": "case-s41467-026-70718-3-figure1-paneld-subplot-768e81d099c4",
+      "curation_status": "verified",
+      "evidence_ref": "review:5b86a5f18b624038bbd7fa881967e6aaf8ac974827082472fb0c64af29dc2d09",
+      "evidence_type": "external_validation",
+      "experiment_case": {
+        "case_id": "case-s41467-026-70718-3-figure1-paneld-subplot-768e81d099c4",
+        "chart_family": "bar",
+        "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_2026_remaining40_clean_8ba5346/content/s41467-026-70718-3/source_data/41467_2026_70718_MOESM3_ESM.xlsx",
+        "evaluation_expectation": {
+          "panel_groups": [],
+          "panels": [
+            {
+              "axis_index": 0,
+              "panel_id": "d",
+              "series": [
+                {
+                  "kind": "bar",
+                  "series_id": "prediction",
+                  "x": "Analyte",
+                  "y": "prediction"
+                }
+              ],
+              "x_scale": "linear"
+            }
+          ],
+          "schema_version": "1.1.0"
+        },
+        "intent": {
+          "series": [
+            "prediction"
+          ],
+          "units": {},
+          "x": "Analyte",
+          "x_scale": "categorical",
+          "y": "prediction"
+        },
+        "panel_count": 1,
+        "panel_id": "d",
+        "panels": [
+          {
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_2026_remaining40_clean_8ba5346/content/s41467-026-70718-3/source_data/41467_2026_70718_MOESM3_ESM.xlsx",
+            "panel_id": "d",
+            "sheet": "Fig1d_subplot",
+            "user_goal": "Create a bar chart for Figure 1D showing `prediction` against `Analyte`."
+          }
+        ],
+        "sheet": "Fig1d_subplot",
+        "split": null,
+        "user_goal": "Create a bar chart for Figure 1D showing `prediction` against `Analyte`."
+      },
+      "review_hash": "5b86a5f18b624038bbd7fa881967e6aaf8ac974827082472fb0c64af29dc2d09",
+      "review_models": [
+        "claude-sonnet-4-6",
+        "gemini-3.5-flash"
+      ],
+      "reviewer_or_source": "claude-sonnet-4-6+gemini-3.5-flash",
+      "status": "verified"
+    },
+    {
+      "candidate_id": "case-s41467-026-70718-3-figure1-panele-741f9f90de5c",
+      "curation_status": "verified",
+      "evidence_ref": "review:25f0d0ce2e2a810409268666e4d1eb87cf0a3a569566c5fdcae00a2964d1e58f",
+      "evidence_type": "external_validation",
+      "experiment_case": {
+        "case_id": "case-s41467-026-70718-3-figure1-panele-741f9f90de5c",
+        "chart_family": "bar",
+        "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_2026_remaining40_clean_8ba5346/content/s41467-026-70718-3/source_data/41467_2026_70718_MOESM3_ESM.xlsx",
+        "evaluation_expectation": {
+          "panel_groups": [],
+          "panels": [
+            {
+              "axis_index": 0,
+              "panel_id": "e",
+              "series": [
+                {
+                  "kind": "bar",
+                  "series_id": "Prediction Errors / %",
+                  "x": "probe",
+                  "y": "Prediction Errors / %"
+                },
+                {
+                  "kind": "bar",
+                  "series_id": "Slope / %·nm-3",
+                  "x": "probe",
+                  "y": "Slope / %·nm-3"
+                }
+              ],
+              "x_scale": "linear"
+            }
+          ],
+          "schema_version": "1.1.0"
+        },
+        "intent": {
+          "series": [
+            "Prediction Errors / %",
+            "Slope / %·nm-3"
+          ],
+          "units": {},
+          "x": "probe",
+          "x_scale": "categorical",
+          "y": "Prediction Errors / %"
+        },
+        "panel_count": 1,
+        "panel_id": "e",
+        "panels": [
+          {
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_2026_remaining40_clean_8ba5346/content/s41467-026-70718-3/source_data/41467_2026_70718_MOESM3_ESM.xlsx",
+            "panel_id": "e",
+            "sheet": "Fig1e",
+            "user_goal": "Create a bar chart for Figure 1E showing `Prediction Errors / %`, `Slope / %·nm-3` against `probe`."
+          }
+        ],
+        "sheet": "Fig1e",
+        "split": null,
+        "user_goal": "Create a bar chart for Figure 1E showing `Prediction Errors / %`, `Slope / %·nm-3` against `probe`."
+      },
+      "review_hash": "25f0d0ce2e2a810409268666e4d1eb87cf0a3a569566c5fdcae00a2964d1e58f",
+      "review_models": [
+        "claude-sonnet-4-6",
+        "gemini-3.5-flash"
+      ],
+      "reviewer_or_source": "claude-sonnet-4-6+gemini-3.5-flash",
+      "status": "verified"
+    },
+    {
+      "candidate_id": "case-s41467-026-70718-3-figure1-panelf-b2b2bbef33ea",
+      "curation_status": "verified",
+      "evidence_ref": "review:5c677260ae532c623b4fca0c65788615abc7bfab5b2bc8b199044530b6bff817",
+      "evidence_type": "external_validation",
+      "experiment_case": {
+        "case_id": "case-s41467-026-70718-3-figure1-panelf-b2b2bbef33ea",
+        "chart_family": "bar",
+        "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_2026_remaining40_clean_8ba5346/content/s41467-026-70718-3/source_data/41467_2026_70718_MOESM3_ESM.xlsx",
+        "evaluation_expectation": {
+          "panel_groups": [],
+          "panels": [
+            {
+              "axis_index": 0,
+              "panel_id": "f",
+              "series": [
+                {
+                  "kind": "bar",
+                  "series_id": "sigma / %",
+                  "x": "electrolyte concentration",
+                  "y": "sigma / %"
+                }
+              ],
+              "x_scale": "linear"
+            }
+          ],
+          "schema_version": "1.1.0"
+        },
+        "intent": {
+          "series": [
+            "sigma / %"
+          ],
+          "units": {},
+          "x": "electrolyte concentration",
+          "x_scale": "categorical",
+          "y": "sigma / %"
+        },
+        "panel_count": 1,
+        "panel_id": "f",
+        "panels": [
+          {
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_2026_remaining40_clean_8ba5346/content/s41467-026-70718-3/source_data/41467_2026_70718_MOESM3_ESM.xlsx",
+            "panel_id": "f",
+            "sheet": "Fig1f",
+            "user_goal": "Create a bar chart for Figure 1F showing `sigma / %` against `electrolyte concentration`."
+          }
+        ],
+        "sheet": "Fig1f",
+        "split": null,
+        "user_goal": "Create a bar chart for Figure 1F showing `sigma / %` against `electrolyte concentration`."
+      },
+      "review_hash": "5c677260ae532c623b4fca0c65788615abc7bfab5b2bc8b199044530b6bff817",
+      "review_models": [
+        "claude-sonnet-4-6",
+        "gemini-3.5-flash"
+      ],
+      "reviewer_or_source": "claude-sonnet-4-6+gemini-3.5-flash",
+      "status": "verified"
+    },
+    {
+      "candidate_id": "multi-s41467-026-70718-3-figure1-bc59a998b4fd",
+      "curation_status": "verified",
+      "evidence_ref": "review:ccade8840a1e8e2c1bfb99ad79522927800cb32466f9fb82dd2dd04d63dd6580",
+      "evidence_type": "external_validation",
+      "experiment_case": {
+        "case_id": "multi-s41467-026-70718-3-figure1-bc59a998b4fd",
+        "chart_family": "multi_panel",
+        "evaluation_expectation": {
+          "panel_groups": [
+            {
+              "checks": {
+                "shared_x_scale": true
+              },
+              "group_id": "all_panels",
+              "panels": [
+                "d",
+                "e",
+                "f"
+              ]
+            }
+          ],
+          "panels": [
+            {
+              "axis_index": 0,
+              "panel_id": "d",
+              "series": [
+                {
+                  "kind": "bar",
+                  "series_id": "prediction",
+                  "x": "Analyte",
+                  "y": "prediction"
+                }
+              ],
+              "x_scale": "linear"
+            },
+            {
+              "axis_index": 0,
+              "panel_id": "e",
+              "series": [
+                {
+                  "kind": "bar",
+                  "series_id": "Prediction Errors / %",
+                  "x": "probe",
+                  "y": "Prediction Errors / %"
+                },
+                {
+                  "kind": "bar",
+                  "series_id": "Slope / %·nm-3",
+                  "x": "probe",
+                  "y": "Slope / %·nm-3"
+                }
+              ],
+              "x_scale": "linear"
+            },
+            {
+              "axis_index": 0,
+              "panel_id": "f",
+              "series": [
+                {
+                  "kind": "bar",
+                  "series_id": "sigma / %",
+                  "x": "electrolyte concentration",
+                  "y": "sigma / %"
+                }
+              ],
+              "x_scale": "linear"
+            }
+          ],
+          "schema_version": "1.1.0"
+        },
+        "intent": {
+          "panels": [
+            {
+              "panel_id": "d",
+              "series": [
+                "prediction"
+              ],
+              "units": {},
+              "x": "Analyte",
+              "x_scale": "categorical",
+              "y": "prediction"
+            },
+            {
+              "panel_id": "e",
+              "series": [
+                "Prediction Errors / %",
+                "Slope / %·nm-3"
+              ],
+              "units": {},
+              "x": "probe",
+              "x_scale": "categorical",
+              "y": "Prediction Errors / %"
+            },
+            {
+              "panel_id": "f",
+              "series": [
+                "sigma / %"
+              ],
+              "units": {},
+              "x": "electrolyte concentration",
+              "x_scale": "categorical",
+              "y": "sigma / %"
+            }
+          ]
+        },
+        "panel_count": 3,
+        "panels": [
+          {
+            "chart_family": "bar",
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_2026_remaining40_clean_8ba5346/content/s41467-026-70718-3/source_data/41467_2026_70718_MOESM3_ESM.xlsx",
+            "id": "d",
+            "intent": {
+              "series": [
+                "prediction"
+              ],
+              "units": {},
+              "x": "Analyte",
+              "x_scale": "categorical",
+              "y": "prediction"
+            },
+            "sheet": "Fig1d_subplot",
+            "user_goal": "Create a bar chart for Figure 1D showing `prediction` against `Analyte`."
+          },
+          {
+            "chart_family": "bar",
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_2026_remaining40_clean_8ba5346/content/s41467-026-70718-3/source_data/41467_2026_70718_MOESM3_ESM.xlsx",
+            "id": "e",
+            "intent": {
+              "series": [
+                "Prediction Errors / %",
+                "Slope / %·nm-3"
+              ],
+              "units": {},
+              "x": "probe",
+              "x_scale": "categorical",
+              "y": "Prediction Errors / %"
+            },
+            "sheet": "Fig1e",
+            "user_goal": "Create a bar chart for Figure 1E showing `Prediction Errors / %`, `Slope / %·nm-3` against `probe`."
+          },
+          {
+            "chart_family": "bar",
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_2026_remaining40_clean_8ba5346/content/s41467-026-70718-3/source_data/41467_2026_70718_MOESM3_ESM.xlsx",
+            "id": "f",
+            "intent": {
+              "series": [
+                "sigma / %"
+              ],
+              "units": {},
+              "x": "electrolyte concentration",
+              "x_scale": "categorical",
+              "y": "sigma / %"
+            },
+            "sheet": "Fig1f",
+            "user_goal": "Create a bar chart for Figure 1F showing `sigma / %` against `electrolyte concentration`."
+          }
+        ],
+        "split": null,
+        "user_goal": "Create a 3-panel Figure 1 using the proposed panel-specific charts."
+      },
+      "review_hash": "ccade8840a1e8e2c1bfb99ad79522927800cb32466f9fb82dd2dd04d63dd6580",
+      "review_models": [
+        "claude-sonnet-4-6",
+        "gemini-3.5-flash"
+      ],
+      "reviewer_or_source": "claude-sonnet-4-6+gemini-3.5-flash",
+      "status": "verified"
+    }
+  ]
+}
