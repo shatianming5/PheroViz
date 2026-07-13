@@ -12,13 +12,19 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Mapping, Optional, Sequence
 
-from .aggregate import AggregationError, assert_paired_ready
+from .aggregate import (
+    AggregationError,
+    _verified_frozen_manifest_case,
+    assert_paired_ready,
+)
 from .models import (
     SCHEMA_VERSION,
     ProvenanceError,
+    RunRecord,
     canonical_json,
     sha256_json,
     utc_now,
+    verify_artifacts,
     write_json_atomic,
 )
 
@@ -42,6 +48,7 @@ class StatisticsError(ProvenanceError):
 class ValidatedSummary:
     path: Path
     summary_hash: str
+    source_root: Optional[Path]
     rows: tuple[Dict[str, Any], ...]
 
 
@@ -120,6 +127,15 @@ def load_provenance_summary(path: Path) -> ValidatedSummary:
     record_hashes = data.get("input_record_hashes")
     if not isinstance(record_hashes, Mapping):
         raise StatisticsError("Summary lacks input_record_hashes")
+    source_root_raw = data.get("source_root")
+    source_root: Optional[Path] = None
+    if source_root_raw is not None:
+        if not isinstance(source_root_raw, str) or not source_root_raw.strip():
+            raise StatisticsError("summary.source_root must be a non-empty path")
+        source_root = Path(source_root_raw).expanduser()
+        if not source_root.is_absolute():
+            source_root = resolved.parent / source_root
+        source_root = source_root.resolve()
 
     validated: list[Dict[str, Any]] = []
     run_names: set[str] = set()
@@ -242,6 +258,7 @@ def load_provenance_summary(path: Path) -> ValidatedSummary:
     return ValidatedSummary(
         path=resolved,
         summary_hash=recorded_hash,
+        source_root=source_root,
         rows=tuple(validated),
     )
 
@@ -895,6 +912,824 @@ def _ranking_analysis(
     return result
 
 
+def normalize_trajectory_threshold_config(
+    raw: Mapping[str, Any],
+) -> Dict[str, Any]:
+    """Validate an explicitly frozen joint-quality threshold configuration."""
+
+    if not isinstance(raw, Mapping):
+        raise StatisticsError("trajectory threshold config must be an object")
+    expected_keys = {
+        "schema_version",
+        "fidelity",
+        "cohesion",
+        "restriction",
+    }
+    if set(raw) != expected_keys:
+        raise StatisticsError(
+            "trajectory threshold config must contain exactly "
+            + ", ".join(sorted(expected_keys))
+        )
+    if raw.get("schema_version") != "1.0":
+        raise StatisticsError("trajectory threshold schema_version must be 1.0")
+
+    metrics: Dict[str, Dict[str, Any]] = {}
+    for label, expected_metric in (
+        ("fidelity", "data_fidelity"),
+        ("cohesion", "series_cohesion"),
+    ):
+        block = raw.get(label)
+        if not isinstance(block, Mapping) or set(block) != {
+            "metric",
+            "threshold",
+        }:
+            raise StatisticsError(
+                f"trajectory {label} must contain metric and threshold"
+            )
+        if block.get("metric") != expected_metric:
+            raise StatisticsError(
+                f"trajectory {label}.metric must be {expected_metric!r}"
+            )
+        threshold = _finite_number(
+            block.get("threshold"),
+            f"trajectory.{label}.threshold",
+        )
+        if not 0.0 <= threshold <= 1.0:
+            raise StatisticsError(
+                f"trajectory {label}.threshold must be in [0,1]"
+            )
+        metrics[label] = {
+            "metric": expected_metric,
+            "threshold": threshold,
+        }
+
+    restriction = raw.get("restriction")
+    if not isinstance(restriction, Mapping) or set(restriction) != {
+        "renders",
+        "wall_clock_seconds",
+    }:
+        raise StatisticsError(
+            "trajectory restriction must contain renders and wall_clock_seconds"
+        )
+    renders = restriction.get("renders")
+    if isinstance(renders, bool) or not isinstance(renders, int) or renders < 1:
+        raise StatisticsError("trajectory restriction.renders must be positive")
+    wall_clock_seconds = _finite_number(
+        restriction.get("wall_clock_seconds"),
+        "trajectory.restriction.wall_clock_seconds",
+    )
+    if wall_clock_seconds <= 0:
+        raise StatisticsError(
+            "trajectory restriction.wall_clock_seconds must be positive"
+        )
+    return {
+        "schema_version": "1.0",
+        **metrics,
+        "restriction": {
+            "renders": renders,
+            "wall_clock_seconds": wall_clock_seconds,
+        },
+    }
+
+
+def load_trajectory_threshold_config(path: Path) -> Dict[str, Any]:
+    resolved = path.expanduser().resolve()
+    try:
+        raw = json.loads(
+            resolved.read_text(encoding="utf-8"),
+            parse_constant=_reject_json_constant,
+        )
+    except OSError as exc:
+        raise StatisticsError(
+            f"Cannot read trajectory threshold config {resolved}: {exc}"
+        ) from exc
+    except json.JSONDecodeError as exc:
+        raise StatisticsError(
+            f"Invalid trajectory threshold config: {exc}"
+        ) from exc
+    return normalize_trajectory_threshold_config(raw)
+
+
+def _trajectory_json(path: Path, label: str) -> Dict[str, Any]:
+    try:
+        payload = json.loads(
+            path.read_text(encoding="utf-8"),
+            parse_constant=_reject_json_constant,
+        )
+    except OSError as exc:
+        raise StatisticsError(f"Cannot read {label} {path}: {exc}") from exc
+    except json.JSONDecodeError as exc:
+        raise StatisticsError(f"Invalid {label} JSON {path}: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise StatisticsError(f"{label} must be a JSON object: {path}")
+    return payload
+
+
+def _trajectory_run_dir(summary: ValidatedSummary, run_name: str) -> Path:
+    if summary.source_root is None:
+        raise StatisticsError(
+            "C3 trajectory analysis requires summary.source_root"
+        )
+    root = summary.source_root
+    if not root.is_dir():
+        raise StatisticsError(
+            f"C3 trajectory source_root does not exist: {root}"
+        )
+    relative = Path(run_name)
+    if (
+        relative.is_absolute()
+        or len(relative.parts) != 1
+        or relative.name != run_name
+    ):
+        raise StatisticsError(f"Unsafe trajectory run_name: {run_name!r}")
+    run_dir = root / relative
+    if run_dir.is_symlink() or not run_dir.is_dir():
+        raise StatisticsError(
+            f"Trajectory run directory is missing or a symlink: {run_name}"
+        )
+    try:
+        resolved = run_dir.resolve(strict=True)
+        resolved.relative_to(root.resolve(strict=True))
+    except (OSError, ValueError) as exc:
+        raise StatisticsError(
+            f"Trajectory run directory escaped source_root: {run_name}"
+        ) from exc
+    return resolved
+
+
+def _trajectory_record(
+    summary: ValidatedSummary,
+    row: Mapping[str, Any],
+) -> tuple[RunRecord, Path]:
+    run_name = str(row["run_name"])
+    run_dir = _trajectory_run_dir(summary, run_name)
+    record_path = run_dir / "run_record.json"
+    try:
+        record = RunRecord.read(record_path)
+        record.validate_provenance(
+            require_completed=row["status"] == "completed"
+        )
+        verify_artifacts(record, run_dir)
+        _, selected_case = _verified_frozen_manifest_case(record, run_dir)
+    except (OSError, ProvenanceError, TypeError) as exc:
+        raise StatisticsError(
+            f"Invalid trajectory provenance for {run_name}: {exc}"
+        ) from exc
+    mirrored = {
+        "run_name": record.run_name,
+        "method": record.method,
+        "backbone": record.backbone,
+        "case_id": record.case_id,
+        "panel_count": record.panel_count,
+        "split": record.split,
+        "seed": record.seed,
+        "budget_type": record.budget_type,
+        "budget_value": float(record.budget_value),
+        "dataset_manifest_hash": record.dataset_manifest_hash,
+        "git_commit": record.git_commit,
+        "status": record.status,
+        "metric_config_hash": record.metric_config_hash,
+        "spec_hash": record.spec_hash,
+        "record_hash": record.record_hash,
+    }
+    for name, value in mirrored.items():
+        expected = (
+            float(row[name]) if name == "budget_value" else row.get(name)
+        )
+        if value != expected:
+            raise StatisticsError(
+                f"Trajectory record disagrees with summary for "
+                f"{run_name}.{name}"
+            )
+    if bool(record.experiment_spec.get("git_dirty")):
+        raise StatisticsError(
+            f"Trajectory record used a dirty worktree: {run_name}"
+        )
+    if record.test_only:
+        raise StatisticsError(
+            f"Trajectory record is test-only: {run_name}"
+        )
+    manifest_doi = _normalized_doi(selected_case.payload)
+    if not manifest_doi or manifest_doi != row.get("doi"):
+        raise StatisticsError(
+            f"Trajectory DOI disagrees with frozen manifest: {run_name}"
+        )
+    row_metrics = {
+        name.removeprefix("metric."): _finite_number(
+            value,
+            f"{run_name}.{name}",
+        )
+        for name, value in row.items()
+        if name.startswith("metric.")
+    }
+    if record.status == "completed":
+        expected_metrics = {
+            name: float(value) for name, value in record.metrics.items()
+        }
+        expected_metrics["execution_success"] = 1.0
+        if set(row_metrics) != set(expected_metrics):
+            raise StatisticsError(
+                f"Trajectory summary metric set disagrees with record: "
+                f"{run_name}"
+            )
+        for name, value in expected_metrics.items():
+            if not math.isclose(
+                row_metrics[name],
+                value,
+                rel_tol=0.0,
+                abs_tol=1e-12,
+            ):
+                raise StatisticsError(
+                    f"Trajectory summary metric disagrees with record: "
+                    f"{run_name}/metric.{name}"
+                )
+    elif (
+        row_metrics.get("execution_success") != 0.0
+        or any(value != 0.0 for value in row_metrics.values())
+    ):
+        raise StatisticsError(
+            f"Trajectory failed-run summary metrics must be zero: {run_name}"
+        )
+    return record, run_dir
+
+
+def _candidate_sidecar(
+    record: RunRecord,
+    run_dir: Path,
+    candidate: Mapping[str, Any],
+) -> None:
+    candidate_id = str(candidate.get("candidate_id") or "")
+    key = f"{candidate_id}.metadata"
+    relative_text = record.artifact_paths.get(key)
+    if not relative_text:
+        raise StatisticsError(
+            f"Trajectory candidate lacks metadata artifact: "
+            f"{record.run_name}/{candidate_id}"
+        )
+    sidecar = _trajectory_json(
+        run_dir / relative_text,
+        "trajectory candidate metadata",
+    )
+    if sidecar != candidate:
+        raise StatisticsError(
+            f"Trajectory candidate metadata disagrees with run record: "
+            f"{record.run_name}/{candidate_id}"
+        )
+    artifact_paths = candidate.get("artifact_paths")
+    artifact_hashes = candidate.get("artifact_hashes")
+    if not isinstance(artifact_paths, Mapping) or not isinstance(
+        artifact_hashes,
+        Mapping,
+    ):
+        raise StatisticsError(
+            f"Trajectory candidate artifact maps are invalid: "
+            f"{record.run_name}/{candidate_id}"
+        )
+    if set(artifact_paths) != set(artifact_hashes):
+        raise StatisticsError(
+            f"Trajectory candidate artifact maps disagree: "
+            f"{record.run_name}/{candidate_id}"
+        )
+    for label, relative in artifact_paths.items():
+        record_key = f"{candidate_id}.{label}"
+        if (
+            record.artifact_paths.get(record_key) != relative
+            or record.artifact_hashes.get(record_key)
+            != artifact_hashes.get(label)
+        ):
+            raise StatisticsError(
+                f"Trajectory candidate artifact binding disagrees: "
+                f"{record.run_name}/{record_key}"
+            )
+
+
+def _programmatic_quality(
+    record: RunRecord,
+    run_dir: Path,
+    candidate: Mapping[str, Any],
+) -> tuple[float, float]:
+    candidate_id = str(candidate["candidate_id"])
+    artifact_paths = candidate["artifact_paths"]
+    relative = artifact_paths.get("programmatic_evaluation")
+    if not isinstance(relative, str) or not relative:
+        raise StatisticsError(
+            f"Trajectory candidate has no programmatic evaluation: "
+            f"{record.run_name}/{candidate_id}"
+        )
+    payload = _trajectory_json(
+        run_dir / relative,
+        "trajectory programmatic evaluation",
+    )
+    panel_fidelity = payload.get("panel_fidelity")
+    if isinstance(panel_fidelity, Mapping):
+        fidelity_parts = [
+            item for item in panel_fidelity.values() if isinstance(item, Mapping)
+        ]
+        if len(fidelity_parts) != len(panel_fidelity):
+            raise StatisticsError(
+                f"Trajectory panel fidelity is malformed: "
+                f"{record.run_name}/{candidate_id}"
+            )
+        numerator = sum(
+            _finite_number(
+                item.get("numerator"),
+                f"{record.run_name}/{candidate_id}.fidelity.numerator",
+            )
+            for item in fidelity_parts
+        )
+        denominator = sum(
+            _finite_number(
+                item.get("denominator"),
+                f"{record.run_name}/{candidate_id}.fidelity.denominator",
+            )
+            for item in fidelity_parts
+        )
+        if denominator <= 0:
+            raise StatisticsError(
+                f"Trajectory fidelity is unavailable: "
+                f"{record.run_name}/{candidate_id}"
+            )
+        fidelity = numerator / denominator
+    else:
+        fidelity_block = payload.get("fidelity")
+        if not isinstance(fidelity_block, Mapping):
+            raise StatisticsError(
+                f"Trajectory fidelity is unavailable: "
+                f"{record.run_name}/{candidate_id}"
+            )
+        fidelity = _finite_number(
+            fidelity_block.get("ratio"),
+            f"{record.run_name}/{candidate_id}.fidelity",
+        )
+    cohesion_block = payload.get("cohesion")
+    if (
+        not isinstance(cohesion_block, Mapping)
+        or cohesion_block.get("applicable") is False
+        or cohesion_block.get("ratio") is None
+    ):
+        raise StatisticsError(
+            f"Trajectory cohesion is unavailable: "
+            f"{record.run_name}/{candidate_id}"
+        )
+    cohesion = _finite_number(
+        cohesion_block.get("ratio"),
+        f"{record.run_name}/{candidate_id}.cohesion",
+    )
+    for value, label in ((fidelity, "fidelity"), (cohesion, "cohesion")):
+        if not 0.0 <= value <= 1.0:
+            raise StatisticsError(
+                f"Trajectory {label} is outside [0,1]: "
+                f"{record.run_name}/{candidate_id}"
+            )
+    metrics = candidate.get("metrics")
+    if not isinstance(metrics, Mapping):
+        raise StatisticsError(
+            f"Trajectory candidate metrics are unavailable: "
+            f"{record.run_name}/{candidate_id}"
+        )
+    for name, actual in (
+        ("data_fidelity", fidelity),
+        ("series_cohesion", cohesion),
+    ):
+        recorded = _finite_number(
+            metrics.get(name),
+            f"{record.run_name}/{candidate_id}.metrics.{name}",
+        )
+        if not math.isclose(recorded, actual, rel_tol=0.0, abs_tol=1e-12):
+            raise StatisticsError(
+                f"Trajectory metric disagrees with immutable evaluation: "
+                f"{record.run_name}/{candidate_id}/{name}"
+            )
+    return fidelity, cohesion
+
+
+def _trajectory_observation(
+    summary: ValidatedSummary,
+    row: Mapping[str, Any],
+    threshold: Mapping[str, Any],
+) -> Dict[str, Any]:
+    record, run_dir = _trajectory_record(summary, row)
+    render_horizon = int(threshold["restriction"]["renders"])
+    time_horizon = float(
+        threshold["restriction"]["wall_clock_seconds"]
+    )
+    if record.budget_type != "renders":
+        raise StatisticsError(
+            f"C3 trajectory requires a render budget: {record.run_name}"
+        )
+    if (
+        not float(record.budget_value).is_integer()
+        or int(record.budget_value) != render_horizon
+    ):
+        raise StatisticsError(
+            f"Trajectory restriction does not match run budget: "
+            f"{record.run_name}"
+        )
+    if int(record.panel_count or 0) <= 1:
+        raise StatisticsError(
+            f"C3 trajectory is inapplicable to single-panel run: "
+            f"{record.run_name}"
+        )
+    panel_count = int(record.panel_count)
+    if render_horizon % panel_count:
+        raise StatisticsError(
+            f"Trajectory restriction is not panel-exact: {record.run_name}"
+        )
+    method_failed = record.status == "failed"
+    if method_failed and (record.error or {}).get("attribution") != "method":
+        raise StatisticsError(
+            f"Trajectory refuses non-method failure: {record.run_name}"
+        )
+    maximum_candidates = render_horizon // panel_count
+    if method_failed:
+        if (
+            len(record.candidates) > maximum_candidates
+            or record.render_count != len(record.candidates) * panel_count
+        ):
+            raise StatisticsError(
+                f"Method-failure trajectory accounting is incomplete: "
+                f"{record.run_name}"
+            )
+    elif (
+        record.render_count != render_horizon
+        or len(record.candidates) != maximum_candidates
+    ):
+        raise StatisticsError(
+            f"Trajectory run does not fill the common render restriction: "
+            f"{record.run_name}"
+        )
+    schedule = str(record.experiment_spec.get("schedule") or "")
+    if schedule not in {"iterative", "best_of_n"}:
+        raise StatisticsError(
+            f"Unsupported trajectory schedule: {record.run_name}/{schedule}"
+        )
+
+    global_render = 0
+    global_time = 0.0
+    crossing: Optional[tuple[str, int, float]] = None
+    fidelity_threshold = float(threshold["fidelity"]["threshold"])
+    cohesion_threshold = float(threshold["cohesion"]["threshold"])
+    points: list[Dict[str, Any]] = []
+    for index, candidate in enumerate(record.candidates, 1):
+        expected_id = f"candidate_{index:04d}"
+        if candidate.get("candidate_id") != expected_id:
+            raise StatisticsError(
+                f"Trajectory candidates are not contiguous: {record.run_name}"
+            )
+        _candidate_sidecar(record, run_dir, candidate)
+        candidate_render_count = candidate.get("render_count")
+        if candidate_render_count != panel_count:
+            raise StatisticsError(
+                f"Trajectory candidate is not a complete panel round: "
+                f"{record.run_name}/{expected_id}"
+            )
+        call_index = candidate.get("call_index")
+        if isinstance(call_index, bool) or not isinstance(call_index, int):
+            raise StatisticsError(
+                f"Trajectory candidate call_index is invalid: "
+                f"{record.run_name}/{expected_id}"
+            )
+        provider_metadata = candidate.get("provider_metadata")
+        if not isinstance(provider_metadata, Mapping):
+            raise StatisticsError(
+                f"Trajectory candidate provider metadata is missing: "
+                f"{record.run_name}/{expected_id}"
+            )
+        cumulative_render = provider_metadata.get("cumulative_render_count")
+        if (
+            isinstance(cumulative_render, bool)
+            or not isinstance(cumulative_render, int)
+            or cumulative_render < 1
+        ):
+            raise StatisticsError(
+                f"Trajectory cumulative renders must be positive integers: "
+                f"{record.run_name}/{expected_id}"
+            )
+        cumulative_time = _finite_number(
+            provider_metadata.get("cumulative_wall_clock_seconds"),
+            f"{record.run_name}/{expected_id}.cumulative_wall_clock_seconds",
+        )
+        if cumulative_time <= 0:
+            raise StatisticsError(
+                f"Trajectory cumulative time must be positive: "
+                f"{record.run_name}/{expected_id}"
+            )
+        if schedule == "iterative":
+            if (
+                call_index != 1
+                or cumulative_render != global_render + panel_count
+                or cumulative_time <= global_time
+            ):
+                raise StatisticsError(
+                    f"Nonmonotonic iterative trajectory metadata: "
+                    f"{record.run_name}/{expected_id}"
+                )
+            global_render = cumulative_render
+            global_time = cumulative_time
+        else:
+            if (
+                call_index != index
+                or cumulative_render != global_render + panel_count
+                or cumulative_time <= global_time
+            ):
+                raise StatisticsError(
+                    f"Nonmonotonic best-of-N trajectory metadata: "
+                    f"{record.run_name}/{expected_id}"
+                )
+            global_render = cumulative_render
+            global_time = cumulative_time
+        if global_render > render_horizon or global_time > record.wall_clock_seconds:
+            raise StatisticsError(
+                f"Trajectory cumulative metadata exceeds terminal accounting: "
+                f"{record.run_name}/{expected_id}"
+            )
+        fidelity, cohesion = _programmatic_quality(
+            record,
+            run_dir,
+            candidate,
+        )
+        points.append(
+            {
+                "candidate_id": expected_id,
+                "cumulative_render_count": global_render,
+                "cumulative_wall_clock_seconds": global_time,
+                "data_fidelity": fidelity,
+                "series_cohesion": cohesion,
+            }
+        )
+        if (
+            crossing is None
+            and fidelity >= fidelity_threshold
+            and cohesion >= cohesion_threshold
+        ):
+            crossing = (expected_id, global_render, global_time)
+    expected_terminal_render = (
+        record.render_count if method_failed else render_horizon
+    )
+    if global_render != expected_terminal_render:
+        raise StatisticsError(
+            f"Trajectory does not match terminal render accounting: "
+            f"{record.run_name}"
+        )
+
+    crossing_id = crossing[0] if crossing else None
+    crossing_render = crossing[1] if crossing else None
+    crossing_time = crossing[2] if crossing else None
+    render_observed = (
+        crossing_render is not None and crossing_render <= render_horizon
+    )
+    time_observed = (
+        crossing_time is not None and crossing_time <= time_horizon
+    )
+    joint = render_observed and time_observed
+    if method_failed and crossing is None:
+        trajectory_status = "method_failure_censored"
+        censor_reason = "explicit_method_failure_before_threshold"
+    elif method_failed and joint:
+        trajectory_status = "observed_before_method_failure"
+        censor_reason = None
+    elif joint:
+        trajectory_status = "observed"
+        censor_reason = None
+    else:
+        trajectory_status = "right_censored"
+        censor_reason = (
+            "quality_threshold_not_attained"
+            if crossing is None
+            else "wall_clock_restriction_exceeded"
+        )
+    return {
+        "run_name": record.run_name,
+        "method": record.method,
+        "case_id": record.case_id,
+        "doi": str(row["doi"]),
+        "seed": record.seed,
+        "panel_count": record.panel_count,
+        "status": trajectory_status,
+        "threshold_crossing_candidate": crossing_id,
+        "threshold_crossing_render": crossing_render,
+        "threshold_crossing_wall_clock_seconds": crossing_time,
+        "render_event_observed": render_observed,
+        "time_event_observed": time_observed,
+        "joint_attainment": joint,
+        "restricted_renders_to_threshold": float(
+            crossing_render if render_observed else render_horizon
+        ),
+        "restricted_wall_clock_seconds_to_threshold": float(
+            crossing_time if time_observed else time_horizon
+        ),
+        "censor_reason": censor_reason,
+        "record_hash": record.record_hash,
+        "trajectory_points": points,
+    }
+
+
+def _trajectory_means(
+    observations: Sequence[Mapping[str, Any]],
+) -> Dict[str, float]:
+    if not observations:
+        raise StatisticsError("Cannot aggregate an empty trajectory group")
+    n = len(observations)
+    return {
+        "attainment_rate": sum(
+            bool(item["joint_attainment"]) for item in observations
+        )
+        / n,
+        "render_attainment_rate": sum(
+            bool(item["render_event_observed"]) for item in observations
+        )
+        / n,
+        "time_attainment_rate": sum(
+            bool(item["time_event_observed"]) for item in observations
+        )
+        / n,
+        "restricted_mean_renders_to_threshold": sum(
+            float(item["restricted_renders_to_threshold"])
+            for item in observations
+        )
+        / n,
+        "restricted_mean_wall_clock_seconds_to_threshold": sum(
+            float(item["restricted_wall_clock_seconds_to_threshold"])
+            for item in observations
+        )
+        / n,
+    }
+
+
+def _trajectory_summary_means(
+    summaries: Sequence[Mapping[str, Any]],
+) -> Dict[str, float]:
+    if not summaries:
+        raise StatisticsError("Cannot aggregate empty trajectory summaries")
+    fields = (
+        "attainment_rate",
+        "render_attainment_rate",
+        "time_attainment_rate",
+        "restricted_mean_renders_to_threshold",
+        "restricted_mean_wall_clock_seconds_to_threshold",
+    )
+    return {
+        field: sum(float(item[field]) for item in summaries) / len(summaries)
+        for field in fields
+    }
+
+
+def _trajectory_analysis(
+    summary: ValidatedSummary,
+    rows: Sequence[Mapping[str, Any]],
+    *,
+    methods: Sequence[str],
+    threshold: Mapping[str, Any],
+) -> Dict[str, Any]:
+    by_slice: Dict[tuple[Any, ...], list[Mapping[str, Any]]] = {}
+    for row in rows:
+        by_slice.setdefault(_slice_key(row), []).append(row)
+    slices: list[Dict[str, Any]] = []
+    for key in sorted(by_slice, key=canonical_json):
+        backbone, budget_type, budget_value, split = key
+        slice_rows = by_slice[key]
+        if budget_type != "renders":
+            raise StatisticsError(
+                "C3 trajectory currently requires render-budget slices"
+            )
+        if int(threshold["restriction"]["renders"]) != int(budget_value):
+            raise StatisticsError(
+                "C3 trajectory restriction does not match slice render budget"
+            )
+        seeds = sorted({int(row["seed"]) for row in slice_rows})
+        case_ids: Optional[set[str]] = None
+        for seed in seeds:
+            try:
+                seed_cases = assert_paired_ready(
+                    [
+                        dict(row)
+                        for row in slice_rows
+                        if int(row["seed"]) == seed
+                    ],
+                    methods=methods,
+                    backbone=str(backbone),
+                    seed=seed,
+                    budget_type=str(budget_type),
+                    budget_value=float(budget_value),
+                )
+            except AggregationError as exc:
+                raise StatisticsError(str(exc)) from exc
+            if case_ids is None:
+                case_ids = seed_cases
+            elif seed_cases != case_ids:
+                raise StatisticsError(
+                    "C3 trajectory task sets differ across seeds"
+                )
+        if not case_ids:
+            raise StatisticsError("C3 trajectory slice contains no paired tasks")
+        if any(int(row["panel_count"]) <= 1 for row in slice_rows):
+            raise StatisticsError(
+                "C3 trajectory is inapplicable to single-panel rows"
+            )
+
+        observations = [
+            _trajectory_observation(summary, row, threshold)
+            for row in sorted(
+                slice_rows,
+                key=lambda item: (
+                    str(item["method"]),
+                    str(item["case_id"]),
+                    int(item["seed"]),
+                ),
+            )
+        ]
+        method_results = []
+        for method in methods:
+            method_observations = [
+                item for item in observations if item["method"] == method
+            ]
+            task_results = []
+            for case_id in sorted(case_ids):
+                task_observations = [
+                    item
+                    for item in method_observations
+                    if item["case_id"] == case_id
+                ]
+                task_seeds = {int(item["seed"]) for item in task_observations}
+                if task_seeds != set(seeds):
+                    raise StatisticsError(
+                        f"C3 trajectory has incomplete seeds for "
+                        f"{method}/{case_id}"
+                    )
+                dois = {str(item["doi"]) for item in task_observations}
+                if len(dois) != 1:
+                    raise StatisticsError(
+                        f"C3 trajectory task DOI changed: {case_id}"
+                    )
+                task_results.append(
+                    {
+                        "case_id": case_id,
+                        "doi": next(iter(dois)),
+                        "seed_count": len(task_observations),
+                        **_trajectory_means(task_observations),
+                    }
+                )
+            doi_results = []
+            for doi in sorted({item["doi"] for item in task_results}):
+                doi_tasks = [
+                    item for item in task_results if item["doi"] == doi
+                ]
+                doi_results.append(
+                    {
+                        "doi": doi,
+                        "task_count": len(doi_tasks),
+                        **_trajectory_summary_means(doi_tasks),
+                    }
+                )
+            method_results.append(
+                {
+                    "method": method,
+                    "run_count": len(method_observations),
+                    "task_count": len(task_results),
+                    "doi_count": len(doi_results),
+                    "tasks": task_results,
+                    "doi_clusters": doi_results,
+                    **_trajectory_summary_means(doi_results),
+                }
+            )
+        slices.append(
+            {
+                "backbone": backbone,
+                "budget_type": budget_type,
+                "budget_value": budget_value,
+                "split": split,
+                "seed_count": len(seeds),
+                "task_count": len(case_ids),
+                "doi_count": len(
+                    {str(item["doi"]) for item in observations}
+                ),
+                "methods": method_results,
+                "run_observations": observations,
+            }
+        )
+    return {
+        "status": "ok",
+        "estimand": "joint_fidelity_cohesion_threshold_attainment",
+        "threshold_config": dict(threshold),
+        "threshold_config_hash": sha256_json(threshold),
+        "aggregation_order": ["seed", "task", "doi_cluster"],
+        "sampling_unit": "doi",
+        "trajectory_contract": {
+            "quality_artifact": (
+                "candidate.artifact_paths.programmatic_evaluation"
+            ),
+            "cumulative_render_metadata": (
+                "candidate.provider_metadata.cumulative_render_count"
+            ),
+            "cumulative_time_metadata": (
+                "candidate.provider_metadata.cumulative_wall_clock_seconds"
+            ),
+            "candidate_binding": "candidate_NNNN.metadata",
+        },
+        "slices": slices,
+    }
+
+
 def analyze_summary(
     summary: ValidatedSummary,
     *,
@@ -903,6 +1738,7 @@ def analyze_summary(
     metric: str,
     panel_scope: str = "all",
     second_judge_metric: Optional[str] = None,
+    trajectory_threshold: Optional[Mapping[str, Any]] = None,
     seed: int = 17_029,
     bootstrap_resamples: int = 10_000,
     monte_carlo_permutations: int = 100_000,
@@ -912,6 +1748,9 @@ def analyze_summary(
 
     Version 3.1 adds a provenance-recorded panel scope so structurally
     inapplicable single-panel cohesion rows can be excluded before pairing.
+    When and only when an explicit trajectory threshold is supplied, the same
+    schema also emits the provenance-checked C3 right-censored extension.
+    No production quality threshold is defined in code.
     """
 
     if isinstance(seed, bool) or not isinstance(seed, int):
@@ -926,6 +1765,16 @@ def analyze_summary(
         raise StatisticsError(
             f"panel_scope must be one of {sorted(_PANEL_SCOPES)}"
         )
+    normalized_trajectory: Optional[Dict[str, Any]] = None
+    if trajectory_threshold is not None:
+        normalized_trajectory = normalize_trajectory_threshold_config(
+            trajectory_threshold
+        )
+        if panel_scope != "multi_panel":
+            raise StatisticsError(
+                "C3 trajectory thresholds require panel_scope='multi_panel'; "
+                "single-panel trajectories are inapplicable"
+            )
     comparison_methods = list(methods)
     if not comparison_methods:
         raise StatisticsError("At least one comparison method is required")
@@ -1214,17 +2063,22 @@ def analyze_summary(
             "resamples": bootstrap_resamples,
         },
     }
+    if normalized_trajectory is not None:
+        config["trajectory_threshold"] = normalized_trajectory
     commit, dirty = _git_provenance()
-    output = {
-        "analysis_version": _ANALYSIS_VERSION,
-        "generated_at": utc_now(),
-        "input_summary_path": str(summary.path),
-        "input_summary_hash": summary.summary_hash,
-        "analysis_config": config,
-        "analysis_config_hash": sha256_json(config),
-        "code_git_commit": commit,
-        "code_git_dirty": dirty,
-        "right_censored_rmst": {
+    if normalized_trajectory is not None and dirty:
+        raise StatisticsError(
+            "C3 trajectory analysis refuses a dirty analysis worktree"
+        )
+    right_censored_rmst = (
+        _trajectory_analysis(
+            summary,
+            selected_rows,
+            methods=selected_methods,
+            threshold=normalized_trajectory,
+        )
+        if normalized_trajectory is not None
+        else {
             "status": "not_implemented",
             "reason": (
                 "Run summaries do not contain per-render threshold-crossing "
@@ -1236,7 +2090,18 @@ def analyze_summary(
                 "event_render_or_time",
                 "censor_render_or_time",
             ],
-        },
+        }
+    )
+    output = {
+        "analysis_version": _ANALYSIS_VERSION,
+        "generated_at": utc_now(),
+        "input_summary_path": str(summary.path),
+        "input_summary_hash": summary.summary_hash,
+        "analysis_config": config,
+        "analysis_config_hash": sha256_json(config),
+        "code_git_commit": commit,
+        "code_git_dirty": dirty,
+        "right_censored_rmst": right_censored_rmst,
         "slices": slice_results,
     }
     output["analysis_hash"] = sha256_json(output)
@@ -1307,6 +2172,7 @@ def _load_analysis_artifact(path: Path) -> Dict[str, Any]:
             metric=_required_string(config, "metric"),
             panel_scope=str(config.get("panel_scope", "all")),
             second_judge_metric=config.get("second_judge_metric"),
+            trajectory_threshold=config.get("trajectory_threshold"),
             seed=config.get("seed"),
             bootstrap_resamples=config.get("bootstrap_resamples"),
             monte_carlo_permutations=config.get(

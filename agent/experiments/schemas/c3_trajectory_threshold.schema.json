@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pheroviz.local/schemas/c3-trajectory-threshold-1.0.json",
+  "title": "PheroViz C3 trajectory threshold configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "fidelity",
+    "cohesion",
+    "restriction"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "fidelity": {
+      "$ref": "#/$defs/fidelityThreshold"
+    },
+    "cohesion": {
+      "$ref": "#/$defs/cohesionThreshold"
+    },
+    "restriction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "renders",
+        "wall_clock_seconds"
+      ],
+      "properties": {
+        "renders": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "wall_clock_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    }
+  },
+  "$defs": {
+    "fidelityThreshold": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "metric",
+        "threshold"
+      ],
+      "properties": {
+        "metric": {
+          "const": "data_fidelity"
+        },
+        "threshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "cohesionThreshold": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "metric",
+        "threshold"
+      ],
+      "properties": {
+        "metric": {
+          "const": "series_cohesion"
+        },
+        "threshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    }
+  }
+}

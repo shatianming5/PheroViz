@@ -14,6 +14,7 @@ from .production_statistics import (
     analyze_summary,
     build_holm_family,
     load_provenance_summary,
+    load_trajectory_threshold_config,
     write_analysis_outputs,
     write_holm_family_output,
 )
@@ -72,6 +73,15 @@ def _build_parser() -> argparse.ArgumentParser:
         default="all",
     )
     analyze_parser.add_argument("--second-judge-metric", default=None)
+    analyze_parser.add_argument(
+        "--trajectory-threshold-config",
+        type=Path,
+        default=None,
+        help=(
+            "Explicit frozen C3 joint fidelity/cohesion threshold JSON; "
+            "requires --panel-scope multi_panel"
+        ),
+    )
     analyze_parser.add_argument("--out", type=Path, required=True)
     analyze_parser.add_argument("--seed", type=int, default=17_029)
     analyze_parser.add_argument(
@@ -191,6 +201,13 @@ def _analyze_command(args: argparse.Namespace) -> int:
         metric=args.metric,
         panel_scope=args.panel_scope,
         second_judge_metric=args.second_judge_metric,
+        trajectory_threshold=(
+            load_trajectory_threshold_config(
+                args.trajectory_threshold_config
+            )
+            if args.trajectory_threshold_config is not None
+            else None
+        ),
         seed=args.seed,
         bootstrap_resamples=args.bootstrap_resamples,
         monte_carlo_permutations=args.permutations,
