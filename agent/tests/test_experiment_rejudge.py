@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Sequence
 
 import pytest
+from jsonschema import validate
 from PIL import Image
 
 import experiments.rejudge as rejudge_module
@@ -799,6 +800,13 @@ def test_two_judge_merge_preserves_independent_provenance() -> None:
 
         final = json.loads(final_path.read_text(encoding="utf-8"))
         c5 = final["c5_rejudge"]
+        schema = json.loads(
+            (
+                Path(__file__).resolve().parents[1]
+                / "experiments/schemas/c5_summary_provenance.schema.json"
+            ).read_text(encoding="utf-8")
+        )
+        validate(instance=c5, schema=schema)
         assert final["original_summary_hash"] == source["summary_hash"]
         assert set(c5["judges"]) == {
             "visual-form-primary-v1",
