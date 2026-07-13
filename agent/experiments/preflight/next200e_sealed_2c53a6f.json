@@ -1,0 +1,64 @@
+{
+  "schema_version": "1.0",
+  "status": "SEALED_NO_SOURCE_DATA_NO_CASES",
+  "code": {
+    "commit": "2c53a6fdb196ed99a5d74ea926933d27cb394612",
+    "dirty": false,
+    "corpus_policy_commit": "305aeddf97da154e221d99dbce1cacdf518ecfc0",
+    "tests": "152 passed"
+  },
+  "frozen_input": {
+    "records": 200,
+    "bytes": 266212,
+    "sha256": "afd6229bdbed1e29db592ecf5e1eaa8f5c44501a89fcf3ed20107c32e01ff170",
+    "selection": "fixed outcome-independent first 200 of the remaining 312 strict-VOR CC-BY records"
+  },
+  "terminal_counts": {
+    "no-figures": 18,
+    "no-source-data": 182
+  },
+  "trust_chain": {
+    "corpus_manifest_articles": 200,
+    "corpus_manifest_valid": 200,
+    "corpus_manifest_invalid": 0,
+    "corpus_manifest_sha256": "efc39483d992d898e2dd07359882cf7d4c793e11ef6be0b07ac26ffbdf9752e2",
+    "source_data_dois": 0,
+    "candidate_cases": 0,
+    "proposals": 0,
+    "review_calls": 0,
+    "accepted_single": 0,
+    "accepted_multi": 0,
+    "secret_scan_clean": true
+  },
+  "c2_readiness": {
+    "new_contribution": {
+      "P=2": 0,
+      "P=3-4": 0,
+      "P=5+": 0
+    },
+    "cumulative_counts": {
+      "P=2": 2,
+      "P=3-4": 3,
+      "P=5+": 1
+    },
+    "ready": false,
+    "blocker": "P=5+ still has fewer than two accepted independent DOI clusters"
+  },
+  "next_batch": {
+    "records": 112,
+    "bytes": 148830,
+    "accepted_sha256": "cfcd12f795132a6d2023123e78542893683313551e97084db82e448f8d76f602",
+    "selection_rule": "all remaining strict-VOR CC-BY records after exact exclusion of the seven frozen prior batches; no cherry-picking"
+  },
+  "source_artifact": {
+    "path": "nature_download/outputs/ccby_asset_nc_next200e_clean_2c53a6f/sealed_report_v1/sealed_report.json",
+    "semantic_hash": "a3f0675fd97c595de611750da8d314c95f3fd4059d1be85e6ddb4ff242e9c62e",
+    "file_sha256": "c19dadb870fd70ac33ea7f77c86f6ebbd62d2470acd636b708de6584185d99fa"
+  },
+  "policy": {
+    "outcome_independent": true,
+    "processed_without_early_stop": true,
+    "review_or_experiment_outcomes_used": false,
+    "no_method_outcome_inferred": true
+  }
+}
