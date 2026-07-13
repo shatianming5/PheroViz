@@ -184,6 +184,33 @@ def test_numeric_error_is_located_without_image_inference(source_df):
     assert missing[0].expected == {"x": 2, "y": 20.0}
 
 
+def test_large_exact_line_uses_scalable_point_matching():
+    count = 8_000
+    source = pd.DataFrame(
+        {
+            "x": np.arange(count, dtype=float),
+            "y": np.linspace(0.0, 1.0, count),
+        }
+    )
+    fig, ax = plt.subplots()
+    ax.set_gid("panel-a")
+    ax.plot(source["x"], source["y"], label="signal")
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel("Value (mg)")
+    ax.legend()
+    try:
+        result = evaluate_figure(fig, source, _line_expectation())
+    finally:
+        plt.close(fig)
+
+    numeric = result.fidelity.checks["numeric_match"]
+    assert (numeric.numerator, numeric.denominator) == (
+        count * 2,
+        count * 2,
+    )
+    assert numeric.ratio == 1.0
+
+
 def test_missing_series_reduces_coverage_and_numeric_match():
     source = pd.DataFrame(
         {

@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 import numbers
 import unicodedata
+from collections import defaultdict, deque
 from collections.abc import Mapping
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -102,6 +103,25 @@ def _point_distance(expected: Dict[str, Any], observed: Dict[str, Any], config: 
     return sum(distances) if distances and all(math.isfinite(value) for value in distances) else math.inf
 
 
+def _exact_point_key(
+    point: Mapping[str, Any],
+    fields: Sequence[str],
+    config: MetricConfig,
+) -> tuple[Any, ...]:
+    values: list[Any] = []
+    for field in fields:
+        value = point.get(field)
+        number = _as_number(value)
+        if number is not None:
+            rounded = round(number, config.float_precision)
+            values.append(("number", 0.0 if rounded == 0 else rounded))
+        elif value is None:
+            values.append(("none", None))
+        else:
+            values.append(("text", _normal_text(value, config)))
+    return tuple(values)
+
+
 def _flatten_image_values(values: Any) -> List[Dict[str, Any]]:
     if not isinstance(values, list):
         return [{"value": values}]
@@ -159,7 +179,39 @@ def _match_points(
     unmatched_observed = set(range(len(observed_points)))
     missing_expected: List[int] = []
     matched = 0
+    field_sets = {
+        tuple(key for key in ("x", "y", "value") if key in expected)
+        for expected in expected_points
+    }
+    exact_buckets: dict[
+        tuple[tuple[str, ...], tuple[Any, ...]],
+        deque[int],
+    ] = defaultdict(deque)
+    for observed_index, observed in enumerate(observed_points):
+        for fields in field_sets:
+            if fields:
+                exact_buckets[
+                    (fields, _exact_point_key(observed, fields, config))
+                ].append(observed_index)
+
+    residual_expected: list[tuple[int, Dict[str, Any]]] = []
     for expected_index, expected in enumerate(expected_points):
+        fields = tuple(
+            key for key in ("x", "y", "value") if key in expected
+        )
+        bucket = exact_buckets.get(
+            (fields, _exact_point_key(expected, fields, config))
+        )
+        while bucket and bucket[0] not in unmatched_observed:
+            bucket.popleft()
+        observed_index = bucket.popleft() if bucket else None
+        if observed_index is not None and observed_index in unmatched_observed:
+            unmatched_observed.remove(observed_index)
+            matched += 1
+        else:
+            residual_expected.append((expected_index, expected))
+
+    for expected_index, expected in residual_expected:
         candidates = [
             (
                 _point_distance(expected, observed_points[observed_index], config),
