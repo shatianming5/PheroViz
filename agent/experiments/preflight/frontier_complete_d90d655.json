@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0",
+  "status": "COMPLETED_STRICTLY_AGGREGATED",
+  "tier": "frontier",
+  "backbone": "gpt-5.6-sol",
+  "experiment": {
+    "git_commit": "d90d655b96bfb3b95bfdc37665692957969d8968",
+    "git_dirty": false,
+    "dataset_manifest_sha256": "6c6c5cb50603d899a9be0f41c9e562517c92ae15477610e9111f6504cd1757b3",
+    "methods": [
+      "best_of_n",
+      "flat_iterative",
+      "pheroviz_full"
+    ],
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "render_budget": 6
+  },
+  "completion": {
+    "records": 171,
+    "completed": 171,
+    "failed": 0,
+    "cases": 19,
+    "dois": 6,
+    "renders": 1026,
+    "vlm_calls": 0
+  },
+  "provider_retry": {
+    "run_name": "c1-c3-renderable-v1-seed0-br6__case-case-s41467-023-38847-1-figure1-panelg-263d16873f98__method-pheroviz_full__backbone-gpt-5.6-sol__seed-1__budget-renders-6",
+    "attempt": 2,
+    "record_hash": "aa9131003f3e7d63800fd38f44934313f516becf0e9462ba134551f49f319682",
+    "previous_attempt_preserved": true,
+    "authorization_evidence": "agent/experiments/preflight/frontier_empty_response_retry_d90d655.json"
+  },
+  "summary": {
+    "remote_path": "/mnt/SSD1_8TB/zechuan/PheroViz-mid-d90d655/agent/experiments/runs/production/_summaries/c1_c3_renderable_v1_seed0_br6_gpt56sol/summary.json",
+    "summary_hash": "3a27f7c8737060b3ed1d48dd072cbefaca9d4cffef587aa874ce34760e975ebb",
+    "file_sha256": "8eb4649a0a3a58ca3f53d93195723a62e18a148375d3b0ed321c97b0beb6510a",
+    "record_bindings_hash": "baa78ad033993188ee29c56ff6be1bd28313f701be6774720d28e25309dc7821"
+  },
+  "analysis": {
+    "code_commit": "497e69b91c6ec7774057aba03cc5b8ff9153c5cc",
+    "fidelity_analysis_hash": "9e03a264629a63a1bd2dfc2a92228cadb34045c08914617fe29f89869eaabf81",
+    "cohesion_analysis_hash": "ee225b0c3702202b33cda1bf26708432c572ef760727c262e438097ab6b9d6d0",
+    "interpretation_pending_cross_tier_holm": true
+  },
+  "policy": {
+    "partial_metrics_interpreted": false,
+    "earlier_frontier_roots_never_merge": true,
+    "secret_scan_clean": true
+  }
+}
