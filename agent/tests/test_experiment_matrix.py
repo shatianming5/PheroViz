@@ -1,14 +1,24 @@
 from __future__ import annotations
 
-import json
 import hashlib
+import json
+import subprocess
 from pathlib import Path
 
 import pytest
 import yaml
 
 from experiments.cli import main
-from experiments.matrix import MatrixError, load_and_expand_matrix
+from experiments.matrix import (
+    MatrixError,
+    expand_matrix,
+    load_and_expand_matrix,
+)
+from experiments.providers import (
+    PHEROVIZ_PROVIDER_IMPORT_PATH,
+    UnifiedBenchmarkProvider,
+    load_provider,
+)
 from tests.test_experiment_support import experiment_workspace
 
 
@@ -252,7 +262,7 @@ def test_matrix_expands_method_backbone_seed_budget_case_product(
             "backbones": ["model-a", "model-b"],
             "seeds": [11, 29],
             "budgets": [
-                {"type": "renders", "value": 3},
+                {"type": "renders", "value": 4},
                 {"type": "wall_clock_seconds", "value": 10},
             ],
             "metric": {
@@ -324,6 +334,194 @@ def test_dry_run_does_not_create_artifact_root(capsys: pytest.CaptureFixture[str
         assert len(payload) == 1
         assert "spec_hash" in payload[0]
         assert payload[0]["case_id"] == "dry-case"
+        assert not artifact_root.exists()
+
+
+def test_render_budget_preflight_rejects_partial_panel_checkpoint() -> None:
+    with experiment_workspace("matrix-panel-budget") as workspace:
+        manifest = workspace / "manifest.json"
+        manifest.write_text(
+            json.dumps(
+                {
+                    "cases": [
+                        {
+                            "case_id": "single",
+                            "panel_count": 1,
+                            "split": "test",
+                        },
+                        {
+                            "case_id": "triple",
+                            "panel_count": 3,
+                            "split": "test",
+                        },
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+        artifact_root = workspace / "must-not-exist"
+        matrix = _minimal_matrix(manifest, artifact_root)
+        matrix["budgets"] = [{"type": "renders", "value": 4}]
+        path = workspace / "matrix.json"
+        path.write_text(json.dumps(matrix), encoding="utf-8")
+
+        with pytest.raises(
+            MatrixError,
+            match=r"triple\(P=3\)",
+        ):
+            load_and_expand_matrix(path)
+
+        assert not artifact_root.exists()
+
+
+@pytest.mark.parametrize("value", [0, -1, 1.5, float("inf")])
+def test_budget_preflight_rejects_nonpositive_or_fractional_render_budget(
+    value: float,
+) -> None:
+    with experiment_workspace("matrix-invalid-budget") as workspace:
+        manifest = workspace / "manifest.json"
+        manifest.write_text(
+            json.dumps(
+                {
+                    "cases": [
+                        {
+                            "case_id": "single",
+                            "panel_count": 1,
+                            "split": "test",
+                        }
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+        matrix = _minimal_matrix(manifest, workspace / "runs")
+        matrix["budgets"] = [{"type": "renders", "value": value}]
+
+        with pytest.raises(MatrixError):
+            expand_matrix(matrix, base_dir=workspace)
+
+
+def test_production_c1_c3_matrix_contract_expands_cleanly() -> None:
+    matrix_path = (
+        Path(__file__).resolve().parents[1]
+        / "experiments"
+        / "matrices"
+        / "c1_c3_final_benchmark_v2_seed0.yaml"
+    )
+    production = yaml.safe_load(matrix_path.read_text(encoding="utf-8"))
+    artifact_root = (
+        matrix_path.parent / production["artifact_root"]
+    ).resolve()
+
+    assert production["dataset_mode"] == "sealed_benchmark"
+    assert production["dataset_manifest"].endswith(
+        "final_benchmark_v2_seed0/benchmark_manifest.json"
+    )
+    assert production["dataset_manifest_sha256"] == (
+        "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b"
+    )
+    assert production["splits"] == ["test"]
+    assert production["backbones"] == ["gpt-5.6-sol"]
+    assert production["seeds"] == [0, 1, 2]
+    assert production["budgets"] == [{"type": "renders", "value": 6}]
+    assert artifact_root == (
+        matrix_path.parents[1]
+        / "runs"
+        / "production"
+        / "c1_c3_final_benchmark_v2_seed0_br6_gpt56sol"
+    )
+    assert subprocess.run(
+        ["git", "check-ignore", "--quiet", str(artifact_root)],
+        cwd=Path(__file__).resolve().parents[2],
+        check=False,
+    ).returncode == 0
+    assert (
+        production["provider"]
+        == PHEROVIZ_PROVIDER_IMPORT_PATH
+    )
+    assert isinstance(
+        load_provider(production["provider"], {}),
+        UnifiedBenchmarkProvider,
+    )
+
+    with experiment_workspace("production-matrix") as workspace:
+        manifest = workspace / "mixed-manifest.json"
+        manifest.write_text(
+            json.dumps(
+                {
+                    "cases": [
+                        {
+                            "case_id": f"case-p{panel_count}",
+                            "panel_count": panel_count,
+                            "split": "test",
+                        }
+                        for panel_count in (1, 2, 3, 6)
+                    ]
+                    + [
+                        {
+                            "case_id": "ignored-val",
+                            "panel_count": 2,
+                            "split": "val",
+                        }
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+        artifact_root = workspace / "production-runs"
+        matrix = dict(production)
+        matrix["dataset_manifest"] = str(manifest)
+        matrix["dataset_mode"] = "legacy"
+        matrix.pop("dataset_manifest_sha256")
+        matrix["artifact_root"] = str(artifact_root)
+        path = workspace / "production-matrix.yaml"
+        path.write_text(yaml.safe_dump(matrix), encoding="utf-8")
+
+        specs = load_and_expand_matrix(path)
+
+        assert len(specs) == 4 * 3 * 3
+        assert {spec.split for spec in specs} == {"test"}
+        assert {spec.panel_count for spec in specs} == {1, 2, 3, 6}
+        assert {spec.budget_value for spec in specs} == {6.0}
+        assert all(
+            int(spec.budget_value) % int(spec.panel_count or 1) == 0
+            for spec in specs
+        )
+        by_method = {
+            method: [spec for spec in specs if spec.method == method]
+            for method in {
+                "best_of_n",
+                "flat_iterative",
+                "pheroviz_full",
+            }
+        }
+        assert {spec.schedule for spec in by_method["best_of_n"]} == {
+            "best_of_n"
+        }
+        assert {spec.schedule for spec in by_method["flat_iterative"]} == {
+            "iterative"
+        }
+        assert {spec.schedule for spec in by_method["pheroviz_full"]} == {
+            "iterative"
+        }
+        assert {
+            spec.method_config["memory_mode"]
+            for spec in by_method["best_of_n"]
+        } == {"none"}
+        assert {
+            spec.method_config["memory_mode"]
+            for spec in by_method["flat_iterative"]
+        } == {"none"}
+        assert {
+            spec.method_config["memory_mode"]
+            for spec in by_method["pheroviz_full"]
+        } == {"full"}
+        assert {
+            spec.method_config["initial_generation"] for spec in specs
+        } == {"model_spec"}
+        assert {spec.provider for spec in specs} == {
+            PHEROVIZ_PROVIDER_IMPORT_PATH
+        }
         assert not artifact_root.exists()
 
 

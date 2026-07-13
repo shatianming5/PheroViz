@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import itertools
 import json
+import math
 import subprocess
 from pathlib import Path
 from typing import Any, Dict, Mapping, Optional, Sequence
@@ -259,6 +260,35 @@ def _select_cases(
     return selected
 
 
+def _validate_budget_panel_compatibility(
+    cases: Sequence[DatasetCase],
+    budgets: Sequence[tuple[str, float]],
+) -> None:
+    for budget_type, budget_value in budgets:
+        if not math.isfinite(budget_value) or budget_value <= 0:
+            raise MatrixError("Budget values must be positive and finite")
+        if budget_type != "renders":
+            continue
+        if not budget_value.is_integer():
+            raise MatrixError("Render budgets must be integers")
+        render_budget = int(budget_value)
+        incompatible = [
+            f"{case.case_id}(P={case.panel_count})"
+            for case in cases
+            if case.panel_count is not None
+            and (
+                render_budget < case.panel_count
+                or render_budget % case.panel_count != 0
+            )
+        ]
+        if incompatible:
+            raise MatrixError(
+                f"Render budget {render_budget} cannot form complete panel "
+                "checkpoint candidates for: "
+                + ", ".join(incompatible)
+            )
+
+
 def expand_matrix(
     matrix: Mapping[str, Any],
     *,
@@ -377,6 +407,7 @@ def expand_matrix(
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             raise MatrixError("Budget value must be numeric")
         parsed_budgets.append((budget_type, float(value)))
+    _validate_budget_panel_compatibility(selected_cases, parsed_budgets)
 
     specs: list[ExperimentSpec] = []
     seen_names: set[str] = set()

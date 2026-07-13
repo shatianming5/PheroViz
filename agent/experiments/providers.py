@@ -175,12 +175,7 @@ def _temporary_environment(updates: Mapping[str, str]) -> Iterator[None]:
 
 
 class SingleChainProvider:
-    """Honest adapter for the existing single-chain iterative runner.
-
-    The adapter intentionally rejects best-of-N: the current core runner's first
-    round is deterministic default-slot generation, not an independent model
-    sample. A true best-of-N provider should be supplied as a separate plugin.
-    """
+    """Adapter for iterative trajectories and independent model-spec samples."""
 
     name = "phero_viz_single_chain"
     test_only = False
@@ -1021,3 +1016,132 @@ class MultiPanelProvider:
                 )
             return candidates[0]
         return ProviderBatch(candidates=candidates, stop=True)
+
+
+PHEROVIZ_PROVIDER_IMPORT_PATH = (
+    "experiments.providers:UnifiedBenchmarkProvider"
+)
+
+
+class PheroVizProvider:
+    """Route a mixed benchmark through the matching native provider.
+
+    The canonical experiment-matrix import path is exposed by
+    :class:`UnifiedBenchmarkProvider`.
+    """
+
+    name = "phero_viz"
+    test_only = False
+
+    def __init__(
+        self,
+        api_key_envs: Optional[Sequence[str]] = None,
+        wall_clock_rounds: Optional[int] = None,
+    ) -> None:
+        self.single_provider = SingleChainProvider(
+            api_key_envs=api_key_envs,
+            wall_clock_rounds=wall_clock_rounds,
+        )
+        self.multi_provider = MultiPanelProvider(
+            wall_clock_rounds=wall_clock_rounds,
+        )
+
+    def check_available(self) -> None:
+        self.single_provider.check_available()
+
+    def _route(self, request: GenerationRequest) -> tuple[int, ExperimentProvider]:
+        try:
+            cases = load_dataset_manifest(
+                request.dataset_manifest_path,
+                dataset_mode=request.spec.dataset_mode,
+            )
+            selected = select_case(cases, request.spec.case_id)
+            verify_case_metadata(
+                selected,
+                panel_count=request.spec.panel_count,
+                split=request.spec.split,
+            )
+            verify_case_data_files(
+                selected,
+                manifest_path=request.dataset_manifest_path,
+            )
+        except ManifestError as exc:
+            raise ProviderExecutionError(
+                f"Cannot route case {request.spec.case_id!r}: {exc}"
+            ) from exc
+
+        panel_count = selected.panel_count
+        if (
+            isinstance(panel_count, bool)
+            or not isinstance(panel_count, int)
+            or panel_count < 1
+        ):
+            raise ProviderExecutionError(
+                f"Case {request.spec.case_id!r} must declare a positive "
+                "panel_count for unified routing"
+            )
+        if panel_count == 1:
+            return panel_count, self.single_provider
+        return panel_count, self.multi_provider
+
+    def _annotate_candidate(
+        self,
+        candidate: CandidateResult,
+        *,
+        panel_count: int,
+        delegate: ExperimentProvider,
+    ) -> CandidateResult:
+        metadata = dict(candidate.metadata)
+        if "phero_viz_provider" in metadata:
+            raise ProviderExecutionError(
+                "Delegate candidate uses reserved metadata key "
+                "'phero_viz_provider'"
+            )
+        metadata["phero_viz_provider"] = {
+            "router": self.name,
+            "delegate": delegate.name,
+            "panel_count": panel_count,
+        }
+        return CandidateResult(
+            metrics=dict(candidate.metrics),
+            render_count=candidate.render_count,
+            artifacts=dict(candidate.artifacts),
+            metadata=metadata,
+            test_only=candidate.test_only,
+        )
+
+    def generate(
+        self,
+        request: GenerationRequest,
+    ) -> CandidateResult | ProviderBatch:
+        panel_count, delegate = self._route(request)
+        result = delegate.generate(request)
+        if isinstance(result, ProviderBatch):
+            return ProviderBatch(
+                candidates=tuple(
+                    self._annotate_candidate(
+                        candidate,
+                        panel_count=panel_count,
+                        delegate=delegate,
+                    )
+                    for candidate in result.candidates
+                ),
+                stop=result.stop,
+                test_only=result.test_only,
+            )
+        return self._annotate_candidate(
+            result,
+            panel_count=panel_count,
+            delegate=delegate,
+        )
+
+
+class UnifiedBenchmarkProvider(PheroVizProvider):
+    """Canonical mixed-benchmark provider.
+
+    Matrix import path:
+    ``experiments.providers:UnifiedBenchmarkProvider``.
+    """
+
+
+UnifiedPheroVizProvider = PheroVizProvider

@@ -112,6 +112,29 @@ case/method/backbone/seed/budget 都有独立 run 名和冻结的数据 manifest
 commit 的外部 checkout 运行，审计记录位于
 `experiments/baseline_audits/`。
 
+C1/C3 的首个 production 矩阵位于
+`experiments/matrices/c1_c3_final_benchmark_v2_seed0.yaml`。它只选择
+`final_benchmark_v2_seed0` 的 test split，固定 `B_R=6`、backbone
+`gpt-5.6-sol` 和 seeds `0/1/2`，并声明三个统一 provider 方法：
+
+- `best_of_n`：`schedule=best_of_n`、`memory_mode=none`，进行
+  `R=6/P` 次独立 provider 调用，每次返回一个完整 checkpoint candidate；
+- `flat_iterative`：`schedule=iterative`、`memory_mode=none`，一次调用返回
+  `R=6/P` 个 round checkpoint candidates；
+- `pheroviz_full`：与 flat iterative 使用同一 checkpoint 轨迹契约，但
+  `memory_mode=full`。
+
+三者都从 `initial_generation=model_spec` 开始，并指向统一的
+`experiments.providers:UnifiedBenchmarkProvider`。矩阵展开会在创建任何
+run 目录前检查 render budget 是正整数且能被每个已选 case 的 panel 数整除；
+因此 P=1/2/3/6 均可 exact-fill `B_R=6`，partial panel checkpoint 会直接
+拒绝。只验证展开而不启动付费模型调用：
+
+```bash
+python -m experiments run \
+  experiments/matrices/c1_c3_final_benchmark_v2_seed0.yaml --dry-run
+```
+
 ## Open-weight Transformers 文本服务
 
 `experiments.transformers_server` 提供仅文本的 OpenAI-compatible
