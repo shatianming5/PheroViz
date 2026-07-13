@@ -1085,6 +1085,7 @@ class PheroVizProvider:
         wall_clock_rounds: Optional[int] = None,
         manifest_data_root: Optional[str] = None,
     ) -> None:
+        self.manifest_data_root = manifest_data_root
         self.single_provider = SingleChainProvider(
             api_key_envs=api_key_envs,
             wall_clock_rounds=wall_clock_rounds,
@@ -1113,7 +1114,7 @@ class PheroVizProvider:
             verify_case_data_files(
                 selected,
                 manifest_path=request.dataset_manifest_path,
-                manifest_data_root=self.single_provider.manifest_data_root,
+                manifest_data_root=self.manifest_data_root,
                 runtime_repo_root=request.spec.repo_root,
             )
         except ManifestError as exc:

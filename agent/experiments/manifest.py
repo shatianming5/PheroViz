@@ -709,12 +709,12 @@ def resolve_case_data_path(
     path = Path(path_value).expanduser()
     if not path.is_absolute():
         return (manifest_parent / path).resolve()
-    if (manifest_data_root is None) != (runtime_repo_root is None):
-        raise ManifestError(
-            "manifest_data_root and runtime_repo_root must be provided together"
-        )
     if manifest_data_root is None:
         return path.resolve()
+    if runtime_repo_root is None:
+        raise ManifestError(
+            "runtime_repo_root is required when manifest_data_root is set"
+        )
 
     source_root = Path(manifest_data_root).expanduser()
     target_root = Path(runtime_repo_root).expanduser()
