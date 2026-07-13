@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "status": "PASSED",
+  "code_commit": "ecb2c318564160de59364a2a0479caf54df69e83",
+  "code_dirty": false,
+  "tests": {
+    "full_c3_suite_passed": 181,
+    "trajectory_subset": 25,
+    "matrix_materializer_subset": 19,
+    "memory_runtime_subset": 24,
+    "failed": 0
+  },
+  "validated": {
+    "render_only_analysis": true,
+    "legacy_joint_render_time_analysis": true,
+    "absent_original_prefix_relocation": true,
+    "runtime_specs_materialized": 54,
+    "ignored_benchmark_fixture_hashes_verified": true
+  },
+  "wall_clock_policy": {
+    "status": "NA_BLOCKED",
+    "derived_or_invented_tau": false
+  },
+  "production_outcomes_inspected": false,
+  "model_calls": 0
+}
