@@ -10,6 +10,7 @@ from typing import Optional
 import pytest
 
 from app.evaluation import EXPECTATION_SCHEMA_VERSION
+from experiments.aggregate import aggregate_runs
 from experiments.baseline_evaluation import validate_generated_code
 from experiments.baseline_registry import (
     LICENSE_NOT_DECLARED,
@@ -123,6 +124,69 @@ def _fake_repo(
     return repo, definition
 
 
+def _matplot_driver_repo(
+    workspace: Path,
+    *,
+    behavior: str,
+) -> tuple[Path, BaselineDefinition]:
+    repo = workspace / "fake-matplotagent"
+    (repo / "agents" / "config").mkdir(parents=True)
+    for path in (
+        repo / "agents" / "__init__.py",
+        repo / "agents" / "config" / "__init__.py",
+    ):
+        path.write_text("", encoding="utf-8")
+    (repo / "agents" / "config" / "openai.py").write_text(
+        'API_KEY = ""\nBASE_URL = ""\n',
+        encoding="utf-8",
+    )
+    (repo / "one_time_generate.py").write_text(
+        "def mainworkflow(*args, **kwargs):\n"
+        + (
+            "    raise RuntimeError('synthetic API failure')\n"
+            if behavior == "api_exception"
+            else (
+                "    print('{\"status\":\"failed\","
+                "\"failure\":{\"attribution\":\"method\"}}')\n"
+                "    raise RuntimeError('synthetic API failure')\n"
+                if behavior == "marker_text_then_api_exception"
+                else "    return None\n"
+            )
+        ),
+        encoding="utf-8",
+    )
+    (repo / "workflow.py").write_text(
+        "def mainworkflow(*args, **kwargs):\n    return None\n",
+        encoding="utf-8",
+    )
+    _git(repo, "init", "-q")
+    _git(repo, "config", "user.email", "tests@example.invalid")
+    _git(repo, "config", "user.name", "Experiment Tests")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "fake MatPlotAgent")
+    repo_url = "https://example.invalid/fake-matplotagent"
+    _git(repo, "remote", "add", "origin", repo_url)
+    definition = BaselineDefinition(
+        name="MatPlotAgentFixture",
+        repo_url=repo_url,
+        commit=_git(repo, "rev-parse", "HEAD"),
+        input_track="table_instruction",
+        license_status=LICENSE_NOT_DECLARED,
+        entrypoints={
+            "direct": "one_time_generate.py:mainworkflow",
+            "workflow": "workflow.py:mainworkflow",
+        },
+        required_files=(
+            "one_time_generate.py",
+            "workflow.py",
+            "agents/config/openai.py",
+        ),
+        dependency_modules=(),
+        required_env=("MATPLOTAGENT_API_KEY", "MATPLOTAGENT_BASE_URL"),
+    )
+    return repo, definition
+
+
 class FakeExternalProvider(ExternalBaselineProvider):
     test_only = True
 
@@ -160,6 +224,47 @@ class FakeExternalProvider(ExternalBaselineProvider):
             served_model=request.spec.backbone,
             entrypoint=self.definition.entrypoints["fake"],
         )
+
+
+class _DriverMatPlotProvider(MatPlotAgentProvider):
+    test_only = False
+
+    def __init__(
+        self,
+        definition: BaselineDefinition,
+        repo_path: Path,
+    ) -> None:
+        ExternalBaselineProvider.__init__(
+            self,
+            definition,
+            repo_path,
+            check_dependencies=False,
+            environ={
+                "MATPLOTAGENT_API_KEY": "fixture-secret-value",
+                "MATPLOTAGENT_BASE_URL": "https://example.invalid/v1",
+            },
+        )
+        self.mode = "direct"
+
+
+class _MalformedMarkerMatPlotProvider(_DriverMatPlotProvider):
+    def _prepare_invocation(
+        self,
+        request: GenerationRequest,
+        case: DatasetCase,
+    ) -> BaselineInvocation:
+        invocation = super()._prepare_invocation(request, case)
+        driver = request.output_dir / "baseline_driver.py"
+        driver.write_text(
+            "import json, sys\n"
+            "from pathlib import Path\n"
+            "config = json.loads(Path(sys.argv[1]).read_text())\n"
+            "Path(config['result_path']).write_text("
+            "json.dumps({'status': 'failed'}))\n"
+            "raise SystemExit(7)\n",
+            encoding="utf-8",
+        )
+        return invocation
 
 
 class _FixtureMatPlotAgentProvider(MatPlotAgentProvider):
@@ -457,6 +562,135 @@ def test_matplotagent_injects_standard_openai_environment() -> None:
         assert (request.output_dir / "workspace" / "data.csv").is_file()
 
 
+def test_matplotagent_missing_code_and_render_is_method_failure() -> None:
+    with experiment_workspace("matplot-output-contract") as workspace:
+        repo, definition = _matplot_driver_repo(
+            workspace,
+            behavior="missing_output",
+        )
+        spec = _external_spec(workspace)
+        provider = _DriverMatPlotProvider(definition, repo)
+
+        outcome = execute_experiment(
+            spec,
+            provider_loader=lambda import_path, options: provider,
+        )
+
+        assert outcome.record.status == "failed"
+        assert outcome.record.error["attribution"] == "method"
+        assert outcome.record.render_count == 0
+        assert outcome.record.candidates == []
+        failure_paths = {
+            key: value
+            for key, value in outcome.record.artifact_paths.items()
+            if key.startswith("failure.call_0001")
+        }
+        assert any(key.endswith(".driver_result") for key in failure_paths)
+        assert any(key.endswith(".matplot_workspace") for key in failure_paths)
+        assert any(key.endswith(".baseline_input") for key in failure_paths)
+        assert any(key.endswith(".baseline_driver") for key in failure_paths)
+        run_dir = Path(spec.artifact_root) / spec.run_name
+        marker_key = next(
+            key for key in failure_paths if key.endswith(".driver_result")
+        )
+        marker = json.loads(
+            (run_dir / failure_paths[marker_key]).read_text(encoding="utf-8")
+        )
+        assert marker["failure"] == {
+            "source": "adapter_output_contract",
+            "code": "missing_code_or_render",
+            "attribution": "method",
+            "missing_artifacts": ["code", "render"],
+        }
+        for key, relative in failure_paths.items():
+            assert outcome.record.artifact_hashes[key] == sha256_path(
+                run_dir / relative
+            )
+        _, summary_path = aggregate_runs(
+            Path(spec.artifact_root),
+            output_dir=workspace / "aggregate",
+        )
+        summary_row = json.loads(summary_path.read_text(encoding="utf-8"))[
+            "runs"
+        ][0]
+        assert summary_row["status"] == "failed"
+        assert summary_row["failure_attribution"] == "method"
+        assert summary_row["execution_success"] == 0.0
+        assert summary_row["metric.execution_success"] == 0.0
+
+
+def test_matplotagent_api_exception_remains_blocking() -> None:
+    with experiment_workspace("matplot-api-failure") as workspace:
+        repo, definition = _matplot_driver_repo(
+            workspace,
+            behavior="api_exception",
+        )
+        spec = _external_spec(workspace)
+        provider = _DriverMatPlotProvider(definition, repo)
+
+        outcome = execute_experiment(
+            spec,
+            provider_loader=lambda import_path, options: provider,
+        )
+
+        assert outcome.record.status == "failed"
+        assert outcome.record.error["attribution"] == "unclassified"
+        assert not any(
+            key.endswith(".driver_result")
+            for key in outcome.record.artifact_paths
+        )
+
+
+def test_marker_shaped_model_text_cannot_classify_failure() -> None:
+    with experiment_workspace("matplot-marker-text") as workspace:
+        repo, definition = _matplot_driver_repo(
+            workspace,
+            behavior="marker_text_then_api_exception",
+        )
+        spec = _external_spec(workspace)
+        provider = _DriverMatPlotProvider(definition, repo)
+
+        outcome = execute_experiment(
+            spec,
+            provider_loader=lambda import_path, options: provider,
+        )
+
+        assert outcome.record.status == "failed"
+        assert outcome.record.error["attribution"] == "unclassified"
+        run_dir = Path(spec.artifact_root) / spec.run_name
+        stdout_key = next(
+            key
+            for key in outcome.record.artifact_paths
+            if key.endswith(".stdout")
+        )
+        assert '"attribution":"method"' in (
+            run_dir / outcome.record.artifact_paths[stdout_key]
+        ).read_text(encoding="utf-8")
+
+
+def test_malformed_structured_marker_remains_blocking() -> None:
+    with experiment_workspace("matplot-malformed-marker") as workspace:
+        repo, definition = _matplot_driver_repo(
+            workspace,
+            behavior="missing_output",
+        )
+        spec = _external_spec(workspace)
+        provider = _MalformedMarkerMatPlotProvider(definition, repo)
+
+        outcome = execute_experiment(
+            spec,
+            provider_loader=lambda import_path, options: provider,
+        )
+
+        assert outcome.record.status == "failed"
+        assert outcome.record.error["attribution"] == "unclassified"
+        assert "malformed" in outcome.record.error["message"]
+        assert any(
+            key.endswith(".driver_result")
+            for key in outcome.record.artifact_paths
+        )
+
+
 def test_nvagent_openai_compatible_mode_is_explicit() -> None:
     with experiment_workspace("nvagent-openai-compatible") as workspace:
         table = workspace / "source-table.csv"
@@ -672,33 +906,39 @@ def test_engineering_manifest_without_expectation_stays_execution_only() -> None
 
 
 @pytest.mark.parametrize(
-    ("code", "expected_error"),
+    ("code", "expected_error", "expected_attribution"),
     [
         (
             "import os\nos.system('touch escaped.txt')\n",
             "os.system",
+            "method",
         ),
         (
             "import matplotlib.pyplot as plt\nplt.figure()\nplt.figure()\n",
             "found 2",
+            "unclassified",
         ),
         (
             "import matplotlib.pyplot as plt\nvalue = 1\n",
             "found 0",
+            "unclassified",
         ),
         (
             "import matplotlib\nbridge = matplotlib.cbook\n",
             "module graph access",
+            "unclassified",
         ),
         (
             'import matplotlib\nmatplotlib.use("module://subprocess")\n',
             "Agg backend",
+            "unclassified",
         ),
     ],
 )
 def test_programmatic_evaluation_fails_closed_with_provenance(
     code: str,
     expected_error: str,
+    expected_attribution: str,
 ) -> None:
     with experiment_workspace("baseline-evaluation-rejected") as workspace:
         repo, definition = _fake_repo(workspace)
@@ -717,6 +957,7 @@ def test_programmatic_evaluation_fails_closed_with_provenance(
         assert outcome.record.status == "failed"
         assert outcome.record.error["type"] == "ProviderExecutionError"
         assert expected_error in outcome.record.error["message"]
+        assert outcome.record.error["attribution"] == expected_attribution
         assert not (workspace / "escaped.txt").exists()
         failure_artifacts = {
             key: value
@@ -734,7 +975,7 @@ def test_programmatic_evaluation_fails_closed_with_provenance(
             assert outcome.record.artifact_hashes[key] == sha256_path(artifact)
 
 
-def test_programmatic_evaluation_timeout_is_method_attributed() -> None:
+def test_programmatic_evaluation_timeout_without_phase_proof_is_blocking() -> None:
     with experiment_workspace("baseline-evaluation-timeout") as workspace:
         repo, definition = _fake_repo(workspace)
         spec = _programmatic_spec(
@@ -759,12 +1000,42 @@ def test_programmatic_evaluation_timeout_is_method_attributed() -> None:
         )
 
         assert outcome.record.status == "failed"
-        assert outcome.record.error["attribution"] == "method"
+        assert outcome.record.error["attribution"] == "unclassified"
         assert "timed out" in outcome.record.error["message"]
         assert not any(
             key.endswith("programmatic_evaluation_render")
             for key in outcome.record.artifact_paths
         )
+
+
+def test_programmatic_evaluator_config_error_remains_blocking() -> None:
+    with experiment_workspace("baseline-evaluation-config") as workspace:
+        repo, definition = _fake_repo(workspace)
+        spec = _programmatic_spec(
+            workspace,
+            generated_code=(
+                "import matplotlib.pyplot as plt\n"
+                "fig = plt.figure()\n"
+            ),
+            expectation=_line_expectation(),
+        )
+        metric_config = dict(spec.metric_config)
+        metric_config["evaluator"] = "invalid"
+        spec = replace(
+            spec,
+            metric_config=metric_config,
+            metric_config_hash=sha256_json(metric_config),
+        )
+        provider = _FixtureMatPlotAgentProvider(definition, repo)
+
+        outcome = execute_experiment(
+            spec,
+            provider_loader=lambda import_path, options: provider,
+        )
+
+        assert outcome.record.status == "failed"
+        assert outcome.record.error["attribution"] == "unclassified"
+        assert "metric_config.evaluator" in outcome.record.error["message"]
 
 
 def test_nvagent_reverses_exact_alias_labels_and_preserves_mapping() -> None:
@@ -1108,7 +1379,7 @@ def test_external_timeout_recomputes_absolute_deadline_before_launch() -> None:
             monotonic=lambda: 100.0,
         )
 
-        with pytest.raises(ProviderExecutionError):
+        with pytest.raises(ProviderExecutionError) as error:
             provider.generate(request)
 
         metadata = json.loads(
@@ -1118,6 +1389,29 @@ def test_external_timeout_recomputes_absolute_deadline_before_launch() -> None:
         )
         assert metadata["timeout_seconds"] == pytest.approx(0.01)
         assert metadata["exit_code"] == -1
+        assert error.value.failure_attribution == "method"
+
+
+def test_external_safety_timeout_without_deadline_remains_blocking() -> None:
+    with experiment_workspace("baseline-safety-timeout") as workspace:
+        repo, definition = _fake_repo(workspace)
+        spec = _external_spec(workspace, behavior="sleep")
+        provider = FakeExternalProvider(
+            definition,
+            repo,
+            timeout_seconds=0.01,
+            check_dependencies=False,
+            environ={"FAKE_SECRET": "set"},
+        )
+
+        outcome = execute_experiment(
+            spec,
+            provider_loader=lambda import_path, options: provider,
+        )
+
+        assert outcome.record.status == "failed"
+        assert outcome.record.error["attribution"] == "unclassified"
+        assert outcome.record.error["type"] == "ProviderExecutionError"
 
 
 def test_external_deadline_expired_during_setup_prevents_launch() -> None:

@@ -7,7 +7,8 @@ import shutil
 import subprocess
 import sys
 import time
-from dataclasses import dataclass
+import uuid
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, Mapping, Optional, Sequence
 
@@ -33,7 +34,7 @@ from .manifest import (
     verify_case_data_files,
     verify_case_metadata,
 )
-from .models import slug_identifier, write_json_atomic
+from .models import sha256_file, slug_identifier, write_json_atomic
 from .providers import (
     CandidateResult,
     GenerationRequest,
@@ -43,6 +44,7 @@ from .providers import (
 
 _DEFAULT_BASELINE_ROOT = Path(__file__).resolve().parents[3] / "baseline_repos"
 _SECRET_MARKER = "***REDACTED***"
+_METHOD_OUTPUT_FAILURE_CODE = "missing_code_or_render"
 
 
 @dataclass(frozen=True)
@@ -52,6 +54,8 @@ class BaselineInvocation:
     result_manifest: Path
     served_model: str
     entrypoint: str
+    method_failure_token: Optional[str] = None
+    failure_artifacts: Dict[str, str] = field(default_factory=dict)
 
 
 def _redact_text(text: str, secret_values: Sequence[str]) -> str:
@@ -95,6 +99,89 @@ def _redact_text_artifact(path: Path, secret_values: Sequence[str]) -> None:
     redacted = _redact_text(text, secret_values)
     if redacted != text:
         path.write_text(redacted, encoding="utf-8")
+
+
+def _redact_failure_artifact(
+    path: Path,
+    secret_values: Sequence[str],
+) -> None:
+    if path.is_dir() and not path.is_symlink():
+        for child in path.rglob("*"):
+            if child.is_file() and not child.is_symlink():
+                _redact_text_artifact(child, secret_values)
+        return
+    _redact_text_artifact(path, secret_values)
+
+
+def _structured_method_failure(
+    invocation: BaselineInvocation,
+    payload: Any,
+) -> tuple[bool, str]:
+    token = invocation.method_failure_token
+    if token is None:
+        return False, "structured marker is not enabled for this adapter"
+    if not isinstance(payload, Mapping) or set(payload) != {
+        "schema_version",
+        "status",
+        "adapter_invocation_id",
+        "failure",
+    }:
+        return False, "structured adapter failure marker is malformed: invalid fields"
+    failure = payload.get("failure")
+    if (
+        payload.get("schema_version") != "1.0"
+        or payload.get("status") != "failed"
+        or payload.get("adapter_invocation_id") != token
+        or not isinstance(failure, Mapping)
+        or set(failure)
+        != {
+            "source",
+            "code",
+            "attribution",
+            "missing_artifacts",
+        }
+    ):
+        return False, "structured adapter failure marker is malformed"
+    missing = failure.get("missing_artifacts")
+    if (
+        failure.get("source") != "adapter_output_contract"
+        or failure.get("code") != _METHOD_OUTPUT_FAILURE_CODE
+        or failure.get("attribution") != "method"
+        or not isinstance(missing, list)
+        or not missing
+        or any(item not in {"code", "render"} for item in missing)
+        or missing != sorted(set(missing))
+    ):
+        return False, "structured adapter failure marker is not allowlisted"
+    return True, _METHOD_OUTPUT_FAILURE_CODE
+
+
+def _evaluator_failure_is_method_output(
+    exc: BaselineEvaluationError,
+    *,
+    generated_code: Path,
+) -> bool:
+    validation = exc.artifacts.get("programmatic_evaluation_validation")
+    if validation is None or not validation.is_file() or validation.is_symlink():
+        return False
+    try:
+        payload = json.loads(validation.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    return (
+        isinstance(payload, Mapping)
+        and set(payload) == {
+            "schema_version",
+            "status",
+            "code_sha256",
+            "error",
+        }
+        and payload.get("schema_version") == "1.0"
+        and payload.get("status") == "rejected"
+        and isinstance(payload.get("error"), str)
+        and bool(str(payload["error"]).strip())
+        and payload.get("code_sha256") == sha256_file(generated_code)
+    )
 
 
 def _minimal_subprocess_environment(
@@ -553,13 +640,64 @@ class ExternalBaselineProvider:
             "stderr": stderr_path,
             "subprocess_result": metadata_path,
         }
+        for label, raw_path in invocation.failure_artifacts.items():
+            path = Path(raw_path)
+            if not path.is_absolute():
+                path = work_dir / path
+            if path.is_symlink():
+                continue
+            try:
+                resolved = path.resolve(strict=True)
+                resolved.relative_to(work_dir)
+            except (OSError, ValueError):
+                continue
+            _redact_failure_artifact(resolved, secret_values)
+            failure_artifacts[label] = resolved
+
+        structured_payload: Any = None
+        structured_error: Optional[str] = None
+        if invocation.result_manifest.is_file():
+            try:
+                result_path = invocation.result_manifest.resolve(strict=True)
+                result_path.relative_to(work_dir)
+                _redact_text_artifact(result_path, secret_values)
+                failure_artifacts["driver_result"] = result_path
+                structured_payload = json.loads(
+                    result_path.read_text(encoding="utf-8")
+                )
+            except (OSError, ValueError, json.JSONDecodeError) as exc:
+                structured_error = (
+                    "structured adapter failure marker is unreadable: "
+                    f"{type(exc).__name__}"
+                )
         if exit_code != 0:
+            structured_method = False
+            structured_reason = structured_error
+            if not timed_out and structured_payload is not None:
+                structured_method, structured_reason = (
+                    _structured_method_failure(
+                        invocation,
+                        structured_payload,
+                    )
+                )
+            metadata["structured_failure_marker"] = {
+                "present": structured_payload is not None
+                or structured_error is not None,
+                "valid_method_failure": structured_method,
+                "reason": structured_reason,
+            }
+            write_json_atomic(metadata_path, metadata)
             failure = self._failure(
                 f"{self.definition.name} subprocess failed with exit code "
-                f"{exit_code}",
+                f"{exit_code}"
+                + (
+                    f": {structured_reason}"
+                    if structured_reason is not None
+                    else ""
+                ),
                 artifacts=failure_artifacts,
             )
-            if timed_out and deadline_limited:
+            if structured_method or (timed_out and deadline_limited):
                 failure.failure_attribution = "method"
             raise failure
 
@@ -728,6 +866,23 @@ class ExternalBaselineProvider:
             except BaselineEvaluationError as exc:
                 for path in exc.artifacts.values():
                     _redact_text_artifact(path, secret_values)
+                method_output_failure = _evaluator_failure_is_method_output(
+                    exc,
+                    generated_code=Path(output_artifacts["code"]),
+                )
+                metadata["programmatic_evaluation_failure_classification"] = {
+                    "method_output_failure": method_output_failure,
+                    "timed_out": exc.timed_out,
+                    "basis": (
+                        "hash-bound static-validation rejection"
+                        if method_output_failure
+                        else (
+                            "evaluator timeout without phase proof"
+                            if exc.timed_out
+                            else "not proven to originate from method output"
+                        )
+                    ),
+                }
                 metadata["programmatic_evaluation_error"] = str(exc)
                 write_json_atomic(metadata_path, metadata)
                 failure = self._failure(
@@ -738,7 +893,7 @@ class ExternalBaselineProvider:
                         **exc.artifacts,
                     },
                 )
-                if exc.timed_out:
+                if method_output_failure:
                     failure.failure_attribution = "method"
                 raise failure from exc
             except Exception as exc:
@@ -830,6 +985,7 @@ class MatPlotAgentProvider(ExternalBaselineProvider):
         instruction = _case_instruction(case)
         config_path = request.output_dir / "baseline_input.json"
         result_path = request.output_dir / "driver_result.json"
+        adapter_invocation_id = uuid.uuid4().hex
         write_json_atomic(
             config_path,
             {
@@ -848,6 +1004,7 @@ class MatPlotAgentProvider(ExternalBaselineProvider):
                 ),
                 "table_files": [str(path) for path in copied_tables],
                 "result_path": str(result_path),
+                "adapter_invocation_id": adapter_invocation_id,
             },
         )
         driver = _write_driver(request.output_dir, _MATPLOT_DRIVER)
@@ -874,6 +1031,14 @@ class MatPlotAgentProvider(ExternalBaselineProvider):
             result_manifest=result_path,
             served_model=served_model,
             entrypoint=self.definition.entrypoints[mode],
+            method_failure_token=adapter_invocation_id,
+            failure_artifacts={
+                "matplot_workspace": str(
+                    request.output_dir / "workspace"
+                ),
+                "baseline_input": str(config_path),
+                "baseline_driver": str(driver),
+            },
         )
 
 
@@ -1096,10 +1261,35 @@ else:
 code_files = sorted(workspace.glob("code_action_*.py"))
 image_files = sorted(workspace.glob("*.png"))
 if not code_files or not image_files:
+    missing = []
+    if not code_files:
+        missing.append("code")
+    if not image_files:
+        missing.append("render")
+    Path(config["result_path"]).write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "status": "failed",
+                "adapter_invocation_id": config["adapter_invocation_id"],
+                "failure": {
+                    "source": "adapter_output_contract",
+                    "code": "missing_code_or_render",
+                    "attribution": "method",
+                    "missing_artifacts": sorted(missing),
+                },
+            },
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
     raise RuntimeError("MatPlotAgent did not produce both code and PNG output")
 Path(config["result_path"]).write_text(
     json.dumps(
         {
+            "schema_version": "1.0",
+            "status": "completed",
+            "adapter_invocation_id": config["adapter_invocation_id"],
             "code_path": str(code_files[-1]),
             "image_path": str(image_files[-1]),
             "log_path": str(workspace / "adapter.log"),
