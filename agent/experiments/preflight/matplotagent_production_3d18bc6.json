@@ -1,0 +1,131 @@
+{
+  "code": {
+    "git_commit": "3d18bc6cda838523ffba53ea5b5307997b762be3",
+    "git_dirty": false
+  },
+  "dataset": {
+    "case_count": 2,
+    "doi_count": 1,
+    "materialized_manifest_sha256": "02d82f71dc80155508031ae223b562b3fbb37215d5761fb00af1892301223781",
+    "panel_counts": [
+      1
+    ]
+  },
+  "execution": {
+    "completed": 12,
+    "failed": 0,
+    "methods": [
+      "matplotagent_native",
+      "pheroviz_model_spec"
+    ],
+    "record_count": 12,
+    "renders": 12,
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "text_model_calls_with_request_ids": 6,
+    "usage": {
+      "completion_tokens": 3154,
+      "prompt_tokens": 7167,
+      "total_tokens": 10321
+    },
+    "vlm_calls": 0
+  },
+  "generated_at": "2026-07-13T13:40:50.964380Z",
+  "records": [
+    {
+      "record_hash": "191d7cb866deeda1fd54ecd091e3600527c1c5e6abeca7b4b1354ed1bbf88793",
+      "run_name": "baseline-matplotagent-single-renderable-v1-gpt4omini-r1__case-case-s41467-022-30582-3-figure2-paneld-ff845a0a901a__method-matplotagent_native__backbone-gpt-4o-mini__seed-0__budget-renders-1",
+      "run_record_file_sha256": "88815f6bcd7ee1235d05f3084d1baee73c41ceab2bd2c9d678b6f0a29d063bed",
+      "spec_hash": "05cf520535b5352c80d16dd9a505f46d6a42ed3b8a363291ae78001ece34d3f0"
+    },
+    {
+      "record_hash": "8845c9f8208b269a8d9d758143c6699f236210075fdc7c1039ebc571e1723980",
+      "run_name": "baseline-matplotagent-single-renderable-v1-gpt4omini-r1__case-case-s41467-022-30582-3-figure2-paneld-ff845a0a901a__method-matplotagent_native__backbone-gpt-4o-mini__seed-1__budget-renders-1",
+      "run_record_file_sha256": "d69e7a0794a8ac347121c0362c529710809a1e6dae4947965cebb3edbf84a5a2",
+      "spec_hash": "3a0024943419d7f66522ceec9ef0ba1163173c75933ae87ecd0a002b3a4e19b9"
+    },
+    {
+      "record_hash": "9eae301d50d2ef69f7d123ed3bc6bf5d37bc039df7dc2a7dfc9ef559d1c2d772",
+      "run_name": "baseline-matplotagent-single-renderable-v1-gpt4omini-r1__case-case-s41467-022-30582-3-figure2-paneld-ff845a0a901a__method-matplotagent_native__backbone-gpt-4o-mini__seed-2__budget-renders-1",
+      "run_record_file_sha256": "473e023b12e86c04baca44611e68e4c66870cf45c83f746deea3ca244e71982d",
+      "spec_hash": "130138ea655f05861aa46154ccb791a45ee4892ae414150c34b6f1f4bdfa2afe"
+    },
+    {
+      "record_hash": "2693391c5ae8abaffe2c9c2b8fe3fabc7dd83c7c541bd35b0283cf60d5fcb780",
+      "run_name": "baseline-matplotagent-single-renderable-v1-gpt4omini-r1__case-case-s41467-022-30582-3-figure2-paneld-ff845a0a901a__method-pheroviz_model_spec__backbone-gpt-4o-mini__seed-0__budget-renders-1",
+      "run_record_file_sha256": "d2f0072e9462cf8ea851cf7ad0c42089f3d99b3467b3f1d4d78771c3def1517f",
+      "spec_hash": "94dde45f865b67949d0fd81684a7bd2bf1d2abdf254fa4a1392cd9df184780e4"
+    },
+    {
+      "record_hash": "516107db8523467bb898e67c8b94f1cd70b3900908a097e1da2fa7fb03824e71",
+      "run_name": "baseline-matplotagent-single-renderable-v1-gpt4omini-r1__case-case-s41467-022-30582-3-figure2-paneld-ff845a0a901a__method-pheroviz_model_spec__backbone-gpt-4o-mini__seed-1__budget-renders-1",
+      "run_record_file_sha256": "b42e9c764bd983b9e71f315706e736d057088065473a664ebdd4a470a14dd3cb",
+      "spec_hash": "c15b7f2b9a61a78e5a62a516452735b0e89a2bbd0a0c3e4cd70e3e647326bb52"
+    },
+    {
+      "record_hash": "47e7f050da59916adb4743460772a29d8693976f5f7015de943b01e6ccf4c6c9",
+      "run_name": "baseline-matplotagent-single-renderable-v1-gpt4omini-r1__case-case-s41467-022-30582-3-figure2-paneld-ff845a0a901a__method-pheroviz_model_spec__backbone-gpt-4o-mini__seed-2__budget-renders-1",
+      "run_record_file_sha256": "4633c356a5e81164a7cd5206c16f18a4f81005a78e9e33586f55936f528c5bd3",
+      "spec_hash": "fca55ec6f943cf3011c6ca5efc1fcd0760fd52001e5ea36cb2a5fc00933ca729"
+    },
+    {
+      "record_hash": "276ec5ae01ce85ec24f2322ca6dcce8ec84d2c6929c858cf984dfed518db0431",
+      "run_name": "baseline-matplotagent-single-renderable-v1-gpt4omini-r1__case-case-s41467-022-30582-3-figure5-paneld-a54aba949d21__method-matplotagent_native__backbone-gpt-4o-mini__seed-0__budget-renders-1",
+      "run_record_file_sha256": "917f53efc206838cd5b8a689454183d4661b710bb7c7ee78f525eea97dbc3e41",
+      "spec_hash": "eca969b864a0bf0e0a04a0c67d950d40724ea24e57844b1641f748015ad3c582"
+    },
+    {
+      "record_hash": "e26e73d7d5a6a7b2d4e66f8a1e0db4256f823d09a991a03fb9b7e2ef530a7192",
+      "run_name": "baseline-matplotagent-single-renderable-v1-gpt4omini-r1__case-case-s41467-022-30582-3-figure5-paneld-a54aba949d21__method-matplotagent_native__backbone-gpt-4o-mini__seed-1__budget-renders-1",
+      "run_record_file_sha256": "4f96641a8c56bdb0c68e241ace8633d2438903bb6f6fd52bf06c732a927f9eac",
+      "spec_hash": "4979e8744283a80af669465a2be66b182395a79a10c0ce5918385fe1bc7e7219"
+    },
+    {
+      "record_hash": "3759cd9f5bb11ebeb1a02b1ace6d76d18463211ad2d667fb986ded37aad3ac28",
+      "run_name": "baseline-matplotagent-single-renderable-v1-gpt4omini-r1__case-case-s41467-022-30582-3-figure5-paneld-a54aba949d21__method-matplotagent_native__backbone-gpt-4o-mini__seed-2__budget-renders-1",
+      "run_record_file_sha256": "22e54f087ac1e4cd4ba0beb1e406cfb8456027aa276a053388e08919a9de75e8",
+      "spec_hash": "c1ecfad95865bb34bcc669794ee51dec529efc1f87b1d68e5e5dc605fc0c4793"
+    },
+    {
+      "record_hash": "d6f075600dd0de849ca93ab28d8793781a6785f77b6cf57ef7ddb39c31831899",
+      "run_name": "baseline-matplotagent-single-renderable-v1-gpt4omini-r1__case-case-s41467-022-30582-3-figure5-paneld-a54aba949d21__method-pheroviz_model_spec__backbone-gpt-4o-mini__seed-0__budget-renders-1",
+      "run_record_file_sha256": "d57311b9f1304cdfe8e6eb7d0fa2f5f21412dfccab9bc32444e8fc6adfd77714",
+      "spec_hash": "ca33e47f7639a60f42f9fba5b091bcc42ef4f7b3c885dfc1c66e27559fdef331"
+    },
+    {
+      "record_hash": "4b0abf5605d3b70087da3c648919bd9697f8c859a97dbbb4df28f4ea1f264189",
+      "run_name": "baseline-matplotagent-single-renderable-v1-gpt4omini-r1__case-case-s41467-022-30582-3-figure5-paneld-a54aba949d21__method-pheroviz_model_spec__backbone-gpt-4o-mini__seed-1__budget-renders-1",
+      "run_record_file_sha256": "a71faafa406222748728ae024ba40fe26da497482f7fb2c1a0e219db659eeefa",
+      "spec_hash": "ab7a4b5f8ed333fdd03a1d9f66ff233652c7f025503cf7e3727ae8e210879aab"
+    },
+    {
+      "record_hash": "58ffb44876e3087f10f39cd2baac4a785ee9a3b632b0038cb9fbc8d93532a4ef",
+      "run_name": "baseline-matplotagent-single-renderable-v1-gpt4omini-r1__case-case-s41467-022-30582-3-figure5-paneld-a54aba949d21__method-pheroviz_model_spec__backbone-gpt-4o-mini__seed-2__budget-renders-1",
+      "run_record_file_sha256": "0eb2b9dc935177f06d66dde28fb6031e44ece3545bd96d58c71e2b1208e3f4ac",
+      "spec_hash": "00ce55d97a131db16f0338ad1ccbffc99f4fce7f20f5d659dd5e380c1c7b824a"
+    }
+  ],
+  "report_hash": "7242cad482b69416cc7fc5e437adb9a6763faf355340bcacb341126b306cfb9e",
+  "reporting_policy": "Report execution success and fidelity descriptively; do not compute DOI-clustered significance or any cohesion claim from this one-DOI subtrack.",
+  "schema_version": "1.0",
+  "scientific_inference_status": "blocked_fewer_than_two_doi_clusters",
+  "status": "completed_descriptive_only",
+  "subtrack": {
+    "baseline": "MatPlotAgent",
+    "cohesion": "NA",
+    "external_repo_commit": "9cafa262aae7bdf85fccf6d02b2153fb772bc376",
+    "input_track": "table_instruction",
+    "license_status": "not_declared"
+  },
+  "validation": {
+    "all_artifact_hashes_verified": true,
+    "secrets_absent": true,
+    "strict_aggregate_passed": true,
+    "summary_file_sha256": "07bd714ae5e6734ac0e6e821c697ac3620ae83758760e954bf936c741ea8d4ef",
+    "summary_hash": "367a5345b357eff856d4f40313b898189d2e3af80d2790e5ee1b658ddb1d692a",
+    "summary_path": "/Users/tommy/Downloads/mayi/PheroViz-portable-3d18bc6/agent/experiments/runs/production/_summaries/baseline_matplotagent_single_renderable_v1_gpt4omini_r1/summary.json"
+  }
+}
