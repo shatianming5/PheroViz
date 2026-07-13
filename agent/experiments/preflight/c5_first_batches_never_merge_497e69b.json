@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0",
+  "status": "ABORTED_NEVER_MERGE",
+  "code_commit": "497e69b91c6ec7774057aba03cc5b8ff9153c5cc",
+  "batches": {
+    "frontier.primary": {
+      "batch_hash": "48edc919db9f9e35f3f47787543d1b66730022eb3f167446b712c283abbae60c",
+      "completed": 0,
+      "failed": 171
+    },
+    "frontier.secondary": {
+      "batch_hash": "1468a89b362b47f3866d0f926fa10b9a45ba14f2b8e396b335d1665b4094661d",
+      "completed": 151,
+      "failed": 20
+    },
+    "mid.primary": {
+      "batch_hash": "717117e0c216c7b0e221a5ff23d6477bc87e024c44a34cd507e2ae2b5972775c",
+      "completed": 0,
+      "failed": 171
+    },
+    "mid.secondary": {
+      "batch_hash": "f38cb0c0896f4354cd43f409fff5751f5669542ce436b5dd47ca6baa40791ff2",
+      "completed": 159,
+      "failed": 12
+    },
+    "open.primary": {
+      "batch_hash": "4a97889cf8841af47a1429367211a1f636168d11418148d20007024888d6287b",
+      "completed": 0,
+      "failed": 171
+    },
+    "open.secondary": {
+      "batch_hash": "206c8b3b725954cb7564c83da5fa4f5b15f5dcb87d71244e43cd1c73db64229a",
+      "completed": 161,
+      "failed": 10
+    }
+  },
+  "failure_classes": {
+    "primary_served_identity_alias_mismatch": 513,
+    "secondary_invalid_schema_or_diagnostics": 27,
+    "secondary_empty_max_tokens": 15
+  },
+  "policy": {
+    "scores_used": false,
+    "partial_batches_mergeable": false,
+    "favorable_rows_selected": false,
+    "required_next_action": "Fix canonical served identity and predeclare bounded invalid-response attempts, then rerun every tier/judge batch from a clean commit."
+  }
+}
