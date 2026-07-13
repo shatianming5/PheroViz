@@ -7,6 +7,7 @@ import json
 import math
 import os
 import random
+import re
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -43,6 +44,64 @@ class ProviderExecutionError(ProviderError):
     ) -> None:
         super().__init__(message)
         self.artifacts = dict(artifacts or {})
+
+
+_ITERATION_PRIMARY_RE = re.compile(r"^iteration_([1-9][0-9]*)\.json$")
+_ITERATION_TIMING_RE = re.compile(
+    r"^iteration_([1-9][0-9]*)\.timing\.json$"
+)
+
+
+def _discover_single_chain_iterations(
+    run_dir: Path,
+) -> list[tuple[int, Path, Path]]:
+    primary: dict[int, Path] = {}
+    timing: dict[int, Path] = {}
+    try:
+        entries = tuple(run_dir.iterdir())
+    except OSError as exc:
+        raise ProviderExecutionError(
+            f"Cannot inspect core run directory {run_dir}: {exc}"
+        ) from exc
+    for path in entries:
+        if not path.name.startswith("iteration_"):
+            continue
+        primary_match = _ITERATION_PRIMARY_RE.fullmatch(path.name)
+        timing_match = _ITERATION_TIMING_RE.fullmatch(path.name)
+        if primary_match is not None:
+            target = primary
+            round_number = int(primary_match.group(1))
+        elif timing_match is not None:
+            target = timing
+            round_number = int(timing_match.group(1))
+        else:
+            raise ProviderExecutionError(
+                f"Core runner produced invalid iteration artifact name: {path.name}"
+            )
+        if not path.is_file() or path.is_symlink():
+            raise ProviderExecutionError(
+                f"Core iteration artifact is not a regular file: {path}"
+            )
+        target[round_number] = path
+
+    if not primary:
+        raise ProviderExecutionError("Core runner produced no iteration records")
+    expected_rounds = set(range(1, max(primary) + 1))
+    if set(primary) != expected_rounds:
+        raise ProviderExecutionError(
+            "Single-chain iteration filenames are not a contiguous trajectory"
+        )
+    if set(timing) != expected_rounds:
+        missing = sorted(expected_rounds - set(timing))
+        unexpected = sorted(set(timing) - expected_rounds)
+        raise ProviderExecutionError(
+            "Single-chain timing sidecars do not exactly match primary iterations: "
+            f"missing={missing}, unexpected={unexpected}"
+        )
+    return [
+        (round_number, primary[round_number], timing[round_number])
+        for round_number in sorted(expected_rounds)
+    ]
 
 
 @dataclass(frozen=True)
@@ -420,13 +479,11 @@ class SingleChainProvider:
                 "Core runner wrote artifacts outside the allocated provider directory"
             ) from exc
 
-        iteration_paths = sorted(discovered_run_dir.glob("iteration_*.json"))
-        if not iteration_paths:
-            raise ProviderExecutionError("Core runner produced no iteration records")
+        iterations = _discover_single_chain_iterations(discovered_run_dir)
 
         candidates: list[CandidateResult] = []
         previous_cumulative_wall_clock = 0.0
-        for expected_round, iteration_path in enumerate(iteration_paths, 1):
+        for expected_round, iteration_path, timing_path in iterations:
             try:
                 iteration = json.loads(iteration_path.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError) as exc:
@@ -475,14 +532,15 @@ class SingleChainProvider:
             }
             artifacts = {"iteration": str(iteration_path)}
             round_number = iteration.get("round")
-            if round_number != expected_round:
+            if (
+                isinstance(round_number, bool)
+                or not isinstance(round_number, int)
+                or round_number != expected_round
+            ):
                 raise ProviderExecutionError(
                     "Single-chain iterations are not a contiguous trajectory: "
                     f"expected {expected_round}, got {round_number!r}"
                 )
-            timing_path = (
-                discovered_run_dir / f"iteration_{round_number}.timing.json"
-            )
             try:
                 timing = json.loads(timing_path.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError) as exc:
@@ -492,6 +550,8 @@ class SingleChainProvider:
             if (
                 not isinstance(timing, Mapping)
                 or timing.get("schema_version") != "1.0"
+                or isinstance(timing.get("round"), bool)
+                or not isinstance(timing.get("round"), int)
                 or timing.get("round") != round_number
                 or timing.get("archive_boundary")
                 != "after_iteration_json_archive_before_timing_sidecar"

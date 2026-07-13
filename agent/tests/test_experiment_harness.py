@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from app.services import single_chain_runner
 from experiments.aggregate import verify_frozen_manifest
 from experiments.harness import execute_experiment
 from experiments.manifest import DatasetCase, verify_case_data_files
@@ -188,6 +189,167 @@ def test_single_chain_rejects_source_data_changed_after_manifest() -> None:
         data.write_text("x,y\n0,999\n", encoding="utf-8")
 
         with pytest.raises(ProviderExecutionError, match="SHA-256 changed"):
+            SingleChainProvider().generate(request)
+
+
+def _single_chain_provider_request(
+    workspace: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    near_match: str | None = None,
+    timing_mutation: str | None = None,
+    round_numbers: tuple[int, ...] = (1, 2),
+) -> GenerationRequest:
+    data = workspace / "case.csv"
+    data.write_text("x,y\n0,1\n", encoding="utf-8")
+    manifest = write_manifest(
+        workspace,
+        [
+            {
+                "case_id": "case-001",
+                "panel_count": 1,
+                "split": "test",
+                "data_path": str(data),
+                "data_sha256": sha256_file(data),
+                "user_goal": "Plot y by x",
+                "chart_family": "line",
+                "evaluation_expectation": {},
+                "eligible_for_experiment": True,
+            }
+        ],
+    )
+    spec = make_spec(
+        workspace,
+        run_name="single-chain-discovery",
+        schedule="iterative",
+        budget_value=2,
+    )
+    output_dir = workspace / "provider-output"
+    output_dir.mkdir()
+
+    def fake_run_chain(*args: object, **kwargs: object) -> None:
+        run_dir = single_chain_runner.RUNS_DIR / "provider-regression"
+        run_dir.mkdir(parents=True)
+        progress_callback = kwargs["progress_callback"]
+        assert callable(progress_callback)
+        progress_callback("run_directory_ready", {"path": str(run_dir)})
+        for round_number in round_numbers:
+            iteration_path = run_dir / f"iteration_{round_number}.json"
+            iteration_path.write_text(
+                json.dumps(
+                    {
+                        "round": round_number,
+                        "scores": {"score": round_number / 2},
+                        "png_path": f"figure_round_{round_number}.png",
+                        "programmatic_evaluation": {},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            timing = {
+                "schema_version": "1.0",
+                "round": round_number,
+                "archive_boundary": (
+                    "after_iteration_json_archive_before_timing_sidecar"
+                ),
+                "iteration_path": str(iteration_path.resolve()),
+                "iteration_sha256": sha256_file(iteration_path),
+                "cumulative_wall_clock_seconds": float(round_number),
+            }
+            if timing_mutation == "hash" and round_number == 2:
+                timing["iteration_sha256"] = "0" * 64
+            if timing_mutation == "round_bool" and round_number == 1:
+                timing["round"] = True
+            if timing_mutation != "missing" or round_number != 2:
+                (run_dir / f"iteration_{round_number}.timing.json").write_text(
+                    json.dumps(timing),
+                    encoding="utf-8",
+                )
+        if near_match is not None:
+            (run_dir / near_match).write_text("{}", encoding="utf-8")
+
+    monkeypatch.setattr(single_chain_runner, "run_chain", fake_run_chain)
+    return GenerationRequest(
+        spec=spec,
+        dataset_manifest_path=manifest,
+        output_dir=output_dir,
+        call_index=1,
+        remaining_renders=2,
+        remaining_seconds=None,
+        deadline_monotonic=None,
+        history=(),
+        previous_candidate=None,
+    )
+
+
+def test_single_chain_discovers_primary_iterations_separately_from_timing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with experiment_workspace("single-chain-discovery") as workspace:
+        request = _single_chain_provider_request(workspace, monkeypatch)
+
+        batch = SingleChainProvider().generate(request)
+
+        assert [candidate.metadata["core_round"] for candidate in batch.candidates] == [
+            1,
+            2,
+        ]
+        assert all(
+            Path(candidate.artifacts["iteration_timing"]).name
+            == f"iteration_{candidate.metadata['core_round']}.timing.json"
+            for candidate in batch.candidates
+        )
+
+
+@pytest.mark.parametrize(
+    "near_match",
+    ["iteration_0.json", "iteration_01.json", "iteration_1.extra.json"],
+)
+def test_single_chain_rejects_near_match_iteration_names(
+    monkeypatch: pytest.MonkeyPatch,
+    near_match: str,
+) -> None:
+    with experiment_workspace("single-chain-near-match") as workspace:
+        request = _single_chain_provider_request(
+            workspace,
+            monkeypatch,
+            near_match=near_match,
+        )
+
+        with pytest.raises(
+            ProviderExecutionError,
+            match="invalid iteration artifact name",
+        ):
+            SingleChainProvider().generate(request)
+
+
+@pytest.mark.parametrize("timing_mutation", ["missing", "hash", "round_bool"])
+def test_single_chain_requires_hash_bound_timing_sidecars(
+    monkeypatch: pytest.MonkeyPatch,
+    timing_mutation: str,
+) -> None:
+    with experiment_workspace("single-chain-timing-binding") as workspace:
+        request = _single_chain_provider_request(
+            workspace,
+            monkeypatch,
+            timing_mutation=timing_mutation,
+        )
+
+        with pytest.raises(ProviderExecutionError, match="timing"):
+            SingleChainProvider().generate(request)
+
+
+def test_single_chain_rejects_noncontiguous_primary_filenames(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with experiment_workspace("single-chain-noncontiguous") as workspace:
+        request = _single_chain_provider_request(
+            workspace,
+            monkeypatch,
+            round_numbers=(1, 3),
+        )
+
+        with pytest.raises(ProviderExecutionError, match="not a contiguous"):
             SingleChainProvider().generate(request)
 
 

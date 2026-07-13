@@ -1,0 +1,95 @@
+experiment_name: c3-memory-modes-final-benchmark-v2-seed0-br6
+dataset_manifest: ../../../nature_download/outputs/combined_verified_400/final_benchmark_renderable_v1_seed0/benchmark_manifest.json
+dataset_manifest_sha256: 6c6c5cb50603d899a9be0f41c9e562517c92ae15477610e9111f6504cd1757b3
+dataset_mode: sealed_benchmark
+artifact_root: ../runs/production/c3_memory_modes_final_benchmark_v2_seed0_br6_gpt56sol
+provider: experiments.providers:UnifiedBenchmarkProvider
+methods:
+- name: memory_none
+  schedule: iterative
+  memory_mode: none
+  initial_generation: model_spec
+  render_timeout_seconds: 120
+- name: memory_ephemeral
+  schedule: iterative
+  memory_mode: ephemeral
+  initial_generation: model_spec
+  render_timeout_seconds: 120
+- name: memory_untyped
+  schedule: iterative
+  memory_mode: untyped
+  initial_generation: model_spec
+  render_timeout_seconds: 120
+- name: memory_constraints
+  schedule: iterative
+  memory_mode: constraints
+  initial_generation: model_spec
+  render_timeout_seconds: 120
+- name: memory_patches
+  schedule: iterative
+  memory_mode: patches
+  initial_generation: model_spec
+  render_timeout_seconds: 120
+- name: memory_full
+  schedule: iterative
+  memory_mode: full
+  initial_generation: model_spec
+  render_timeout_seconds: 120
+backbones:
+- gpt-5.6-sol
+seeds:
+- 0
+- 1
+- 2
+budgets:
+- type: renders
+  value: 6
+case_ids:
+- multi-s41467-021-25210-5-figure2-63db04e10c86
+- multi-s41467-023-38847-1-figure3-d1bf6bf37a26
+- multi-s41467-023-42692-7-figure1-a9a94a3008e4
+splits:
+- test
+metric:
+  version: programmatic-v2
+  config:
+    selection:
+      metric: data_fidelity
+      direction: maximize
+materialization:
+  schema_version: '1.1'
+  outcome_inputs_read: false
+  repository_commit: de32fbfe7b3c70db464ca5e47877d05861e2c5e8
+  builder_path: agent/experiments/c3_matrix_builder.py
+  builder_sha256: 95a0116a28111a664ea86f5b31d02fe546e3764d19722953d5c56ac4a0fca6ac
+  code_file_hashes:
+    agent/experiments/c3_matrix_builder.py: 95a0116a28111a664ea86f5b31d02fe546e3764d19722953d5c56ac4a0fca6ac
+    agent/experiments/c3_runtime_materializer.py: 18e417499a6e39b227c24386b04fd0a562a7badd281a2ff6f10fc7475b9c827e
+    agent/experiments/matrix.py: 84037ba4f8e669f59b46c9adcbef22e3eca9886cf3c294491c02a6b2e774a020
+    agent/experiments/manifest.py: 5414ef99077c6a213b573b6a04db9ae76d8be894c8bd78b827cbe810c4d8e1a5
+    agent/experiments/providers.py: 0138e1273dfbab87a20c504a57c9e9589b9e4f2d1e9a94b89ef94e2ccff882f9
+  code_bundle_hash: a37f503b05d805a8ef99b14ea5918d8425140e993619477b1823bfc4070ab112
+  parent_manifest_path: nature_download/outputs/combined_verified_400/final_benchmark_renderable_v1_seed0/benchmark_manifest.json
+  parent_manifest_file_sha256: 6c6c5cb50603d899a9be0f41c9e562517c92ae15477610e9111f6504cd1757b3
+  parent_manifest_semantic_sha256: 747a4587ce03c1bb3f7dbd6e0caa90ce30807098cf0db1407566dae4ef850bf6
+  parent_source_binding_hash: ae6c2142b05b3e690bcbed6ea9c01f73fc349540118e2cdd29070b6b6b310013
+  selected_cases:
+  - case_id: multi-s41467-021-25210-5-figure2-63db04e10c86
+    doi: 10.1038/s41467-021-25210-5
+    panel_count: 6
+  - case_id: multi-s41467-023-38847-1-figure3-d1bf6bf37a26
+    doi: 10.1038/s41467-023-38847-1
+    panel_count: 2
+  - case_id: multi-s41467-023-42692-7-figure1-a9a94a3008e4
+    doi: 10.1038/s41467-023-42692-7
+    panel_count: 3
+  selected_case_count: 3
+  selected_case_set_hash: d297082f44f44cae5d9d5435c89d1a9f75b4d7a021ece791ea5edb319b078670
+  selected_dois:
+  - 10.1038/s41467-021-25210-5
+  - 10.1038/s41467-023-38847-1
+  - 10.1038/s41467-023-42692-7
+  selected_doi_count: 3
+  selected_doi_set_hash: 8958abbcab404b31b25f6e3966e7d81fb369bebc5fae05f673f26dea9aeaddba
+  expected_run_count: 54
+  contract_hash: 0780093923eb3b0631914eb2e154b33488406cd044ddeb3d0d7026a886695aa0
