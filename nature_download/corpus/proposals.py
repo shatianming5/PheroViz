@@ -34,6 +34,53 @@ DEFAULT_MAX_COLUMNS = 64
 PROPOSAL_RULE_V1 = "simple-2d-v1"
 PROPOSAL_RULE_V2 = "simple-2d-v2"
 CURRENT_PROPOSAL_RULE = PROPOSAL_RULE_V2
+MAX_BAR_CATEGORICAL_X = 200
+RENDERABILITY_POLICY_ID = "outcome-independent-static-renderability-v1"
+RENDERABILITY_POLICY_HASH = (
+    "283f0520bf1fda98773958602be6206c1776c573a00273391dbfeb6acd565cec"
+)
+RENDERABILITY_RULE_ID = "bar-column-categorical-x-cardinality"
+BAR_CARDINALITY_REJECTION = "bar_categorical_x_exceeds_200"
+RENDERABILITY_POLICY: dict[str, Any] = {
+    "schema_version": SCHEMA_VERSION,
+    "policy_id": RENDERABILITY_POLICY_ID,
+    "declared_inputs": [
+        "source_table",
+        "source_sheet",
+        "evaluation_expectation",
+    ],
+    "forbidden_inputs": [
+        "run_records",
+        "method_names",
+        "method_scores",
+        "failed_case_ids",
+        "production_artifacts",
+    ],
+    "split_scope": ["train", "val", "test"],
+    "panel_scope": "every_panel",
+    "multi_panel_rule": "reject_case_if_any_panel_fails",
+    "rules": [
+        {
+            "rule_id": RENDERABILITY_RULE_ID,
+            "expectation_series_kinds": ["bar"],
+            "semantic_families": ["bar", "column"],
+            "max_unique_categorical_x_per_panel": MAX_BAR_CATEGORICAL_X,
+            "comparison": "less_than_or_equal",
+            "x_counting": (
+                "union_of_resolved_bar_series_x_after_expectation_filters"
+            ),
+            "missing_x_values": "count_as_one_category",
+        }
+    ],
+    "audit_counting": {
+        "series_count": "all_expected_series_in_panel",
+        "expected_points": (
+            "sum_per_series_max_resolved_x_y_value_length"
+        ),
+    },
+    "explicitly_uncapped_series_kinds": ["line", "scatter"],
+    "non_bar_cardinality_action": "no_cap",
+}
 RUN_ORDER_COLUMN_PATTERN = re.compile(
     r"run[\s_.-]*order",
     flags=re.I,
@@ -54,9 +101,15 @@ SUFFIX_UNIT_PATTERN = re.compile(
 class ProposalRejected(ValueError):
     """A deterministic rejection with one or more machine-readable reasons."""
 
-    def __init__(self, *reasons: str, detail: str | None = None) -> None:
+    def __init__(
+        self,
+        *reasons: str,
+        detail: str | None = None,
+        audit: dict[str, Any] | None = None,
+    ) -> None:
         self.reasons = tuple(sorted(set(reasons or ("proposal-rejected",))))
         self.detail = detail
+        self.audit = deepcopy(audit) if audit is not None else None
         super().__init__(",".join(self.reasons))
 
 
@@ -94,6 +147,102 @@ class TableAnalysis:
     rows: int
     columns: int
     non_null_y: dict[str, int]
+
+
+def _canonical_json(value: Any) -> str:
+    return json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    )
+
+
+def _validate_renderability_policy() -> None:
+    actual = hashlib.sha256(
+        _canonical_json(RENDERABILITY_POLICY).encode("utf-8")
+    ).hexdigest()
+    if (
+        actual != RENDERABILITY_POLICY_HASH
+        or RENDERABILITY_POLICY["policy_id"] != RENDERABILITY_POLICY_ID
+        or RENDERABILITY_POLICY["rules"][0][
+            "max_unique_categorical_x_per_panel"
+        ]
+        != MAX_BAR_CATEGORICAL_X
+    ):
+        raise RuntimeError("renderability-policy-mutated")
+
+
+def _value_identity(value: Any) -> str:
+    try:
+        missing = bool(pd.isna(value))
+    except (TypeError, ValueError):
+        missing = False
+    if missing:
+        return "missing:null"
+    if hasattr(value, "item"):
+        try:
+            value = value.item()
+        except (TypeError, ValueError):
+            pass
+    try:
+        encoded = _canonical_json(value)
+    except (TypeError, ValueError):
+        encoded = _canonical_json(str(value))
+    return f"{type(value).__name__}:{encoded}"
+
+
+def _renderability_audit(
+    frame: Any,
+    analysis: TableAnalysis,
+) -> dict[str, Any]:
+    _validate_renderability_policy()
+    bar_series_count = (
+        len(analysis.y) if analysis.chart_family == "bar" else 0
+    )
+    identities: set[str] = set()
+    if bar_series_count:
+        resolved_x = frame[analysis.x].tolist()
+        for _ in analysis.y:
+            identities.update(_value_identity(value) for value in resolved_x)
+        unique_categorical_x: int | None = len(identities)
+        if unique_categorical_x > MAX_BAR_CATEGORICAL_X:
+            decision = "rejected"
+            reason = BAR_CARDINALITY_REJECTION
+        else:
+            decision = "accepted"
+            reason = "bar_categorical_x_at_or_below_200"
+    else:
+        unique_categorical_x = None
+        decision = "accepted"
+        reason = "non_bar_or_column_no_cardinality_cap"
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "policy_id": RENDERABILITY_POLICY_ID,
+        "policy_hash": RENDERABILITY_POLICY_HASH,
+        "rule_id": RENDERABILITY_RULE_ID,
+        "decision": decision,
+        "reason": reason,
+        "chart_family": analysis.chart_family,
+        "bar_series_count": bar_series_count,
+        "unique_categorical_x": unique_categorical_x,
+        "max_unique_categorical_x_per_panel": MAX_BAR_CATEGORICAL_X,
+        "x_counting": (
+            "union_of_resolved_bar_series_x_after_expectation_filters"
+        ),
+        "missing_x_values": "count_as_one_category",
+    }
+
+
+def _candidate_group_key(
+    value: dict[str, Any],
+) -> tuple[str, int] | None:
+    doi = str(value.get("doi") or "")
+    figure_no = value.get("figure_no")
+    if not doi or not isinstance(figure_no, int):
+        return None
+    return doi, figure_no
 
 
 def _require_dependencies() -> None:
@@ -500,6 +649,18 @@ def propose_single_candidate(
         max_columns=max_columns,
     )
     analysis = analyze_table(frame, rule_version=rule_version)
+    renderability = _renderability_audit(frame, analysis)
+    if renderability["decision"] != "accepted":
+        raise ProposalRejected(
+            str(renderability["reason"]),
+            detail=(
+                "unique_categorical_x="
+                f"{renderability['unique_categorical_x']};"
+                f"max={MAX_BAR_CATEGORICAL_X};"
+                f"policy={RENDERABILITY_POLICY_ID}"
+            ),
+            audit=renderability,
+        )
     expectation = _single_expectation(candidate, analysis)
     source = candidate.get("source_table") or {}
     panel_id = str(candidate["panel_ids"][0])
@@ -536,6 +697,9 @@ def propose_single_candidate(
         {
             "proposal_type": "single_panel",
             "proposal_rule_version": rule_version,
+            "renderability_policy_id": RENDERABILITY_POLICY_ID,
+            "renderability_policy_hash": RENDERABILITY_POLICY_HASH,
+            "renderability_audit": renderability,
             "curation_status": "proposed",
             "eligible_for_experiment": False,
             "eligibility_reasons": ["external-validation-required"],
@@ -547,6 +711,9 @@ def propose_single_candidate(
                 "y": list(analysis.y),
                 "x_mode": analysis.x_mode,
                 "chart_family": analysis.chart_family,
+                "unique_categorical_x": renderability[
+                    "unique_categorical_x"
+                ],
                 "units": analysis.units,
                 "non_null_y": analysis.non_null_y,
             },
@@ -557,16 +724,46 @@ def propose_single_candidate(
     return proposal
 
 
+def _validated_proposal_renderability(
+    proposal: dict[str, Any],
+) -> dict[str, Any]:
+    frame = read_candidate_table(proposal)
+    analysis = analyze_table(
+        frame,
+        rule_version=_resolve_proposal_rule_version(proposal),
+    )
+    computed = _renderability_audit(frame, analysis)
+    declared = proposal.get("renderability_audit")
+    if declared is not None and declared != computed:
+        raise ValueError("proposal-renderability-audit-mismatch")
+    if computed["decision"] != "accepted":
+        raise ProposalRejected(
+            str(computed["reason"]),
+            detail=(
+                "multi-constituent-unique_categorical_x="
+                f"{computed['unique_categorical_x']};"
+                f"max={MAX_BAR_CATEGORICAL_X}"
+            ),
+            audit=computed,
+        )
+    return computed
+
+
 def _multi_panel_proposals(
     singles: list[dict[str, Any]],
     *,
     input_candidates_sha256: str,
     code_commit: str,
+    blocked_groups: set[tuple[str, int]] | None = None,
 ) -> list[dict[str, Any]]:
     grouped: dict[tuple[str, int], list[dict[str, Any]]] = {}
     rule_versions: dict[int, str] = {}
+    renderability_audits: dict[int, dict[str, Any]] = {}
     for proposal in singles:
         rule_versions[id(proposal)] = _resolve_proposal_rule_version(proposal)
+        renderability_audits[id(proposal)] = (
+            _validated_proposal_renderability(proposal)
+        )
         doi = str(proposal.get("doi") or "")
         figure_no = proposal.get("figure_no")
         if doi and isinstance(figure_no, int):
@@ -574,6 +771,8 @@ def _multi_panel_proposals(
 
     results: list[dict[str, Any]] = []
     for (doi, figure_no), group in sorted(grouped.items()):
+        if blocked_groups and (doi, figure_no) in blocked_groups:
+            continue
         by_panel: dict[str, list[dict[str, Any]]] = {}
         for proposal in group:
             panel_id = str(proposal["panel_ids"][0])
@@ -598,6 +797,7 @@ def _multi_panel_proposals(
         article_id = doi.split("/", 1)[-1]
         case_id = f"multi-{article_id}-figure{figure_no}-{digest}"
         panels = []
+        panel_renderability = []
         expectation_panels = []
         x_scales: list[str] = []
         x_units: list[str | None] = []
@@ -613,6 +813,12 @@ def _multi_panel_proposals(
                     "user_goal": case["user_goal"],
                     "chart_family": case["chart_family"],
                     "intent": case["intent"],
+                }
+            )
+            panel_renderability.append(
+                {
+                    "panel_id": panel_id,
+                    **renderability_audits[id(proposal)],
                 }
             )
             panel_expectation = case["evaluation_expectation"]["panels"][0]
@@ -670,6 +876,17 @@ def _multi_panel_proposals(
                 "candidate_id": case_id,
                 "proposal_type": "multi_panel",
                 "proposal_rule_version": rule_version,
+                "renderability_policy_id": RENDERABILITY_POLICY_ID,
+                "renderability_policy_hash": RENDERABILITY_POLICY_HASH,
+                "renderability_audit": {
+                    "schema_version": SCHEMA_VERSION,
+                    "policy_id": RENDERABILITY_POLICY_ID,
+                    "policy_hash": RENDERABILITY_POLICY_HASH,
+                    "decision": "accepted",
+                    "reason": "all_constituent_panels_pass",
+                    "multi_panel_rule": "reject_case_if_any_panel_fails",
+                    "panels": panel_renderability,
+                },
                 "source_candidate_ids": source_ids,
                 "doi": doi,
                 "figure_no": figure_no,
@@ -722,6 +939,7 @@ def propose_cases(
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
     if min(max_file_bytes, max_rows, max_columns) < 1:
         raise ValueError("proposal limits must be positive")
+    _validate_renderability_policy()
     source_path = Path(candidates_path)
     input_hash = sha256_file(source_path)
     commit = code_commit or resolve_code_commit()
@@ -731,6 +949,8 @@ def propose_cases(
     )
     singles: list[dict[str, Any]] = []
     rejected: list[dict[str, Any]] = []
+    blocked_multi_groups: set[tuple[str, int]] = set()
+    renderability_rejected = 0
     verified_preserved = 0
     for candidate in candidates:
         status = str(candidate.get("curation_status") or "").casefold()
@@ -775,20 +995,32 @@ def propose_cases(
             )
         except ProposalRejected as exc:
             record = deepcopy(candidate)
-            record.update(
-                {
-                    "proposal_rejection_reasons": list(exc.reasons),
-                    "proposal_rejection_detail": exc.detail,
-                    "input_candidates_sha256": input_hash,
-                    "code_commit": commit,
-                }
-            )
+            rejection_fields: dict[str, Any] = {
+                "proposal_rejection_reasons": list(exc.reasons),
+                "proposal_rejection_detail": exc.detail,
+                "input_candidates_sha256": input_hash,
+                "code_commit": commit,
+            }
+            if exc.audit is not None:
+                rejection_fields.update(
+                    {
+                        "renderability_policy_id": RENDERABILITY_POLICY_ID,
+                        "renderability_policy_hash": RENDERABILITY_POLICY_HASH,
+                        "renderability_audit": exc.audit,
+                    }
+                )
+                renderability_rejected += 1
+                group_key = _candidate_group_key(candidate)
+                if group_key is not None:
+                    blocked_multi_groups.add(group_key)
+            record.update(rejection_fields)
             rejected.append(record)
     singles.sort(key=lambda item: item["candidate_id"])
     multi = _multi_panel_proposals(
         singles,
         input_candidates_sha256=input_hash,
         code_commit=commit,
+        blocked_groups=blocked_multi_groups,
     )
     proposed = sorted(
         singles + multi,
@@ -797,17 +1029,43 @@ def propose_cases(
     rejected.sort(key=lambda item: str(item.get("candidate_id") or ""))
     if any(item.get("eligible_for_experiment") for item in proposed):
         raise AssertionError("proposals must never be experiment-eligible")
+    for item in proposed:
+        audit = item.get("renderability_audit")
+        if not isinstance(audit, dict) or audit.get("decision") != "accepted":
+            raise AssertionError("proposed case has no passing renderability audit")
+        panel_audits = (
+            audit.get("panels")
+            if item.get("proposal_type") == "multi_panel"
+            else [audit]
+        )
+        if not isinstance(panel_audits, list):
+            raise AssertionError("proposal renderability panels are invalid")
+        for panel_audit in panel_audits:
+            if not isinstance(panel_audit, dict):
+                raise AssertionError("proposal renderability audit is invalid")
+            count = panel_audit.get("unique_categorical_x")
+            if isinstance(count, int) and count > MAX_BAR_CATEGORICAL_X:
+                raise AssertionError("proposal crosses categorical bar cap")
     summary = {
         "schema_version": SCHEMA_VERSION,
         "input_candidates": str(source_path.resolve()),
         "input_candidates_sha256": input_hash,
         "code_commit": commit,
         "proposal_rule_version": CURRENT_PROPOSAL_RULE,
+        "renderability_policy_id": RENDERABILITY_POLICY_ID,
+        "renderability_policy_hash": RENDERABILITY_POLICY_HASH,
+        "max_unique_categorical_x_per_bar_panel": (
+            MAX_BAR_CATEGORICAL_X
+        ),
         "input_count": len(candidates),
         "single_proposals": len(singles),
         "multi_panel_proposals": len(multi),
         "proposals_total": len(proposed),
         "rejected": len(rejected),
+        "renderability_rejected": renderability_rejected,
+        "multi_groups_blocked_by_renderability": len(
+            blocked_multi_groups
+        ),
         "verified_preserved": verified_preserved,
         "eligible_for_experiment": 0,
         "max_file_bytes": max_file_bytes,

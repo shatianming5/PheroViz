@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -8,10 +9,16 @@ from openpyxl import Workbook
 import pytest
 
 from nature_download.corpus.proposals import (
+    BAR_CARDINALITY_REJECTION,
     DEFAULT_MAX_COLUMNS,
     DEFAULT_MAX_FILE_BYTES,
     DEFAULT_MAX_ROWS,
+    MAX_BAR_CATEGORICAL_X,
     PROPOSAL_RULE_V1,
+    PROPOSAL_RULE_V2,
+    RENDERABILITY_POLICY_HASH,
+    RENDERABILITY_POLICY_ID,
+    ProposalRejected,
     propose_cases,
     propose_single_candidate,
     write_proposal_outputs,
@@ -75,6 +82,26 @@ def write_xlsx(path: Path, sheet_name: str, rows: list[list]) -> None:
         worksheet.append(row)
     workbook.save(path)
     workbook.close()
+
+
+def write_bar_csv(
+    path: Path,
+    categories: int,
+    *,
+    two_series: bool = False,
+) -> None:
+    if two_series:
+        rows = ["Category,Value A,Value B"]
+        split = categories // 2
+        rows.extend(
+            f"C{index},{index if index < split else ''},"
+            f"{index if index >= split else ''}"
+            for index in range(categories)
+        )
+    else:
+        rows = ["Category,Value"]
+        rows.extend(f"C{index},{index}" for index in range(categories))
+    path.write_text("\n".join(rows) + "\n", encoding="utf-8")
 
 
 def run_one(workdir: Path, candidate: dict) -> tuple[list[dict], list[dict], dict]:
@@ -252,6 +279,95 @@ def test_unique_categorical_generates_bar_and_does_not_guess_units(
     assert case["intent"]["units"] == {}
 
 
+@pytest.mark.parametrize("rule_version", [PROPOSAL_RULE_V1, PROPOSAL_RULE_V2])
+def test_bar_renderability_boundary_applies_to_every_rule_version(
+    workdir: Path,
+    rule_version: str,
+) -> None:
+    accepted_table = workdir / f"bar-200-{rule_version}.csv"
+    rejected_table = workdir / f"bar-201-{rule_version}.csv"
+    write_bar_csv(accepted_table, MAX_BAR_CATEGORICAL_X)
+    write_bar_csv(rejected_table, MAX_BAR_CATEGORICAL_X + 1)
+
+    accepted = propose_single_candidate(
+        candidate_for(accepted_table, candidate_id="accepted-boundary"),
+        input_candidates_sha256="f" * 64,
+        code_commit="a" * 40,
+        max_file_bytes=DEFAULT_MAX_FILE_BYTES,
+        max_rows=DEFAULT_MAX_ROWS,
+        max_columns=DEFAULT_MAX_COLUMNS,
+        rule_version=rule_version,
+    )
+
+    audit = accepted["renderability_audit"]
+    assert accepted["renderability_policy_id"] == RENDERABILITY_POLICY_ID
+    assert accepted["renderability_policy_hash"] == RENDERABILITY_POLICY_HASH
+    assert audit["decision"] == "accepted"
+    assert audit["reason"] == "bar_categorical_x_at_or_below_200"
+    assert audit["unique_categorical_x"] == MAX_BAR_CATEGORICAL_X
+    assert audit["max_unique_categorical_x_per_panel"] == (
+        MAX_BAR_CATEGORICAL_X
+    )
+
+    with pytest.raises(ProposalRejected) as error:
+        propose_single_candidate(
+            candidate_for(rejected_table, candidate_id="rejected-boundary"),
+            input_candidates_sha256="f" * 64,
+            code_commit="a" * 40,
+            max_file_bytes=DEFAULT_MAX_FILE_BYTES,
+            max_rows=DEFAULT_MAX_ROWS,
+            max_columns=DEFAULT_MAX_COLUMNS,
+            rule_version=rule_version,
+        )
+
+    assert error.value.reasons == (BAR_CARDINALITY_REJECTION,)
+    assert error.value.audit is not None
+    assert error.value.audit["decision"] == "rejected"
+    assert error.value.audit["unique_categorical_x"] == 201
+    assert error.value.audit["policy_hash"] == RENDERABILITY_POLICY_HASH
+
+
+def test_two_series_bar_counts_union_of_x_categories_not_series_sum(
+    workdir: Path,
+) -> None:
+    table = workdir / "bar-two-series.csv"
+    write_bar_csv(table, MAX_BAR_CATEGORICAL_X, two_series=True)
+
+    proposed, rejected, _ = run_one(
+        workdir,
+        candidate_for(table, candidate_id="bar-two-series"),
+    )
+
+    assert rejected == []
+    audit = proposed[0]["renderability_audit"]
+    assert audit["bar_series_count"] == 2
+    assert audit["unique_categorical_x"] == 200
+    assert audit["decision"] == "accepted"
+
+
+def test_line_cardinality_is_uncapped_at_ten_thousand_points(
+    workdir: Path,
+) -> None:
+    table = workdir / "line-10000.csv"
+    table.write_text(
+        "Time,Signal\n"
+        + "".join(f"{index},{index % 17}\n" for index in range(10_000)),
+        encoding="utf-8",
+    )
+
+    proposed, rejected, _ = run_one(
+        workdir,
+        candidate_for(table, candidate_id="line-10000"),
+    )
+
+    assert rejected == []
+    assert proposed[0]["experiment_case"]["chart_family"] == "line"
+    audit = proposed[0]["renderability_audit"]
+    assert audit["decision"] == "accepted"
+    assert audit["reason"] == "non_bar_or_column_no_cardinality_cap"
+    assert audit["unique_categorical_x"] is None
+
+
 def test_unique_monotonic_numeric_generates_line(workdir: Path) -> None:
     table = workdir / "monotonic.csv"
     table.write_text(
@@ -401,6 +517,10 @@ def test_multi_panel_proposal_uses_only_schema_provable_cohesion(
     assert "legend" not in json.dumps(group).casefold()
     assert "layout" not in json.dumps(group).casefold()
     assert multi["eligible_for_experiment"] is False
+    assert multi["renderability_policy_id"] == RENDERABILITY_POLICY_ID
+    assert multi["renderability_policy_hash"] == RENDERABILITY_POLICY_HASH
+    assert multi["renderability_audit"]["decision"] == "accepted"
+    assert len(multi["renderability_audit"]["panels"]) == 2
 
 
 def test_verified_candidate_is_preserved_and_not_overwritten(workdir: Path) -> None:
@@ -456,6 +576,96 @@ def test_file_and_row_limits_reject_before_unbounded_loading(workdir: Path) -> N
     )
     assert proposed == []
     assert rejected[0]["proposal_rejection_reasons"] == ["table-row-limit"]
+
+
+def test_renderability_rejection_is_deterministic_and_audited(
+    workdir: Path,
+) -> None:
+    table = workdir / "bar-deterministic-201.csv"
+    write_bar_csv(table, 201)
+    source = workdir / "candidates.jsonl"
+    write_candidates(
+        source,
+        [candidate_for(table, candidate_id="bar-deterministic-201")],
+    )
+
+    first = propose_cases(candidates_path=source, code_commit="test-commit")
+    second = propose_cases(candidates_path=source, code_commit="test-commit")
+
+    assert first == second
+    assert first[0] == []
+    rejected = first[1][0]
+    assert rejected["proposal_rejection_reasons"] == [
+        BAR_CARDINALITY_REJECTION
+    ]
+    assert rejected["proposal_rejection_detail"] == (
+        "unique_categorical_x=201;max=200;"
+        f"policy={RENDERABILITY_POLICY_ID}"
+    )
+    assert rejected["renderability_audit"]["policy_hash"] == (
+        RENDERABILITY_POLICY_HASH
+    )
+    first_hash = hashlib.sha256(
+        json.dumps(
+            first,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    second_hash = hashlib.sha256(
+        json.dumps(
+            second,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    assert first_hash == second_hash
+    assert first[2]["renderability_rejected"] == 1
+    assert first[2]["renderability_policy_hash"] == RENDERABILITY_POLICY_HASH
+
+
+def test_multi_is_blocked_when_any_constituent_crosses_bar_cap(
+    workdir: Path,
+) -> None:
+    candidates = []
+    for panel_id, categories in (("a", 200), ("b", 200), ("c", 201)):
+        table = workdir / f"panel-{panel_id}.csv"
+        write_bar_csv(table, categories)
+        candidates.append(
+            candidate_for(
+                table,
+                candidate_id=f"panel-{panel_id}",
+                panel_id=panel_id,
+                figure_no=8,
+            )
+        )
+    source = workdir / "candidates.jsonl"
+    write_candidates(source, candidates)
+
+    proposed, rejected, summary = propose_cases(
+        candidates_path=source,
+        code_commit="test-commit",
+    )
+
+    assert [item["candidate_id"] for item in proposed] == [
+        "panel-a",
+        "panel-b",
+    ]
+    assert all(item["proposal_type"] == "single_panel" for item in proposed)
+    assert all(item["eligible_for_experiment"] is False for item in proposed)
+    assert all(
+        item["renderability_audit"]["unique_categorical_x"] <= 200
+        for item in proposed
+    )
+    assert rejected[0]["candidate_id"] == "panel-c"
+    assert rejected[0]["proposal_rejection_reasons"] == [
+        BAR_CARDINALITY_REJECTION
+    ]
+    assert summary["multi_panel_proposals"] == 0
+    assert summary["multi_groups_blocked_by_renderability"] == 1
+    assert summary["eligible_for_experiment"] == 0
 
 
 def test_proposal_outputs_are_deterministic_and_include_input_hash(
