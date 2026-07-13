@@ -1,0 +1,336 @@
+{
+  "actual": {
+    "panel_renders": 36,
+    "provider_invocations": 13,
+    "run_count_attempted": 6,
+    "run_count_completed": 6,
+    "text_model_calls": 36,
+    "text_model_latency_seconds": 280.3345341263339,
+    "vlm_calls": 0,
+    "wall_clock_seconds_recorded": 371.4484246240463
+  },
+  "artifact_footprint": {
+    "file_count": 415,
+    "size_mib": 32
+  },
+  "artifact_root": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/gpt56_seed0_br6_p1_p2_2092d3c",
+  "backbone": "gpt-5.6-sol",
+  "budget": {
+    "type": "renders",
+    "value": 6
+  },
+  "calibration_version": "1.0",
+  "dataset_manifest": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/combined_verified_400/final_benchmark_v2_seed0/benchmark_manifest.json",
+  "dataset_manifest_sha256": "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b",
+  "elapsed_seconds": 374.14472095808014,
+  "expanded_specs": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/preflight/real_calibration_gpt56_seed0_br6_p1_p2_2092d3c_expanded_specs.json",
+  "expanded_specs_sha256": "7c5085edc6f1ab6a7f8b23d81c31bcf0a709579b751a134fdfd56813387507b8",
+  "expected": {
+    "panel_renders": 36,
+    "provider_invocations": 13,
+    "run_count": 6,
+    "text_model_calls": 36,
+    "vlm_calls": 0
+  },
+  "finished_at": "2026-07-13T00:45:54.712799Z",
+  "methods": [
+    "best_of_n",
+    "flat_iterative",
+    "pheroviz_full"
+  ],
+  "post_validation": {
+    "aggregate_summary": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/gpt56_seed0_br6_p1_p2_2092d3c/aggregate/summary.json",
+    "aggregate_summary_sha256": "e41cdc1c9cbfbb8bdcddb47e3d51106489414e5d208970bcb5ef8f68ed1c2f9d",
+    "status": "passed",
+    "validation_artifact": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/preflight/real_calibration_gpt56_seed0_br6_p1_p2_2092d3c_validation.json",
+    "validation_artifact_sha256": "60df4a3d3543db56736c36a27fd7a77be79b69bee4ff6f83cb28f9671f5517af"
+  },
+  "runs": [
+    {
+      "artifact_count": 56,
+      "best_candidate_id": "candidate_0001",
+      "best_metrics": {
+        "data_fidelity": 1.0,
+        "visual_form": 1.0
+      },
+      "candidate_count": 6,
+      "candidate_render_counts": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "case_id": "case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2",
+      "delegate": [
+        "phero_viz_single_chain"
+      ],
+      "error": null,
+      "memory_mode": "none",
+      "method": "best_of_n",
+      "panel_count": 1,
+      "provider_invocations": 6,
+      "provider_name": "phero_viz",
+      "record_hash": "fc24306b8ba2287334306f5745b4568e1f8ce735fcb1c682abbf88675ee1342b",
+      "render_count": 6,
+      "run_dir": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/gpt56_seed0_br6_p1_p2_2092d3c/real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_name": "real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/gpt56_seed0_br6_p1_p2_2092d3c/real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6/run_record.json",
+      "run_record_file_sha256": "a41843fe30c2eb565adf65b610123a6de3eabad94d5290e1824480d937f1b0cc",
+      "schedule": "best_of_n",
+      "status": "completed",
+      "text_model_calls": 6,
+      "text_model_latency_seconds": 53.67713970900513,
+      "usage_totals": {
+        "completion_tokens": 4198.0,
+        "prompt_tokens": 7074.0,
+        "total_tokens": 11272.0
+      },
+      "vlm_calls": 0,
+      "wall_clock_seconds_observed": 71.76218366599642,
+      "wall_clock_seconds_recorded": 70.22709470801055
+    },
+    {
+      "artifact_count": 59,
+      "best_candidate_id": "candidate_0001",
+      "best_metrics": {
+        "data_fidelity": 1.0,
+        "execution_success": 1.0,
+        "series_cohesion": 1.0,
+        "visual_form": 1.0
+      },
+      "candidate_count": 3,
+      "candidate_render_counts": [
+        2,
+        2,
+        2
+      ],
+      "case_id": "multi-s41467-023-38847-1-figure3-d1bf6bf37a26",
+      "delegate": [
+        "phero_viz_multi_panel"
+      ],
+      "error": null,
+      "memory_mode": "none",
+      "method": "best_of_n",
+      "panel_count": 2,
+      "provider_invocations": 3,
+      "provider_name": "phero_viz",
+      "record_hash": "b0eb525415886b7e982a28a81389c4dbf961b2d85451353e6e5ab886771b2bbf",
+      "render_count": 6,
+      "run_dir": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/gpt56_seed0_br6_p1_p2_2092d3c/real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-multi-s41467-023-38847-1-figure3-d1bf6bf37a26__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_name": "real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-multi-s41467-023-38847-1-figure3-d1bf6bf37a26__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/gpt56_seed0_br6_p1_p2_2092d3c/real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-multi-s41467-023-38847-1-figure3-d1bf6bf37a26__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6/run_record.json",
+      "run_record_file_sha256": "a52991ff316758c13dcb635aa3a3f54ffad52759582efcfe7e12876e88c035cf",
+      "schedule": "best_of_n",
+      "status": "completed",
+      "text_model_calls": 6,
+      "text_model_latency_seconds": 59.93786554224789,
+      "usage_totals": {
+        "completion_tokens": 4549.0,
+        "prompt_tokens": 7245.0,
+        "total_tokens": 11794.0
+      },
+      "vlm_calls": 0,
+      "wall_clock_seconds_observed": 77.98745141690597,
+      "wall_clock_seconds_recorded": 77.63400816591457
+    },
+    {
+      "artifact_count": 56,
+      "best_candidate_id": "candidate_0001",
+      "best_metrics": {
+        "data_fidelity": 1.0,
+        "visual_form": 1.0
+      },
+      "candidate_count": 6,
+      "candidate_render_counts": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "case_id": "case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2",
+      "delegate": [
+        "phero_viz_single_chain"
+      ],
+      "error": null,
+      "memory_mode": "none",
+      "method": "flat_iterative",
+      "panel_count": 1,
+      "provider_invocations": 1,
+      "provider_name": "phero_viz",
+      "record_hash": "5d19e29d866fe294d53d91ae6c1929d9e9b6ac073c1faeab6541074b81918abc",
+      "render_count": 6,
+      "run_dir": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/gpt56_seed0_br6_p1_p2_2092d3c/real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-flat_iterative__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_name": "real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-flat_iterative__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/gpt56_seed0_br6_p1_p2_2092d3c/real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-flat_iterative__backbone-gpt-5.6-sol__seed-0__budget-renders-6/run_record.json",
+      "run_record_file_sha256": "df7eb1f133ff744e9e7139fddfbe75d1a2e79f0243cd42a5909ab9dfa826209f",
+      "schedule": "iterative",
+      "status": "completed",
+      "text_model_calls": 6,
+      "text_model_latency_seconds": 38.37539174966514,
+      "usage_totals": {
+        "completion_tokens": 3398.0,
+        "prompt_tokens": 7684.0,
+        "total_tokens": 11082.0
+      },
+      "vlm_calls": 0,
+      "wall_clock_seconds_observed": 53.6776906659361,
+      "wall_clock_seconds_recorded": 53.536446457961574
+    },
+    {
+      "artifact_count": 59,
+      "best_candidate_id": "candidate_0001",
+      "best_metrics": {
+        "data_fidelity": 1.0,
+        "execution_success": 1.0,
+        "series_cohesion": 1.0,
+        "visual_form": 1.0
+      },
+      "candidate_count": 3,
+      "candidate_render_counts": [
+        2,
+        2,
+        2
+      ],
+      "case_id": "multi-s41467-023-38847-1-figure3-d1bf6bf37a26",
+      "delegate": [
+        "phero_viz_multi_panel"
+      ],
+      "error": null,
+      "memory_mode": "none",
+      "method": "flat_iterative",
+      "panel_count": 2,
+      "provider_invocations": 1,
+      "provider_name": "phero_viz",
+      "record_hash": "fb83357ad9290ef852d8faae0d68bec9b29f9007d386fd5a6efd5a20f26b70c9",
+      "render_count": 6,
+      "run_dir": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/gpt56_seed0_br6_p1_p2_2092d3c/real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-multi-s41467-023-38847-1-figure3-d1bf6bf37a26__method-flat_iterative__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_name": "real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-multi-s41467-023-38847-1-figure3-d1bf6bf37a26__method-flat_iterative__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/gpt56_seed0_br6_p1_p2_2092d3c/real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-multi-s41467-023-38847-1-figure3-d1bf6bf37a26__method-flat_iterative__backbone-gpt-5.6-sol__seed-0__budget-renders-6/run_record.json",
+      "run_record_file_sha256": "62ff214aee6cad23e14ccb993937e5d148ff852bf1d548c94fe568b9f6920797",
+      "schedule": "iterative",
+      "status": "completed",
+      "text_model_calls": 6,
+      "text_model_latency_seconds": 49.6157709590625,
+      "usage_totals": {
+        "completion_tokens": 4066.0,
+        "prompt_tokens": 7832.0,
+        "total_tokens": 11898.0
+      },
+      "vlm_calls": 0,
+      "wall_clock_seconds_observed": 64.89826612500474,
+      "wall_clock_seconds_recorded": 64.56047287513502
+    },
+    {
+      "artifact_count": 56,
+      "best_candidate_id": "candidate_0001",
+      "best_metrics": {
+        "data_fidelity": 1.0,
+        "visual_form": 1.0
+      },
+      "candidate_count": 6,
+      "candidate_render_counts": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "case_id": "case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2",
+      "delegate": [
+        "phero_viz_single_chain"
+      ],
+      "error": null,
+      "memory_mode": "full",
+      "method": "pheroviz_full",
+      "panel_count": 1,
+      "provider_invocations": 1,
+      "provider_name": "phero_viz",
+      "record_hash": "12ac28a949be89f4adf2e7e4fb3edd0556cacc006783d3dce8ca552785372bc3",
+      "render_count": 6,
+      "run_dir": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/gpt56_seed0_br6_p1_p2_2092d3c/real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-pheroviz_full__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_name": "real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-pheroviz_full__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/gpt56_seed0_br6_p1_p2_2092d3c/real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-pheroviz_full__backbone-gpt-5.6-sol__seed-0__budget-renders-6/run_record.json",
+      "run_record_file_sha256": "48d3876f3073cb7e12b8ccffedf2acf04c7bb1cb03a7859819039bd6d747c052",
+      "schedule": "iterative",
+      "status": "completed",
+      "text_model_calls": 6,
+      "text_model_latency_seconds": 37.397966334130615,
+      "usage_totals": {
+        "completion_tokens": 3206.0,
+        "prompt_tokens": 44992.0,
+        "total_tokens": 48198.0
+      },
+      "vlm_calls": 0,
+      "wall_clock_seconds_observed": 51.58967875014059,
+      "wall_clock_seconds_recorded": 51.4151495420374
+    },
+    {
+      "artifact_count": 59,
+      "best_candidate_id": "candidate_0001",
+      "best_metrics": {
+        "data_fidelity": 1.0,
+        "execution_success": 1.0,
+        "series_cohesion": 1.0,
+        "visual_form": 1.0
+      },
+      "candidate_count": 3,
+      "candidate_render_counts": [
+        2,
+        2,
+        2
+      ],
+      "case_id": "multi-s41467-023-38847-1-figure3-d1bf6bf37a26",
+      "delegate": [
+        "phero_viz_multi_panel"
+      ],
+      "error": null,
+      "memory_mode": "full",
+      "method": "pheroviz_full",
+      "panel_count": 2,
+      "provider_invocations": 1,
+      "provider_name": "phero_viz",
+      "record_hash": "7c9766b9bc69a98f5cfcb3d7f82d059735916534701b4d26151a6e4e492af89f",
+      "render_count": 6,
+      "run_dir": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/gpt56_seed0_br6_p1_p2_2092d3c/real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-multi-s41467-023-38847-1-figure3-d1bf6bf37a26__method-pheroviz_full__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_name": "real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-multi-s41467-023-38847-1-figure3-d1bf6bf37a26__method-pheroviz_full__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/gpt56_seed0_br6_p1_p2_2092d3c/real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-multi-s41467-023-38847-1-figure3-d1bf6bf37a26__method-pheroviz_full__backbone-gpt-5.6-sol__seed-0__budget-renders-6/run_record.json",
+      "run_record_file_sha256": "c0c746e486de2e3af8b6d759a2788a6757fe560beec0c97ea6f0e79c07d5396c",
+      "schedule": "iterative",
+      "status": "completed",
+      "text_model_calls": 6,
+      "text_model_latency_seconds": 41.33039983222261,
+      "usage_totals": {
+        "completion_tokens": 3777.0,
+        "prompt_tokens": 40141.0,
+        "total_tokens": 43918.0
+      },
+      "vlm_calls": 0,
+      "wall_clock_seconds_observed": 54.21602520905435,
+      "wall_clock_seconds_recorded": 54.0752528749872
+    }
+  ],
+  "seed": 0,
+  "selected_cases": [
+    {
+      "case_id": "case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2",
+      "panel_count": 1,
+      "split": "test"
+    },
+    {
+      "case_id": "multi-s41467-023-38847-1-figure3-d1bf6bf37a26",
+      "panel_count": 2,
+      "split": "test"
+    }
+  ],
+  "source_clean_at_expansion": true,
+  "source_commit": "2092d3ce81771dfc9354f266b505bf3b0468feff",
+  "started_at": "2026-07-13T00:39:40.567821Z",
+  "status": "passed",
+  "vlm_model": "",
+  "vlm_required": ""
+}

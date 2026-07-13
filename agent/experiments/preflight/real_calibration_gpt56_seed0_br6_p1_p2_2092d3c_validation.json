@@ -1,0 +1,192 @@
+{
+  "actual": {
+    "elapsed_seconds": 374.14472095808014,
+    "panel_renders": 36,
+    "provider_invocations": 13,
+    "run_count_attempted": 6,
+    "run_count_completed": 6,
+    "text_latency_max_seconds": 12.277546500088647,
+    "text_latency_p50_seconds": 7.627391479094513,
+    "text_latency_p95_seconds": 11.894001750042662,
+    "text_model_calls": 36,
+    "text_model_latency_seconds": 280.3345341263339,
+    "unique_request_ids": 36,
+    "usage_totals": {
+      "completion_tokens": 23194,
+      "prompt_tokens": 114968,
+      "total_tokens": 138162
+    },
+    "vlm_calls": 0,
+    "wall_clock_seconds_recorded": 371.4484246240463
+  },
+  "aggregate_summary": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/gpt56_seed0_br6_p1_p2_2092d3c/aggregate/summary.json",
+  "aggregate_summary_sha256": "e41cdc1c9cbfbb8bdcddb47e3d51106489414e5d208970bcb5ef8f68ed1c2f9d",
+  "artifact_footprint": {
+    "file_count": 415,
+    "size_mib": 32
+  },
+  "artifact_root": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/gpt56_seed0_br6_p1_p2_2092d3c",
+  "bugs": [],
+  "caveats": [
+    "Programmatic-pipeline calibration only; VLM path intentionally disabled.",
+    "Two cases validate execution/provenance, not comparative efficacy."
+  ],
+  "checks": [
+    "clean commit provenance",
+    "6/6 completed",
+    "36 text calls",
+    "0 VLM calls",
+    "36 exact renders",
+    "13 provider invocations",
+    "P=1/P=2 routing",
+    "P=2 combined checkpoint schedules",
+    "record and candidate artifact hashes",
+    "memory-mode behavior",
+    "strict six-row aggregate"
+  ],
+  "memory_validation": [
+    {
+      "constraints": 0,
+      "method": "best_of_n",
+      "panel_count": 1,
+      "patch_templates": 0,
+      "step": 0,
+      "trace_events": 0
+    },
+    {
+      "constraints": 0,
+      "method": "best_of_n",
+      "panel_count": 2,
+      "patch_templates": 0,
+      "step": 0,
+      "trace_events": 0
+    },
+    {
+      "constraints": 0,
+      "method": "flat_iterative",
+      "panel_count": 1,
+      "patch_templates": 0,
+      "step": 0,
+      "trace_events": 0
+    },
+    {
+      "constraints": 0,
+      "method": "flat_iterative",
+      "panel_count": 2,
+      "patch_templates": 0,
+      "step": 0,
+      "trace_events": 0
+    },
+    {
+      "constraints": 108,
+      "method": "pheroviz_full",
+      "panel_count": 1,
+      "patch_templates": 132,
+      "step": 6,
+      "trace_events": 403
+    },
+    {
+      "constraints": 108,
+      "method": "pheroviz_full",
+      "panel_count": 2,
+      "patch_templates": 132,
+      "step": 6,
+      "trace_events": 412
+    }
+  ],
+  "run_results": [
+    {
+      "method": "best_of_n",
+      "panel_count": 1,
+      "provider_invocations": 6,
+      "record_hash": "fc24306b8ba2287334306f5745b4568e1f8ce735fcb1c682abbf88675ee1342b",
+      "render_count": 6,
+      "run_dir": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/gpt56_seed0_br6_p1_p2_2092d3c/real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_name": "real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/gpt56_seed0_br6_p1_p2_2092d3c/real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6/run_record.json",
+      "run_record_file_sha256": "a41843fe30c2eb565adf65b610123a6de3eabad94d5290e1824480d937f1b0cc",
+      "status": "completed",
+      "text_model_calls": 6,
+      "vlm_calls": 0,
+      "wall_clock_seconds_recorded": 70.22709470801055
+    },
+    {
+      "method": "best_of_n",
+      "panel_count": 2,
+      "provider_invocations": 3,
+      "record_hash": "b0eb525415886b7e982a28a81389c4dbf961b2d85451353e6e5ab886771b2bbf",
+      "render_count": 6,
+      "run_dir": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/gpt56_seed0_br6_p1_p2_2092d3c/real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-multi-s41467-023-38847-1-figure3-d1bf6bf37a26__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_name": "real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-multi-s41467-023-38847-1-figure3-d1bf6bf37a26__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/gpt56_seed0_br6_p1_p2_2092d3c/real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-multi-s41467-023-38847-1-figure3-d1bf6bf37a26__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6/run_record.json",
+      "run_record_file_sha256": "a52991ff316758c13dcb635aa3a3f54ffad52759582efcfe7e12876e88c035cf",
+      "status": "completed",
+      "text_model_calls": 6,
+      "vlm_calls": 0,
+      "wall_clock_seconds_recorded": 77.63400816591457
+    },
+    {
+      "method": "flat_iterative",
+      "panel_count": 1,
+      "provider_invocations": 1,
+      "record_hash": "5d19e29d866fe294d53d91ae6c1929d9e9b6ac073c1faeab6541074b81918abc",
+      "render_count": 6,
+      "run_dir": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/gpt56_seed0_br6_p1_p2_2092d3c/real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-flat_iterative__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_name": "real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-flat_iterative__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/gpt56_seed0_br6_p1_p2_2092d3c/real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-flat_iterative__backbone-gpt-5.6-sol__seed-0__budget-renders-6/run_record.json",
+      "run_record_file_sha256": "df7eb1f133ff744e9e7139fddfbe75d1a2e79f0243cd42a5909ab9dfa826209f",
+      "status": "completed",
+      "text_model_calls": 6,
+      "vlm_calls": 0,
+      "wall_clock_seconds_recorded": 53.536446457961574
+    },
+    {
+      "method": "flat_iterative",
+      "panel_count": 2,
+      "provider_invocations": 1,
+      "record_hash": "fb83357ad9290ef852d8faae0d68bec9b29f9007d386fd5a6efd5a20f26b70c9",
+      "render_count": 6,
+      "run_dir": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/gpt56_seed0_br6_p1_p2_2092d3c/real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-multi-s41467-023-38847-1-figure3-d1bf6bf37a26__method-flat_iterative__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_name": "real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-multi-s41467-023-38847-1-figure3-d1bf6bf37a26__method-flat_iterative__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/gpt56_seed0_br6_p1_p2_2092d3c/real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-multi-s41467-023-38847-1-figure3-d1bf6bf37a26__method-flat_iterative__backbone-gpt-5.6-sol__seed-0__budget-renders-6/run_record.json",
+      "run_record_file_sha256": "62ff214aee6cad23e14ccb993937e5d148ff852bf1d548c94fe568b9f6920797",
+      "status": "completed",
+      "text_model_calls": 6,
+      "vlm_calls": 0,
+      "wall_clock_seconds_recorded": 64.56047287513502
+    },
+    {
+      "method": "pheroviz_full",
+      "panel_count": 1,
+      "provider_invocations": 1,
+      "record_hash": "12ac28a949be89f4adf2e7e4fb3edd0556cacc006783d3dce8ca552785372bc3",
+      "render_count": 6,
+      "run_dir": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/gpt56_seed0_br6_p1_p2_2092d3c/real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-pheroviz_full__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_name": "real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-pheroviz_full__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/gpt56_seed0_br6_p1_p2_2092d3c/real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-pheroviz_full__backbone-gpt-5.6-sol__seed-0__budget-renders-6/run_record.json",
+      "run_record_file_sha256": "48d3876f3073cb7e12b8ccffedf2acf04c7bb1cb03a7859819039bd6d747c052",
+      "status": "completed",
+      "text_model_calls": 6,
+      "vlm_calls": 0,
+      "wall_clock_seconds_recorded": 51.4151495420374
+    },
+    {
+      "method": "pheroviz_full",
+      "panel_count": 2,
+      "provider_invocations": 1,
+      "record_hash": "7c9766b9bc69a98f5cfcb3d7f82d059735916534701b4d26151a6e4e492af89f",
+      "render_count": 6,
+      "run_dir": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/gpt56_seed0_br6_p1_p2_2092d3c/real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-multi-s41467-023-38847-1-figure3-d1bf6bf37a26__method-pheroviz_full__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_name": "real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-multi-s41467-023-38847-1-figure3-d1bf6bf37a26__method-pheroviz_full__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/gpt56_seed0_br6_p1_p2_2092d3c/real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-multi-s41467-023-38847-1-figure3-d1bf6bf37a26__method-pheroviz_full__backbone-gpt-5.6-sol__seed-0__budget-renders-6/run_record.json",
+      "run_record_file_sha256": "c0c746e486de2e3af8b6d759a2788a6757fe560beec0c97ea6f0e79c07d5396c",
+      "status": "completed",
+      "text_model_calls": 6,
+      "vlm_calls": 0,
+      "wall_clock_seconds_recorded": 54.0752528749872
+    }
+  ],
+  "source_commit": "2092d3ce81771dfc9354f266b505bf3b0468feff",
+  "status": "passed",
+  "validation_version": "1.0"
+}

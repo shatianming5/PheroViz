@@ -1,0 +1,130 @@
+{
+  "actual": {
+    "elapsed_seconds": 385.7536983329337,
+    "logical_model_calls": 36,
+    "model_latency_max_seconds": 12.919768792111427,
+    "model_latency_p50_seconds": 8.34534616698511,
+    "model_latency_p95_seconds": 11.99296920816414,
+    "model_latency_seconds": 307.42436520941556,
+    "panel_renders": 36,
+    "provider_invocations": 13,
+    "run_count_attempted": 6,
+    "run_count_completed": 6,
+    "unique_request_ids": 36,
+    "usage_totals": {
+      "completion_tokens": 23365,
+      "prompt_tokens": 113796,
+      "total_tokens": 137161
+    },
+    "wall_clock_seconds_recorded": 382.7509524996858
+  },
+  "artifacts": {
+    "aggregate_summary": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/preflight/real_gpt56_smoke_2092d3c_br6/aggregate/summary.json",
+    "c1_analysis": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/preflight/real_gpt56_smoke_2092d3c_br6/analysis/c1/analysis.json",
+    "c3_analysis": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/preflight/real_gpt56_smoke_2092d3c_br6/analysis/c3/analysis.json",
+    "expanded_specs": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/preflight/real_gpt56_smoke_2092d3c_br6_expanded_specs.json",
+    "footprint": {
+      "file_count": 419,
+      "size_mib": 32
+    },
+    "run_root": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/preflight/real_gpt56_smoke_2092d3c_br6"
+  },
+  "bugs": [],
+  "by_method": {
+    "best_of_n": {
+      "calls": 12,
+      "completion_tokens": 8862,
+      "prompt_tokens": 14319,
+      "total_tokens": 23181,
+      "wall_clock_seconds": 152.25096091697924
+    },
+    "flat_iterative": {
+      "calls": 12,
+      "completion_tokens": 7591,
+      "prompt_tokens": 15572,
+      "total_tokens": 23163,
+      "wall_clock_seconds": 120.80569149996154
+    },
+    "pheroviz_full": {
+      "calls": 12,
+      "completion_tokens": 6912,
+      "prompt_tokens": 83905,
+      "total_tokens": 90817,
+      "wall_clock_seconds": 109.69430008274503
+    }
+  },
+  "checks": [
+    "6/6 run records completed and pass provenance plus artifact-hash verification",
+    "exact B_R=6 accounting for every run",
+    "P=1 routed to single-chain; P=2 routed to multi-panel",
+    "iterative methods used one provider invocation/run; best_of_n used R=6/P invocations",
+    "36 unique successful gpt-5.6-sol L1 requests; no VLM/judge model metadata",
+    "P=2 iterative checkpoints preserve cumulative 2/4/6-panel schedules and combined figures",
+    "strict aggregate accepted all 6 rows; C1/C3 statistics v3 accepted 2 DOI clusters with clean analysis provenance",
+    "Memory-none methods kept empty snapshots; pheroviz_full reached step 6 with 108 constraints and 132 patch templates on both cases."
+  ],
+  "cost_observations": {
+    "memory_snapshot_note": "The full-memory smoke accumulated 108 constraints and 132 patch templates by round 6 on each case, consistent with the measured prompt growth.",
+    "note": "Full memory materially increases prompt tokens; price projection requires the gateway tariff.",
+    "pheroviz_full_share_of_prompt_tokens": 0.7373282013427537,
+    "pheroviz_full_to_flat_prompt_token_ratio": 5.388196763421526
+  },
+  "memory_validation": [
+    {
+      "constraints": 0,
+      "method": "flat_iterative",
+      "panel_count": 1,
+      "patch_templates": 0,
+      "step": 0,
+      "trace_events": 0
+    },
+    {
+      "constraints": 0,
+      "method": "flat_iterative",
+      "panel_count": 2,
+      "patch_templates": 0,
+      "step": 0,
+      "trace_events": 0
+    },
+    {
+      "constraints": 108,
+      "method": "pheroviz_full",
+      "panel_count": 1,
+      "patch_templates": 132,
+      "step": 6,
+      "trace_events": 403
+    },
+    {
+      "constraints": 108,
+      "method": "pheroviz_full",
+      "panel_count": 2,
+      "patch_templates": 132,
+      "step": 6,
+      "trace_events": 412
+    },
+    {
+      "constraints": 0,
+      "method": "best_of_n",
+      "panel_count": 1,
+      "patch_templates": 0,
+      "step": 0,
+      "trace_events": 0
+    },
+    {
+      "constraints": 0,
+      "method": "best_of_n",
+      "panel_count": 2,
+      "patch_templates": 0,
+      "step": 0,
+      "trace_events": 0
+    }
+  ],
+  "non_blocking_caveats": [
+    "VLM_MODEL was intentionally blank, so visual_form used the deterministic local heuristic and no vision-call path was exercised.",
+    "Both smoke cases scored data_fidelity=1.0; this validates execution/provenance, not comparative efficacy.",
+    "The two-case smoke lacks P=3-4 and P=5+ strata, so panel-trend inference is expected to be blocked in smoke-only analyses."
+  ],
+  "source_commit": "2092d3ce81771dfc9354f266b505bf3b0468feff",
+  "status": "passed",
+  "validation_version": "1.0"
+}

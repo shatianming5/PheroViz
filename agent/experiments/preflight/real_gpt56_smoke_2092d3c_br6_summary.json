@@ -1,0 +1,318 @@
+{
+  "actual": {
+    "logical_model_calls": 36,
+    "model_latency_seconds": 307.42436520941556,
+    "panel_renders": 36,
+    "provider_invocations": 13,
+    "run_count_attempted": 6,
+    "run_count_completed": 6,
+    "wall_clock_seconds_recorded": 382.7509524996858
+  },
+  "backbone": "gpt-5.6-sol",
+  "budget": {
+    "type": "renders",
+    "value": 6
+  },
+  "dataset_manifest": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/combined_verified_400/final_benchmark_v2_seed0/benchmark_manifest.json",
+  "dataset_manifest_sha256": "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b",
+  "elapsed_seconds": 385.7536983329337,
+  "expanded_specs": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/preflight/real_gpt56_smoke_2092d3c_br6_expanded_specs.json",
+  "expanded_specs_sha256": "f819356aff673bc676d18d263beb4a9bc89444518bbb7985239c256c1750d406",
+  "expected": {
+    "l1_model_calls": 36,
+    "panel_renders": 36,
+    "provider_invocations": 13,
+    "run_count": 6,
+    "vlm_calls": 0
+  },
+  "finished_at": "2026-07-13T00:34:14.083619Z",
+  "methods": [
+    "flat_iterative",
+    "pheroviz_full",
+    "best_of_n"
+  ],
+  "post_validation": {
+    "aggregate_summary": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/preflight/real_gpt56_smoke_2092d3c_br6/aggregate/summary.json",
+    "aggregate_summary_sha256": "e8474d10c5245364fce1a1d1bde7fac8b82143edabb5bc914e7d38d3de769a37",
+    "c1_analysis": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/preflight/real_gpt56_smoke_2092d3c_br6/analysis/c1/analysis.json",
+    "c1_analysis_sha256": "e0e4bf38d1c55449865589ff96bae65b6aebe887a6dc069bc34ade8ee0509e3a",
+    "c3_analysis": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/preflight/real_gpt56_smoke_2092d3c_br6/analysis/c3/analysis.json",
+    "c3_analysis_sha256": "a72af6b38886472e17037ff26e849b81579f6cb4988f9b75bae39b52b249cf5e",
+    "status": "passed",
+    "validation_artifact": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/preflight/real_gpt56_smoke_2092d3c_br6_validation.json",
+    "validation_artifact_sha256": "a2dec5d13049ed85296dc423232b15090d3f906c1162ae2a90e065c23ade10b1"
+  },
+  "runs": [
+    {
+      "artifact_count": 56,
+      "best_candidate_id": "candidate_0001",
+      "best_metrics": {
+        "data_fidelity": 1.0,
+        "visual_form": 1.0
+      },
+      "candidate_count": 6,
+      "candidate_render_counts": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "case_id": "case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2",
+      "delegate": [
+        "phero_viz_single_chain"
+      ],
+      "error": null,
+      "logical_model_calls": 6,
+      "memory_mode": "none",
+      "method": "flat_iterative",
+      "model_latency_seconds": 44.07650933298282,
+      "panel_count": 1,
+      "provider_invocations": 1,
+      "provider_name": "phero_viz",
+      "render_count": 6,
+      "run_dir": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/preflight/real_gpt56_smoke_2092d3c_br6/real-gpt56-smoke-final-benchmark-v2-seed0-br6__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-flat_iterative__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_name": "real-gpt56-smoke-final-benchmark-v2-seed0-br6__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-flat_iterative__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/preflight/real_gpt56_smoke_2092d3c_br6/real-gpt56-smoke-final-benchmark-v2-seed0-br6__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-flat_iterative__backbone-gpt-5.6-sol__seed-0__budget-renders-6/run_record.json",
+      "run_record_sha256": "85eb68882b7041734402e55c7e411fcc72793ed2cdba235d4c010d97991822bc",
+      "schedule": "iterative",
+      "status": "completed",
+      "usage_totals": {
+        "completion_tokens": 3540.0,
+        "prompt_tokens": 7717.0,
+        "total_tokens": 11257.0
+      },
+      "wall_clock_seconds_observed": 58.10509691690095,
+      "wall_clock_seconds_recorded": 56.0003332500346
+    },
+    {
+      "artifact_count": 59,
+      "best_candidate_id": "candidate_0001",
+      "best_metrics": {
+        "data_fidelity": 1.0,
+        "execution_success": 1.0,
+        "series_cohesion": 1.0,
+        "visual_form": 1.0
+      },
+      "candidate_count": 3,
+      "candidate_render_counts": [
+        2,
+        2,
+        2
+      ],
+      "case_id": "multi-s41467-023-38847-1-figure3-d1bf6bf37a26",
+      "delegate": [
+        "phero_viz_multi_panel"
+      ],
+      "error": null,
+      "logical_model_calls": 6,
+      "memory_mode": "none",
+      "method": "flat_iterative",
+      "model_latency_seconds": 51.47885425016284,
+      "panel_count": 2,
+      "provider_invocations": 1,
+      "provider_name": "phero_viz",
+      "render_count": 6,
+      "run_dir": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/preflight/real_gpt56_smoke_2092d3c_br6/real-gpt56-smoke-final-benchmark-v2-seed0-br6__case-multi-s41467-023-38847-1-figure3-d1bf6bf37a26__method-flat_iterative__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_name": "real-gpt56-smoke-final-benchmark-v2-seed0-br6__case-multi-s41467-023-38847-1-figure3-d1bf6bf37a26__method-flat_iterative__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/preflight/real_gpt56_smoke_2092d3c_br6/real-gpt56-smoke-final-benchmark-v2-seed0-br6__case-multi-s41467-023-38847-1-figure3-d1bf6bf37a26__method-flat_iterative__backbone-gpt-5.6-sol__seed-0__budget-renders-6/run_record.json",
+      "run_record_sha256": "a2bcf39b207ede01e0a68482299fc3ca236fcac8c46647c03d3a342a8d08e549",
+      "schedule": "iterative",
+      "status": "completed",
+      "usage_totals": {
+        "completion_tokens": 4051.0,
+        "prompt_tokens": 7855.0,
+        "total_tokens": 11906.0
+      },
+      "wall_clock_seconds_observed": 64.93227358395234,
+      "wall_clock_seconds_recorded": 64.80535824992694
+    },
+    {
+      "artifact_count": 56,
+      "best_candidate_id": "candidate_0001",
+      "best_metrics": {
+        "data_fidelity": 1.0,
+        "visual_form": 1.0
+      },
+      "candidate_count": 6,
+      "candidate_render_counts": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "case_id": "case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2",
+      "delegate": [
+        "phero_viz_single_chain"
+      ],
+      "error": null,
+      "logical_model_calls": 6,
+      "memory_mode": "full",
+      "method": "pheroviz_full",
+      "model_latency_seconds": 39.882221082923934,
+      "panel_count": 1,
+      "provider_invocations": 1,
+      "provider_name": "phero_viz",
+      "render_count": 6,
+      "run_dir": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/preflight/real_gpt56_smoke_2092d3c_br6/real-gpt56-smoke-final-benchmark-v2-seed0-br6__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-pheroviz_full__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_name": "real-gpt56-smoke-final-benchmark-v2-seed0-br6__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-pheroviz_full__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/preflight/real_gpt56_smoke_2092d3c_br6/real-gpt56-smoke-final-benchmark-v2-seed0-br6__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-pheroviz_full__backbone-gpt-5.6-sol__seed-0__budget-renders-6/run_record.json",
+      "run_record_sha256": "303383646251581bd06ec1257b048b385dfefbab31e07894fb981a260b4f31aa",
+      "schedule": "iterative",
+      "status": "completed",
+      "usage_totals": {
+        "completion_tokens": 3183.0,
+        "prompt_tokens": 44443.0,
+        "total_tokens": 47626.0
+      },
+      "wall_clock_seconds_observed": 50.31731762480922,
+      "wall_clock_seconds_recorded": 50.117293832823634
+    },
+    {
+      "artifact_count": 59,
+      "best_candidate_id": "candidate_0001",
+      "best_metrics": {
+        "data_fidelity": 1.0,
+        "execution_success": 1.0,
+        "series_cohesion": 1.0,
+        "visual_form": 1.0
+      },
+      "candidate_count": 3,
+      "candidate_render_counts": [
+        2,
+        2,
+        2
+      ],
+      "case_id": "multi-s41467-023-38847-1-figure3-d1bf6bf37a26",
+      "delegate": [
+        "phero_viz_multi_panel"
+      ],
+      "error": null,
+      "logical_model_calls": 6,
+      "memory_mode": "full",
+      "method": "pheroviz_full",
+      "model_latency_seconds": 46.90289570996538,
+      "panel_count": 2,
+      "provider_invocations": 1,
+      "provider_name": "phero_viz",
+      "render_count": 6,
+      "run_dir": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/preflight/real_gpt56_smoke_2092d3c_br6/real-gpt56-smoke-final-benchmark-v2-seed0-br6__case-multi-s41467-023-38847-1-figure3-d1bf6bf37a26__method-pheroviz_full__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_name": "real-gpt56-smoke-final-benchmark-v2-seed0-br6__case-multi-s41467-023-38847-1-figure3-d1bf6bf37a26__method-pheroviz_full__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/preflight/real_gpt56_smoke_2092d3c_br6/real-gpt56-smoke-final-benchmark-v2-seed0-br6__case-multi-s41467-023-38847-1-figure3-d1bf6bf37a26__method-pheroviz_full__backbone-gpt-5.6-sol__seed-0__budget-renders-6/run_record.json",
+      "run_record_sha256": "529cd19fb8cd3d24937c848eac7641059633fee5739e768774bac64e9d70e6b7",
+      "schedule": "iterative",
+      "status": "completed",
+      "usage_totals": {
+        "completion_tokens": 3729.0,
+        "prompt_tokens": 39462.0,
+        "total_tokens": 43191.0
+      },
+      "wall_clock_seconds_observed": 59.7074535000138,
+      "wall_clock_seconds_recorded": 59.577006249921396
+    },
+    {
+      "artifact_count": 56,
+      "best_candidate_id": "candidate_0001",
+      "best_metrics": {
+        "data_fidelity": 1.0,
+        "visual_form": 1.0
+      },
+      "candidate_count": 6,
+      "candidate_render_counts": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "case_id": "case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2",
+      "delegate": [
+        "phero_viz_single_chain"
+      ],
+      "error": null,
+      "logical_model_calls": 6,
+      "memory_mode": "none",
+      "method": "best_of_n",
+      "model_latency_seconds": 56.503034375142306,
+      "panel_count": 1,
+      "provider_invocations": 6,
+      "provider_name": "phero_viz",
+      "render_count": 6,
+      "run_dir": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/preflight/real_gpt56_smoke_2092d3c_br6/real-gpt56-smoke-final-benchmark-v2-seed0-br6__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_name": "real-gpt56-smoke-final-benchmark-v2-seed0-br6__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/preflight/real_gpt56_smoke_2092d3c_br6/real-gpt56-smoke-final-benchmark-v2-seed0-br6__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6/run_record.json",
+      "run_record_sha256": "42950672fcdc6d0a7fca7a131c095c137a2ed928e4cde3507e8f4e287766d295",
+      "schedule": "best_of_n",
+      "status": "completed",
+      "usage_totals": {
+        "completion_tokens": 4014.0,
+        "prompt_tokens": 7074.0,
+        "total_tokens": 11088.0
+      },
+      "wall_clock_seconds_observed": 71.06892425008118,
+      "wall_clock_seconds_recorded": 70.85786983300932
+    },
+    {
+      "artifact_count": 59,
+      "best_candidate_id": "candidate_0001",
+      "best_metrics": {
+        "data_fidelity": 1.0,
+        "execution_success": 1.0,
+        "series_cohesion": 1.0,
+        "visual_form": 1.0
+      },
+      "candidate_count": 3,
+      "candidate_render_counts": [
+        2,
+        2,
+        2
+      ],
+      "case_id": "multi-s41467-023-38847-1-figure3-d1bf6bf37a26",
+      "delegate": [
+        "phero_viz_multi_panel"
+      ],
+      "error": null,
+      "logical_model_calls": 6,
+      "memory_mode": "none",
+      "method": "best_of_n",
+      "model_latency_seconds": 68.58085045823827,
+      "panel_count": 2,
+      "provider_invocations": 3,
+      "provider_name": "phero_viz",
+      "render_count": 6,
+      "run_dir": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/preflight/real_gpt56_smoke_2092d3c_br6/real-gpt56-smoke-final-benchmark-v2-seed0-br6__case-multi-s41467-023-38847-1-figure3-d1bf6bf37a26__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_name": "real-gpt56-smoke-final-benchmark-v2-seed0-br6__case-multi-s41467-023-38847-1-figure3-d1bf6bf37a26__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/preflight/real_gpt56_smoke_2092d3c_br6/real-gpt56-smoke-final-benchmark-v2-seed0-br6__case-multi-s41467-023-38847-1-figure3-d1bf6bf37a26__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6/run_record.json",
+      "run_record_sha256": "6ba7f9ef32a86867e6b9118d7fa4cb9ef98d6b413a95ffe5d552f95f7c58cd75",
+      "schedule": "best_of_n",
+      "status": "completed",
+      "usage_totals": {
+        "completion_tokens": 4848.0,
+        "prompt_tokens": 7245.0,
+        "total_tokens": 12093.0
+      },
+      "wall_clock_seconds_observed": 81.61624116683379,
+      "wall_clock_seconds_recorded": 81.39309108396992
+    }
+  ],
+  "seed": 0,
+  "selected_cases": [
+    {
+      "case_id": "case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2",
+      "panel_count": 1
+    },
+    {
+      "case_id": "multi-s41467-023-38847-1-figure3-d1bf6bf37a26",
+      "panel_count": 2
+    }
+  ],
+  "smoke_version": "1.0",
+  "source_clean_at_expansion": true,
+  "source_commit": "2092d3ce81771dfc9354f266b505bf3b0468feff",
+  "started_at": "2026-07-13T00:27:48.320694Z",
+  "status": "passed"
+}

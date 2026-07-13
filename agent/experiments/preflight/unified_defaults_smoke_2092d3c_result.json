@@ -1,0 +1,62 @@
+{
+  "git_commit": "2092d3ce81771dfc9354f266b505bf3b0468feff",
+  "git_dirty_at_expansion": false,
+  "initial_generation": "defaults",
+  "model_network_guard": "ModelClient text and vision request methods patched to raise; no request attempted.",
+  "runs": [
+    {
+      "candidate_artifacts": [
+        "code",
+        "iteration",
+        "memory_compatibility",
+        "memory_snapshot",
+        "memory_trace",
+        "programmatic_evaluation",
+        "render",
+        "slots"
+      ],
+      "candidate_count": 1,
+      "case_id": "case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2",
+      "delegate": "phero_viz_single_chain",
+      "panel_count": 1,
+      "render_count": 1,
+      "run_name": "unified-defaults-smoke-p1-2092d3c__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-defaults_smoke__backbone-defaults-no-model__seed-0__budget-renders-1",
+      "run_record": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/preflight/unified_defaults_smoke_2092d3c/unified-defaults-smoke-p1-2092d3c__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-defaults_smoke__backbone-defaults-no-model__seed-0__budget-renders-1/run_record.json",
+      "run_record_sha256": "e769f8e29a960ab7a3c6d373c683b34aac21e07f97e3be33d4c40e5fc828f950"
+    },
+    {
+      "candidate_artifacts": [
+        "memory_compatibility",
+        "memory_snapshot",
+        "memory_trace",
+        "output",
+        "panel.c.code",
+        "panel.c.iteration",
+        "panel.c.programmatic_evaluation",
+        "panel.c.render",
+        "panel.c.slots",
+        "panel.d.code",
+        "panel.d.iteration",
+        "panel.d.programmatic_evaluation",
+        "panel.d.render",
+        "panel.d.slots",
+        "programmatic_evaluation",
+        "render",
+        "result",
+        "schedule_trace"
+      ],
+      "candidate_count": 1,
+      "case_id": "multi-s41467-023-38847-1-figure3-d1bf6bf37a26",
+      "delegate": "phero_viz_multi_panel",
+      "panel_count": 2,
+      "render_count": 2,
+      "run_name": "unified-defaults-smoke-p2-2092d3c__case-multi-s41467-023-38847-1-figure3-d1bf6bf37a26__method-defaults_smoke__backbone-defaults-no-model__seed-0__budget-renders-2",
+      "run_record": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/preflight/unified_defaults_smoke_2092d3c/unified-defaults-smoke-p2-2092d3c__case-multi-s41467-023-38847-1-figure3-d1bf6bf37a26__method-defaults_smoke__backbone-defaults-no-model__seed-0__budget-renders-2/run_record.json",
+      "run_record_sha256": "7c13aaba11db9213876f8e577b27b1ad58ed82c731cd46954412e0e8100ff080"
+    }
+  ],
+  "smoke_version": "1.0",
+  "status": "passed",
+  "total_panel_renders": 3,
+  "vlm_model": "blank"
+}

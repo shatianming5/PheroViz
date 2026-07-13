@@ -1,0 +1,212 @@
+[
+  {
+    "artifact_root": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/gpt56_seed0_br6_p1_p2_2092d3c",
+    "backbone": "gpt-5.6-sol",
+    "budget_type": "renders",
+    "budget_value": 6.0,
+    "case_id": "case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2",
+    "dataset_manifest_hash": "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b",
+    "dataset_manifest_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/combined_verified_400/final_benchmark_v2_seed0/benchmark_manifest.json",
+    "dataset_mode": "sealed_benchmark",
+    "git_commit": "2092d3ce81771dfc9354f266b505bf3b0468feff",
+    "git_dirty": false,
+    "method": "best_of_n",
+    "method_config": {
+      "initial_generation": "model_spec",
+      "memory_mode": "none"
+    },
+    "metric_config": {
+      "selection": {
+        "direction": "maximize",
+        "metric": "data_fidelity"
+      }
+    },
+    "metric_config_hash": "78757dbaff8ffbbd1a97cc1cd777ea566fb8e0c280ba5214e85c58a326105224",
+    "metric_version": "programmatic-v2",
+    "panel_count": 1,
+    "provider": "experiments.providers:UnifiedBenchmarkProvider",
+    "provider_options": {},
+    "repo_root": "/Users/tommy/Downloads/mayi/PheroViz/.copilot-real-calibration-2092d3c",
+    "run_name": "real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+    "schedule": "best_of_n",
+    "schema_version": "2.0",
+    "seed": 0,
+    "spec_hash": "4d45d513d9504f3d136ad08019dd838e72c5e780ccfed7f9a2fd0202110d90b6",
+    "split": "test"
+  },
+  {
+    "artifact_root": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/gpt56_seed0_br6_p1_p2_2092d3c",
+    "backbone": "gpt-5.6-sol",
+    "budget_type": "renders",
+    "budget_value": 6.0,
+    "case_id": "multi-s41467-023-38847-1-figure3-d1bf6bf37a26",
+    "dataset_manifest_hash": "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b",
+    "dataset_manifest_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/combined_verified_400/final_benchmark_v2_seed0/benchmark_manifest.json",
+    "dataset_mode": "sealed_benchmark",
+    "git_commit": "2092d3ce81771dfc9354f266b505bf3b0468feff",
+    "git_dirty": false,
+    "method": "best_of_n",
+    "method_config": {
+      "initial_generation": "model_spec",
+      "memory_mode": "none"
+    },
+    "metric_config": {
+      "selection": {
+        "direction": "maximize",
+        "metric": "data_fidelity"
+      }
+    },
+    "metric_config_hash": "78757dbaff8ffbbd1a97cc1cd777ea566fb8e0c280ba5214e85c58a326105224",
+    "metric_version": "programmatic-v2",
+    "panel_count": 2,
+    "provider": "experiments.providers:UnifiedBenchmarkProvider",
+    "provider_options": {},
+    "repo_root": "/Users/tommy/Downloads/mayi/PheroViz/.copilot-real-calibration-2092d3c",
+    "run_name": "real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-multi-s41467-023-38847-1-figure3-d1bf6bf37a26__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+    "schedule": "best_of_n",
+    "schema_version": "2.0",
+    "seed": 0,
+    "spec_hash": "ce81c04764756a5583c4c97e815de93df8a6a111f64ccff295f3af859d3dadc7",
+    "split": "test"
+  },
+  {
+    "artifact_root": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/gpt56_seed0_br6_p1_p2_2092d3c",
+    "backbone": "gpt-5.6-sol",
+    "budget_type": "renders",
+    "budget_value": 6.0,
+    "case_id": "case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2",
+    "dataset_manifest_hash": "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b",
+    "dataset_manifest_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/combined_verified_400/final_benchmark_v2_seed0/benchmark_manifest.json",
+    "dataset_mode": "sealed_benchmark",
+    "git_commit": "2092d3ce81771dfc9354f266b505bf3b0468feff",
+    "git_dirty": false,
+    "method": "flat_iterative",
+    "method_config": {
+      "initial_generation": "model_spec",
+      "memory_mode": "none"
+    },
+    "metric_config": {
+      "selection": {
+        "direction": "maximize",
+        "metric": "data_fidelity"
+      }
+    },
+    "metric_config_hash": "78757dbaff8ffbbd1a97cc1cd777ea566fb8e0c280ba5214e85c58a326105224",
+    "metric_version": "programmatic-v2",
+    "panel_count": 1,
+    "provider": "experiments.providers:UnifiedBenchmarkProvider",
+    "provider_options": {},
+    "repo_root": "/Users/tommy/Downloads/mayi/PheroViz/.copilot-real-calibration-2092d3c",
+    "run_name": "real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-flat_iterative__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+    "schedule": "iterative",
+    "schema_version": "2.0",
+    "seed": 0,
+    "spec_hash": "cc3a86026e53fe4a47826feb33d8fe57d9140533caffd07245b4b6232714a513",
+    "split": "test"
+  },
+  {
+    "artifact_root": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/gpt56_seed0_br6_p1_p2_2092d3c",
+    "backbone": "gpt-5.6-sol",
+    "budget_type": "renders",
+    "budget_value": 6.0,
+    "case_id": "multi-s41467-023-38847-1-figure3-d1bf6bf37a26",
+    "dataset_manifest_hash": "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b",
+    "dataset_manifest_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/combined_verified_400/final_benchmark_v2_seed0/benchmark_manifest.json",
+    "dataset_mode": "sealed_benchmark",
+    "git_commit": "2092d3ce81771dfc9354f266b505bf3b0468feff",
+    "git_dirty": false,
+    "method": "flat_iterative",
+    "method_config": {
+      "initial_generation": "model_spec",
+      "memory_mode": "none"
+    },
+    "metric_config": {
+      "selection": {
+        "direction": "maximize",
+        "metric": "data_fidelity"
+      }
+    },
+    "metric_config_hash": "78757dbaff8ffbbd1a97cc1cd777ea566fb8e0c280ba5214e85c58a326105224",
+    "metric_version": "programmatic-v2",
+    "panel_count": 2,
+    "provider": "experiments.providers:UnifiedBenchmarkProvider",
+    "provider_options": {},
+    "repo_root": "/Users/tommy/Downloads/mayi/PheroViz/.copilot-real-calibration-2092d3c",
+    "run_name": "real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-multi-s41467-023-38847-1-figure3-d1bf6bf37a26__method-flat_iterative__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+    "schedule": "iterative",
+    "schema_version": "2.0",
+    "seed": 0,
+    "spec_hash": "39aa0c99f6f96b6fe561d73078f9486a09f62ee8a1a3f59b257030c77842225d",
+    "split": "test"
+  },
+  {
+    "artifact_root": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/gpt56_seed0_br6_p1_p2_2092d3c",
+    "backbone": "gpt-5.6-sol",
+    "budget_type": "renders",
+    "budget_value": 6.0,
+    "case_id": "case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2",
+    "dataset_manifest_hash": "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b",
+    "dataset_manifest_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/combined_verified_400/final_benchmark_v2_seed0/benchmark_manifest.json",
+    "dataset_mode": "sealed_benchmark",
+    "git_commit": "2092d3ce81771dfc9354f266b505bf3b0468feff",
+    "git_dirty": false,
+    "method": "pheroviz_full",
+    "method_config": {
+      "initial_generation": "model_spec",
+      "memory_mode": "full"
+    },
+    "metric_config": {
+      "selection": {
+        "direction": "maximize",
+        "metric": "data_fidelity"
+      }
+    },
+    "metric_config_hash": "78757dbaff8ffbbd1a97cc1cd777ea566fb8e0c280ba5214e85c58a326105224",
+    "metric_version": "programmatic-v2",
+    "panel_count": 1,
+    "provider": "experiments.providers:UnifiedBenchmarkProvider",
+    "provider_options": {},
+    "repo_root": "/Users/tommy/Downloads/mayi/PheroViz/.copilot-real-calibration-2092d3c",
+    "run_name": "real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-pheroviz_full__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+    "schedule": "iterative",
+    "schema_version": "2.0",
+    "seed": 0,
+    "spec_hash": "36163e985c229a1f0746a29e7df1f1ecda8a7c9c1e3662928d69a4a9de70b325",
+    "split": "test"
+  },
+  {
+    "artifact_root": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/runs/calibration/gpt56_seed0_br6_p1_p2_2092d3c",
+    "backbone": "gpt-5.6-sol",
+    "budget_type": "renders",
+    "budget_value": 6.0,
+    "case_id": "multi-s41467-023-38847-1-figure3-d1bf6bf37a26",
+    "dataset_manifest_hash": "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b",
+    "dataset_manifest_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/combined_verified_400/final_benchmark_v2_seed0/benchmark_manifest.json",
+    "dataset_mode": "sealed_benchmark",
+    "git_commit": "2092d3ce81771dfc9354f266b505bf3b0468feff",
+    "git_dirty": false,
+    "method": "pheroviz_full",
+    "method_config": {
+      "initial_generation": "model_spec",
+      "memory_mode": "full"
+    },
+    "metric_config": {
+      "selection": {
+        "direction": "maximize",
+        "metric": "data_fidelity"
+      }
+    },
+    "metric_config_hash": "78757dbaff8ffbbd1a97cc1cd777ea566fb8e0c280ba5214e85c58a326105224",
+    "metric_version": "programmatic-v2",
+    "panel_count": 2,
+    "provider": "experiments.providers:UnifiedBenchmarkProvider",
+    "provider_options": {},
+    "repo_root": "/Users/tommy/Downloads/mayi/PheroViz/.copilot-real-calibration-2092d3c",
+    "run_name": "real-calibration-gpt56-seed0-br6-p1-p2-2092d3c__case-multi-s41467-023-38847-1-figure3-d1bf6bf37a26__method-pheroviz_full__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+    "schedule": "iterative",
+    "schema_version": "2.0",
+    "seed": 0,
+    "spec_hash": "0f09bbc1ae6d82e74f453bb97c9fc875b9e6cb358691b87a2b6bcef526c1cf3e",
+    "split": "test"
+  }
+]
