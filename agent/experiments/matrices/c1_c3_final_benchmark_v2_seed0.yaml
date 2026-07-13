@@ -10,14 +10,17 @@ methods:
     schedule: best_of_n
     memory_mode: none
     initial_generation: model_spec
+    render_timeout_seconds: 120
   - name: flat_iterative
     schedule: iterative
     memory_mode: none
     initial_generation: model_spec
+    render_timeout_seconds: 120
   - name: pheroviz_full
     schedule: iterative
     memory_mode: full
     initial_generation: model_spec
+    render_timeout_seconds: 120
 
 backbones:
   - gpt-5.6-sol

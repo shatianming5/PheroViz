@@ -691,6 +691,7 @@ def test_model_initial_generation_calls_all_stages_with_sampling_controls(
         "seed": 17,
         "temperature": 0.65,
         "memory_mode": "none",
+        "render_timeout_seconds": 120,
     }
 
 

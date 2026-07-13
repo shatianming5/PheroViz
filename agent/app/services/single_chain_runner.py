@@ -1085,6 +1085,7 @@ def iter_chain(
     manage_ephemeral_reset: bool = True,
     evaluation_expectation: Mapping[str, Any] | None = None,
     metric_config: Mapping[str, Any] | None = None,
+    render_timeout_seconds: int | None = None,
 ) -> Iterator[Dict[str, Any]]:
     def emit(event: str, payload: Optional[Dict[str, Any]] = None) -> None:
         if progress_callback is not None:
@@ -1129,6 +1130,7 @@ def iter_chain(
             "seed": seed,
             "temperature": temperature,
             "memory_mode": normalized_memory_mode,
+            "render_timeout_seconds": render_timeout_seconds,
         },
     )
 
@@ -1218,10 +1220,27 @@ def iter_chain(
     force_all_rounds_raw = os.getenv("FORCE_ALL_ROUNDS", "")
     force_all_rounds = force_all_rounds_raw.strip().lower() not in {"", "0", "false", "no"}
     ctx["force_all_rounds"] = force_all_rounds
-    try:
-        render_timeout = max(1, int(os.getenv("PHEROVIZ_RENDER_TIMEOUT", "30")))
-    except ValueError as exc:
-        raise ValueError("PHEROVIZ_RENDER_TIMEOUT must be an integer") from exc
+    if render_timeout_seconds is None:
+        try:
+            render_timeout = max(
+                1,
+                int(os.getenv("PHEROVIZ_RENDER_TIMEOUT", "30")),
+            )
+        except ValueError as exc:
+            raise ValueError(
+                "PHEROVIZ_RENDER_TIMEOUT must be an integer"
+            ) from exc
+    else:
+        if (
+            isinstance(render_timeout_seconds, bool)
+            or not isinstance(render_timeout_seconds, int)
+            or render_timeout_seconds < 1
+        ):
+            raise ValueError(
+                "render_timeout_seconds must be a positive integer"
+            )
+        render_timeout = render_timeout_seconds
+    ctx["render_timeout_seconds"] = render_timeout
 
     emit(
         "context_ready",
@@ -1813,6 +1832,7 @@ def iter_chain(
                 "seed": seed,
                 "temperature": temperature,
                 "memory_mode": normalized_memory_mode,
+                "render_timeout_seconds": render_timeout,
             },
             "memory": {
                 **memory_paths,
@@ -1898,6 +1918,7 @@ def run_chain(
     untyped_memory: list[dict[str, Any]] | None = None,
     evaluation_expectation: Mapping[str, Any] | None = None,
     metric_config: Mapping[str, Any] | None = None,
+    render_timeout_seconds: int | None = None,
 ) -> Dict[str, Any]:
     selected: Dict[str, Any] = {}
     for result in iter_chain(
@@ -1920,6 +1941,7 @@ def run_chain(
         untyped_memory=untyped_memory,
         evaluation_expectation=evaluation_expectation,
         metric_config=metric_config,
+        render_timeout_seconds=render_timeout_seconds,
     ):
         selected = result
     return selected

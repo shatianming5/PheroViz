@@ -174,6 +174,15 @@ def _temporary_environment(updates: Mapping[str, str]) -> Iterator[None]:
                 os.environ[name] = value
 
 
+def _render_timeout_seconds(request: GenerationRequest) -> int:
+    value = request.spec.method_config.get("render_timeout_seconds", 30)
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise ProviderExecutionError(
+            "method_config.render_timeout_seconds must be a positive integer"
+        )
+    return value
+
+
 class SingleChainProvider:
     """Adapter for iterative trajectories and independent model-spec samples."""
 
@@ -334,6 +343,7 @@ class SingleChainProvider:
             "LLM_MODEL": request.spec.backbone,
             "FORCE_ALL_ROUNDS": "1",
         }
+        render_timeout_seconds = _render_timeout_seconds(request)
         if request.remaining_seconds is not None:
             environment["LLM_TIMEOUT"] = str(max(request.remaining_seconds, 1.0))
 
@@ -370,6 +380,7 @@ class SingleChainProvider:
                         "evaluation_expectation"
                     ),
                     metric_config=request.spec.metric_config.get("evaluator"),
+                    render_timeout_seconds=render_timeout_seconds,
                 )
         except Exception as exc:
             partial = (
@@ -476,6 +487,7 @@ class SingleChainProvider:
                     metadata={
                         "core_round": round_number,
                         "core_run_dir": str(discovered_run_dir),
+                        "render_timeout_seconds": render_timeout_seconds,
                         "model_calls": {
                             str(stage_name): dict(
                                 stage.get("model_metadata") or {}
@@ -591,6 +603,7 @@ def _multi_panel_checkpoint_candidate(
     panel_ids: Sequence[str],
     memory_mode: str,
     seed: int,
+    render_timeout_seconds: int,
     output_dir: Path,
 ) -> CandidateResult:
     if checkpoint.get("global_round") != expected_round:
@@ -723,6 +736,7 @@ def _multi_panel_checkpoint_candidate(
             "rounds": total_rounds,
             "memory_mode": memory_mode,
             "seed": seed,
+            "render_timeout_seconds": render_timeout_seconds,
             "cumulative_render_count": panel_count * expected_round,
             "served_models": served_models,
             "judge_models": judge_models,
@@ -877,6 +891,7 @@ class MultiPanelProvider:
             raise ProviderExecutionError("Multi-panel rounds must be positive")
 
         output_dir = request.output_dir / "multi_panel"
+        render_timeout_seconds = _render_timeout_seconds(request)
         environment = {
             "LLM_MODEL": request.spec.backbone,
             "FORCE_ALL_ROUNDS": "1",
@@ -904,6 +919,7 @@ class MultiPanelProvider:
                     seed=request.spec.seed + request.call_index - 1,
                     temperature=request.spec.method_config.get("temperature"),
                     memory_mode=memory_mode,
+                    render_timeout_seconds=render_timeout_seconds,
                     base_dir=manifest_base_dir,
                 )
         except Exception as exc:
@@ -974,6 +990,7 @@ class MultiPanelProvider:
                 panel_ids=panel_ids,
                 memory_mode=memory_mode,
                 seed=candidate_seed,
+                render_timeout_seconds=render_timeout_seconds,
                 output_dir=request.output_dir,
             )
             for round_number, checkpoint in enumerate(checkpoints, 1)

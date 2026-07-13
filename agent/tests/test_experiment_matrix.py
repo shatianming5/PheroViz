@@ -519,6 +519,9 @@ def test_production_c1_c3_matrix_contract_expands_cleanly() -> None:
         assert {
             spec.method_config["initial_generation"] for spec in specs
         } == {"model_spec"}
+        assert {
+            spec.method_config["render_timeout_seconds"] for spec in specs
+        } == {120}
         assert {spec.provider for spec in specs} == {
             PHEROVIZ_PROVIDER_IMPORT_PATH
         }

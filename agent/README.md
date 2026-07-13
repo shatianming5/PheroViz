@@ -136,7 +136,9 @@ C1/C3 的首个 production 矩阵位于
 `experiments.providers:UnifiedBenchmarkProvider`。矩阵展开会在创建任何
 run 目录前检查 render budget 是正整数且能被每个已选 case 的 panel 数整除；
 因此 P=1/2/3/6 均可 exact-fill `B_R=6`，partial panel checkpoint 会直接
-拒绝。只验证展开而不启动付费模型调用：
+拒绝。每个方法还在 immutable spec 中固定
+`render_timeout_seconds=120`；这是基础设施 watchdog，不是 render budget，
+不得通过进程环境静默改变。只验证展开而不启动付费模型调用：
 
 ```bash
 python -m experiments run \

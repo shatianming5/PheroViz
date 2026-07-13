@@ -388,6 +388,7 @@ def run_multi_panel(
     seed: int | None = None,
     temperature: float | None = None,
     memory_mode: str | None = None,
+    render_timeout_seconds: int | None = None,
     base_dir: str | Path | None = None,
 ) -> dict[str, Any]:
     manifest_data, manifest_base_dir = _load_manifest(
@@ -534,6 +535,7 @@ def run_multi_panel(
                 else panel.get("evaluation_expectation")
             ),
             metric_config=metric_config,
+            render_timeout_seconds=render_timeout_seconds,
         )
 
     panel_order = [panel["id"] for panel in panels]

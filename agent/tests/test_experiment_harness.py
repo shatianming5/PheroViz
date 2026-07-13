@@ -641,6 +641,7 @@ def test_multi_panel_provider_emits_programmatic_candidate(
         method_config={
             "initial_generation": "defaults",
             "memory_mode": "full",
+            "render_timeout_seconds": 120,
         },
     )
     output_dir = tmp_path / "provider"
@@ -664,5 +665,6 @@ def test_multi_panel_provider_emits_programmatic_candidate(
     assert candidate.render_count == 2
     assert candidate.metrics["data_fidelity"] == 1.0
     assert candidate.metrics["series_cohesion"] == 1.0
+    assert candidate.metadata["render_timeout_seconds"] == 120
     assert Path(candidate.artifacts["render"]).is_file()
     assert Path(candidate.artifacts["programmatic_evaluation"]).is_file()
