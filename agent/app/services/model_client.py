@@ -103,11 +103,44 @@ def _api_root(base_url: str) -> str:
     return base_url if base_url.rstrip("/").endswith("/v1") else f"{base_url.rstrip('/')}/v1"
 
 
+def _strip_json_line_comments(text: str) -> str:
+    output: list[str] = []
+    index = 0
+    in_string = False
+    escaped = False
+    while index < len(text):
+        character = text[index]
+        if in_string:
+            output.append(character)
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == '"':
+                in_string = False
+            index += 1
+            continue
+        if character == '"':
+            in_string = True
+            output.append(character)
+            index += 1
+            continue
+        if character == "/" and index + 1 < len(text) and text[index + 1] == "/":
+            index += 2
+            while index < len(text) and text[index] not in "\r\n":
+                index += 1
+            continue
+        output.append(character)
+        index += 1
+    return "".join(output)
+
+
 def _parse_json_text(content: str) -> dict[str, Any]:
     text = content.strip()
     if text.startswith("```"):
         text = re.sub(r"^```(?:json)?\s*", "", text, count=1)
         text = re.sub(r"\s*```$", "", text, count=1)
+    text = _strip_json_line_comments(text)
     try:
         value = json.loads(text)
     except json.JSONDecodeError as exc:

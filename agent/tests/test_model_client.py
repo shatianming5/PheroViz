@@ -125,6 +125,44 @@ def test_generate_json_uses_last_complete_object() -> None:
     }
 
 
+def test_generate_json_accepts_line_comments_outside_strings() -> None:
+    session = FakeSession(
+        [
+            FakeResponse(
+                {
+                    "choices": [
+                        {
+                            "message": {
+                                "content": (
+                                    "```json\n"
+                                    "{\n"
+                                    '  "url": "https://example.test/a//b",\n'
+                                    '  "slots": {\n'
+                                    '    "spec.compose": {"overlays": []} '
+                                    "// model rationale\n"
+                                    "  }\n"
+                                    "}\n"
+                                    "```"
+                                )
+                            }
+                        }
+                    ]
+                }
+            )
+        ]
+    )
+
+    result = ModelClient(
+        config(reasoning_effort=None),
+        session=session,
+    ).generate_json([{"role": "user", "content": "json"}])
+
+    assert result.value == {
+        "url": "https://example.test/a//b",
+        "slots": {"spec.compose": {"overlays": []}},
+    }
+
+
 def test_sampling_parameters_are_model_compatible() -> None:
     session = FakeSession(
         [
