@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import json
-import shutil
-import uuid
+import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
@@ -28,17 +27,11 @@ from experiments.models import sha256_file, sha256_json, write_json_atomic
 
 @contextmanager
 def _workspace(label: str) -> Iterator[Path]:
-    parent = (
-        Path(__file__).resolve().parents[1]
-        / "experiments"
-        / "preflight"
-    )
-    path = parent / f"cohesion_margin_test_{label}_{uuid.uuid4().hex}"
-    path.mkdir(parents=True)
-    try:
+    with tempfile.TemporaryDirectory(
+        prefix=f"cohesion_margin_test_{label}_"
+    ) as raw:
+        path = Path(raw)
         yield path
-    finally:
-        shutil.rmtree(path, ignore_errors=True)
 
 
 def _payload(report: dict) -> dict:
