@@ -189,6 +189,51 @@ def test_single_chain_persists_programmatic_fidelity(
     assert Path(result["programmatic_evaluation_path"]).is_file()
 
 
+def test_default_slots_drop_null_categorical_levels(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _disable_network(monkeypatch)
+    data_path = tmp_path / "categorical-null.csv"
+    pd.DataFrame(
+        {
+            "category": ["A", None, "B"],
+            "value": [1.0, None, 2.0],
+        }
+    ).to_csv(data_path, index=False)
+    expectation = {
+        "schema_version": "1.1.0",
+        "panels": [
+            {
+                "panel_id": "panel-0",
+                "axis_index": 0,
+                "series": [
+                    {
+                        "series_id": "value",
+                        "kind": "bar",
+                        "x": "category",
+                        "value": "value",
+                    }
+                ],
+            }
+        ],
+        "panel_groups": [],
+    }
+
+    result = single_runner.run_chain(
+        str(data_path),
+        "categorical chart with a blank separator row",
+        "bar",
+        rounds=1,
+        intent={"x": "category", "y": "value"},
+        run_dir=tmp_path / "categorical-null-run",
+        evaluation_expectation=expectation,
+    )
+
+    assert result["programmatic_evaluation"]["fidelity"]["ratio"] == 1.0
+    assert result["scores"]["data_fidelity"] == 1.0
+
+
 def test_multi_panel_round_robin_reuses_shared_constraints(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

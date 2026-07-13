@@ -626,6 +626,20 @@ return spec_out
                 data = df.copy()
                 overlays = spec.get('overlays') or []
                 meta = ctx.setdefault('_v2_meta', {})
+                raw_x_categories = meta.get('x_categories') or []
+                safe_x_categories = []
+                for value in raw_x_categories:
+                    try:
+                        is_missing = bool(pd.isna(value))
+                    except (TypeError, ValueError):
+                        is_missing = False
+                    if is_missing:
+                        continue
+                    text = str(value)
+                    if text not in safe_x_categories:
+                        safe_x_categories.append(text)
+                if raw_x_categories:
+                    meta['x_categories'] = safe_x_categories
                 ratio_tokens = ('rate', 'ratio', 'share', 'percent', 'pct', '%', '?', '??', '??', '??', '??', '???')
                 ratio_flags = {}
                 overlay_roles = {role.get('id'): role for role in (meta.get('overlay_roles') or [])}
@@ -634,7 +648,7 @@ return spec_out
                     x_hint = primary.get('x')
                     if x_hint and x_hint in data.columns and not pd.api.types.is_numeric_dtype(data[x_hint]):
                         if not pd.api.types.is_datetime64_any_dtype(data[x_hint]):
-                            cats = list(dict.fromkeys(data[x_hint].astype(str).tolist()))
+                            cats = list(dict.fromkeys(data[x_hint].dropna().astype(str).tolist()))
                             if cats:
                                 meta['x_categories'] = cats
                 group_categories = meta.get('group_categories') or {}
@@ -653,13 +667,13 @@ return spec_out
                                 data[x_key] = converted
                                 series_x = data[x_key]
                         if not pd.api.types.is_numeric_dtype(series_x) and not pd.api.types.is_datetime64_any_dtype(series_x):
-                            cats = list(dict.fromkeys(series_x.astype(str).tolist()))
+                            cats = list(dict.fromkeys(series_x.dropna().astype(str).tolist()))
                             if cats and not meta.get('x_categories'):
                                 meta['x_categories'] = cats
                     if grp_key and grp_key in data.columns:
                         grp_series = data[grp_key]
                         if not pd.api.types.is_numeric_dtype(grp_series):
-                            cats = list(dict.fromkeys(grp_series.astype(str).tolist()))
+                            cats = list(dict.fromkeys(grp_series.dropna().astype(str).tolist()))
                             if cats:
                                 group_categories[grp_key] = cats
                     if y_key and y_key in data.columns:
@@ -693,7 +707,10 @@ return spec_out
                 if overlays:
                     valid_mask = pd.Series(True, index=data.index, dtype=bool)
                     for ov in overlays:
+                        x_key = ov.get('x')
                         y_key = ov.get('y')
+                        if x_key and x_key in data.columns:
+                            valid_mask &= data[x_key].notna()
                         if y_key and y_key in data.columns:
                             valid_mask &= data[y_key].notna()
                     data = data.loc[valid_mask].copy()
@@ -1391,7 +1408,6 @@ if ax_right:
         "notes": "L4 defaults: axes, legend, theme",
     },
 }
-
 
 
 
