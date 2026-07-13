@@ -1,0 +1,580 @@
+{
+  "accounting": {
+    "completed_provider_invocations": 84,
+    "completed_renders": 84,
+    "completed_text_model_calls": 84,
+    "completed_wall_clock_seconds": 2102.499998772517,
+    "failed_call_usage_tokens": "unavailable_not_persisted_before_render_timeout",
+    "failed_logical_text_model_calls_inferred_from_generated_code": 1,
+    "failed_provider_invocations_started": 1,
+    "failed_renders": 0,
+    "failed_wall_clock_seconds": 162.86353576974943,
+    "recorded_completed_usage_tokens": {
+      "completion_tokens": 124698,
+      "prompt_tokens": 101183,
+      "total_tokens": 225881
+    },
+    "total_logical_text_model_calls": 85,
+    "total_provider_invocations_started": 85,
+    "total_recorded_wall_clock_seconds": 2265.3635345422663,
+    "total_renders": 84,
+    "vlm_calls": 0
+  },
+  "batch_status": "ABORTED_NEVER_MERGE",
+  "collection_policy": {
+    "remote_root_moved_or_deleted": false,
+    "remote_root_read_only": true,
+    "runner_launched_or_modified": false,
+    "runtime_matrix_corpus_paper_edited": false
+  },
+  "failed_record_binding": {
+    "attempt": 1,
+    "candidate_count": 0,
+    "error": {
+      "attribution": "unclassified",
+      "message": "Single-chain execution failed: Programmatic evaluation was requested but the sandbox did not produce a result: Execution timed out after 120s: Command '['/mnt/SSD1_8TB/zechuan/venvs/pheroviz-6628a00-conda/bin/python', '/tmp/tmp068nwl5h/shim.py', '/tmp/tmp068nwl5h/df.pkl', '/tmp/tmp068nwl5h/intent.json', '/tmp/tmp068nwl5h/ctx.json', '/mnt/SSD1_8TB/zechuan/PheroViz-6628a00/agent/experiments/runs/production/c1_c3_final_benchmark_v2_seed0_br6_gpt56sol/c1-c3-final-benchmark-v2-seed0-br6__case-case-s41467-023-42692-7-figure4-panelf-94b682f53cbb__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6/",
+      "type": "ProviderExecutionError"
+    },
+    "generated_code": "/mnt/SSD1_8TB/zechuan/PheroViz-6628a00/agent/experiments/runs/production/c1_c3_final_benchmark_v2_seed0_br6_gpt56sol/c1-c3-final-benchmark-v2-seed0-br6__case-case-s41467-023-42692-7-figure4-panelf-94b682f53cbb__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6/attempt_001/provider/call_0001/core_runs/20260713T181034_018148752/code_round_1.py",
+    "generated_code_sha256": "654dee907308f759b811964d282973dba3cead0865d25017ad18e22200a800aa",
+    "partial_artifact": "/mnt/SSD1_8TB/zechuan/PheroViz-6628a00/agent/experiments/runs/production/c1_c3_final_benchmark_v2_seed0_br6_gpt56sol/c1-c3-final-benchmark-v2-seed0-br6__case-case-s41467-023-42692-7-figure4-panelf-94b682f53cbb__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6/attempt_001/provider/call_0001/core_runs/20260713T181034_018148752",
+    "partial_artifact_sha256": "db11e41c26ae68f9b266d2b1df5850c987b85a701a3835df043b24dab8111dd4",
+    "record_hash": "e153489166b1f94af76b5d798ea2c37434c6a028415a86ec89a09544358e21f3",
+    "render_count": 0,
+    "required_failed_record_hash": "e153489166b1f94af76b5d798ea2c37434c6a028415a86ec89a09544358e21f3",
+    "run_name": "c1-c3-final-benchmark-v2-seed0-br6__case-case-s41467-023-42692-7-figure4-panelf-94b682f53cbb__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+    "run_record_file_sha256": "e3cdd120dda2c0dc5c35cb5bdb0b38ef718e9af5b77012e6631d144136e7d03f",
+    "spec_hash": "44619b7b6aff0798fa230da7daafc47164ede7e6ff5d81ce010eee5b1e6ab57b",
+    "status": "failed"
+  },
+  "first_gate": {
+    "artifact_count": 56,
+    "artifacts_verified": true,
+    "attempt": 1,
+    "candidate_count": 6,
+    "candidate_render_timeout_seconds": 120,
+    "candidate_timeout_verified_separately": true,
+    "dataset_manifest_hash": "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b",
+    "git_commit": "9aaef1f7ca391b3864fc8ad7572bbae686c1fe44",
+    "git_dirty": false,
+    "method_config_render_timeout_seconds": 120,
+    "metric_config_hash": "78757dbaff8ffbbd1a97cc1cd777ea566fb8e0c280ba5214e85c58a326105224",
+    "provider_invocations": 6,
+    "record_hash": "2eab7d73710bf485385f41b9df43b5fa8271badefb51c55b7a8881f2faa0b5c6",
+    "render_count": 6,
+    "run_name": "c1-c3-final-benchmark-v2-seed0-br6__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+    "run_record_file_sha256": "51bf8ed383a97aabb29dfe09a9b6dd57fd417c321c79e53b18ba987299514d97",
+    "status": "completed",
+    "text_model_calls": 6,
+    "timeout_seconds_values": [],
+    "usage_totals": {
+      "completion_tokens": 8476,
+      "prompt_tokens": 7199,
+      "total_tokens": 15675
+    },
+    "vlm_calls": 0,
+    "wall_clock_seconds": 142.03579954477027
+  },
+  "generated_at": "2026-07-13T10:33:01.308105Z",
+  "host_test_calibration_provenance": {
+    "categorical_null_fix_calibration": {
+      "actual": {
+        "completed_runs": 3,
+        "elapsed_seconds": 317.32373900013044,
+        "panel_renders": 18,
+        "provider_invocations": 8,
+        "recorded_wall_clock_seconds": 315.84581533283927,
+        "text_latency_max_seconds": 22.153388499980792,
+        "text_latency_p50_seconds": 13.275706792017445,
+        "text_model_calls": 18,
+        "text_model_latency_seconds": 249.9972793769557,
+        "unique_request_ids": 18,
+        "usage_totals": {
+          "completion_tokens": 19609,
+          "prompt_tokens": 57771,
+          "total_tokens": 77380
+        },
+        "vlm_calls": 0
+      },
+      "bugs": [],
+      "case_id": "case-s41467-023-42692-7-figure1-panelb-5ac7fb84108f",
+      "checks": [
+        "three methods completed",
+        "six renders/run",
+        "all candidate data_fidelity=1.0",
+        "18 unique gpt-5.6-sol text calls",
+        "zero VLM calls",
+        "provider invocation contract",
+        "clean 17990af provenance",
+        "record and artifact hashes",
+        "strict 3-row aggregation"
+      ],
+      "evidence_path": "agent/experiments/preflight/blocker_calibration_17990af_seed0_br6_validation.json",
+      "evidence_sha256": "f9e0256cbf30f439f1c97f277ae214c6ab51f4878d89fb2410aca97038aafc73",
+      "source_clean": true,
+      "source_commit": "17990af8188b9994d88233ba226159d2b498a2d7",
+      "status": "passed"
+    },
+    "commit_chain": [
+      {
+        "commit": "9aaef1f7ca391b3864fc8ad7572bbae686c1fe44",
+        "subject": "feat: fail fast on infrastructure runs"
+      },
+      {
+        "commit": "ad1f32d3fc73e6960b228ef91d009f05af254434",
+        "subject": "exp: validate remote render watchdog"
+      },
+      {
+        "commit": "fa6b84499980f16076ac210a0bb4bf9d48e153b5",
+        "subject": "fix: remap sealed provenance bindings remotely"
+      },
+      {
+        "commit": "dc3560246c2d483db504e30054e84ffcdcb199fd",
+        "subject": "exp: validate categorical runtime repair"
+      },
+      {
+        "commit": "17990af8188b9994d88233ba226159d2b498a2d7",
+        "subject": "fix: drop null categorical levels before rendering"
+      }
+    ],
+    "production_commit_test_change": {
+      "commit": "9aaef1f7ca391b3864fc8ad7572bbae686c1fe44",
+      "files": [
+        "agent/experiments/cli.py",
+        "agent/tests/test_experiment_matrix.py"
+      ],
+      "subject": "feat: fail fast on infrastructure runs",
+      "test_lines_added": 62
+    },
+    "remote_timeout_calibration": {
+      "case_id": "case-s41467-023-42692-7-figure1-panelh-53463702bfd3",
+      "code_commit": "fa6b84499980f16076ac210a0bb4bf9d48e153b5",
+      "code_dirty": false,
+      "evidence_path": "agent/experiments/preflight/remote_timeout_calibration_fa6b844.json",
+      "evidence_sha256": "648ce976ece7778247d41bceab5b82376b69338429f58ede2b26bb3909708ecc",
+      "host": "7352-10x4090-183",
+      "render_timeout_seconds": 120,
+      "status": "passed",
+      "summary_hash": "6a9326d7c8fbad81a4b978a816450385109d29b51a3780dd9ead6f4a935d707b",
+      "tests": "219 passed in 33.14s",
+      "totals": {
+        "completion_tokens": 17884,
+        "prompt_tokens": 58691,
+        "renders": 18,
+        "text_calls": 18,
+        "total_tokens": 76575,
+        "vlm_calls": 0,
+        "wall_clock_seconds": 323.57726223254576
+      }
+    }
+  },
+  "never_merge_into_results": true,
+  "no_method_outcome_inferred": true,
+  "policy_response": {
+    "action": "ABORT_BATCH_AND_NEVER_MERGE",
+    "do_not_infer_method_outcome": true,
+    "preserve_remote_root_read_only": true,
+    "required_next_gate": "seal a benchmark excluding/rejecting semantically non-renderable bar cardinality before any fresh production run",
+    "static_bar_cardinality_cap_builder": "in_progress"
+  },
+  "reason": "accepted_bar_case_is_outcome_independently_non_renderable_and_semantically_invalid_at_89902_expected_bar_points",
+  "remote_provenance": {
+    "git_dirty": false,
+    "head": "9aaef1f7ca391b3864fc8ad7572bbae686c1fe44",
+    "host": "7352-10x4090-183",
+    "pandas": "3.0.3",
+    "platform": "Linux-6.8.0-65-generic-x86_64-with-glibc2.35",
+    "python": "3.11.15",
+    "repo": "/mnt/SSD1_8TB/zechuan/PheroViz-6628a00",
+    "root": "/mnt/SSD1_8TB/zechuan/PheroViz-6628a00/agent/experiments/runs/production/c1_c3_final_benchmark_v2_seed0_br6_gpt56sol",
+    "runner_alive": false,
+    "runner_pid": 2237426
+  },
+  "renderability_binding": {
+    "accepted_case": true,
+    "case_id": "case-s41467-023-42692-7-figure4-panelf-94b682f53cbb",
+    "chart_family": "bar",
+    "defect_class": "semantic_and_renderability_cardinality",
+    "defect_is_method_independent": true,
+    "expected_bar_points": 89902,
+    "expected_point_formula": "unique_categorical_x * series_count",
+    "frozen_manifest": "/mnt/SSD1_8TB/zechuan/PheroViz-6628a00/agent/experiments/runs/production/c1_c3_final_benchmark_v2_seed0_br6_gpt56sol/c1-c3-final-benchmark-v2-seed0-br6__case-case-s41467-023-42692-7-figure4-panelf-94b682f53cbb__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6/dataset_manifest.frozen.json",
+    "frozen_manifest_sha256": "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b",
+    "parent_manifest": "/mnt/SSD1_8TB/zechuan/PheroViz-6628a00/nature_download/outputs/combined_verified_400/final_benchmark_v2_seed0/benchmark_manifest.json",
+    "parent_manifest_sha256": "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b",
+    "record_manifest_sha256": "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b",
+    "rows": 44951,
+    "series_count": 2,
+    "sheet": "Fig 4f",
+    "source_data_actual_sha256": "e31bbd00d5e6189fafd4641df0adf0245824685e5479cbcb3b5ee32ad2d538ab",
+    "source_data_declared_sha256": "e31bbd00d5e6189fafd4641df0adf0245824685e5479cbcb3b5ee32ad2d538ab",
+    "source_data_manifest_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next150/content/s41467-023-42692-7/source_data/41467_2023_42692_MOESM7_ESM.xlsx",
+    "source_data_runtime_path": "/mnt/SSD1_8TB/zechuan/PheroViz-6628a00/nature_download/outputs/ccby_asset_nc_next150/content/s41467-023-42692-7/source_data/41467_2023_42692_MOESM7_ESM.xlsx",
+    "unique_categorical_x": 44951,
+    "x": "HLA class II sequences not inclluded in published bening Databases",
+    "x_semantics": "categorical"
+  },
+  "report_hash": "c3355bdf48694a9d9fc75ffed4fed3d04fe02bb7f863a0fc6723368781183ac6",
+  "report_hash_algorithm": "sha256_canonical_json_without_report_hash",
+  "report_schema_version": "1.0",
+  "security_verification": {
+    "exact_token_artifact_scan_clean": true,
+    "exact_token_ps_scan_clean": true,
+    "secret_artifact_hits": []
+  },
+  "verification_counts": {
+    "all_record_and_artifact_hashes_verified": true,
+    "artifact_sets_verified": 15,
+    "completed_records": 14,
+    "failed_records": 1,
+    "record_hashes_verified": 15,
+    "records": 15
+  },
+  "verified_records": [
+    {
+      "artifact_count": 56,
+      "attempt": 1,
+      "candidate_count": 6,
+      "dataset_manifest_hash": "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b",
+      "git_commit": "9aaef1f7ca391b3864fc8ad7572bbae686c1fe44",
+      "git_dirty": false,
+      "metric_config_hash": "78757dbaff8ffbbd1a97cc1cd777ea566fb8e0c280ba5214e85c58a326105224",
+      "provider_invocations": 6,
+      "record_hash": "2eab7d73710bf485385f41b9df43b5fa8271badefb51c55b7a8881f2faa0b5c6",
+      "render_count": 6,
+      "run_name": "c1-c3-final-benchmark-v2-seed0-br6__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record_file_sha256": "51bf8ed383a97aabb29dfe09a9b6dd57fd417c321c79e53b18ba987299514d97",
+      "status": "completed",
+      "text_model_calls": 6,
+      "usage_totals": {
+        "completion_tokens": 8476,
+        "prompt_tokens": 7199,
+        "total_tokens": 15675
+      },
+      "vlm_calls": 0,
+      "wall_clock_seconds": 142.03579954477027
+    },
+    {
+      "artifact_count": 56,
+      "attempt": 1,
+      "candidate_count": 6,
+      "dataset_manifest_hash": "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b",
+      "git_commit": "9aaef1f7ca391b3864fc8ad7572bbae686c1fe44",
+      "git_dirty": false,
+      "metric_config_hash": "78757dbaff8ffbbd1a97cc1cd777ea566fb8e0c280ba5214e85c58a326105224",
+      "provider_invocations": 6,
+      "record_hash": "366d880672d4776741023c4a58b0c90e201ca9dbce197b4ce334916859d4a7d4",
+      "render_count": 6,
+      "run_name": "c1-c3-final-benchmark-v2-seed0-br6__case-case-s41467-021-25210-5-figure2-panele-40ed0f36fcb1__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record_file_sha256": "d10197c34ea932687a0b963a20ad47b78e47905866b795db8ab7ef45e7d7b4a6",
+      "status": "completed",
+      "text_model_calls": 6,
+      "usage_totals": {
+        "completion_tokens": 7905,
+        "prompt_tokens": 7074,
+        "total_tokens": 14979
+      },
+      "vlm_calls": 0,
+      "wall_clock_seconds": 120.52543483162299
+    },
+    {
+      "artifact_count": 56,
+      "attempt": 1,
+      "candidate_count": 6,
+      "dataset_manifest_hash": "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b",
+      "git_commit": "9aaef1f7ca391b3864fc8ad7572bbae686c1fe44",
+      "git_dirty": false,
+      "metric_config_hash": "78757dbaff8ffbbd1a97cc1cd777ea566fb8e0c280ba5214e85c58a326105224",
+      "provider_invocations": 6,
+      "record_hash": "e190106cf6394aeac53ba4271053173f4eb92ac5271f0bf8927965c02c6f7865",
+      "render_count": 6,
+      "run_name": "c1-c3-final-benchmark-v2-seed0-br6__case-case-s41467-021-25210-5-figure2-panelf-61e8e08ae424__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record_file_sha256": "a0745a01025855f62f19659adecd12e0f68e7f1b4bb0a62ad3d4aa762df85ab9",
+      "status": "completed",
+      "text_model_calls": 6,
+      "usage_totals": {
+        "completion_tokens": 8345,
+        "prompt_tokens": 7074,
+        "total_tokens": 15419
+      },
+      "vlm_calls": 0,
+      "wall_clock_seconds": 140.44364207889885
+    },
+    {
+      "artifact_count": 56,
+      "attempt": 1,
+      "candidate_count": 6,
+      "dataset_manifest_hash": "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b",
+      "git_commit": "9aaef1f7ca391b3864fc8ad7572bbae686c1fe44",
+      "git_dirty": false,
+      "metric_config_hash": "78757dbaff8ffbbd1a97cc1cd777ea566fb8e0c280ba5214e85c58a326105224",
+      "provider_invocations": 6,
+      "record_hash": "40aedc0c9ef2a4407d89733e0cd9c9206cfef19644f464cc708e42a4d221df1a",
+      "render_count": 6,
+      "run_name": "c1-c3-final-benchmark-v2-seed0-br6__case-case-s41467-021-25210-5-figure2-panelj-e3cae44c267a__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record_file_sha256": "d1df75e8eb3c948c40a19361e5b047018c35e3fd94e0eb9773b89b459c9ea9ef",
+      "status": "completed",
+      "text_model_calls": 6,
+      "usage_totals": {
+        "completion_tokens": 6903,
+        "prompt_tokens": 7074,
+        "total_tokens": 13977
+      },
+      "vlm_calls": 0,
+      "wall_clock_seconds": 107.74119813600555
+    },
+    {
+      "artifact_count": 56,
+      "attempt": 1,
+      "candidate_count": 6,
+      "dataset_manifest_hash": "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b",
+      "git_commit": "9aaef1f7ca391b3864fc8ad7572bbae686c1fe44",
+      "git_dirty": false,
+      "metric_config_hash": "78757dbaff8ffbbd1a97cc1cd777ea566fb8e0c280ba5214e85c58a326105224",
+      "provider_invocations": 6,
+      "record_hash": "225b82eb2e374d03a45d91256d83ef94078f63af23396cc0e3b1fd1df3227735",
+      "render_count": 6,
+      "run_name": "c1-c3-final-benchmark-v2-seed0-br6__case-case-s41467-021-25210-5-figure2-panelk-bc7896822a15__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record_file_sha256": "85e30e514aa0de87ece6bc7934118344cefdb8823779b29708a99c7d41719820",
+      "status": "completed",
+      "text_model_calls": 6,
+      "usage_totals": {
+        "completion_tokens": 10504,
+        "prompt_tokens": 7074,
+        "total_tokens": 17578
+      },
+      "vlm_calls": 0,
+      "wall_clock_seconds": 166.33814454684034
+    },
+    {
+      "artifact_count": 56,
+      "attempt": 1,
+      "candidate_count": 6,
+      "dataset_manifest_hash": "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b",
+      "git_commit": "9aaef1f7ca391b3864fc8ad7572bbae686c1fe44",
+      "git_dirty": false,
+      "metric_config_hash": "78757dbaff8ffbbd1a97cc1cd777ea566fb8e0c280ba5214e85c58a326105224",
+      "provider_invocations": 6,
+      "record_hash": "eefebce9faf59b3ddfae68c39c62638a9e38237dbce58a898272f62ab9c1ac9f",
+      "render_count": 6,
+      "run_name": "c1-c3-final-benchmark-v2-seed0-br6__case-case-s41467-021-25210-5-figure2-panell-67238825b9a0__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record_file_sha256": "d4258ba4a54373be6f5ed1cf49941f0f8c78e9ffb897789c370ffa0b47f982f3",
+      "status": "completed",
+      "text_model_calls": 6,
+      "usage_totals": {
+        "completion_tokens": 8176,
+        "prompt_tokens": 7074,
+        "total_tokens": 15250
+      },
+      "vlm_calls": 0,
+      "wall_clock_seconds": 130.1979871597141
+    },
+    {
+      "artifact_count": 56,
+      "attempt": 1,
+      "candidate_count": 6,
+      "dataset_manifest_hash": "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b",
+      "git_commit": "9aaef1f7ca391b3864fc8ad7572bbae686c1fe44",
+      "git_dirty": false,
+      "metric_config_hash": "78757dbaff8ffbbd1a97cc1cd777ea566fb8e0c280ba5214e85c58a326105224",
+      "provider_invocations": 6,
+      "record_hash": "b2bc0e8ddc972a93a9346ef694a61476833e00dd3586559370d32249cd149b20",
+      "render_count": 6,
+      "run_name": "c1-c3-final-benchmark-v2-seed0-br6__case-case-s41467-022-30582-3-figure2-paneld-ff845a0a901a__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record_file_sha256": "52748c7e19ae351c0a20c48137951809ac1f070c264c30256f2f14d5187e3148",
+      "status": "completed",
+      "text_model_calls": 6,
+      "usage_totals": {
+        "completion_tokens": 8196,
+        "prompt_tokens": 7164,
+        "total_tokens": 15360
+      },
+      "vlm_calls": 0,
+      "wall_clock_seconds": 137.7645235573873
+    },
+    {
+      "artifact_count": 56,
+      "attempt": 1,
+      "candidate_count": 6,
+      "dataset_manifest_hash": "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b",
+      "git_commit": "9aaef1f7ca391b3864fc8ad7572bbae686c1fe44",
+      "git_dirty": false,
+      "metric_config_hash": "78757dbaff8ffbbd1a97cc1cd777ea566fb8e0c280ba5214e85c58a326105224",
+      "provider_invocations": 6,
+      "record_hash": "c88b0266f0ec70e7c4d2c1c9e309f2dc06ff06889327d07457c8c2f54914cb63",
+      "render_count": 6,
+      "run_name": "c1-c3-final-benchmark-v2-seed0-br6__case-case-s41467-022-30582-3-figure5-paneld-a54aba949d21__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record_file_sha256": "0c4738bbd49bce7a3b5e0f5ff7467391659e0e0172d47c5771e4414699023648",
+      "status": "completed",
+      "text_model_calls": 6,
+      "usage_totals": {
+        "completion_tokens": 9484,
+        "prompt_tokens": 7158,
+        "total_tokens": 16642
+      },
+      "vlm_calls": 0,
+      "wall_clock_seconds": 158.74897814681754
+    },
+    {
+      "artifact_count": 56,
+      "attempt": 1,
+      "candidate_count": 6,
+      "dataset_manifest_hash": "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b",
+      "git_commit": "9aaef1f7ca391b3864fc8ad7572bbae686c1fe44",
+      "git_dirty": false,
+      "metric_config_hash": "78757dbaff8ffbbd1a97cc1cd777ea566fb8e0c280ba5214e85c58a326105224",
+      "provider_invocations": 6,
+      "record_hash": "b7807f75966e39d33c63e9cecb8059044f3be761bf494ad6e8a46f9a2a1fdfc6",
+      "render_count": 6,
+      "run_name": "c1-c3-final-benchmark-v2-seed0-br6__case-case-s41467-023-38847-1-figure1-panelg-263d16873f98__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record_file_sha256": "5c5a624c5ce40bcb86d52eba6c16a3b59f6c61a81c60a9df2ef39d1b73803e05",
+      "status": "completed",
+      "text_model_calls": 6,
+      "usage_totals": {
+        "completion_tokens": 12430,
+        "prompt_tokens": 7980,
+        "total_tokens": 20410
+      },
+      "vlm_calls": 0,
+      "wall_clock_seconds": 191.06175868492573
+    },
+    {
+      "artifact_count": 56,
+      "attempt": 1,
+      "candidate_count": 6,
+      "dataset_manifest_hash": "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b",
+      "git_commit": "9aaef1f7ca391b3864fc8ad7572bbae686c1fe44",
+      "git_dirty": false,
+      "metric_config_hash": "78757dbaff8ffbbd1a97cc1cd777ea566fb8e0c280ba5214e85c58a326105224",
+      "provider_invocations": 6,
+      "record_hash": "bad18ea77f8212cadfb522ea829722e3130baa641f41290544f13322f02ff16f",
+      "render_count": 6,
+      "run_name": "c1-c3-final-benchmark-v2-seed0-br6__case-case-s41467-023-38847-1-figure3-panelc-006bf9b00122__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record_file_sha256": "94e7c2615a9ffbfa014f1598ebb64dbfa0ddd485b5f074688f279122adc0bd5e",
+      "status": "completed",
+      "text_model_calls": 6,
+      "usage_totals": {
+        "completion_tokens": 8471,
+        "prompt_tokens": 7332,
+        "total_tokens": 15803
+      },
+      "vlm_calls": 0,
+      "wall_clock_seconds": 143.5941531858407
+    },
+    {
+      "artifact_count": 56,
+      "attempt": 1,
+      "candidate_count": 6,
+      "dataset_manifest_hash": "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b",
+      "git_commit": "9aaef1f7ca391b3864fc8ad7572bbae686c1fe44",
+      "git_dirty": false,
+      "metric_config_hash": "78757dbaff8ffbbd1a97cc1cd777ea566fb8e0c280ba5214e85c58a326105224",
+      "provider_invocations": 6,
+      "record_hash": "831284ef19639d1eac6f1457e677f7ed7f40c76994a1f3dab2b3311ffea73d22",
+      "render_count": 6,
+      "run_name": "c1-c3-final-benchmark-v2-seed0-br6__case-case-s41467-023-38847-1-figure3-paneld-b45f8bba270c__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record_file_sha256": "c571ef4fa0fcaeb4b900ae49ac5469d541699715e2c7bbafaa836f878ca3f911",
+      "status": "completed",
+      "text_model_calls": 6,
+      "usage_totals": {
+        "completion_tokens": 10831,
+        "prompt_tokens": 7158,
+        "total_tokens": 17989
+      },
+      "vlm_calls": 0,
+      "wall_clock_seconds": 173.78939331602305
+    },
+    {
+      "artifact_count": 56,
+      "attempt": 1,
+      "candidate_count": 6,
+      "dataset_manifest_hash": "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b",
+      "git_commit": "9aaef1f7ca391b3864fc8ad7572bbae686c1fe44",
+      "git_dirty": false,
+      "metric_config_hash": "78757dbaff8ffbbd1a97cc1cd777ea566fb8e0c280ba5214e85c58a326105224",
+      "provider_invocations": 6,
+      "record_hash": "e7829e6c2d5d0006969b9803073647b5695addac83cc247dff0877906e227150",
+      "render_count": 6,
+      "run_name": "c1-c3-final-benchmark-v2-seed0-br6__case-case-s41467-023-42692-7-figure1-panelb-5ac7fb84108f__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record_file_sha256": "11625bc93f22369a1caa43feb0288abd5c658e0b694b5fd0e75b6a6daaf8ab7b",
+      "status": "completed",
+      "text_model_calls": 6,
+      "usage_totals": {
+        "completion_tokens": 8334,
+        "prompt_tokens": 7302,
+        "total_tokens": 15636
+      },
+      "vlm_calls": 0,
+      "wall_clock_seconds": 170.3895932980813
+    },
+    {
+      "artifact_count": 56,
+      "attempt": 1,
+      "candidate_count": 6,
+      "dataset_manifest_hash": "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b",
+      "git_commit": "9aaef1f7ca391b3864fc8ad7572bbae686c1fe44",
+      "git_dirty": false,
+      "metric_config_hash": "78757dbaff8ffbbd1a97cc1cd777ea566fb8e0c280ba5214e85c58a326105224",
+      "provider_invocations": 6,
+      "record_hash": "678ccc3745d1f8bb9e53fedcf1c07d81d385b8240953a930841f55854ab7b7b7",
+      "render_count": 6,
+      "run_name": "c1-c3-final-benchmark-v2-seed0-br6__case-case-s41467-023-42692-7-figure1-panelg-9bbb48c5e7fd__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record_file_sha256": "696bda7294dee0a93f79a0156127984b309ed24966872bed9e2f3ce7f69ebba9",
+      "status": "completed",
+      "text_model_calls": 6,
+      "usage_totals": {
+        "completion_tokens": 8796,
+        "prompt_tokens": 7260,
+        "total_tokens": 16056
+      },
+      "vlm_calls": 0,
+      "wall_clock_seconds": 168.84677219064906
+    },
+    {
+      "artifact_count": 56,
+      "attempt": 1,
+      "candidate_count": 6,
+      "dataset_manifest_hash": "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b",
+      "git_commit": "9aaef1f7ca391b3864fc8ad7572bbae686c1fe44",
+      "git_dirty": false,
+      "metric_config_hash": "78757dbaff8ffbbd1a97cc1cd777ea566fb8e0c280ba5214e85c58a326105224",
+      "provider_invocations": 6,
+      "record_hash": "0382b716d4cf1788f58f4defac4d2e0e6e2b27d116835416cdfe4f4c179cdebb",
+      "render_count": 6,
+      "run_name": "c1-c3-final-benchmark-v2-seed0-br6__case-case-s41467-023-42692-7-figure1-panelh-53463702bfd3__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record_file_sha256": "d4fd9bc315e2c6b4dde61c45752e52bafb7db688f9944ee0f62027777b2a56fc",
+      "status": "completed",
+      "text_model_calls": 6,
+      "usage_totals": {
+        "completion_tokens": 7847,
+        "prompt_tokens": 7260,
+        "total_tokens": 15107
+      },
+      "vlm_calls": 0,
+      "wall_clock_seconds": 151.02262009494007
+    },
+    {
+      "artifact_count": 2,
+      "attempt": 1,
+      "candidate_count": 0,
+      "dataset_manifest_hash": "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b",
+      "git_commit": "9aaef1f7ca391b3864fc8ad7572bbae686c1fe44",
+      "git_dirty": false,
+      "metric_config_hash": "78757dbaff8ffbbd1a97cc1cd777ea566fb8e0c280ba5214e85c58a326105224",
+      "provider_invocations": 0,
+      "record_hash": "e153489166b1f94af76b5d798ea2c37434c6a028415a86ec89a09544358e21f3",
+      "render_count": 0,
+      "run_name": "c1-c3-final-benchmark-v2-seed0-br6__case-case-s41467-023-42692-7-figure4-panelf-94b682f53cbb__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record_file_sha256": "e3cdd120dda2c0dc5c35cb5bdb0b38ef718e9af5b77012e6631d144136e7d03f",
+      "status": "failed",
+      "text_model_calls": 0,
+      "usage_totals": {
+        "completion_tokens": 0,
+        "prompt_tokens": 0,
+        "total_tokens": 0
+      },
+      "vlm_calls": 0,
+      "wall_clock_seconds": 162.86353576974943
+    }
+  ]
+}
