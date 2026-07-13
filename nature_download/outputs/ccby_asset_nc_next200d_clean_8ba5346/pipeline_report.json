@@ -1,0 +1,187 @@
+{
+  "batch": "ccby_asset_nc_next200d_clean_8ba5346",
+  "c2_readiness": {
+    "baseline_manifests": {
+      "final_benchmark_v2_seed0": {
+        "path": "../combined_verified_400/final_benchmark_v2_seed0/benchmark_manifest.json",
+        "sha256": "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b"
+      },
+      "next200b_canonical": {
+        "path": "../ccby_asset_nc_next200b/canonical_benchmark_v1/benchmark_manifest.json",
+        "sha256": "10a6aae6db4ab13304ed116974cd27c109f8b2de5cc3004fdda983e2fbe80c38"
+      }
+    },
+    "cumulative_verified_independent_dois": {
+      "P=2": 1,
+      "P=3-4": 2,
+      "P=5+": 1
+    },
+    "deficient_strata": [
+      "P=2",
+      "P=5+"
+    ],
+    "minimum_independent_dois_per_stratum": 2,
+    "ready": false
+  },
+  "canonical": {
+    "assemble_error": "case-builder-summary-binding-mismatch",
+    "derive_error": "accepted-single-proposals-empty",
+    "derived": false,
+    "multi_accepted": 0,
+    "sealed_benchmark_created": false,
+    "sealed_reason": "no reviewed evidence/candidates exist; canonical derivation and empty-batch assembly both failed closed",
+    "single_accepted": 0
+  },
+  "cases": {
+    "ambiguous": 0,
+    "candidates": 0,
+    "summary_hash": "68144acec23dc3ddb4948547a61fba6d7595bc68e1f43aa6e97cda69cca70440",
+    "verified_rebuild_summary_hash": "8069a6fc10e94858278974f0b15922743dc6fd263ccb8ce01c15e0982144b270"
+  },
+  "code_commit": "8ba5346d8778ba51060fd52b313669bb6ffe5ebc",
+  "code_dirty": false,
+  "downloader": {
+    "accepted": 200,
+    "accepted_unique_dois": 200,
+    "article_dirs": 0,
+    "complete_source_data_articles": 0,
+    "complete_source_data_dois": [],
+    "finished": true,
+    "live": false,
+    "main_skip_reasons": {
+      "no-figures": 31,
+      "no-source-data": 169
+    },
+    "processed_unique": 200,
+    "retry_unreachable": {
+      "processed": 31,
+      "queued": 31,
+      "skip_reasons": {
+        "no-figures": 26,
+        "no-source-data": 5
+      },
+      "terminal": true
+    },
+    "supervision": "clean stop after warm-up and resume from _processed.txt with 8 workers; one final runner; no runner remains",
+    "terminal_skip_reasons": {
+      "no-figures": 26,
+      "no-source-data": 174
+    }
+  },
+  "dual_review": {
+    "artifacts_validated": true,
+    "evidence_hash": "255c50d2092e812ec431ed1ff966fa009dfadc325f3bf9712c7d764e8dbfc8c1",
+    "evidence_records": 0,
+    "gateway_configuration": "environment-only",
+    "judge_models": [
+      "claude-sonnet-4.6",
+      "gemini-3.5-flash"
+    ],
+    "model_calls": 0,
+    "multi_accepted": 0,
+    "multi_reviewed": 0,
+    "single_accepted": 0,
+    "single_reviewed": 0,
+    "summary_hash": "1d97db63958a08fb079ca75571c2a6f758fc7196202dcec533bdc79125f241eb"
+  },
+  "hashes": {
+    "accepted_jsonl": "365fe3c2eaa34c6e7fdd431e889b72026e34023fb02968eb2e3198c47c22aeed",
+    "accepted_with_source_jsonl": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "assemble_benchmark_log": "d328423f6d231883a8303472102bd44214a2ccfb3b55b6729a4e4a208a0314e0",
+    "candidates_jsonl": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "canonical_derive_log": "ac28950fad0a218d822b3fe6c91a61b966b234a06f1a9489cc787be7af82227a",
+    "cases_summary_json": "f391378a8a747ee2e573dbe0499432ea1f14902479e37442a7adb0ea80a75baa",
+    "corpus_manifest_jsonl": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "evidence_json": "f86b46b20d710322762b0d3d7b03bfbd63b89d25482b77f3da960b6309e3340f",
+    "manifest_summary_json": "aa01c7a5ee2f2fd4a3da00f330c923e873b5cc70eb30bfd60ed1c880d971e277",
+    "postfetch_log": "108ad0e1c69893363db07bca7374ba8a8e097d78eb7ab7587228bda96d331d5d",
+    "processed": "631075613214437c7d3f752cbd8b25592e110c340c62c1d26c1639bf076e2802",
+    "proposals_summary_json": "a8d1c52f13a71575cf7926698120198ee4c8e81986151e3c6338f31eefe81bcb",
+    "proposed_jsonl": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retry_accepted_jsonl": "675ccfdef41a7d35ede887ba574a7617c13b6e2bea6a256855dbe80152d39300",
+    "retry_log": "88165323047806ad625f76538ae6e5c36fe8b6c0f9f6c3d8c25fd7d01a1e70eb",
+    "retry_processed": "c3ce17365374dfd414810258fe62bcc54459e665f22fb99d5d7e0220d3ed4a03",
+    "retry_skipped": "e277c1215125fa993ff4d2ce37bf5fb2e2f4b21386a6731d78a825fa2b78bbfa",
+    "review_summary_json": "097ce4e3faf0dbf4c868e7ab0d354345990ed2ad43cd16babc95422efb6b0869",
+    "reviews_jsonl": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "selection_summary_json": "5029e1f1d520536925ea7a75cf40e062a160e65f16be613c541ed1416dd58dba",
+    "skipped": "46b5e4025a22f0add1c647aa23d22bbe4d5f66284181d4eea83a0de79bd39a37",
+    "source_selection_summary_json": "a1d6d0718427822b46e80859098f13eb23fb393c6a33ac01ecca1d715742a269",
+    "verified_candidates_jsonl": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "verified_cases_summary_json": "f509b0aaf4c4d461381c36ab7625348d6c395695b547a205c5330bd9e2ebc3e3"
+  },
+  "independent_multi_doi_contribution": {
+    "P=2": {
+      "added_dois": [],
+      "added_unique_dois": 0
+    },
+    "P=3-4": {
+      "added_dois": [],
+      "added_unique_dois": 0
+    },
+    "P=5+": {
+      "added_dois": [],
+      "added_unique_dois": 0
+    }
+  },
+  "proposals": {
+    "multi": 0,
+    "multi_strata": {
+      "P=2": {
+        "dois": [],
+        "proposals": 0,
+        "unique_dois": 0
+      },
+      "P=3-4": {
+        "dois": [],
+        "proposals": 0,
+        "unique_dois": 0
+      },
+      "P=5+": {
+        "dois": [],
+        "proposals": 0,
+        "unique_dois": 0
+      }
+    },
+    "rejected": 0,
+    "rule": "simple-2d-v2",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "single": 0
+  },
+  "provenance": {
+    "accepted_reuse": "byte-for-byte only",
+    "detached_worktree": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200d_clean_8ba5346/.pipeline_worktree",
+    "old_root_merged": false,
+    "same_label_source_url_fix_committed": true
+  },
+  "report_hash": "64608df5194eff88f26fbb3c8d0c761c4b91ebcbb9a2cc6d1f9d653db79cf6b6",
+  "schema_version": "1.0",
+  "selection": {
+    "fixed_before_review": true,
+    "review_or_experiment_outcomes_used": false,
+    "rule": "all accepted strict-VOR CC-BY articles with complete recorded source-data downloads after full clean run and terminal retries",
+    "selected_complete_source_articles": 0,
+    "unique_selected_dois": 0
+  },
+  "status": "final-not-ready",
+  "strict_vor_manifest": {
+    "articles": 0,
+    "invalid": 0,
+    "license_content_versions": [
+      "vor"
+    ],
+    "license_ids": [
+      "CC-BY-4.0"
+    ],
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "valid": 0
+  },
+  "validation": {
+    "case_summary_seals": true,
+    "corpus_tests": "146 passed",
+    "credential_like_fields_persisted": false,
+    "detached_worktree_clean": true,
+    "manifest_invalid": 0,
+    "review_trust_chain": true
+  }
+}
