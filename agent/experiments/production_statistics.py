@@ -46,6 +46,10 @@ _C5_METRICS = {
     "metric.visual_form.claude-sonnet-4.6": "visual-form-primary-v1",
     "metric.visual_form.gemini-3.5-flash": "visual-form-secondary-v1",
 }
+_C5_EXPECTED_SERVED_MODELS = {
+    "metric.visual_form.claude-sonnet-4.6": "claude-sonnet-4-6",
+    "metric.visual_form.gemini-3.5-flash": "gemini-3.5-flash",
+}
 _C3_RENDER_REFERENCE = "memory_none"
 _C3_RENDER_CONTRASTS = (
     "memory_constraints",
@@ -919,10 +923,10 @@ def _c5_summary_provenance(
             or judge.get("judge_request_model")
             != metric.removeprefix("metric.visual_form.")
             or judge.get("judge_expected_served_model")
-            != metric.removeprefix("metric.visual_form.")
+            != _C5_EXPECTED_SERVED_MODELS[metric]
             or judge.get("judge_served_models")
             != (
-                [metric.removeprefix("metric.visual_form.")]
+                [_C5_EXPECTED_SERVED_MODELS[metric]]
                 if completed_names
                 else []
             )

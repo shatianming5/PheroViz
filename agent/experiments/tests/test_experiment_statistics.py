@@ -143,11 +143,16 @@ def _write_c5_summary(
         model: str,
         metric: str,
     ) -> dict[str, Any]:
+        served_model = (
+            "claude-sonnet-4-6"
+            if model == "claude-sonnet-4.6"
+            else model
+        )
         return {
             "judge_id": judge_id,
             "judge_request_model": model,
-            "judge_expected_served_model": model,
-            "judge_served_models": [model],
+            "judge_expected_served_model": served_model,
+            "judge_served_models": [served_model],
             "metric": metric,
             "input_manifest_hash": input_manifest_hash,
             "batch_hash": _digest(f"batch-{judge_id}"),
