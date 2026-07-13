@@ -1,0 +1,344 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "c1_c4_decision_report.schema.json",
+  "title": "Outcome-independent C1/C4 decision report",
+  "type": "object",
+  "required": [
+    "decision_report_version",
+    "generated_at",
+    "decision_code_git_commit",
+    "decision_code_git_dirty",
+    "frozen_policy",
+    "provenance",
+    "c1",
+    "c4",
+    "decision_report_hash"
+  ],
+  "properties": {
+    "decision_report_version": {"const": "1.0"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "decision_code_git_commit": {"$ref": "#/$defs/commit"},
+    "decision_code_git_dirty": {"const": false},
+    "frozen_policy": {
+      "type": "object",
+      "required": [
+        "delta_F",
+        "delta_C",
+        "alpha",
+        "effect_comparison",
+        "ci_rule",
+        "multiple_comparisons",
+        "render_budget",
+        "experiment_git_commit"
+      ],
+      "properties": {
+        "delta_F": {"const": 0.02},
+        "delta_C": {"const": 0.25},
+        "alpha": {"const": 0.05},
+        "effect_comparison": {"const": "strictly_greater_than_margin"},
+        "ci_rule": {"const": "lower_bound_strictly_greater_than_zero"},
+        "multiple_comparisons": {
+          "const": "six_member_cross_analysis_holm"
+        },
+        "render_budget": {"const": 6.0},
+        "experiment_git_commit": {
+          "const": "d90d655b96bfb3b95bfdc37665692957969d8968"
+        }
+      },
+      "additionalProperties": false
+    },
+    "provenance": {
+      "type": "object",
+      "required": [
+        "input_summary_hashes",
+        "tier_summary_hashes",
+        "experiment_git_commits",
+        "tier_experiment_git_commits",
+        "analysis_code_git_commit",
+        "holm_family_code_git_commit",
+        "dataset_manifest_hash",
+        "metric_config_hash",
+        "metric_version",
+        "budget_type",
+        "budget_value",
+        "split",
+        "analysis_artifacts",
+        "holm_family"
+      ],
+      "properties": {
+        "input_summary_hashes": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/sha256"}
+        },
+        "tier_summary_hashes": {"$ref": "#/$defs/tierSummaryMap"},
+        "experiment_git_commits": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "const": "d90d655b96bfb3b95bfdc37665692957969d8968"
+          }
+        },
+        "tier_experiment_git_commits": {"$ref": "#/$defs/tierCommitMap"},
+        "analysis_code_git_commit": {"$ref": "#/$defs/commit"},
+        "holm_family_code_git_commit": {"$ref": "#/$defs/commit"},
+        "dataset_manifest_hash": {"$ref": "#/$defs/sha256"},
+        "metric_config_hash": {"$ref": "#/$defs/sha256"},
+        "metric_version": {"type": "string", "minLength": 1},
+        "budget_type": {"const": "renders"},
+        "budget_value": {"const": 6.0},
+        "split": {"type": ["string", "null"]},
+        "analysis_artifacts": {
+          "type": "array",
+          "minItems": 6,
+          "maxItems": 6,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/analysisArtifact"}
+        },
+        "holm_family": {
+          "type": "object",
+          "required": [
+            "path",
+            "file_sha256",
+            "family_hash",
+            "family_config_hash",
+            "manifest_hash"
+          ],
+          "properties": {
+            "path": {"type": "string", "minLength": 1},
+            "file_sha256": {"$ref": "#/$defs/sha256"},
+            "family_hash": {"$ref": "#/$defs/sha256"},
+            "family_config_hash": {"$ref": "#/$defs/sha256"},
+            "manifest_hash": {"$ref": "#/$defs/sha256"}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "c1": {
+      "type": "object",
+      "required": ["status", "claim_scope", "comparisons", "wall_clock"],
+      "properties": {
+        "status": {"const": "render_budget_only"},
+        "claim_scope": {"type": "string", "minLength": 1},
+        "comparisons": {
+          "type": "array",
+          "minItems": 12,
+          "maxItems": 12,
+          "items": {"$ref": "#/$defs/c1Comparison"}
+        },
+        "wall_clock": {
+          "type": "object",
+          "required": ["status", "claim_permitted", "reason"],
+          "properties": {
+            "status": {"const": "unavailable"},
+            "claim_permitted": {"const": false},
+            "reason": {"type": "string", "minLength": 1}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "c4": {
+      "type": "object",
+      "required": [
+        "status",
+        "cross_tier_claim_permitted",
+        "required_cell_count",
+        "cells",
+        "tier_decisions",
+        "fallback_policy"
+      ],
+      "properties": {
+        "status": {"enum": ["pass", "tier_scoped_fallback"]},
+        "cross_tier_claim_permitted": {"type": "boolean"},
+        "required_cell_count": {"const": 6},
+        "cells": {
+          "type": "array",
+          "minItems": 6,
+          "maxItems": 6,
+          "items": {"$ref": "#/$defs/c4Cell"}
+        },
+        "tier_decisions": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "required": ["backbone", "status", "both_metrics_pass"],
+            "properties": {
+              "backbone": {"type": "string", "minLength": 1},
+              "status": {"enum": ["pass", "report_effects_only"]},
+              "both_metrics_pass": {"type": "boolean"}
+            },
+            "additionalProperties": false
+          }
+        },
+        "fallback_policy": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "decision_report_hash": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "commit": {"type": "string", "pattern": "^[0-9a-f]{7,64}$"},
+    "analysisArtifact": {
+      "type": "object",
+      "required": [
+        "path",
+        "file_sha256",
+        "analysis_hash",
+        "analysis_config_hash",
+        "input_summary_hash",
+        "code_git_commit",
+        "metric",
+        "backbone",
+        "panel_scope",
+        "reference",
+        "methods"
+      ],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "file_sha256": {"$ref": "#/$defs/sha256"},
+        "analysis_hash": {"$ref": "#/$defs/sha256"},
+        "analysis_config_hash": {"$ref": "#/$defs/sha256"},
+        "input_summary_hash": {"$ref": "#/$defs/sha256"},
+        "code_git_commit": {"$ref": "#/$defs/commit"},
+        "metric": {
+          "enum": ["metric.data_fidelity", "metric.series_cohesion"]
+        },
+        "backbone": {"type": "string", "minLength": 1},
+        "panel_scope": {"enum": ["all", "multi_panel"]},
+        "reference": {"const": "flat_iterative"},
+        "methods": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": {"enum": ["best_of_n", "pheroviz_full"]}
+        }
+      },
+      "additionalProperties": false
+    },
+    "effect": {
+      "type": "number"
+    },
+    "ci95": {
+      "type": "array",
+      "prefixItems": [
+        {"type": "number"},
+        {"type": "number"}
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "c1Comparison": {
+      "type": "object",
+      "required": [
+        "backbone",
+        "metric",
+        "metric_symbol",
+        "panel_scope",
+        "method",
+        "reference",
+        "budget_type",
+        "budget_value",
+        "effect",
+        "ci95",
+        "ci_excludes_zero_positive",
+        "raw_p_value",
+        "status"
+      ],
+      "properties": {
+        "backbone": {"type": "string", "minLength": 1},
+        "metric": {
+          "enum": ["metric.data_fidelity", "metric.series_cohesion"]
+        },
+        "metric_symbol": {"enum": ["F", "C"]},
+        "panel_scope": {"enum": ["all", "multi_panel"]},
+        "method": {"enum": ["best_of_n", "pheroviz_full"]},
+        "reference": {"const": "flat_iterative"},
+        "budget_type": {"const": "renders"},
+        "budget_value": {"const": 6.0},
+        "effect": {"$ref": "#/$defs/effect"},
+        "ci95": {"$ref": "#/$defs/ci95"},
+        "ci_excludes_zero_positive": {"type": "boolean"},
+        "raw_p_value": {"type": "number", "minimum": 0, "maximum": 1},
+        "status": {"const": "reported"}
+      },
+      "additionalProperties": false
+    },
+    "tierSummaryMap": {
+      "type": "object",
+      "minProperties": 3,
+      "maxProperties": 3,
+      "additionalProperties": {"$ref": "#/$defs/sha256"}
+    },
+    "tierCommitMap": {
+      "type": "object",
+      "minProperties": 3,
+      "maxProperties": 3,
+      "additionalProperties": {
+        "const": "d90d655b96bfb3b95bfdc37665692957969d8968"
+      }
+    },
+    "c4Cell": {
+      "type": "object",
+      "required": [
+        "backbone",
+        "metric",
+        "metric_symbol",
+        "panel_scope",
+        "method",
+        "reference",
+        "budget_type",
+        "budget_value",
+        "practical_margin",
+        "effect",
+        "ci95",
+        "ci_excludes_zero_positive",
+        "raw_p_value",
+        "holm_adjusted_p_value",
+        "passes_practical_margin",
+        "passes_positive_ci",
+        "passes_cross_family_holm",
+        "status"
+      ],
+      "properties": {
+        "backbone": {"type": "string", "minLength": 1},
+        "metric": {
+          "enum": ["metric.data_fidelity", "metric.series_cohesion"]
+        },
+        "metric_symbol": {"enum": ["F", "C"]},
+        "panel_scope": {"enum": ["all", "multi_panel"]},
+        "method": {"const": "pheroviz_full"},
+        "reference": {"const": "flat_iterative"},
+        "budget_type": {"const": "renders"},
+        "budget_value": {"const": 6.0},
+        "practical_margin": {"enum": [0.02, 0.25]},
+        "effect": {"$ref": "#/$defs/effect"},
+        "ci95": {"$ref": "#/$defs/ci95"},
+        "ci_excludes_zero_positive": {"type": "boolean"},
+        "raw_p_value": {"type": "number", "minimum": 0, "maximum": 1},
+        "holm_adjusted_p_value": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "passes_practical_margin": {"type": "boolean"},
+        "passes_positive_ci": {"type": "boolean"},
+        "passes_cross_family_holm": {"type": "boolean"},
+        "status": {"enum": ["pass", "fail"]}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

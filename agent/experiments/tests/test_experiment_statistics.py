@@ -799,9 +799,18 @@ def test_declared_cross_analysis_holm_family_is_provenance_bound(
         assert {
             member["adjusted_p_value"] for member in family["members"]
         } == {1.0}
-        assert family["input_summary_hash"] == analyses["fidelity"][
-            "input_summary_hash"
+        assert family["input_summary_hashes"] == [
+            analyses["fidelity"]["input_summary_hash"]
         ]
+        assert set(family["summary_hash_by_backbone"]) == {
+            "frontier",
+            "mid",
+            "open",
+        }
+        assert family["experiment_git_commits"] == ["c" * 40]
+        assert set(family["experiment_git_commit_by_backbone"].values()) == {
+            "c" * 40
+        }
         assert family["common_experiment_provenance"][
             "experiment_git_commit"
         ] == "c" * 40

@@ -7,6 +7,10 @@ from pathlib import Path
 from typing import Sequence
 
 from .aggregate import AggregationError, aggregate_runs
+from .decision_report import (
+    build_decision_report,
+    write_decision_report,
+)
 from .harness import ExistingRunError, execute_experiment
 from .matrix import MatrixError, load_and_expand_matrix
 from .models import ProvenanceError
@@ -113,6 +117,14 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     holm_parser.add_argument("manifest", type=Path)
     holm_parser.add_argument("--out", type=Path, required=True)
+
+    decision_parser = subparsers.add_parser(
+        "decision-report",
+        help="Build a provenance-strict outcome-independent C1/C4 decision report",
+    )
+    decision_parser.add_argument("family", type=Path)
+    decision_parser.add_argument("analyses", nargs="+", type=Path)
+    decision_parser.add_argument("--out", type=Path, required=True)
 
     rejudge_parser = subparsers.add_parser(
         "rejudge",
@@ -281,6 +293,27 @@ def _holm_family_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def _decision_report_command(args: argparse.Namespace) -> int:
+    report = build_decision_report(args.analyses, args.family)
+    path = write_decision_report(report, args.out)
+    print(
+        json.dumps(
+            {
+                "decision_report": str(path),
+                "decision_report_hash": report["decision_report_hash"],
+                "c1_status": report["c1"]["status"],
+                "c4_status": report["c4"]["status"],
+                "code_git_commit": report["decision_code_git_commit"],
+                "code_git_dirty": report["decision_code_git_dirty"],
+            },
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return 0
+
+
 def _rejudge_command(args: argparse.Namespace) -> int:
     result = rejudge_batch(
         args.source,
@@ -331,12 +364,18 @@ def main(argv: Sequence[str] | None = None) -> int:
             return _analyze_command(args)
         if args.command == "holm-family":
             return _holm_family_command(args)
+        if args.command == "decision-report":
+            return _decision_report_command(args)
         if args.command == "rejudge":
             return _rejudge_command(args)
         if args.command == "merge-rejudge":
             return _merge_rejudge_command(args)
-    except (AggregationError, MatrixError, ProvenanceError) as exc:
+    except (AggregationError, MatrixError, ProvenanceError, StatisticsError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     parser.error(f"Unknown command: {args.command}")
     return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

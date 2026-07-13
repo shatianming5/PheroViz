@@ -3059,6 +3059,8 @@ def build_holm_family(manifest_path: Path) -> Dict[str, Any]:
     common_provenance: Optional[Dict[str, Any]] = None
     analysis_code_commits: set[str] = set()
     summary_hashes: set[str] = set()
+    summary_hash_by_backbone: Dict[str, str] = {}
+    experiment_commit_by_backbone: Dict[str, str] = {}
     raw_p_values: Dict[str, float] = {}
     analysis_cache: Dict[Path, Dict[str, Any]] = {}
     for raw_member in raw_members:
@@ -3142,6 +3144,27 @@ def build_holm_family(manifest_path: Path) -> Dict[str, Any]:
         if not _SHA256_RE.fullmatch(summary_hash):
             raise StatisticsError("Analysis input_summary_hash is invalid")
         summary_hashes.add(summary_hash)
+        backbone = _required_string(member, "backbone")
+        previous_summary = summary_hash_by_backbone.setdefault(
+            backbone,
+            summary_hash,
+        )
+        if previous_summary != summary_hash:
+            raise StatisticsError(
+                "Holm family pairs one backbone with multiple input summaries"
+            )
+        experiment_commit = _required_string(
+            provenance,
+            "experiment_git_commit",
+        )
+        previous_commit = experiment_commit_by_backbone.setdefault(
+            backbone,
+            experiment_commit,
+        )
+        if previous_commit != experiment_commit:
+            raise StatisticsError(
+                "Holm family pairs one backbone with multiple experiment commits"
+            )
         raw_p_values[name] = p_value
         materialized.append(
             {
@@ -3158,8 +3181,6 @@ def build_holm_family(manifest_path: Path) -> Dict[str, Any]:
         )
     if len(analysis_code_commits) != 1:
         raise StatisticsError("Holm family mixes analysis code commits")
-    if len(summary_hashes) != 1:
-        raise StatisticsError("Holm family mixes input summaries")
 
     adjusted = holm_adjust(raw_p_values)
     for member in materialized:
@@ -3193,7 +3214,16 @@ def build_holm_family(manifest_path: Path) -> Dict[str, Any]:
         "manifest_hash": sha256_json(manifest),
         "family_config": config,
         "family_config_hash": sha256_json(config),
-        "input_summary_hash": next(iter(summary_hashes)),
+        "input_summary_hashes": sorted(summary_hashes),
+        "summary_hash_by_backbone": dict(
+            sorted(summary_hash_by_backbone.items())
+        ),
+        "experiment_git_commits": sorted(
+            set(experiment_commit_by_backbone.values())
+        ),
+        "experiment_git_commit_by_backbone": dict(
+            sorted(experiment_commit_by_backbone.items())
+        ),
         "common_experiment_provenance": common_provenance,
         "analysis_code_git_commit": next(iter(analysis_code_commits)),
         "code_git_commit": code_commit,
