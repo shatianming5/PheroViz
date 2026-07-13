@@ -1,0 +1,88 @@
+{
+  "canaries": [
+    {
+      "cases": 2,
+      "full_pid": 2731354,
+      "full_spec_count": 171,
+      "methods": [
+        "best_of_n",
+        "flat_iterative",
+        "pheroviz_full"
+      ],
+      "overlap_spec_hashes_match": true,
+      "panel_counts": [
+        1,
+        6
+      ],
+      "records": 18,
+      "remaining_after_canary": 153,
+      "renders": 108,
+      "requested_and_served_model": "gpt-5.6-sol",
+      "root": "/mnt/SSD1_8TB/zechuan/PheroViz-mid-d90d655/agent/experiments/runs/production/c1_c3_renderable_v1_seed0_br6_gpt56sol",
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "summary_hash": "97c2f0afb400a6deebf5e889ff1c0ffa290b826eb4ba6f3597252b90a7a9d136",
+      "summary_path": "/mnt/SSD1_8TB/zechuan/PheroViz-mid-d90d655/agent/experiments/runs/production/_summaries/c1_c3_renderable_v1_seed0_br6_gpt56sol.canary/summary.json",
+      "summary_sha256": "c33f9d8990026b424ac4437b2cdd8dbe67401a3ac9580ad2cdb9bd7ee989247c",
+      "tier": "frontier"
+    },
+    {
+      "cases": 2,
+      "full_pid": 2723322,
+      "full_spec_count": 171,
+      "methods": [
+        "best_of_n",
+        "flat_iterative",
+        "pheroviz_full"
+      ],
+      "overlap_spec_hashes_match": true,
+      "panel_counts": [
+        1,
+        6
+      ],
+      "records": 18,
+      "remaining_after_canary": 153,
+      "renders": 108,
+      "requested_and_served_model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "root": "/mnt/SSD1_8TB/zechuan/PheroViz-mid-d90d655/agent/experiments/runs/production/c4_open_renderable_v1_seed0_br6_qwen2p5coder7b",
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "summary_hash": "166dee2445d0f0f5b00bd7be62bfd4fad605fae045b144d1f5c2deb7fa5a3d2f",
+      "summary_path": "/mnt/SSD1_8TB/zechuan/PheroViz-mid-d90d655/agent/experiments/runs/production/_summaries/c4_open_renderable_v1_seed0_br6_qwen2p5coder7b.canary/summary.json",
+      "summary_sha256": "a1116c0e2b838f0e42afbbc52c1d02f497cbabc21b10bc9476513c89d800ac2c",
+      "tier": "open_weight"
+    }
+  ],
+  "code_commit": "d90d655b96bfb3b95bfdc37665692957969d8968",
+  "code_dirty": false,
+  "dataset_manifest_sha256": "6c6c5cb50603d899a9be0f41c9e562517c92ae15477610e9111f6504cd1757b3",
+  "generated_at": "2026-07-13T14:42:45.418317Z",
+  "mid_first_gate": {
+    "full_pid": 2645613,
+    "record_hash": "a79696c10e3d6c01b7e39c75da9fcf888abb307cffa99f53ad13e24385c97120",
+    "renders": 6,
+    "root": "/mnt/SSD1_8TB/zechuan/PheroViz-mid-d90d655/agent/experiments/runs/production/c4_mid_renderable_v1_seed0_br6_gpt4omini",
+    "run_name": "c4-mid-renderable-v1-seed0-br6__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-best_of_n__backbone-gpt-4o-mini__seed-0__budget-renders-6"
+  },
+  "open_service": {
+    "device": "cuda:1",
+    "pid": 2479211,
+    "served_model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+    "teardown_required": true
+  },
+  "partial_metrics_inspected": false,
+  "render_budget": 6,
+  "render_timeout_seconds": 120,
+  "replacement_policy": "Only all-terminal d90d655 roots may enter the C1/C4 aggregate; every earlier mixed-commit root is NEVER_MERGE.",
+  "report_hash": "075c38d4eef5d53bcb84ba261e0bc87ed90252d35967b964f632d8f555b4d2ef",
+  "schema_version": "1.0",
+  "scientific_result": false,
+  "status": "common_commit_canaries_passed",
+  "vlm_calls": 0
+}
