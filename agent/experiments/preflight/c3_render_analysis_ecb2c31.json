@@ -1,0 +1,78 @@
+{
+  "schema_version": "1.0",
+  "status": "COMPLETED_NEGATIVE_RESULT",
+  "experiment": {
+    "git_commit": "b1bb4d4f4e9dad0b3437356f39bf2f8e8ae03561",
+    "dataset_manifest_sha256": "6c6c5cb50603d899a9be0f41c9e562517c92ae15477610e9111f6504cd1757b3",
+    "records": 54,
+    "completed": 54,
+    "failed": 0,
+    "methods": 6,
+    "cases": 3,
+    "dois": 3,
+    "seeds": 3,
+    "renders": 324
+  },
+  "summary": {
+    "summary_hash": "c36f6d811b4dc895d4db0093900ba1c7ce4f6ad0f90d556d7b05256f62abe02e",
+    "file_sha256": "d0f20c282b253f2efc1644948dce88df0a75eb7089780742cf9cb689348bc390",
+    "record_bindings_hash": "0b325cbfe0466a7641b51d971d58233552a1c68a890c16aa2ae96b19b9d803fe"
+  },
+  "analysis": {
+    "code_commit": "ecb2c318564160de59364a2a0479caf54df69e83",
+    "code_dirty": false,
+    "analysis_hash": "5dd33c60f8ab77c0efeaab0ebcd5850693e5fbef097623348cb55bc6760d3cfa",
+    "analysis_file_sha256": "ab643eb5e9df9d38a1bc6f881cd2dc4e824a748eaf9759d1b079317db4f73c4c",
+    "analysis_config_hash": "b63c376e6e4095c2217286a6133c865b2462da4fe2aa663af4c2932322ce5bab",
+    "threshold_hash": "b8f7995911a30a7b8c6422e7a74d1b95c468aac700276f6abed256a5e5ed49a3",
+    "threshold_status_hash": "c07fc4eea408dc70f4482bdc426f59280d41953871d73cbf839c0ce47be5ebf3"
+  },
+  "method_results": {
+    "memory_none": {
+      "render_attainment_rate": 0.6666666666666666,
+      "restricted_mean_renders_to_threshold": 3.6666666666666665
+    },
+    "memory_constraints": {
+      "render_attainment_rate": 0.6666666666666666,
+      "restricted_mean_renders_to_threshold": 3.6666666666666665
+    },
+    "memory_patches": {
+      "render_attainment_rate": 0.6666666666666666,
+      "restricted_mean_renders_to_threshold": 3.6666666666666665
+    },
+    "memory_full": {
+      "render_attainment_rate": 0.6666666666666666,
+      "restricted_mean_renders_to_threshold": 3.6666666666666665
+    }
+  },
+  "confirmatory_contrasts": {
+    "reference": "memory_none",
+    "methods": [
+      "memory_constraints",
+      "memory_patches",
+      "memory_full"
+    ],
+    "endpoints": [
+      "render_attainment_rate",
+      "restricted_mean_renders_to_threshold"
+    ],
+    "all_mean_gaps": 0.0,
+    "all_ci95": [
+      0.0,
+      0.0
+    ],
+    "all_raw_p_values": 1.0,
+    "all_holm_p_values": 1.0,
+    "superiority_established": false
+  },
+  "wall_clock": {
+    "status": "NA_BLOCKED",
+    "reason": "missing_prospective_wall_clock_restriction",
+    "claim_permitted": false
+  },
+  "decision": {
+    "c3_mechanism_decomposition_supported": false,
+    "allowed_wording": "At the frozen perfect-quality threshold and six-render horizon, constraints-only, patches-only, and full memory matched no memory; confirmatory component superiority was not established.",
+    "non_significance_is_not_equivalence": true
+  }
+}
