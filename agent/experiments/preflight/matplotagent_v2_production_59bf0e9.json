@@ -1,0 +1,86 @@
+{
+  "schema_version": "1.0",
+  "status": "COMPLETED_AUDITED",
+  "experiment": {
+    "git_commit": "59bf0e90a1c402e53b91fe6b1063c35c3a099b26",
+    "git_dirty": false,
+    "external_repo_commit": "9cafa262aae7bdf85fccf6d02b2153fb772bc376",
+    "license_status": "not_declared",
+    "input_track": "normalized_table_instruction",
+    "panel_scope": "single_panel",
+    "cohesion": "NA"
+  },
+  "dataset": {
+    "materialized_manifest_sha256": "d92b7e370844a403684e27ec4b5bb2f352a1ecd8b8087e63b5935c6bff9ceca5",
+    "cases": 16,
+    "dois": 6,
+    "seeds": [
+      0,
+      1,
+      2
+    ]
+  },
+  "execution": {
+    "records": 96,
+    "completed": 89,
+    "method_failed": 7,
+    "blocking_failures": 0,
+    "renders_completed": 89,
+    "methods": [
+      "matplotagent_native_normalized_v2",
+      "pheroviz_model_spec_normalized_v2"
+    ]
+  },
+  "summary": {
+    "remote_path": "/Users/tommy/Downloads/mayi/PheroViz-matplot-v2-59bf0e9/agent/experiments/runs/production/_summaries/baseline_matplotagent_single_normalized_v2_gpt4omini_r1/summary.json",
+    "summary_hash": "a9508be0589b94a04bd65995dc928e5928eb367061e363bdc9537b2bbb7f0ec3",
+    "file_sha256": "d9d2c0fd2cf7924bf487162ccfdc8ec7067fb31a3c38189185a04c387e6dffdc",
+    "record_bindings_hash": "89cdcb1b8c5cf7b783cda558fc547915312ff1bc9dbad30e2a09d15f38558eb8"
+  },
+  "doi_means": {
+    "matplotagent_native_normalized_v2": {
+      "data_fidelity": 0.7592592592592592,
+      "execution_success": 0.7592592592592592
+    },
+    "pheroviz_model_spec_normalized_v2": {
+      "data_fidelity": 1.0,
+      "execution_success": 1.0
+    }
+  },
+  "paired_analyses": {
+    "data_fidelity": {
+      "gap_definition": "pheroviz_model_spec_normalized_v2 - matplotagent_native_normalized_v2",
+      "mean_gap": 0.24074074074074073,
+      "ci95": [
+        0.01851851851851852,
+        0.5555555555555556
+      ],
+      "exact_two_sided_p": 0.25,
+      "analysis_hash": "d125b6f24b2a83811db718d26862f838776815cf92d745fc4fff7ccf83537338",
+      "analysis_file_sha256": "29f641740cfde8997b5d93879416548baa9a94c25876d1630a81afdf8993c4bf"
+    },
+    "execution_success": {
+      "gap_definition": "pheroviz_model_spec_normalized_v2 - matplotagent_native_normalized_v2",
+      "mean_gap": 0.24074074074074073,
+      "ci95": [
+        0.01851851851851852,
+        0.5555555555555556
+      ],
+      "exact_two_sided_p": 0.25,
+      "analysis_hash": "baa0460afe224596e7598006b75818c3954d4939a579fe1da9df9a60832e3342",
+      "analysis_file_sha256": "534485a4fcb76f424929a79b65770ad80ce99c9a33a9f6b908dee85cdffc6235"
+    }
+  },
+  "decision": {
+    "significant_superiority_claim": false,
+    "reason": "Both positive paired gaps have exact two-sided DOI sign-flip p=0.25.",
+    "allowed_wording": "PheroViz had higher descriptive fidelity and execution success on this input-equated single-panel subtrack, but the six-DOI exact test did not support a significant superiority claim.",
+    "multi_panel_claim_permitted": false
+  },
+  "policy": {
+    "method_failures_enter_as_zero": true,
+    "infrastructure_failures_block": true,
+    "earlier_v2_roots_never_merge": true,
+    "secret_scan_clean": true
+  }
+}
