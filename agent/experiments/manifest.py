@@ -54,7 +54,48 @@ def _normalize_doi(value: Any) -> str | None:
     return doi
 
 
-def _verify_binding_file(binding: Mapping[str, Any], label: str) -> None:
+def _remap_absolute_path(
+    path_value: str,
+    *,
+    manifest_data_root: str | Path | None,
+    runtime_repo_root: str | Path | None,
+) -> Path:
+    path = Path(path_value).expanduser()
+    if not path.is_absolute():
+        raise ManifestError("Sealed benchmark bindings must use absolute paths")
+    if manifest_data_root is None:
+        return path.resolve()
+    if runtime_repo_root is None:
+        raise ManifestError(
+            "runtime_repo_root is required when manifest_data_root is set"
+        )
+    source_root = Path(manifest_data_root).expanduser()
+    target_root = Path(runtime_repo_root).expanduser()
+    if not source_root.is_absolute() or not target_root.is_absolute():
+        raise ManifestError(
+            "Manifest and runtime data roots must be absolute paths"
+        )
+    source_root = source_root.resolve()
+    target_root = target_root.resolve()
+    try:
+        relative = path.resolve().relative_to(source_root)
+    except ValueError:
+        return path.resolve()
+    remapped = (target_root / relative).resolve()
+    try:
+        remapped.relative_to(target_root)
+    except ValueError as exc:
+        raise ManifestError("Remapped path escaped runtime_repo_root") from exc
+    return remapped
+
+
+def _verify_binding_file(
+    binding: Mapping[str, Any],
+    label: str,
+    *,
+    manifest_data_root: str | Path | None,
+    runtime_repo_root: str | Path | None,
+) -> Path:
     path_value = binding.get("path")
     expected_hash = binding.get("sha256")
     if (
@@ -64,9 +105,14 @@ def _verify_binding_file(binding: Mapping[str, Any], label: str) -> None:
         or not _SHA256_RE.fullmatch(expected_hash)
     ):
         raise ManifestError(f"Benchmark {label} binding is invalid")
-    path = Path(path_value)
+    path = _remap_absolute_path(
+        path_value,
+        manifest_data_root=manifest_data_root,
+        runtime_repo_root=runtime_repo_root,
+    )
     if path.is_symlink() or not path.is_file() or sha256_file(path) != expected_hash:
         raise ManifestError(f"Benchmark {label} binding changed")
+    return path
 
 
 def _read_json_object(path: Path, label: str) -> dict[str, Any]:
@@ -123,6 +169,8 @@ def _validate_review_bundle_binding(
     bundle: Mapping[str, Any],
     *,
     label: str,
+    manifest_data_root: str | Path | None,
+    runtime_repo_root: str | Path | None,
 ) -> dict[str, dict[str, Any]]:
     if set(bundle) != {"evidence", "proposed", "reviews"}:
         raise ManifestError(f"Benchmark {label} has unexpected fields")
@@ -134,20 +182,37 @@ def _validate_review_bundle_binding(
         for item in (evidence, proposed, reviews)
     ):
         raise ManifestError(f"Benchmark {label} artifacts are invalid")
-    _verify_binding_file(evidence, f"{label}.evidence")
-    _verify_binding_file(proposed, f"{label}.proposed")
-    _verify_binding_file(reviews, f"{label}.reviews")
-    _verify_binding_file(
+    evidence_path = _verify_binding_file(
+        evidence,
+        f"{label}.evidence",
+        manifest_data_root=manifest_data_root,
+        runtime_repo_root=runtime_repo_root,
+    )
+    proposed_path = _verify_binding_file(
+        proposed,
+        f"{label}.proposed",
+        manifest_data_root=manifest_data_root,
+        runtime_repo_root=runtime_repo_root,
+    )
+    reviews_path = _verify_binding_file(
+        reviews,
+        f"{label}.reviews",
+        manifest_data_root=manifest_data_root,
+        runtime_repo_root=runtime_repo_root,
+    )
+    summary_path = _verify_binding_file(
         {
             "path": reviews.get("summary_path"),
             "sha256": reviews.get("summary_sha256"),
         },
         f"{label}.summary",
+        manifest_data_root=manifest_data_root,
+        runtime_repo_root=runtime_repo_root,
     )
     if not _SHA256_RE.fullmatch(str(evidence.get("evidence_hash") or "")):
         raise ManifestError(f"Benchmark {label} evidence hash is invalid")
     evidence_payload = _read_json_object(
-        Path(str(evidence["path"])),
+        evidence_path,
         f"{label}.evidence",
     )
     evidence_hash = _verify_object_seal(
@@ -164,7 +229,7 @@ def _validate_review_bundle_binding(
     ):
         raise ManifestError(f"Benchmark {label} evidence is inconsistent")
     proposed_records = _read_jsonl_objects(
-        Path(str(proposed["path"])),
+        proposed_path,
         f"{label}.proposed",
     )
     proposed_ids = [
@@ -177,7 +242,7 @@ def _validate_review_bundle_binding(
     ):
         raise ManifestError(f"Benchmark {label} proposed IDs are invalid")
     review_records = _read_jsonl_objects(
-        Path(str(reviews["path"])),
+        reviews_path,
         f"{label}.reviews",
     )
     reviews_by_id: dict[str, dict[str, Any]] = {}
@@ -194,7 +259,7 @@ def _validate_review_bundle_binding(
     if set(reviews_by_id) != set(proposed_ids):
         raise ManifestError(f"Benchmark {label} review/proposal sets differ")
     review_summary = _read_json_object(
-        Path(str(reviews["summary_path"])),
+        summary_path,
         f"{label}.summary",
     )
     _verify_object_seal(
@@ -246,6 +311,9 @@ def _validate_review_bundle_binding(
 
 def _validate_source_binding(
     source_binding: Mapping[str, Any],
+    *,
+    manifest_data_root: str | Path | None,
+    runtime_repo_root: str | Path | None,
 ) -> dict[str, dict[str, Any]]:
     binding_keys = set(source_binding)
     legacy_keys = {"candidate_inputs", "evidence", "proposed", "reviews"}
@@ -275,19 +343,23 @@ def _validate_source_binding(
     for index, binding in enumerate(candidate_inputs):
         if not isinstance(binding, Mapping):
             raise ManifestError("Benchmark candidate input binding is invalid")
-        _verify_binding_file(
+        candidates_path = _verify_binding_file(
             {
                 "path": binding.get("candidates_path"),
                 "sha256": binding.get("candidates_sha256"),
             },
             f"candidate_inputs[{index}]",
+            manifest_data_root=manifest_data_root,
+            runtime_repo_root=runtime_repo_root,
         )
-        _verify_binding_file(
+        summary_path = _verify_binding_file(
             {
                 "path": binding.get("summary_path"),
                 "sha256": binding.get("summary_sha256"),
             },
             f"candidate_inputs[{index}].summary",
+            manifest_data_root=manifest_data_root,
+            runtime_repo_root=runtime_repo_root,
         )
         if (
             not _SHA256_RE.fullmatch(str(binding.get("summary_hash") or ""))
@@ -300,7 +372,6 @@ def _validate_source_binding(
             raise ManifestError(
                 "Benchmark candidate input provenance is invalid"
             )
-        summary_path = Path(str(binding["summary_path"]))
         summary = _read_json_object(
             summary_path,
             f"candidate_inputs[{index}].summary",
@@ -321,7 +392,14 @@ def _validate_source_binding(
             raise ManifestError(
                 "Benchmark candidate summary binding is inconsistent"
             )
-        corpus_path = Path(str(binding.get("corpus_manifest") or ""))
+        corpus_value = binding.get("corpus_manifest")
+        if not isinstance(corpus_value, str):
+            raise ManifestError("Benchmark corpus manifest binding is invalid")
+        corpus_path = _remap_absolute_path(
+            corpus_value,
+            manifest_data_root=manifest_data_root,
+            runtime_repo_root=runtime_repo_root,
+        )
         if (
             corpus_path.is_symlink()
             or not corpus_path.is_file()
@@ -334,6 +412,8 @@ def _validate_source_binding(
         bundle_evidence = _validate_review_bundle_binding(
             bundle,
             label=f"review_bundles[{bundle_index}]",
+            manifest_data_root=manifest_data_root,
+            runtime_repo_root=runtime_repo_root,
         )
         duplicates = set(evidence_by_id) & set(bundle_evidence)
         if duplicates:
@@ -342,8 +422,25 @@ def _validate_source_binding(
             )
         evidence_by_id.update(bundle_evidence)
     for index, binding in enumerate(candidate_inputs):
+        candidate_value = binding.get("candidates_path")
+        summary_value = binding.get("summary_path")
+        if not isinstance(candidate_value, str) or not isinstance(
+            summary_value,
+            str,
+        ):
+            raise ManifestError("Benchmark candidate input paths are invalid")
+        candidate_path = _remap_absolute_path(
+            candidate_value,
+            manifest_data_root=manifest_data_root,
+            runtime_repo_root=runtime_repo_root,
+        )
+        summary_path = _remap_absolute_path(
+            summary_value,
+            manifest_data_root=manifest_data_root,
+            runtime_repo_root=runtime_repo_root,
+        )
         candidates = _read_jsonl_objects(
-            Path(str(binding["candidates_path"])),
+            candidate_path,
             f"candidate_inputs[{index}]",
         )
         eligible = [
@@ -354,7 +451,7 @@ def _validate_source_binding(
         if (
             len(eligible)
             != _read_json_object(
-                Path(str(binding["summary_path"])),
+                summary_path,
                 f"candidate_inputs[{index}].summary",
             ).get("eligible_for_experiment")
         ):
@@ -399,7 +496,12 @@ def _validate_verification_evidence(
         )
 
 
-def _validate_benchmark_manifest(data: Mapping[str, Any]) -> None:
+def _validate_benchmark_manifest(
+    data: Mapping[str, Any],
+    *,
+    manifest_data_root: str | Path | None,
+    runtime_repo_root: str | Path | None,
+) -> None:
     provenance = data.get("provenance")
     if provenance is None:
         return
@@ -420,7 +522,11 @@ def _validate_benchmark_manifest(data: Mapping[str, Any]) -> None:
         str(provenance.get("code_commit") or ""),
     ):
         raise ManifestError("Benchmark code commit is invalid")
-    evidence_by_id = _validate_source_binding(source_binding)
+    evidence_by_id = _validate_source_binding(
+        source_binding,
+        manifest_data_root=manifest_data_root,
+        runtime_repo_root=runtime_repo_root,
+    )
     cases = data.get("cases")
     if not isinstance(cases, list) or not cases:
         raise ManifestError("Benchmark cases must be a non-empty array")
@@ -531,6 +637,8 @@ def validate_manifest(
     data: Mapping[str, Any],
     *,
     dataset_mode: str | None = None,
+    manifest_data_root: str | Path | None = None,
+    runtime_repo_root: str | Path | None = None,
 ) -> list[DatasetCase]:
     if dataset_mode not in {None, "legacy", "sealed_benchmark"}:
         raise ManifestError(f"Unsupported dataset mode: {dataset_mode}")
@@ -543,7 +651,11 @@ def validate_manifest(
         raise ManifestError(
             "legacy mode cannot load a sealed benchmark manifest"
         )
-    _validate_benchmark_manifest(data)
+    _validate_benchmark_manifest(
+        data,
+        manifest_data_root=manifest_data_root,
+        runtime_repo_root=runtime_repo_root,
+    )
     raw_cases = data.get("cases")
     if not isinstance(raw_cases, list) or not raw_cases:
         raise ManifestError("Dataset manifest requires a non-empty cases list")
@@ -596,10 +708,14 @@ def load_dataset_manifest(
     path: str | Path,
     *,
     dataset_mode: str | None = None,
+    manifest_data_root: str | Path | None = None,
+    runtime_repo_root: str | Path | None = None,
 ) -> list[DatasetCase]:
     return validate_manifest(
         _load_manifest_object(Path(path)),
         dataset_mode=dataset_mode,
+        manifest_data_root=manifest_data_root,
+        runtime_repo_root=runtime_repo_root,
     )
 
 
@@ -711,26 +827,8 @@ def resolve_case_data_path(
         return (manifest_parent / path).resolve()
     if manifest_data_root is None:
         return path.resolve()
-    if runtime_repo_root is None:
-        raise ManifestError(
-            "runtime_repo_root is required when manifest_data_root is set"
-        )
-
-    source_root = Path(manifest_data_root).expanduser()
-    target_root = Path(runtime_repo_root).expanduser()
-    if not source_root.is_absolute() or not target_root.is_absolute():
-        raise ManifestError(
-            "Manifest and runtime data roots must be absolute paths"
-        )
-    source_root = source_root.resolve()
-    target_root = target_root.resolve()
-    try:
-        relative = path.resolve().relative_to(source_root)
-    except ValueError:
-        return path.resolve()
-    remapped = (target_root / relative).resolve()
-    try:
-        remapped.relative_to(target_root)
-    except ValueError as exc:
-        raise ManifestError("Remapped data path escaped runtime_repo_root") from exc
-    return remapped
+    return _remap_absolute_path(
+        str(path),
+        manifest_data_root=manifest_data_root,
+        runtime_repo_root=runtime_repo_root,
+    )

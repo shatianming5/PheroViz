@@ -159,6 +159,10 @@ def _verified_frozen_manifest_case(
         dataset_mode=str(
             record.experiment_spec.get("dataset_mode", "legacy")
         ),
+        manifest_data_root=(
+            record.experiment_spec.get("provider_options") or {}
+        ).get("manifest_data_root"),
+        runtime_repo_root=record.experiment_spec.get("repo_root"),
     )
     selected = select_case(cases, record.case_id)
     verify_case_metadata(

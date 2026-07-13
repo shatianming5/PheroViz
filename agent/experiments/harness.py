@@ -89,6 +89,8 @@ def _freeze_dataset_manifest(
     cases = load_dataset_manifest(
         destination,
         dataset_mode=spec.dataset_mode,
+        manifest_data_root=spec.provider_options.get("manifest_data_root"),
+        runtime_repo_root=spec.repo_root,
     )
     selected = select_case(cases, spec.case_id)
     verify_case_metadata(

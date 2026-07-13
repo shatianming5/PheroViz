@@ -262,6 +262,8 @@ class SingleChainProvider:
             manifest_cases = load_dataset_manifest(
                 manifest_path,
                 dataset_mode=request.spec.dataset_mode,
+                manifest_data_root=self.manifest_data_root,
+                runtime_repo_root=request.spec.repo_root,
             )
             selected_case = select_case(
                 manifest_cases,
@@ -779,6 +781,8 @@ class MultiPanelProvider:
         manifest_cases = load_dataset_manifest(
             request.dataset_manifest_path,
             dataset_mode=request.spec.dataset_mode,
+            manifest_data_root=self.manifest_data_root,
+            runtime_repo_root=request.spec.repo_root,
         )
         selected_case = select_case(manifest_cases, request.spec.case_id)
         verify_case_metadata(
@@ -1104,6 +1108,8 @@ class PheroVizProvider:
             cases = load_dataset_manifest(
                 request.dataset_manifest_path,
                 dataset_mode=request.spec.dataset_mode,
+                manifest_data_root=self.manifest_data_root,
+                runtime_repo_root=request.spec.repo_root,
             )
             selected = select_case(cases, request.spec.case_id)
             verify_case_metadata(

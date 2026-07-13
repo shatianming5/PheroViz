@@ -321,10 +321,23 @@ def expand_matrix(
         name="dataset_manifest",
     )
     manifest_object = load_structured_file(manifest_path)
+    global_provider_options = matrix.get("provider_options") or {}
+    if not isinstance(global_provider_options, Mapping):
+        raise MatrixError("provider_options must be an object")
+    manifest_data_root = global_provider_options.get("manifest_data_root")
+    if manifest_data_root is not None and (
+        not isinstance(manifest_data_root, str)
+        or not manifest_data_root.strip()
+    ):
+        raise MatrixError(
+            "provider_options.manifest_data_root must be a non-empty path"
+        )
     try:
         manifest_cases = load_dataset_manifest(
             manifest_path,
             dataset_mode=dataset_mode,
+            manifest_data_root=manifest_data_root,
+            runtime_repo_root=repo_root,
         )
     except ManifestError as exc:
         raise MatrixError(str(exc)) from exc
