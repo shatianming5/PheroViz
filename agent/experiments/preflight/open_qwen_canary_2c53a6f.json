@@ -1,0 +1,217 @@
+{
+  "code": {
+    "git_commit": "2c53a6fdb196ed99a5d74ea926933d27cb394612",
+    "git_dirty": false
+  },
+  "contract": {
+    "all_completed": true,
+    "expected_combinations": 18,
+    "failures": 0,
+    "methods": [
+      "best_of_n",
+      "flat_iterative",
+      "pheroviz_full"
+    ],
+    "record_count": 18,
+    "render_budget": 6,
+    "render_timeout_seconds": 120,
+    "renders": 108,
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "text_model_calls": 108,
+    "usage": {
+      "completion_tokens": 58563,
+      "prompt_tokens": 368117,
+      "total_tokens": 426680
+    },
+    "vlm_calls": 0
+  },
+  "dataset": {
+    "case_ids": [
+      "case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2",
+      "multi-s41467-021-25210-5-figure2-63db04e10c86"
+    ],
+    "manifest_sha256": "6c6c5cb50603d899a9be0f41c9e562517c92ae15477610e9111f6504cd1757b3",
+    "panel_counts": [
+      1,
+      6
+    ]
+  },
+  "execution": {
+    "canary_pid": 2504355,
+    "canary_terminal": true,
+    "full_resume_pid": 2573408,
+    "full_resume_started": true,
+    "server_teardown_required_after_full": true
+  },
+  "generated_at": "2026-07-13T13:18:38.148905Z",
+  "host": {
+    "gpu_index": 1,
+    "gpu_model": "NVIDIA GeForce RTX 4090 D",
+    "hostname": "7352-10x4090-183",
+    "server_loopback": "127.0.0.1:18081",
+    "server_pid": 2479211
+  },
+  "matrix": {
+    "canary_runtime_path": "/mnt/SSD1_8TB/zechuan/open_qwen_canary_2c53a6f.yaml",
+    "canary_runtime_sha256": "67e3af893440ea7a120cc7be4d8b7b2ee44ccab00fcc205ee21597ae305aea2d",
+    "full_runtime_path": "/mnt/SSD1_8TB/zechuan/open_qwen_full_2c53a6f.yaml",
+    "full_runtime_sha256": "584c7142f48e7054ff58e9bb99287c35576787306c66ef611d05d3d5b2644cf9",
+    "full_spec_count": 171,
+    "overlap_spec_hashes_match": true,
+    "remaining_after_canary": 153
+  },
+  "model": {
+    "license": "Apache-2.0",
+    "requested": "Qwen/Qwen2.5-Coder-7B-Instruct",
+    "revision": "c03e6d358207e414f1eca0bb1891e29f1db0e242",
+    "served": "Qwen/Qwen2.5-Coder-7B-Instruct",
+    "temperature": null,
+    "text_only": true,
+    "weight_audit_path": "agent/experiments/model_audits/qwen2p5_coder_7b_remote.json"
+  },
+  "records": [
+    {
+      "record_hash": "3d47dd8e2ef70566e167aa84ebca0bb976a10482419c2cae90d32e6c4de8be48",
+      "render_count": 6,
+      "run_name": "c4-open-renderable-v1-seed0-br6__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-best_of_n__backbone-Qwen-Qwen2.5-Coder-7B-Instruct__seed-0__budget-renders-6",
+      "run_record_file_sha256": "1c45917ea7a2fc060a5daa2d1688a620b9112789bd6ec242ca71521c8c79b02b",
+      "spec_hash": "f7a1b46ff1ee0403cb277759c7237fbab274036d6b9148a205d5c8fb2db86e83"
+    },
+    {
+      "record_hash": "023d5d274938b9f91ab0a946a49afc1796cbf1380db503fa8bf7906e193a8f75",
+      "render_count": 6,
+      "run_name": "c4-open-renderable-v1-seed0-br6__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-best_of_n__backbone-Qwen-Qwen2.5-Coder-7B-Instruct__seed-1__budget-renders-6",
+      "run_record_file_sha256": "a9541e716db41bd6d259de87b85d084072beb42b1908b2ba9fb6cc725333b07b",
+      "spec_hash": "0619389eb537dd548cdbc9473d3aa4f545325f7765c7d3fa321de7035ac23112"
+    },
+    {
+      "record_hash": "e021bc4c1d52ec6e62f1de772ec395700f3248b99d5abe348b1bb789972b7478",
+      "render_count": 6,
+      "run_name": "c4-open-renderable-v1-seed0-br6__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-best_of_n__backbone-Qwen-Qwen2.5-Coder-7B-Instruct__seed-2__budget-renders-6",
+      "run_record_file_sha256": "10639adf9293ca4926d5f60c5a30f17cfc39bef689dcd5e5c5c006827a9b807b",
+      "spec_hash": "de1283b32f15708f3dde4bd60fae2021ef50479dc4beb1a17730a4e53262ee2e"
+    },
+    {
+      "record_hash": "d13e948abca45af8ff7d539fb138394e157be9fe23c372a99822243ac3e798c9",
+      "render_count": 6,
+      "run_name": "c4-open-renderable-v1-seed0-br6__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-flat_iterative__backbone-Qwen-Qwen2.5-Coder-7B-Instruct__seed-0__budget-renders-6",
+      "run_record_file_sha256": "620765958cb57f0be7a9e0e155ae9c5f54eeee939bb95899892d830ea88961db",
+      "spec_hash": "ec5a654fd801bbfd98ac1a50f1b28079ffe8cf29e2f50c3785b81ee27fdd77ee"
+    },
+    {
+      "record_hash": "91d0cb4100f0a73569e038cec6ef5d310c4c669b8ca5bf00ddc8b8c6bb388f41",
+      "render_count": 6,
+      "run_name": "c4-open-renderable-v1-seed0-br6__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-flat_iterative__backbone-Qwen-Qwen2.5-Coder-7B-Instruct__seed-1__budget-renders-6",
+      "run_record_file_sha256": "1d3cf209e1af6f2e2431585f9bec8ecdd40a9edfd4269c3de4bfd3e8608493e2",
+      "spec_hash": "fcb18102b48f26c563121bca72a015ec9fc3e9dad7a88aea9008f23a890cef91"
+    },
+    {
+      "record_hash": "44aeed4f9cfd52082d8c7cacbeca3a3a861a534d2be703caef2287635a1943a7",
+      "render_count": 6,
+      "run_name": "c4-open-renderable-v1-seed0-br6__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-flat_iterative__backbone-Qwen-Qwen2.5-Coder-7B-Instruct__seed-2__budget-renders-6",
+      "run_record_file_sha256": "4ffd3e5f587e043ff2eedbe0bb82233e2d97529ba0d98068ff541a8a50332899",
+      "spec_hash": "326d0db87670147a2855e0d4d91a2328c817b73ac1f3babcedf254a9df573fad"
+    },
+    {
+      "record_hash": "d51d423c4ed7b1f2c6efde56746538344346a3becc7c12b71297e93eb51cd416",
+      "render_count": 6,
+      "run_name": "c4-open-renderable-v1-seed0-br6__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-pheroviz_full__backbone-Qwen-Qwen2.5-Coder-7B-Instruct__seed-0__budget-renders-6",
+      "run_record_file_sha256": "730d8810e50ad0914af28e850f45b46dc7efb09e5e649d1399aacd2257448694",
+      "spec_hash": "4aad5ef3bee7f668931253ad9050d45870115938dc1a0f134f3c185f6db371e4"
+    },
+    {
+      "record_hash": "4d0ba5aedebc25fb3a10f6ab82f11ad851fee0ca51a1863a03b52e8d682f0ce6",
+      "render_count": 6,
+      "run_name": "c4-open-renderable-v1-seed0-br6__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-pheroviz_full__backbone-Qwen-Qwen2.5-Coder-7B-Instruct__seed-1__budget-renders-6",
+      "run_record_file_sha256": "3fa7092d1e5ec3e8b894fb5fcff89080264932325567707acd3eaa08a527bf91",
+      "spec_hash": "92a89b9f3bd74e3063961f53039244f25ad4ae2b4d8ae12c89ddc3fb7ada73c8"
+    },
+    {
+      "record_hash": "afdb3c9afe5bee0153a52de92f2c0b17622de502c6f4a1614318a1e81eda5d2a",
+      "render_count": 6,
+      "run_name": "c4-open-renderable-v1-seed0-br6__case-case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2__method-pheroviz_full__backbone-Qwen-Qwen2.5-Coder-7B-Instruct__seed-2__budget-renders-6",
+      "run_record_file_sha256": "5306477f651e12d080869b922b0d96680ef9a4b282b92c158da300041e0018bd",
+      "spec_hash": "f3b82f3284282ed2bad8a937b881f2c8aa459d1ade9d62cbdff3b2cfb57dabd4"
+    },
+    {
+      "record_hash": "3f2ff4a5408fc2066f8e89bdfaf154c321c51e2f22ea6ec1083bc0258e6cc4de",
+      "render_count": 6,
+      "run_name": "c4-open-renderable-v1-seed0-br6__case-multi-s41467-021-25210-5-figure2-63db04e10c86__method-best_of_n__backbone-Qwen-Qwen2.5-Coder-7B-Instruct__seed-0__budget-renders-6",
+      "run_record_file_sha256": "bd6deccc56d49fe6f653e1d86c2dfaff4d73cdd4b61d29419e35a09bdb1ef131",
+      "spec_hash": "a9f34f6d9f370843dcfe36fadb47ae3b25b5c7ad60bcfce3ee35d1ff947e2fce"
+    },
+    {
+      "record_hash": "4c4a391cb363512678060369eb1a662838d7acb5b41b42af41f7ed016174defa",
+      "render_count": 6,
+      "run_name": "c4-open-renderable-v1-seed0-br6__case-multi-s41467-021-25210-5-figure2-63db04e10c86__method-best_of_n__backbone-Qwen-Qwen2.5-Coder-7B-Instruct__seed-1__budget-renders-6",
+      "run_record_file_sha256": "b1fedd81370cd6feaed40f281e8f9a9343518b85f4872f045ae684a44a65ba47",
+      "spec_hash": "061724e1c21ead020ca66ca9d4d7ee1e64350ce527e4c1f1bb9976c4cb76ca0b"
+    },
+    {
+      "record_hash": "968d5d4a9bb9c4f64271fa2129207f38e97f2cbc16d8c3d83a261a8761661c88",
+      "render_count": 6,
+      "run_name": "c4-open-renderable-v1-seed0-br6__case-multi-s41467-021-25210-5-figure2-63db04e10c86__method-best_of_n__backbone-Qwen-Qwen2.5-Coder-7B-Instruct__seed-2__budget-renders-6",
+      "run_record_file_sha256": "7cabe222f15cde5876cc917e2736283c8c697e536ce35b3ea84bf1bb71d5919c",
+      "spec_hash": "8acdc48ef416c54432fc297b43b556dba02cac59f74a233a2b864aaf2fddd479"
+    },
+    {
+      "record_hash": "8a8d0ab72a584cac6bd88376df004919728b429612b8dbde86d2d42eb1bd7f0f",
+      "render_count": 6,
+      "run_name": "c4-open-renderable-v1-seed0-br6__case-multi-s41467-021-25210-5-figure2-63db04e10c86__method-flat_iterative__backbone-Qwen-Qwen2.5-Coder-7B-Instruct__seed-0__budget-renders-6",
+      "run_record_file_sha256": "2136f3c5c1b96dd5080b133a9ebb74d3f5aa6aacd20b5a55a7aa6af1cb0d162e",
+      "spec_hash": "d32d9c08176a90e97c3556f82e9344c2c50ca00c7d69d8a2cf0bb99c20c9c4af"
+    },
+    {
+      "record_hash": "c89c02ba5220b680071878c52c3795b3429e555897c6c2488dd3d0c7a04f3555",
+      "render_count": 6,
+      "run_name": "c4-open-renderable-v1-seed0-br6__case-multi-s41467-021-25210-5-figure2-63db04e10c86__method-flat_iterative__backbone-Qwen-Qwen2.5-Coder-7B-Instruct__seed-1__budget-renders-6",
+      "run_record_file_sha256": "354d4a1610466d2ccb9d8af57ffb559153ccc75dab4c15ec38c3f9d40ebd0804",
+      "spec_hash": "dd61f505c08d363e614822220ac79413c10acedbc855792d27b3682c91416cff"
+    },
+    {
+      "record_hash": "37930f5ee8f217a0a1b6682ef8337448d28292dfddadd247b021837281aa7566",
+      "render_count": 6,
+      "run_name": "c4-open-renderable-v1-seed0-br6__case-multi-s41467-021-25210-5-figure2-63db04e10c86__method-flat_iterative__backbone-Qwen-Qwen2.5-Coder-7B-Instruct__seed-2__budget-renders-6",
+      "run_record_file_sha256": "d076dee5d885ad153eda16f2f774a19e153aba5afbdd9234ff2063d0e526543f",
+      "spec_hash": "50f418a738dd54dba380675b795e61a7b138536db57085796dc43bcea59b0640"
+    },
+    {
+      "record_hash": "68e7d86084980a955bf535589fff48bc1f73ce2753f4795c46955902dac3c5be",
+      "render_count": 6,
+      "run_name": "c4-open-renderable-v1-seed0-br6__case-multi-s41467-021-25210-5-figure2-63db04e10c86__method-pheroviz_full__backbone-Qwen-Qwen2.5-Coder-7B-Instruct__seed-0__budget-renders-6",
+      "run_record_file_sha256": "80491dd1ebe9010cbb89eb2421972389735b963c5e798067b3fd288581ee6873",
+      "spec_hash": "d79e1079707ef7ed18714c0351acc89eb8386335ed17d316266870a4fe877475"
+    },
+    {
+      "record_hash": "bfd6df38bc898629417b6742b95cdbe3a9c169d03a39b2b3a2c8e5eea89933b8",
+      "render_count": 6,
+      "run_name": "c4-open-renderable-v1-seed0-br6__case-multi-s41467-021-25210-5-figure2-63db04e10c86__method-pheroviz_full__backbone-Qwen-Qwen2.5-Coder-7B-Instruct__seed-1__budget-renders-6",
+      "run_record_file_sha256": "539c792239f50f818e0edee7aa6ac62a3245de159d7a8e56b7b186c1b8a1e3dc",
+      "spec_hash": "22f37b6403714a17abcb40c37868998b4f37c1317836eb3981432a68af015c5d"
+    },
+    {
+      "record_hash": "1dbbe911b2eefc27be381d002414ca1689d6ccf3d960a4b1e1c13133f61a8d3e",
+      "render_count": 6,
+      "run_name": "c4-open-renderable-v1-seed0-br6__case-multi-s41467-021-25210-5-figure2-63db04e10c86__method-pheroviz_full__backbone-Qwen-Qwen2.5-Coder-7B-Instruct__seed-2__budget-renders-6",
+      "run_record_file_sha256": "54d13d31c3235b5faa5daafc98f761381b313fac8aab9749bfc0a33d8f169568",
+      "spec_hash": "b1648de1b6a1af3e6ff65fefbaefe46f149cd3600a26d2e14436b120540136c9"
+    }
+  ],
+  "report_hash": "ad807df61be31f3ecc3b49f00190921b39d7d0d76736e8c7ac2da349512621ec",
+  "schema_version": "1.0",
+  "scientific_result": false,
+  "status": "passed_included_canary",
+  "validation": {
+    "all_artifact_hashes_verified": true,
+    "secrets_absent": true,
+    "served_identity_exact": true,
+    "strict_aggregate_passed": true,
+    "summary_file_sha256": "a47d569f8b5e5d6442880807add9544dcc071dbf8d537ec9bb91a496ffd6408b",
+    "summary_hash": "9681efcb8f513323e5a37c49f5329ba7d8a24f43559485854eb9bd5891af1237",
+    "summary_remote_path": "/mnt/SSD1_8TB/zechuan/PheroViz-open-2c53a6f/agent/experiments/runs/production/_summaries/c4_open_renderable_v1_seed0_br6_qwen2p5coder7b_2c53a6f.canary/summary.json"
+  }
+}
