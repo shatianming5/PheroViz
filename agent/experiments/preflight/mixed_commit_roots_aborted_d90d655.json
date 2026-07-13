@@ -1,0 +1,51 @@
+{
+  "batch_status": "ABORTED_NEVER_MERGE",
+  "generated_at": "2026-07-13T14:06:11.252919Z",
+  "no_method_outcome_inferred": true,
+  "outcome_independent_decision": true,
+  "partial_metrics_inspected": false,
+  "reason": "C4 requires the same method-wrapper commit across backbone tiers; after a deterministic invalid-palette runtime bug required mid-tier commit d90d655, retaining frontier/open at 2c53a6f would violate the frozen cross-tier contract.",
+  "replacement": {
+    "frontier_canary_pid": 2661446,
+    "mid_pid": 2645613,
+    "open_canary_pid": 2661450,
+    "qwen_server_pid": 2479211
+  },
+  "replacement_commit": "d90d655b96bfb3b95bfdc37665692957969d8968",
+  "report_hash": "ff58ccc5e0449bd7406ffc0232973b8038950b1aac2493f1417967b09aa9e341",
+  "roots": [
+    {
+      "git_commits": [
+        "2c53a6fdb196ed99a5d74ea926933d27cb394612"
+      ],
+      "never_merge": true,
+      "record_bindings_hash": "3c66e674068f425ec4cbe56c58a83d0ff7afd9e198505fdf3324fc1bf315e94a",
+      "record_count": 33,
+      "render_count_accounting": 195,
+      "root": "/mnt/SSD1_8TB/zechuan/PheroViz-open-2c53a6f/agent/experiments/runs/production/c1_c3_renderable_v1_seed0_br6_gpt56sol",
+      "status_counts": {
+        "completed": 32,
+        "running": 1
+      },
+      "stopped_pid": 2508216,
+      "tier": "frontier"
+    },
+    {
+      "git_commits": [
+        "2c53a6fdb196ed99a5d74ea926933d27cb394612"
+      ],
+      "never_merge": true,
+      "record_bindings_hash": "b73a0402e445d9b51bb7564391b142246f9529dcd4fb67fb02c8ae147c709aca",
+      "record_count": 45,
+      "render_count_accounting": 266,
+      "root": "/mnt/SSD1_8TB/zechuan/PheroViz-open-2c53a6f/agent/experiments/runs/production/c4_open_renderable_v1_seed0_br6_qwen2p5coder7b_2c53a6f",
+      "status_counts": {
+        "completed": 44,
+        "running": 1
+      },
+      "stopped_pid": 2573408,
+      "tier": "open_weight"
+    }
+  ],
+  "schema_version": "1.0"
+}
