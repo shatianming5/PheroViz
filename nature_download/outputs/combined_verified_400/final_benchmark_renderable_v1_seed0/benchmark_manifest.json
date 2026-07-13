@@ -1,0 +1,1884 @@
+{
+  "cases": [
+    {
+      "candidate_id": "case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2",
+      "case_id": "case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2",
+      "chart_family": "scatter",
+      "curation_status": "verified",
+      "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/content/s41467-021-25210-5/source_data/41467_2021_25210_MOESM6_ESM.xlsx",
+      "data_sha256": "c61f86a1e746a3eb21cd19b76f900e93bb1ce8ad971ee9776e6a787d6068137b",
+      "doi": "10.1038/s41467-021-25210-5",
+      "eligibility_reasons": [],
+      "eligible_for_experiment": true,
+      "evaluation_expectation": {
+        "panel_groups": [],
+        "panels": [
+          {
+            "axis_index": 0,
+            "panel_id": "d",
+            "series": [
+              {
+                "kind": "scatter",
+                "series_id": "Value",
+                "x": "Run order",
+                "y": "Value"
+              }
+            ],
+            "x_scale": "linear"
+          }
+        ],
+        "schema_version": "1.1.0"
+      },
+      "intent": {
+        "series": [
+          "Value"
+        ],
+        "units": {},
+        "x": "Run order",
+        "x_scale": "linear",
+        "y": "Value"
+      },
+      "panel_count": 1,
+      "panel_id": "d",
+      "panels": [
+        {
+          "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/content/s41467-021-25210-5/source_data/41467_2021_25210_MOESM6_ESM.xlsx",
+          "data_sha256": "c61f86a1e746a3eb21cd19b76f900e93bb1ce8ad971ee9776e6a787d6068137b",
+          "panel_id": "d",
+          "sheet": "Source_data_Fig2D",
+          "user_goal": "Create a scatter plot for Figure 2D showing `Value` against `Run order`."
+        }
+      ],
+      "sheet": "Source_data_Fig2D",
+      "split": "test",
+      "user_goal": "Create a scatter plot for Figure 2D showing `Value` against `Run order`.",
+      "verification_evidence": {
+        "evidence_ref": "review:a1c827d2ce1d4ca968e24c0bca212d298dee3f25a9b98b439c6bec6d546701d7",
+        "evidence_type": "external_validation",
+        "review_hash": "a1c827d2ce1d4ca968e24c0bca212d298dee3f25a9b98b439c6bec6d546701d7",
+        "review_models": [
+          "claude-sonnet-4-6",
+          "gemini-3.5-flash"
+        ]
+      }
+    },
+    {
+      "candidate_id": "case-s41467-021-25210-5-figure2-panele-40ed0f36fcb1",
+      "case_id": "case-s41467-021-25210-5-figure2-panele-40ed0f36fcb1",
+      "chart_family": "scatter",
+      "curation_status": "verified",
+      "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/content/s41467-021-25210-5/source_data/41467_2021_25210_MOESM6_ESM.xlsx",
+      "data_sha256": "c61f86a1e746a3eb21cd19b76f900e93bb1ce8ad971ee9776e6a787d6068137b",
+      "doi": "10.1038/s41467-021-25210-5",
+      "eligibility_reasons": [],
+      "eligible_for_experiment": true,
+      "evaluation_expectation": {
+        "panel_groups": [],
+        "panels": [
+          {
+            "axis_index": 0,
+            "panel_id": "e",
+            "series": [
+              {
+                "kind": "scatter",
+                "series_id": "Value",
+                "x": "Run order",
+                "y": "Value"
+              }
+            ],
+            "x_scale": "linear"
+          }
+        ],
+        "schema_version": "1.1.0"
+      },
+      "intent": {
+        "series": [
+          "Value"
+        ],
+        "units": {},
+        "x": "Run order",
+        "x_scale": "linear",
+        "y": "Value"
+      },
+      "panel_count": 1,
+      "panel_id": "e",
+      "panels": [
+        {
+          "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/content/s41467-021-25210-5/source_data/41467_2021_25210_MOESM6_ESM.xlsx",
+          "data_sha256": "c61f86a1e746a3eb21cd19b76f900e93bb1ce8ad971ee9776e6a787d6068137b",
+          "panel_id": "e",
+          "sheet": "Source_data_Fig2E",
+          "user_goal": "Create a scatter plot for Figure 2E showing `Value` against `Run order`."
+        }
+      ],
+      "sheet": "Source_data_Fig2E",
+      "split": "test",
+      "user_goal": "Create a scatter plot for Figure 2E showing `Value` against `Run order`.",
+      "verification_evidence": {
+        "evidence_ref": "review:05756e38129184deca40d8853689695dc1d572581fae9e24fff6eb6d7147f165",
+        "evidence_type": "external_validation",
+        "review_hash": "05756e38129184deca40d8853689695dc1d572581fae9e24fff6eb6d7147f165",
+        "review_models": [
+          "claude-sonnet-4-6",
+          "gemini-3.5-flash"
+        ]
+      }
+    },
+    {
+      "candidate_id": "case-s41467-021-25210-5-figure2-panelf-61e8e08ae424",
+      "case_id": "case-s41467-021-25210-5-figure2-panelf-61e8e08ae424",
+      "chart_family": "scatter",
+      "curation_status": "verified",
+      "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/content/s41467-021-25210-5/source_data/41467_2021_25210_MOESM6_ESM.xlsx",
+      "data_sha256": "c61f86a1e746a3eb21cd19b76f900e93bb1ce8ad971ee9776e6a787d6068137b",
+      "doi": "10.1038/s41467-021-25210-5",
+      "eligibility_reasons": [],
+      "eligible_for_experiment": true,
+      "evaluation_expectation": {
+        "panel_groups": [],
+        "panels": [
+          {
+            "axis_index": 0,
+            "panel_id": "f",
+            "series": [
+              {
+                "kind": "scatter",
+                "series_id": "Value",
+                "x": "Run order",
+                "y": "Value"
+              }
+            ],
+            "x_scale": "linear"
+          }
+        ],
+        "schema_version": "1.1.0"
+      },
+      "intent": {
+        "series": [
+          "Value"
+        ],
+        "units": {},
+        "x": "Run order",
+        "x_scale": "linear",
+        "y": "Value"
+      },
+      "panel_count": 1,
+      "panel_id": "f",
+      "panels": [
+        {
+          "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/content/s41467-021-25210-5/source_data/41467_2021_25210_MOESM6_ESM.xlsx",
+          "data_sha256": "c61f86a1e746a3eb21cd19b76f900e93bb1ce8ad971ee9776e6a787d6068137b",
+          "panel_id": "f",
+          "sheet": "Source_data_Fig2F",
+          "user_goal": "Create a scatter plot for Figure 2F showing `Value` against `Run order`."
+        }
+      ],
+      "sheet": "Source_data_Fig2F",
+      "split": "test",
+      "user_goal": "Create a scatter plot for Figure 2F showing `Value` against `Run order`.",
+      "verification_evidence": {
+        "evidence_ref": "review:fd4af629c660ab4ed4121d585725472f5673bd1cf19ba113e7bb70163690ae2b",
+        "evidence_type": "external_validation",
+        "review_hash": "fd4af629c660ab4ed4121d585725472f5673bd1cf19ba113e7bb70163690ae2b",
+        "review_models": [
+          "claude-sonnet-4-6",
+          "gemini-3.5-flash"
+        ]
+      }
+    },
+    {
+      "candidate_id": "case-s41467-021-25210-5-figure2-panelj-e3cae44c267a",
+      "case_id": "case-s41467-021-25210-5-figure2-panelj-e3cae44c267a",
+      "chart_family": "scatter",
+      "curation_status": "verified",
+      "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/content/s41467-021-25210-5/source_data/41467_2021_25210_MOESM6_ESM.xlsx",
+      "data_sha256": "c61f86a1e746a3eb21cd19b76f900e93bb1ce8ad971ee9776e6a787d6068137b",
+      "doi": "10.1038/s41467-021-25210-5",
+      "eligibility_reasons": [],
+      "eligible_for_experiment": true,
+      "evaluation_expectation": {
+        "panel_groups": [],
+        "panels": [
+          {
+            "axis_index": 0,
+            "panel_id": "j",
+            "series": [
+              {
+                "kind": "scatter",
+                "series_id": "Value",
+                "x": "Run order",
+                "y": "Value"
+              }
+            ],
+            "x_scale": "linear"
+          }
+        ],
+        "schema_version": "1.1.0"
+      },
+      "intent": {
+        "series": [
+          "Value"
+        ],
+        "units": {},
+        "x": "Run order",
+        "x_scale": "linear",
+        "y": "Value"
+      },
+      "panel_count": 1,
+      "panel_id": "j",
+      "panels": [
+        {
+          "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/content/s41467-021-25210-5/source_data/41467_2021_25210_MOESM6_ESM.xlsx",
+          "data_sha256": "c61f86a1e746a3eb21cd19b76f900e93bb1ce8ad971ee9776e6a787d6068137b",
+          "panel_id": "j",
+          "sheet": "Source_data_Fig2J",
+          "user_goal": "Create a scatter plot for Figure 2J showing `Value` against `Run order`."
+        }
+      ],
+      "sheet": "Source_data_Fig2J",
+      "split": "test",
+      "user_goal": "Create a scatter plot for Figure 2J showing `Value` against `Run order`.",
+      "verification_evidence": {
+        "evidence_ref": "review:832da2e42f5fc8023e8fb7e8f7c110bd9af10a63c14a4604524ece08d87049d3",
+        "evidence_type": "external_validation",
+        "review_hash": "832da2e42f5fc8023e8fb7e8f7c110bd9af10a63c14a4604524ece08d87049d3",
+        "review_models": [
+          "claude-sonnet-4-6",
+          "gemini-3.5-flash"
+        ]
+      }
+    },
+    {
+      "candidate_id": "case-s41467-021-25210-5-figure2-panelk-bc7896822a15",
+      "case_id": "case-s41467-021-25210-5-figure2-panelk-bc7896822a15",
+      "chart_family": "scatter",
+      "curation_status": "verified",
+      "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/content/s41467-021-25210-5/source_data/41467_2021_25210_MOESM6_ESM.xlsx",
+      "data_sha256": "c61f86a1e746a3eb21cd19b76f900e93bb1ce8ad971ee9776e6a787d6068137b",
+      "doi": "10.1038/s41467-021-25210-5",
+      "eligibility_reasons": [],
+      "eligible_for_experiment": true,
+      "evaluation_expectation": {
+        "panel_groups": [],
+        "panels": [
+          {
+            "axis_index": 0,
+            "panel_id": "k",
+            "series": [
+              {
+                "kind": "scatter",
+                "series_id": "Value",
+                "x": "Run order",
+                "y": "Value"
+              }
+            ],
+            "x_scale": "linear"
+          }
+        ],
+        "schema_version": "1.1.0"
+      },
+      "intent": {
+        "series": [
+          "Value"
+        ],
+        "units": {},
+        "x": "Run order",
+        "x_scale": "linear",
+        "y": "Value"
+      },
+      "panel_count": 1,
+      "panel_id": "k",
+      "panels": [
+        {
+          "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/content/s41467-021-25210-5/source_data/41467_2021_25210_MOESM6_ESM.xlsx",
+          "data_sha256": "c61f86a1e746a3eb21cd19b76f900e93bb1ce8ad971ee9776e6a787d6068137b",
+          "panel_id": "k",
+          "sheet": "Source_data_Fig2K",
+          "user_goal": "Create a scatter plot for Figure 2K showing `Value` against `Run order`."
+        }
+      ],
+      "sheet": "Source_data_Fig2K",
+      "split": "test",
+      "user_goal": "Create a scatter plot for Figure 2K showing `Value` against `Run order`.",
+      "verification_evidence": {
+        "evidence_ref": "review:457a36ff0faca6633e0789cb5cb5a27396434dfa8d28fa581f950cf64c9e65d8",
+        "evidence_type": "external_validation",
+        "review_hash": "457a36ff0faca6633e0789cb5cb5a27396434dfa8d28fa581f950cf64c9e65d8",
+        "review_models": [
+          "claude-sonnet-4-6",
+          "gemini-3.5-flash"
+        ]
+      }
+    },
+    {
+      "candidate_id": "case-s41467-021-25210-5-figure2-panell-67238825b9a0",
+      "case_id": "case-s41467-021-25210-5-figure2-panell-67238825b9a0",
+      "chart_family": "scatter",
+      "curation_status": "verified",
+      "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/content/s41467-021-25210-5/source_data/41467_2021_25210_MOESM6_ESM.xlsx",
+      "data_sha256": "c61f86a1e746a3eb21cd19b76f900e93bb1ce8ad971ee9776e6a787d6068137b",
+      "doi": "10.1038/s41467-021-25210-5",
+      "eligibility_reasons": [],
+      "eligible_for_experiment": true,
+      "evaluation_expectation": {
+        "panel_groups": [],
+        "panels": [
+          {
+            "axis_index": 0,
+            "panel_id": "l",
+            "series": [
+              {
+                "kind": "scatter",
+                "series_id": "Value",
+                "x": "Run order",
+                "y": "Value"
+              }
+            ],
+            "x_scale": "linear"
+          }
+        ],
+        "schema_version": "1.1.0"
+      },
+      "intent": {
+        "series": [
+          "Value"
+        ],
+        "units": {},
+        "x": "Run order",
+        "x_scale": "linear",
+        "y": "Value"
+      },
+      "panel_count": 1,
+      "panel_id": "l",
+      "panels": [
+        {
+          "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/content/s41467-021-25210-5/source_data/41467_2021_25210_MOESM6_ESM.xlsx",
+          "data_sha256": "c61f86a1e746a3eb21cd19b76f900e93bb1ce8ad971ee9776e6a787d6068137b",
+          "panel_id": "l",
+          "sheet": "Source_data_Fig2L",
+          "user_goal": "Create a scatter plot for Figure 2L showing `Value` against `Run order`."
+        }
+      ],
+      "sheet": "Source_data_Fig2L",
+      "split": "test",
+      "user_goal": "Create a scatter plot for Figure 2L showing `Value` against `Run order`.",
+      "verification_evidence": {
+        "evidence_ref": "review:119438028a21f68b37d716a4f498bd4338942b3b1a28e55c7d732daacfa19431",
+        "evidence_type": "external_validation",
+        "review_hash": "119438028a21f68b37d716a4f498bd4338942b3b1a28e55c7d732daacfa19431",
+        "review_models": [
+          "claude-sonnet-4-6",
+          "gemini-3.5-flash"
+        ]
+      }
+    },
+    {
+      "candidate_id": "multi-s41467-021-25210-5-figure2-63db04e10c86",
+      "case_id": "multi-s41467-021-25210-5-figure2-63db04e10c86",
+      "chart_family": "multi_panel",
+      "curation_status": "verified",
+      "doi": "10.1038/s41467-021-25210-5",
+      "eligibility_reasons": [],
+      "eligible_for_experiment": true,
+      "evaluation_expectation": {
+        "panel_groups": [
+          {
+            "checks": {
+              "palette_consistent": true,
+              "shared_x_scale": true
+            },
+            "group_id": "all_panels",
+            "panels": [
+              "d",
+              "e",
+              "f",
+              "j",
+              "k",
+              "l"
+            ],
+            "series": [
+              "Value"
+            ]
+          }
+        ],
+        "panels": [
+          {
+            "axis_index": 0,
+            "panel_id": "d",
+            "series": [
+              {
+                "kind": "scatter",
+                "series_id": "Value",
+                "x": "Run order",
+                "y": "Value"
+              }
+            ],
+            "x_scale": "linear"
+          },
+          {
+            "axis_index": 0,
+            "panel_id": "e",
+            "series": [
+              {
+                "kind": "scatter",
+                "series_id": "Value",
+                "x": "Run order",
+                "y": "Value"
+              }
+            ],
+            "x_scale": "linear"
+          },
+          {
+            "axis_index": 0,
+            "panel_id": "f",
+            "series": [
+              {
+                "kind": "scatter",
+                "series_id": "Value",
+                "x": "Run order",
+                "y": "Value"
+              }
+            ],
+            "x_scale": "linear"
+          },
+          {
+            "axis_index": 0,
+            "panel_id": "j",
+            "series": [
+              {
+                "kind": "scatter",
+                "series_id": "Value",
+                "x": "Run order",
+                "y": "Value"
+              }
+            ],
+            "x_scale": "linear"
+          },
+          {
+            "axis_index": 0,
+            "panel_id": "k",
+            "series": [
+              {
+                "kind": "scatter",
+                "series_id": "Value",
+                "x": "Run order",
+                "y": "Value"
+              }
+            ],
+            "x_scale": "linear"
+          },
+          {
+            "axis_index": 0,
+            "panel_id": "l",
+            "series": [
+              {
+                "kind": "scatter",
+                "series_id": "Value",
+                "x": "Run order",
+                "y": "Value"
+              }
+            ],
+            "x_scale": "linear"
+          }
+        ],
+        "schema_version": "1.1.0"
+      },
+      "intent": {
+        "panels": [
+          {
+            "panel_id": "d",
+            "series": [
+              "Value"
+            ],
+            "units": {},
+            "x": "Run order",
+            "x_scale": "linear",
+            "y": "Value"
+          },
+          {
+            "panel_id": "e",
+            "series": [
+              "Value"
+            ],
+            "units": {},
+            "x": "Run order",
+            "x_scale": "linear",
+            "y": "Value"
+          },
+          {
+            "panel_id": "f",
+            "series": [
+              "Value"
+            ],
+            "units": {},
+            "x": "Run order",
+            "x_scale": "linear",
+            "y": "Value"
+          },
+          {
+            "panel_id": "j",
+            "series": [
+              "Value"
+            ],
+            "units": {},
+            "x": "Run order",
+            "x_scale": "linear",
+            "y": "Value"
+          },
+          {
+            "panel_id": "k",
+            "series": [
+              "Value"
+            ],
+            "units": {},
+            "x": "Run order",
+            "x_scale": "linear",
+            "y": "Value"
+          },
+          {
+            "panel_id": "l",
+            "series": [
+              "Value"
+            ],
+            "units": {},
+            "x": "Run order",
+            "x_scale": "linear",
+            "y": "Value"
+          }
+        ]
+      },
+      "panel_count": 6,
+      "panels": [
+        {
+          "chart_family": "scatter",
+          "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/content/s41467-021-25210-5/source_data/41467_2021_25210_MOESM6_ESM.xlsx",
+          "data_sha256": "c61f86a1e746a3eb21cd19b76f900e93bb1ce8ad971ee9776e6a787d6068137b",
+          "id": "d",
+          "intent": {
+            "series": [
+              "Value"
+            ],
+            "units": {},
+            "x": "Run order",
+            "x_scale": "linear",
+            "y": "Value"
+          },
+          "sheet": "Source_data_Fig2D",
+          "user_goal": "Create a scatter plot for Figure 2D showing `Value` against `Run order`."
+        },
+        {
+          "chart_family": "scatter",
+          "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/content/s41467-021-25210-5/source_data/41467_2021_25210_MOESM6_ESM.xlsx",
+          "data_sha256": "c61f86a1e746a3eb21cd19b76f900e93bb1ce8ad971ee9776e6a787d6068137b",
+          "id": "e",
+          "intent": {
+            "series": [
+              "Value"
+            ],
+            "units": {},
+            "x": "Run order",
+            "x_scale": "linear",
+            "y": "Value"
+          },
+          "sheet": "Source_data_Fig2E",
+          "user_goal": "Create a scatter plot for Figure 2E showing `Value` against `Run order`."
+        },
+        {
+          "chart_family": "scatter",
+          "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/content/s41467-021-25210-5/source_data/41467_2021_25210_MOESM6_ESM.xlsx",
+          "data_sha256": "c61f86a1e746a3eb21cd19b76f900e93bb1ce8ad971ee9776e6a787d6068137b",
+          "id": "f",
+          "intent": {
+            "series": [
+              "Value"
+            ],
+            "units": {},
+            "x": "Run order",
+            "x_scale": "linear",
+            "y": "Value"
+          },
+          "sheet": "Source_data_Fig2F",
+          "user_goal": "Create a scatter plot for Figure 2F showing `Value` against `Run order`."
+        },
+        {
+          "chart_family": "scatter",
+          "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/content/s41467-021-25210-5/source_data/41467_2021_25210_MOESM6_ESM.xlsx",
+          "data_sha256": "c61f86a1e746a3eb21cd19b76f900e93bb1ce8ad971ee9776e6a787d6068137b",
+          "id": "j",
+          "intent": {
+            "series": [
+              "Value"
+            ],
+            "units": {},
+            "x": "Run order",
+            "x_scale": "linear",
+            "y": "Value"
+          },
+          "sheet": "Source_data_Fig2J",
+          "user_goal": "Create a scatter plot for Figure 2J showing `Value` against `Run order`."
+        },
+        {
+          "chart_family": "scatter",
+          "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/content/s41467-021-25210-5/source_data/41467_2021_25210_MOESM6_ESM.xlsx",
+          "data_sha256": "c61f86a1e746a3eb21cd19b76f900e93bb1ce8ad971ee9776e6a787d6068137b",
+          "id": "k",
+          "intent": {
+            "series": [
+              "Value"
+            ],
+            "units": {},
+            "x": "Run order",
+            "x_scale": "linear",
+            "y": "Value"
+          },
+          "sheet": "Source_data_Fig2K",
+          "user_goal": "Create a scatter plot for Figure 2K showing `Value` against `Run order`."
+        },
+        {
+          "chart_family": "scatter",
+          "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/content/s41467-021-25210-5/source_data/41467_2021_25210_MOESM6_ESM.xlsx",
+          "data_sha256": "c61f86a1e746a3eb21cd19b76f900e93bb1ce8ad971ee9776e6a787d6068137b",
+          "id": "l",
+          "intent": {
+            "series": [
+              "Value"
+            ],
+            "units": {},
+            "x": "Run order",
+            "x_scale": "linear",
+            "y": "Value"
+          },
+          "sheet": "Source_data_Fig2L",
+          "user_goal": "Create a scatter plot for Figure 2L showing `Value` against `Run order`."
+        }
+      ],
+      "source_candidate_ids": [
+        "case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2",
+        "case-s41467-021-25210-5-figure2-panele-40ed0f36fcb1",
+        "case-s41467-021-25210-5-figure2-panelf-61e8e08ae424",
+        "case-s41467-021-25210-5-figure2-panelj-e3cae44c267a",
+        "case-s41467-021-25210-5-figure2-panelk-bc7896822a15",
+        "case-s41467-021-25210-5-figure2-panell-67238825b9a0"
+      ],
+      "split": "test",
+      "user_goal": "Create a 6-panel Figure 2 using the proposed panel-specific charts.",
+      "verification_evidence": {
+        "evidence_ref": "review:3eab4aa2f5311eaca515b30282680ccd5a41b134f4954ad1677c66693168ea36",
+        "evidence_type": "external_validation",
+        "review_hash": "3eab4aa2f5311eaca515b30282680ccd5a41b134f4954ad1677c66693168ea36",
+        "review_models": [
+          "claude-sonnet-4-6",
+          "gemini-3.5-flash"
+        ]
+      }
+    },
+    {
+      "candidate_id": "case-s41467-022-30564-5-figure4-panelc-input-signals-cc0fc9a8890d",
+      "case_id": "case-s41467-022-30564-5-figure4-panelc-input-signals-cc0fc9a8890d",
+      "chart_family": "line",
+      "curation_status": "verified",
+      "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/content/s41467-022-30564-5/source_data/41467_2022_30564_MOESM3_ESM.xlsx",
+      "data_sha256": "bd252f60b7d0beac2a736da6779bd979a53f3e6d01459794825b946e092b9eeb",
+      "doi": "10.1038/s41467-022-30564-5",
+      "eligibility_reasons": [],
+      "eligible_for_experiment": true,
+      "evaluation_expectation": {
+        "panel_groups": [],
+        "panels": [
+          {
+            "axis_index": 0,
+            "panel_id": "c",
+            "series": [
+              {
+                "kind": "line",
+                "series_id": "phi_mea(t)",
+                "x": "time",
+                "y": "phi_mea(t)"
+              },
+              {
+                "kind": "line",
+                "series_id": "phi_dot_mea(t)",
+                "x": "time",
+                "y": "phi_dot_mea(t)"
+              }
+            ],
+            "x_scale": "linear",
+            "y_unit": "t"
+          }
+        ],
+        "schema_version": "1.1.0"
+      },
+      "intent": {
+        "series": [
+          "phi_mea(t)",
+          "phi_dot_mea(t)"
+        ],
+        "units": {
+          "phi_dot_mea(t)": "t",
+          "phi_mea(t)": "t"
+        },
+        "x": "time",
+        "x_scale": "temporal",
+        "y": "phi_mea(t)"
+      },
+      "panel_count": 1,
+      "panel_id": "c",
+      "panels": [
+        {
+          "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/content/s41467-022-30564-5/source_data/41467_2022_30564_MOESM3_ESM.xlsx",
+          "data_sha256": "bd252f60b7d0beac2a736da6779bd979a53f3e6d01459794825b946e092b9eeb",
+          "panel_id": "c",
+          "sheet": "Fig.4c - input signals",
+          "user_goal": "Create a line chart for Figure 4C showing `phi_mea(t)`, `phi_dot_mea(t)` against `time`."
+        }
+      ],
+      "sheet": "Fig.4c - input signals",
+      "split": "val",
+      "user_goal": "Create a line chart for Figure 4C showing `phi_mea(t)`, `phi_dot_mea(t)` against `time`.",
+      "verification_evidence": {
+        "evidence_ref": "review:256c653a80ab3707b8e84f7e51b26828dc7172c559cefdead25573e9bced8796",
+        "evidence_type": "external_validation",
+        "review_hash": "256c653a80ab3707b8e84f7e51b26828dc7172c559cefdead25573e9bced8796",
+        "review_models": [
+          "claude-sonnet-4-6",
+          "gemini-3.5-flash"
+        ]
+      }
+    },
+    {
+      "candidate_id": "case-s41467-022-30582-3-figure2-paneld-ff845a0a901a",
+      "case_id": "case-s41467-022-30582-3-figure2-paneld-ff845a0a901a",
+      "chart_family": "bar",
+      "curation_status": "verified",
+      "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/verified_cases_final_v2/extracted/s41467-022-30582-3/41467_2022_30582_MOESM4_ESM-5112632f75ff/RawData_R2b/Fig2D.csv",
+      "data_sha256": "3a136ea70b573d09c1e9bce9b7f9669f6bb8c3f73edb6bdc6eb6d3af36b4168f",
+      "doi": "10.1038/s41467-022-30582-3",
+      "eligibility_reasons": [],
+      "eligible_for_experiment": true,
+      "evaluation_expectation": {
+        "panel_groups": [],
+        "panels": [
+          {
+            "axis_index": 0,
+            "panel_id": "d",
+            "series": [
+              {
+                "kind": "bar",
+                "series_id": "fraction.Predictive",
+                "x": "type",
+                "y": "fraction.Predictive"
+              }
+            ],
+            "x_scale": "linear"
+          }
+        ],
+        "schema_version": "1.1.0"
+      },
+      "intent": {
+        "series": [
+          "fraction.Predictive"
+        ],
+        "units": {},
+        "x": "type",
+        "x_scale": "categorical",
+        "y": "fraction.Predictive"
+      },
+      "panel_count": 1,
+      "panel_id": "d",
+      "panels": [
+        {
+          "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/verified_cases_final_v2/extracted/s41467-022-30582-3/41467_2022_30582_MOESM4_ESM-5112632f75ff/RawData_R2b/Fig2D.csv",
+          "data_sha256": "3a136ea70b573d09c1e9bce9b7f9669f6bb8c3f73edb6bdc6eb6d3af36b4168f",
+          "panel_id": "d",
+          "sheet": null,
+          "user_goal": "Create a bar chart for Figure 2D showing `fraction.Predictive` against `type`."
+        }
+      ],
+      "sheet": null,
+      "split": "test",
+      "user_goal": "Create a bar chart for Figure 2D showing `fraction.Predictive` against `type`.",
+      "verification_evidence": {
+        "evidence_ref": "review:a799ada34aabbe682670bf80288fbb81f799889909e73a1f76a811f670b9c8f5",
+        "evidence_type": "external_validation",
+        "review_hash": "a799ada34aabbe682670bf80288fbb81f799889909e73a1f76a811f670b9c8f5",
+        "review_models": [
+          "claude-sonnet-4-6",
+          "gemini-3.5-flash"
+        ]
+      }
+    },
+    {
+      "candidate_id": "case-s41467-022-30582-3-figure5-paneld-a54aba949d21",
+      "case_id": "case-s41467-022-30582-3-figure5-paneld-a54aba949d21",
+      "chart_family": "bar",
+      "curation_status": "verified",
+      "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/verified_cases_final_v2/extracted/s41467-022-30582-3/41467_2022_30582_MOESM4_ESM-5112632f75ff/RawData_R2b/Fig5D.csv",
+      "data_sha256": "2efcd9edeacde5350f0a93f57713edfa2e047fbbc5f9fad4a3d1932f79071d6f",
+      "doi": "10.1038/s41467-022-30582-3",
+      "eligibility_reasons": [],
+      "eligible_for_experiment": true,
+      "evaluation_expectation": {
+        "panel_groups": [],
+        "panels": [
+          {
+            "axis_index": 0,
+            "panel_id": "d",
+            "series": [
+              {
+                "kind": "bar",
+                "series_id": "log2ratio",
+                "x": "Pathway",
+                "y": "log2ratio"
+              }
+            ],
+            "x_scale": "linear"
+          }
+        ],
+        "schema_version": "1.1.0"
+      },
+      "intent": {
+        "series": [
+          "log2ratio"
+        ],
+        "units": {},
+        "x": "Pathway",
+        "x_scale": "categorical",
+        "y": "log2ratio"
+      },
+      "panel_count": 1,
+      "panel_id": "d",
+      "panels": [
+        {
+          "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/verified_cases_final_v2/extracted/s41467-022-30582-3/41467_2022_30582_MOESM4_ESM-5112632f75ff/RawData_R2b/Fig5D.csv",
+          "data_sha256": "2efcd9edeacde5350f0a93f57713edfa2e047fbbc5f9fad4a3d1932f79071d6f",
+          "panel_id": "d",
+          "sheet": null,
+          "user_goal": "Create a bar chart for Figure 5D showing `log2ratio` against `Pathway`."
+        }
+      ],
+      "sheet": null,
+      "split": "test",
+      "user_goal": "Create a bar chart for Figure 5D showing `log2ratio` against `Pathway`.",
+      "verification_evidence": {
+        "evidence_ref": "review:d2cde07b02fdc0f7eece91dd8f473a5895c6a403ae9ac94c5eeb609a20f15bcc",
+        "evidence_type": "external_validation",
+        "review_hash": "d2cde07b02fdc0f7eece91dd8f473a5895c6a403ae9ac94c5eeb609a20f15bcc",
+        "review_models": [
+          "claude-sonnet-4-6",
+          "gemini-3.5-flash"
+        ]
+      }
+    },
+    {
+      "candidate_id": "case-s41467-023-38847-1-figure1-panelg-263d16873f98",
+      "case_id": "case-s41467-023-38847-1-figure1-panelg-263d16873f98",
+      "chart_family": "line",
+      "curation_status": "verified",
+      "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next150/content/s41467-023-38847-1/source_data/41467_2023_38847_MOESM3_ESM.xlsx",
+      "data_sha256": "aa1a326b99d261cb5db4375b8f725080ed01a7218be8083ae1f74e0e12f8561d",
+      "doi": "10.1038/s41467-023-38847-1",
+      "eligibility_reasons": [],
+      "eligible_for_experiment": true,
+      "evaluation_expectation": {
+        "panel_groups": [],
+        "panels": [
+          {
+            "axis_index": 0,
+            "panel_id": "g",
+            "series": [
+              {
+                "kind": "line",
+                "series_id": "Ef(VO) (eV)-Ba",
+                "x": "Substitution concentration",
+                "y": "Ef(VO) (eV)-Ba"
+              },
+              {
+                "kind": "line",
+                "series_id": "Ef(VO) (eV)-Sr",
+                "x": "Substitution concentration",
+                "y": "Ef(VO) (eV)-Sr"
+              },
+              {
+                "kind": "line",
+                "series_id": "Ef(VO) (eV)-Ca",
+                "x": "Substitution concentration",
+                "y": "Ef(VO) (eV)-Ca"
+              }
+            ],
+            "x_scale": "linear"
+          }
+        ],
+        "schema_version": "1.1.0"
+      },
+      "intent": {
+        "series": [
+          "Ef(VO) (eV)-Ba",
+          "Ef(VO) (eV)-Sr",
+          "Ef(VO) (eV)-Ca"
+        ],
+        "units": {},
+        "x": "Substitution concentration",
+        "x_scale": "linear",
+        "y": "Ef(VO) (eV)-Ba"
+      },
+      "panel_count": 1,
+      "panel_id": "g",
+      "panels": [
+        {
+          "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next150/content/s41467-023-38847-1/source_data/41467_2023_38847_MOESM3_ESM.xlsx",
+          "data_sha256": "aa1a326b99d261cb5db4375b8f725080ed01a7218be8083ae1f74e0e12f8561d",
+          "panel_id": "g",
+          "sheet": "Fig. 1g",
+          "user_goal": "Create a line chart for Figure 1G showing `Ef(VO) (eV)-Ba`, `Ef(VO) (eV)-Sr`, `Ef(VO) (eV)-Ca` against `Substitution concentration`."
+        }
+      ],
+      "sheet": "Fig. 1g",
+      "split": "test",
+      "user_goal": "Create a line chart for Figure 1G showing `Ef(VO) (eV)-Ba`, `Ef(VO) (eV)-Sr`, `Ef(VO) (eV)-Ca` against `Substitution concentration`.",
+      "verification_evidence": {
+        "evidence_ref": "review:2cfaba9a33923f973319745367aa3eee56def96c0d7392a14de046bbced2e9b9",
+        "evidence_type": "external_validation",
+        "review_hash": "2cfaba9a33923f973319745367aa3eee56def96c0d7392a14de046bbced2e9b9",
+        "review_models": [
+          "claude-sonnet-4-6",
+          "gemini-3.5-flash"
+        ]
+      }
+    },
+    {
+      "candidate_id": "case-s41467-023-38847-1-figure3-panelc-006bf9b00122",
+      "case_id": "case-s41467-023-38847-1-figure3-panelc-006bf9b00122",
+      "chart_family": "line",
+      "curation_status": "verified",
+      "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next150/content/s41467-023-38847-1/source_data/41467_2023_38847_MOESM3_ESM.xlsx",
+      "data_sha256": "aa1a326b99d261cb5db4375b8f725080ed01a7218be8083ae1f74e0e12f8561d",
+      "doi": "10.1038/s41467-023-38847-1",
+      "eligibility_reasons": [],
+      "eligible_for_experiment": true,
+      "evaluation_expectation": {
+        "panel_groups": [],
+        "panels": [
+          {
+            "axis_index": 0,
+            "panel_id": "c",
+            "series": [
+              {
+                "kind": "line",
+                "series_id": "Eb (MV/cm)",
+                "x": "Ba concentration (%)",
+                "y": "Eb (MV/cm)"
+              }
+            ],
+            "x_scale": "linear",
+            "x_unit": "%",
+            "y_unit": "MV/cm"
+          }
+        ],
+        "schema_version": "1.1.0"
+      },
+      "intent": {
+        "series": [
+          "Eb (MV/cm)"
+        ],
+        "units": {
+          "Ba concentration (%)": "%",
+          "Eb (MV/cm)": "MV/cm"
+        },
+        "x": "Ba concentration (%)",
+        "x_scale": "linear",
+        "y": "Eb (MV/cm)"
+      },
+      "panel_count": 1,
+      "panel_id": "c",
+      "panels": [
+        {
+          "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next150/content/s41467-023-38847-1/source_data/41467_2023_38847_MOESM3_ESM.xlsx",
+          "data_sha256": "aa1a326b99d261cb5db4375b8f725080ed01a7218be8083ae1f74e0e12f8561d",
+          "panel_id": "c",
+          "sheet": "Fig. 3c",
+          "user_goal": "Create a line chart for Figure 3C showing `Eb (MV/cm)` against `Ba concentration (%)`."
+        }
+      ],
+      "sheet": "Fig. 3c",
+      "split": "test",
+      "user_goal": "Create a line chart for Figure 3C showing `Eb (MV/cm)` against `Ba concentration (%)`.",
+      "verification_evidence": {
+        "evidence_ref": "review:2cead0575a0f8b479f845014100d00878dd6ffcaf241981274977761c381ae29",
+        "evidence_type": "external_validation",
+        "review_hash": "2cead0575a0f8b479f845014100d00878dd6ffcaf241981274977761c381ae29",
+        "review_models": [
+          "claude-sonnet-4-6",
+          "gemini-3.5-flash"
+        ]
+      }
+    },
+    {
+      "candidate_id": "case-s41467-023-38847-1-figure3-paneld-b45f8bba270c",
+      "case_id": "case-s41467-023-38847-1-figure3-paneld-b45f8bba270c",
+      "chart_family": "line",
+      "curation_status": "verified",
+      "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next150/content/s41467-023-38847-1/source_data/41467_2023_38847_MOESM3_ESM.xlsx",
+      "data_sha256": "aa1a326b99d261cb5db4375b8f725080ed01a7218be8083ae1f74e0e12f8561d",
+      "doi": "10.1038/s41467-023-38847-1",
+      "eligibility_reasons": [],
+      "eligible_for_experiment": true,
+      "evaluation_expectation": {
+        "panel_groups": [],
+        "panels": [
+          {
+            "axis_index": 0,
+            "panel_id": "d",
+            "series": [
+              {
+                "kind": "line",
+                "series_id": "β",
+                "x": "Ba concentration (%)",
+                "y": "β"
+              }
+            ],
+            "x_scale": "linear",
+            "x_unit": "%"
+          }
+        ],
+        "schema_version": "1.1.0"
+      },
+      "intent": {
+        "series": [
+          "β"
+        ],
+        "units": {
+          "Ba concentration (%)": "%"
+        },
+        "x": "Ba concentration (%)",
+        "x_scale": "linear",
+        "y": "β"
+      },
+      "panel_count": 1,
+      "panel_id": "d",
+      "panels": [
+        {
+          "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next150/content/s41467-023-38847-1/source_data/41467_2023_38847_MOESM3_ESM.xlsx",
+          "data_sha256": "aa1a326b99d261cb5db4375b8f725080ed01a7218be8083ae1f74e0e12f8561d",
+          "panel_id": "d",
+          "sheet": "Fig. 3d",
+          "user_goal": "Create a line chart for Figure 3D showing `β` against `Ba concentration (%)`."
+        }
+      ],
+      "sheet": "Fig. 3d",
+      "split": "test",
+      "user_goal": "Create a line chart for Figure 3D showing `β` against `Ba concentration (%)`.",
+      "verification_evidence": {
+        "evidence_ref": "review:d8a396ceceff0128ce40ddc83e77d3a6fd66467ae8b572c23b2908570f8d98ff",
+        "evidence_type": "external_validation",
+        "review_hash": "d8a396ceceff0128ce40ddc83e77d3a6fd66467ae8b572c23b2908570f8d98ff",
+        "review_models": [
+          "claude-sonnet-4-6",
+          "gemini-3.5-flash"
+        ]
+      }
+    },
+    {
+      "candidate_id": "multi-s41467-023-38847-1-figure3-d1bf6bf37a26",
+      "case_id": "multi-s41467-023-38847-1-figure3-d1bf6bf37a26",
+      "chart_family": "multi_panel",
+      "curation_status": "verified",
+      "doi": "10.1038/s41467-023-38847-1",
+      "eligibility_reasons": [],
+      "eligible_for_experiment": true,
+      "evaluation_expectation": {
+        "panel_groups": [
+          {
+            "checks": {
+              "shared_x_scale": true,
+              "shared_x_unit": true
+            },
+            "group_id": "all_panels",
+            "panels": [
+              "c",
+              "d"
+            ]
+          }
+        ],
+        "panels": [
+          {
+            "axis_index": 0,
+            "panel_id": "c",
+            "series": [
+              {
+                "kind": "line",
+                "series_id": "Eb (MV/cm)",
+                "x": "Ba concentration (%)",
+                "y": "Eb (MV/cm)"
+              }
+            ],
+            "x_scale": "linear",
+            "x_unit": "%",
+            "y_unit": "MV/cm"
+          },
+          {
+            "axis_index": 0,
+            "panel_id": "d",
+            "series": [
+              {
+                "kind": "line",
+                "series_id": "β",
+                "x": "Ba concentration (%)",
+                "y": "β"
+              }
+            ],
+            "x_scale": "linear",
+            "x_unit": "%"
+          }
+        ],
+        "schema_version": "1.1.0"
+      },
+      "intent": {
+        "panels": [
+          {
+            "panel_id": "c",
+            "series": [
+              "Eb (MV/cm)"
+            ],
+            "units": {
+              "Ba concentration (%)": "%",
+              "Eb (MV/cm)": "MV/cm"
+            },
+            "x": "Ba concentration (%)",
+            "x_scale": "linear",
+            "y": "Eb (MV/cm)"
+          },
+          {
+            "panel_id": "d",
+            "series": [
+              "β"
+            ],
+            "units": {
+              "Ba concentration (%)": "%"
+            },
+            "x": "Ba concentration (%)",
+            "x_scale": "linear",
+            "y": "β"
+          }
+        ]
+      },
+      "panel_count": 2,
+      "panels": [
+        {
+          "chart_family": "line",
+          "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next150/content/s41467-023-38847-1/source_data/41467_2023_38847_MOESM3_ESM.xlsx",
+          "data_sha256": "aa1a326b99d261cb5db4375b8f725080ed01a7218be8083ae1f74e0e12f8561d",
+          "id": "c",
+          "intent": {
+            "series": [
+              "Eb (MV/cm)"
+            ],
+            "units": {
+              "Ba concentration (%)": "%",
+              "Eb (MV/cm)": "MV/cm"
+            },
+            "x": "Ba concentration (%)",
+            "x_scale": "linear",
+            "y": "Eb (MV/cm)"
+          },
+          "sheet": "Fig. 3c",
+          "user_goal": "Create a line chart for Figure 3C showing `Eb (MV/cm)` against `Ba concentration (%)`."
+        },
+        {
+          "chart_family": "line",
+          "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next150/content/s41467-023-38847-1/source_data/41467_2023_38847_MOESM3_ESM.xlsx",
+          "data_sha256": "aa1a326b99d261cb5db4375b8f725080ed01a7218be8083ae1f74e0e12f8561d",
+          "id": "d",
+          "intent": {
+            "series": [
+              "β"
+            ],
+            "units": {
+              "Ba concentration (%)": "%"
+            },
+            "x": "Ba concentration (%)",
+            "x_scale": "linear",
+            "y": "β"
+          },
+          "sheet": "Fig. 3d",
+          "user_goal": "Create a line chart for Figure 3D showing `β` against `Ba concentration (%)`."
+        }
+      ],
+      "source_candidate_ids": [
+        "case-s41467-023-38847-1-figure3-panelc-006bf9b00122",
+        "case-s41467-023-38847-1-figure3-paneld-b45f8bba270c"
+      ],
+      "split": "test",
+      "user_goal": "Create a 2-panel Figure 3 using the proposed panel-specific charts.",
+      "verification_evidence": {
+        "evidence_ref": "review:41f9cfeb33dc3abd488d3a91a127560bdb560c5c26196ddb43758c77cc09e0e2",
+        "evidence_type": "external_validation",
+        "review_hash": "41f9cfeb33dc3abd488d3a91a127560bdb560c5c26196ddb43758c77cc09e0e2",
+        "review_models": [
+          "claude-sonnet-4-6",
+          "gemini-3.5-flash"
+        ]
+      }
+    },
+    {
+      "candidate_id": "case-s41467-023-39855-x-figure1-panelb-4dcf687101e6",
+      "case_id": "case-s41467-023-39855-x-figure1-panelb-4dcf687101e6",
+      "chart_family": "line",
+      "curation_status": "verified",
+      "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next150/verified_cases_final_v2_compat/extracted/s41467-023-39855-x/41467_2023_39855_MOESM3_ESM-79de8ecae966/Source data files/Figure 1.xlsx",
+      "data_sha256": "0bfadeaa389dd884e96d0e930ab7c11a6b2b6f92d55c9bfe96804cf2a35f8deb",
+      "doi": "10.1038/s41467-023-39855-x",
+      "eligibility_reasons": [],
+      "eligible_for_experiment": true,
+      "evaluation_expectation": {
+        "panel_groups": [],
+        "panels": [
+          {
+            "axis_index": 0,
+            "panel_id": "b",
+            "series": [
+              {
+                "kind": "line",
+                "series_id": "R_xx (Ohm)",
+                "x": "\\nu",
+                "y": "R_xx (Ohm)"
+              }
+            ],
+            "x_scale": "linear",
+            "y_unit": "Ohm"
+          }
+        ],
+        "schema_version": "1.1.0"
+      },
+      "intent": {
+        "series": [
+          "R_xx (Ohm)"
+        ],
+        "units": {
+          "R_xx (Ohm)": "Ohm"
+        },
+        "x": "\\nu",
+        "x_scale": "linear",
+        "y": "R_xx (Ohm)"
+      },
+      "panel_count": 1,
+      "panel_id": "b",
+      "panels": [
+        {
+          "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next150/verified_cases_final_v2_compat/extracted/s41467-023-39855-x/41467_2023_39855_MOESM3_ESM-79de8ecae966/Source data files/Figure 1.xlsx",
+          "data_sha256": "0bfadeaa389dd884e96d0e930ab7c11a6b2b6f92d55c9bfe96804cf2a35f8deb",
+          "panel_id": "b",
+          "sheet": "Fig. 1b",
+          "user_goal": "Create a line chart for Figure 1B showing `R_xx (Ohm)` against `\\nu`."
+        }
+      ],
+      "sheet": "Fig. 1b",
+      "split": "val",
+      "user_goal": "Create a line chart for Figure 1B showing `R_xx (Ohm)` against `\\nu`.",
+      "verification_evidence": {
+        "evidence_ref": "review:a9d7b4e7108be62be8e209eb0e1f443de6ec83684be74be0d4f28a601b2dd916",
+        "evidence_type": "external_validation",
+        "review_hash": "a9d7b4e7108be62be8e209eb0e1f443de6ec83684be74be0d4f28a601b2dd916",
+        "review_models": [
+          "claude-sonnet-4-6",
+          "gemini-3.5-flash"
+        ]
+      }
+    },
+    {
+      "candidate_id": "case-s41467-023-42692-7-figure1-panelb-5ac7fb84108f",
+      "case_id": "case-s41467-023-42692-7-figure1-panelb-5ac7fb84108f",
+      "chart_family": "bar",
+      "curation_status": "verified",
+      "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next150/content/s41467-023-42692-7/source_data/41467_2023_42692_MOESM7_ESM.xlsx",
+      "data_sha256": "e31bbd00d5e6189fafd4641df0adf0245824685e5479cbcb3b5ee32ad2d538ab",
+      "doi": "10.1038/s41467-023-42692-7",
+      "eligibility_reasons": [],
+      "eligible_for_experiment": true,
+      "evaluation_expectation": {
+        "panel_groups": [],
+        "panels": [
+          {
+            "axis_index": 0,
+            "panel_id": "b",
+            "series": [
+              {
+                "kind": "bar",
+                "series_id": "HLA class  I peptide yield",
+                "x": "method development",
+                "y": "HLA class  I peptide yield"
+              }
+            ],
+            "x_scale": "linear"
+          }
+        ],
+        "schema_version": "1.1.0"
+      },
+      "intent": {
+        "series": [
+          "HLA class  I peptide yield"
+        ],
+        "units": {},
+        "x": "method development",
+        "x_scale": "categorical",
+        "y": "HLA class  I peptide yield"
+      },
+      "panel_count": 1,
+      "panel_id": "b",
+      "panels": [
+        {
+          "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next150/content/s41467-023-42692-7/source_data/41467_2023_42692_MOESM7_ESM.xlsx",
+          "data_sha256": "e31bbd00d5e6189fafd4641df0adf0245824685e5479cbcb3b5ee32ad2d538ab",
+          "panel_id": "b",
+          "sheet": "Fig 1b",
+          "user_goal": "Create a bar chart for Figure 1B showing `HLA class  I peptide yield` against `method development`."
+        }
+      ],
+      "sheet": "Fig 1b",
+      "split": "test",
+      "user_goal": "Create a bar chart for Figure 1B showing `HLA class  I peptide yield` against `method development`.",
+      "verification_evidence": {
+        "evidence_ref": "review:65c52365162200f1c346523d54a3b5a4e719d3298a9d1ce96c469fb02a1b850e",
+        "evidence_type": "external_validation",
+        "review_hash": "65c52365162200f1c346523d54a3b5a4e719d3298a9d1ce96c469fb02a1b850e",
+        "review_models": [
+          "claude-sonnet-4-6",
+          "gemini-3.5-flash"
+        ]
+      }
+    },
+    {
+      "candidate_id": "case-s41467-023-42692-7-figure1-panelg-9bbb48c5e7fd",
+      "case_id": "case-s41467-023-42692-7-figure1-panelg-9bbb48c5e7fd",
+      "chart_family": "line",
+      "curation_status": "verified",
+      "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next150/content/s41467-023-42692-7/source_data/41467_2023_42692_MOESM7_ESM.xlsx",
+      "data_sha256": "e31bbd00d5e6189fafd4641df0adf0245824685e5479cbcb3b5ee32ad2d538ab",
+      "doi": "10.1038/s41467-023-42692-7",
+      "eligibility_reasons": [],
+      "eligible_for_experiment": true,
+      "evaluation_expectation": {
+        "panel_groups": [],
+        "panels": [
+          {
+            "axis_index": 0,
+            "panel_id": "g",
+            "series": [
+              {
+                "kind": "line",
+                "series_id": "HLA class I peptide freq.",
+                "x": "k-mer",
+                "y": "HLA class I peptide freq."
+              }
+            ],
+            "x_scale": "linear"
+          }
+        ],
+        "schema_version": "1.1.0"
+      },
+      "intent": {
+        "series": [
+          "HLA class I peptide freq."
+        ],
+        "units": {},
+        "x": "k-mer",
+        "x_scale": "linear",
+        "y": "HLA class I peptide freq."
+      },
+      "panel_count": 1,
+      "panel_id": "g",
+      "panels": [
+        {
+          "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next150/content/s41467-023-42692-7/source_data/41467_2023_42692_MOESM7_ESM.xlsx",
+          "data_sha256": "e31bbd00d5e6189fafd4641df0adf0245824685e5479cbcb3b5ee32ad2d538ab",
+          "panel_id": "g",
+          "sheet": "Fig 1g",
+          "user_goal": "Create a line chart for Figure 1G showing `HLA class I peptide freq.` against `k-mer`."
+        }
+      ],
+      "sheet": "Fig 1g",
+      "split": "test",
+      "user_goal": "Create a line chart for Figure 1G showing `HLA class I peptide freq.` against `k-mer`.",
+      "verification_evidence": {
+        "evidence_ref": "review:d67540feddeffcb645132a585fe6b919db173a59a3ed53b3ffa4be038ffa3a08",
+        "evidence_type": "external_validation",
+        "review_hash": "d67540feddeffcb645132a585fe6b919db173a59a3ed53b3ffa4be038ffa3a08",
+        "review_models": [
+          "claude-sonnet-4-6",
+          "gemini-3.5-flash"
+        ]
+      }
+    },
+    {
+      "candidate_id": "case-s41467-023-42692-7-figure1-panelh-53463702bfd3",
+      "case_id": "case-s41467-023-42692-7-figure1-panelh-53463702bfd3",
+      "chart_family": "line",
+      "curation_status": "verified",
+      "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next150/content/s41467-023-42692-7/source_data/41467_2023_42692_MOESM7_ESM.xlsx",
+      "data_sha256": "e31bbd00d5e6189fafd4641df0adf0245824685e5479cbcb3b5ee32ad2d538ab",
+      "doi": "10.1038/s41467-023-42692-7",
+      "eligibility_reasons": [],
+      "eligible_for_experiment": true,
+      "evaluation_expectation": {
+        "panel_groups": [],
+        "panels": [
+          {
+            "axis_index": 0,
+            "panel_id": "h",
+            "series": [
+              {
+                "kind": "line",
+                "series_id": "HLA class II peptide freq.",
+                "x": "k-mer",
+                "y": "HLA class II peptide freq."
+              }
+            ],
+            "x_scale": "linear"
+          }
+        ],
+        "schema_version": "1.1.0"
+      },
+      "intent": {
+        "series": [
+          "HLA class II peptide freq."
+        ],
+        "units": {},
+        "x": "k-mer",
+        "x_scale": "linear",
+        "y": "HLA class II peptide freq."
+      },
+      "panel_count": 1,
+      "panel_id": "h",
+      "panels": [
+        {
+          "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next150/content/s41467-023-42692-7/source_data/41467_2023_42692_MOESM7_ESM.xlsx",
+          "data_sha256": "e31bbd00d5e6189fafd4641df0adf0245824685e5479cbcb3b5ee32ad2d538ab",
+          "panel_id": "h",
+          "sheet": "Fig 1h",
+          "user_goal": "Create a line chart for Figure 1H showing `HLA class II peptide freq.` against `k-mer`."
+        }
+      ],
+      "sheet": "Fig 1h",
+      "split": "test",
+      "user_goal": "Create a line chart for Figure 1H showing `HLA class II peptide freq.` against `k-mer`.",
+      "verification_evidence": {
+        "evidence_ref": "review:10e528bcbc19f1b62d4e00e9c63fbc618d8784dd85423d483c16454d79a46a12",
+        "evidence_type": "external_validation",
+        "review_hash": "10e528bcbc19f1b62d4e00e9c63fbc618d8784dd85423d483c16454d79a46a12",
+        "review_models": [
+          "claude-sonnet-4-6",
+          "gemini-3.5-flash"
+        ]
+      }
+    },
+    {
+      "candidate_id": "multi-s41467-023-42692-7-figure1-a9a94a3008e4",
+      "case_id": "multi-s41467-023-42692-7-figure1-a9a94a3008e4",
+      "chart_family": "multi_panel",
+      "curation_status": "verified",
+      "doi": "10.1038/s41467-023-42692-7",
+      "eligibility_reasons": [],
+      "eligible_for_experiment": true,
+      "evaluation_expectation": {
+        "panel_groups": [
+          {
+            "checks": {
+              "shared_x_scale": true
+            },
+            "group_id": "all_panels",
+            "panels": [
+              "b",
+              "g",
+              "h"
+            ]
+          }
+        ],
+        "panels": [
+          {
+            "axis_index": 0,
+            "panel_id": "b",
+            "series": [
+              {
+                "kind": "bar",
+                "series_id": "HLA class  I peptide yield",
+                "x": "method development",
+                "y": "HLA class  I peptide yield"
+              }
+            ],
+            "x_scale": "linear"
+          },
+          {
+            "axis_index": 0,
+            "panel_id": "g",
+            "series": [
+              {
+                "kind": "line",
+                "series_id": "HLA class I peptide freq.",
+                "x": "k-mer",
+                "y": "HLA class I peptide freq."
+              }
+            ],
+            "x_scale": "linear"
+          },
+          {
+            "axis_index": 0,
+            "panel_id": "h",
+            "series": [
+              {
+                "kind": "line",
+                "series_id": "HLA class II peptide freq.",
+                "x": "k-mer",
+                "y": "HLA class II peptide freq."
+              }
+            ],
+            "x_scale": "linear"
+          }
+        ],
+        "schema_version": "1.1.0"
+      },
+      "intent": {
+        "panels": [
+          {
+            "panel_id": "b",
+            "series": [
+              "HLA class  I peptide yield"
+            ],
+            "units": {},
+            "x": "method development",
+            "x_scale": "categorical",
+            "y": "HLA class  I peptide yield"
+          },
+          {
+            "panel_id": "g",
+            "series": [
+              "HLA class I peptide freq."
+            ],
+            "units": {},
+            "x": "k-mer",
+            "x_scale": "linear",
+            "y": "HLA class I peptide freq."
+          },
+          {
+            "panel_id": "h",
+            "series": [
+              "HLA class II peptide freq."
+            ],
+            "units": {},
+            "x": "k-mer",
+            "x_scale": "linear",
+            "y": "HLA class II peptide freq."
+          }
+        ]
+      },
+      "panel_count": 3,
+      "panels": [
+        {
+          "chart_family": "bar",
+          "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next150/content/s41467-023-42692-7/source_data/41467_2023_42692_MOESM7_ESM.xlsx",
+          "data_sha256": "e31bbd00d5e6189fafd4641df0adf0245824685e5479cbcb3b5ee32ad2d538ab",
+          "id": "b",
+          "intent": {
+            "series": [
+              "HLA class  I peptide yield"
+            ],
+            "units": {},
+            "x": "method development",
+            "x_scale": "categorical",
+            "y": "HLA class  I peptide yield"
+          },
+          "sheet": "Fig 1b",
+          "user_goal": "Create a bar chart for Figure 1B showing `HLA class  I peptide yield` against `method development`."
+        },
+        {
+          "chart_family": "line",
+          "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next150/content/s41467-023-42692-7/source_data/41467_2023_42692_MOESM7_ESM.xlsx",
+          "data_sha256": "e31bbd00d5e6189fafd4641df0adf0245824685e5479cbcb3b5ee32ad2d538ab",
+          "id": "g",
+          "intent": {
+            "series": [
+              "HLA class I peptide freq."
+            ],
+            "units": {},
+            "x": "k-mer",
+            "x_scale": "linear",
+            "y": "HLA class I peptide freq."
+          },
+          "sheet": "Fig 1g",
+          "user_goal": "Create a line chart for Figure 1G showing `HLA class I peptide freq.` against `k-mer`."
+        },
+        {
+          "chart_family": "line",
+          "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next150/content/s41467-023-42692-7/source_data/41467_2023_42692_MOESM7_ESM.xlsx",
+          "data_sha256": "e31bbd00d5e6189fafd4641df0adf0245824685e5479cbcb3b5ee32ad2d538ab",
+          "id": "h",
+          "intent": {
+            "series": [
+              "HLA class II peptide freq."
+            ],
+            "units": {},
+            "x": "k-mer",
+            "x_scale": "linear",
+            "y": "HLA class II peptide freq."
+          },
+          "sheet": "Fig 1h",
+          "user_goal": "Create a line chart for Figure 1H showing `HLA class II peptide freq.` against `k-mer`."
+        }
+      ],
+      "source_candidate_ids": [
+        "case-s41467-023-42692-7-figure1-panelb-5ac7fb84108f",
+        "case-s41467-023-42692-7-figure1-panelg-9bbb48c5e7fd",
+        "case-s41467-023-42692-7-figure1-panelh-53463702bfd3"
+      ],
+      "split": "test",
+      "user_goal": "Create a 3-panel Figure 1 using the proposed panel-specific charts.",
+      "verification_evidence": {
+        "evidence_ref": "review:d2513bac452d6b8ccfcd325ad6c6421c14a769264b237d3319a101182e032f98",
+        "evidence_type": "external_validation",
+        "review_hash": "d2513bac452d6b8ccfcd325ad6c6421c14a769264b237d3319a101182e032f98",
+        "review_models": [
+          "claude-sonnet-4-6",
+          "gemini-3.5-flash"
+        ]
+      }
+    },
+    {
+      "candidate_id": "case-s41467-024-47988-w-figure3-panelh-685adf502ff4",
+      "case_id": "case-s41467-024-47988-w-figure3-panelh-685adf502ff4",
+      "chart_family": "line",
+      "curation_status": "verified",
+      "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next150/verified_cases_final_v2_compat/extracted/s41467-024-47988-w/41467_2024_47988_MOESM4_ESM-990d169441ee/SOURCE DATA/Source data_Fig 3.xlsx",
+      "data_sha256": "f3317133347952a0596fdaf051d2b51d5be48efb8ef6248592e591b0e3436650",
+      "doi": "10.1038/s41467-024-47988-w",
+      "eligibility_reasons": [],
+      "eligible_for_experiment": true,
+      "evaluation_expectation": {
+        "panel_groups": [],
+        "panels": [
+          {
+            "axis_index": 0,
+            "panel_id": "h",
+            "series": [
+              {
+                "kind": "line",
+                "series_id": "dF/F",
+                "x": "Time (s)",
+                "y": "dF/F"
+              }
+            ],
+            "x_scale": "linear",
+            "x_unit": "s"
+          }
+        ],
+        "schema_version": "1.1.0"
+      },
+      "intent": {
+        "series": [
+          "dF/F"
+        ],
+        "units": {
+          "Time (s)": "s"
+        },
+        "x": "Time (s)",
+        "x_scale": "temporal",
+        "y": "dF/F"
+      },
+      "panel_count": 1,
+      "panel_id": "h",
+      "panels": [
+        {
+          "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next150/verified_cases_final_v2_compat/extracted/s41467-024-47988-w/41467_2024_47988_MOESM4_ESM-990d169441ee/SOURCE DATA/Source data_Fig 3.xlsx",
+          "data_sha256": "f3317133347952a0596fdaf051d2b51d5be48efb8ef6248592e591b0e3436650",
+          "panel_id": "h",
+          "sheet": "Fig 3h",
+          "user_goal": "Create a line chart for Figure 3H showing `dF/F` against `Time (s)`."
+        }
+      ],
+      "sheet": "Fig 3h",
+      "split": "test",
+      "user_goal": "Create a line chart for Figure 3H showing `dF/F` against `Time (s)`.",
+      "verification_evidence": {
+        "evidence_ref": "review:b4707686ab0e72aa98e71208b3f6bdc78f274204bb29c9236a1da056148e5787",
+        "evidence_type": "external_validation",
+        "review_hash": "b4707686ab0e72aa98e71208b3f6bdc78f274204bb29c9236a1da056148e5787",
+        "review_models": [
+          "claude-sonnet-4-6",
+          "gemini-3.5-flash"
+        ]
+      }
+    },
+    {
+      "candidate_id": "case-s41467-024-48317-x-figure5-panelh-proteomics-pathways-e101deb98b92",
+      "case_id": "case-s41467-024-48317-x-figure5-panelh-proteomics-pathways-e101deb98b92",
+      "chart_family": "bar",
+      "curation_status": "verified",
+      "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next150/content/s41467-024-48317-x/source_data/41467_2024_48317_MOESM4_ESM.xlsx",
+      "data_sha256": "1f27eae3b5930685e4e15b9e6d1134e5bfff00a80420a1f434dba43a12fee0ae",
+      "doi": "10.1038/s41467-024-48317-x",
+      "eligibility_reasons": [],
+      "eligible_for_experiment": true,
+      "evaluation_expectation": {
+        "panel_groups": [],
+        "panels": [
+          {
+            "axis_index": 0,
+            "panel_id": "h",
+            "series": [
+              {
+                "kind": "bar",
+                "series_id": "# of unique IL-22 regulated proteins in pathway",
+                "x": "KEGG Pathway",
+                "y": "# of unique IL-22 regulated proteins in pathway"
+              }
+            ],
+            "x_scale": "linear"
+          }
+        ],
+        "schema_version": "1.1.0"
+      },
+      "intent": {
+        "series": [
+          "# of unique IL-22 regulated proteins in pathway"
+        ],
+        "units": {},
+        "x": "KEGG Pathway",
+        "x_scale": "categorical",
+        "y": "# of unique IL-22 regulated proteins in pathway"
+      },
+      "panel_count": 1,
+      "panel_id": "h",
+      "panels": [
+        {
+          "data_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next150/content/s41467-024-48317-x/source_data/41467_2024_48317_MOESM4_ESM.xlsx",
+          "data_sha256": "1f27eae3b5930685e4e15b9e6d1134e5bfff00a80420a1f434dba43a12fee0ae",
+          "panel_id": "h",
+          "sheet": "Fig 5h - Proteomics Pathways",
+          "user_goal": "Create a bar chart for Figure 5H showing `# of unique IL-22 regulated proteins in pathway` against `KEGG Pathway`."
+        }
+      ],
+      "sheet": "Fig 5h - Proteomics Pathways",
+      "split": "test",
+      "user_goal": "Create a bar chart for Figure 5H showing `# of unique IL-22 regulated proteins in pathway` against `KEGG Pathway`.",
+      "verification_evidence": {
+        "evidence_ref": "review:5d3064ee805efac7ab538fe078dd43bcbaf248c060fb9c0a63999d07540bacf5",
+        "evidence_type": "external_validation",
+        "review_hash": "5d3064ee805efac7ab538fe078dd43bcbaf248c060fb9c0a63999d07540bacf5",
+        "review_models": [
+          "claude-sonnet-4-6",
+          "gemini-3.5-flash"
+        ]
+      }
+    }
+  ],
+  "manifest_hash": "9d19b3edc9b18ada9e5f0400069e7bc1febba873af026018a992a128dbfb7222",
+  "provenance": {
+    "code_commit": "3a9f3b657f88e51b308509a6293f01ba96f20ab5",
+    "code_dirty": false,
+    "parent_manifest_sha256": "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b",
+    "renderability_audit_hash": "d818334f9f9b25141e0825d7a10b36a68c0ec4717d3c29047b334da4fc9db4d2",
+    "renderability_audit_path": "renderability_audit.json",
+    "renderability_audit_sha256": "a61c986aa368857e8c12d872f0759adc84c6b26b5644fc396bca1be6f682e5d3",
+    "renderability_policy": {
+      "audit_counting": {
+        "expected_points": "sum_per_series_max_resolved_x_y_value_length",
+        "series_count": "all_expected_series_in_panel"
+      },
+      "declared_inputs": [
+        "source_table",
+        "source_sheet",
+        "evaluation_expectation"
+      ],
+      "explicitly_uncapped_series_kinds": [
+        "line",
+        "scatter"
+      ],
+      "forbidden_inputs": [
+        "run_records",
+        "method_names",
+        "method_scores",
+        "failed_case_ids",
+        "production_artifacts"
+      ],
+      "multi_panel_rule": "reject_case_if_any_panel_fails",
+      "non_bar_cardinality_action": "no_cap",
+      "panel_scope": "every_panel",
+      "policy_id": "outcome-independent-static-renderability-v1",
+      "rules": [
+        {
+          "comparison": "less_than_or_equal",
+          "expectation_series_kinds": [
+            "bar"
+          ],
+          "max_unique_categorical_x_per_panel": 200,
+          "missing_x_values": "count_as_one_category",
+          "rule_id": "bar-column-categorical-x-cardinality",
+          "semantic_families": [
+            "bar",
+            "column"
+          ],
+          "x_counting": "union_of_resolved_bar_series_x_after_expectation_filters"
+        }
+      ],
+      "schema_version": "1.0",
+      "split_scope": [
+        "train",
+        "val",
+        "test"
+      ]
+    },
+    "renderability_policy_hash": "283f0520bf1fda98773958602be6206c1776c573a00273391dbfeb6acd565cec",
+    "source_binding": {
+      "candidate_inputs": [
+        {
+          "candidates_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next150/verified_cases_final_v2_compat/candidates.jsonl",
+          "candidates_sha256": "5821a4153bfd13eb69a5e3d88d5f7794b944447198816265813767cc6f517ecf",
+          "code_commit": "6ba960f6f491fb01d970ffc2ac4049de8d687b1f",
+          "content_root": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next150/content",
+          "corpus_manifest": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next150/manifest_v1/corpus_manifest.jsonl",
+          "corpus_manifest_sha256": "35ef3648b74e3077b4b9e9d8714fb7aa1978fc877ccb6fca43f3d978f66e4c98",
+          "output_root": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next150/verified_cases_final_v2_compat",
+          "summary_hash": "cf0ed6a82375f23ed0fb6790f9a83afcb617bb099f1bd26e16becc9d5ec5f930",
+          "summary_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next150/verified_cases_final_v2_compat/summary.json",
+          "summary_sha256": "d534f4dde013096ca3ab0b91732e4dbc45b94488146899fd3f9cde68db0c3c61"
+        },
+        {
+          "candidates_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/verified_cases_final_v2/candidates.jsonl",
+          "candidates_sha256": "11a57c70bbf7c3bccc8ba5d7a12322592fb2bf5501eb9a047911741e41df0472",
+          "code_commit": "6ba960f6f491fb01d970ffc2ac4049de8d687b1f",
+          "content_root": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/content",
+          "corpus_manifest": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/manifest_v2/corpus_manifest.jsonl",
+          "corpus_manifest_sha256": "70bd6d8e3a5d6c31eae2393e7e9ed96d0fdfeb93a875a1bef3629fb9dbd2de3b",
+          "output_root": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/verified_cases_final_v2",
+          "summary_hash": "ac9f7db3f1a5bacd68c78ee62cd95dfbf9c6874fab988a90425d9b5dc21b987d",
+          "summary_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/ccby_asset_nc_next200/verified_cases_final_v2/summary.json",
+          "summary_sha256": "8b5ea886f8526b2f827d00d2c1e458432b6cb6e522b91859da116c2f99cd0970"
+        }
+      ],
+      "review_bundles": [
+        {
+          "evidence": {
+            "evidence_hash": "92f848e45428a6b883cd562157e6d4fc24f5ab0592ce97903500cbb9e9b8e234",
+            "path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/combined_verified_400/final_union_reviews_v1/evidence.json",
+            "sha256": "2ad56bfc33f05ebf3d10091eaa8183f156e3698f754672df4f945b06c2d57478"
+          },
+          "proposed": {
+            "path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/combined_verified_400/final_union_proposals_v1/proposed.jsonl",
+            "sha256": "eeffba0a4df895f30e163b2b30b547f4faf59efc3a4bb5512098088d58296114"
+          },
+          "reviews": {
+            "path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/combined_verified_400/final_union_reviews_v1/reviews.jsonl",
+            "sha256": "eac4210f63c265a94afd495d645594528230d38553949db59af4685132b015a4",
+            "summary_path": "/Users/tommy/Downloads/mayi/PheroViz/nature_download/outputs/combined_verified_400/final_union_reviews_v1/summary.json",
+            "summary_sha256": "a988dccc6915b8360dbc36bc5c8fbe421e7ed391144e4053a0d2e350775c5c86"
+          }
+        }
+      ]
+    },
+    "source_binding_hash": "ae6c2142b05b3e690bcbed6ea9c01f73fc349540118e2cdd29070b6b6b310013",
+    "split_ratios": {
+      "test": 0.8,
+      "train": 0.0,
+      "val": 0.2
+    },
+    "split_seed": 0
+  },
+  "schema_version": "1.0"
+}
