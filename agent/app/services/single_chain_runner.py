@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import copy
+import hashlib
+import math
 import os
 import re
 import time
@@ -1086,6 +1088,7 @@ def iter_chain(
     evaluation_expectation: Mapping[str, Any] | None = None,
     metric_config: Mapping[str, Any] | None = None,
     render_timeout_seconds: int | None = None,
+    monotonic: Callable[[], float] = time.monotonic,
 ) -> Iterator[Dict[str, Any]]:
     def emit(event: str, payload: Optional[Dict[str, Any]] = None) -> None:
         if progress_callback is not None:
@@ -1247,6 +1250,8 @@ def iter_chain(
         {"round": 0, "feedback": feedback_text, "spec_keys": list(spec.keys())},
     )
 
+    trajectory_started = monotonic()
+    previous_cumulative_wall_clock = 0.0
     for round_idx in range(1, max(1, rounds) + 1):
         if (
             normalized_memory_mode == "ephemeral"
@@ -1857,7 +1862,52 @@ def iter_chain(
             json.dumps(selected, ensure_ascii=False, indent=2, sort_keys=True),
             encoding="utf-8",
         )
-        emit("artifact_written", {"round": round_idx, "path": str(artifact_path)})
+        cumulative_wall_clock = monotonic() - trajectory_started
+        if (
+            not math.isfinite(cumulative_wall_clock)
+            or cumulative_wall_clock <= previous_cumulative_wall_clock
+        ):
+            raise RuntimeError(
+                "Round cumulative wall-clock metadata must be finite, "
+                "strictly positive, and strictly increasing"
+            )
+        previous_cumulative_wall_clock = cumulative_wall_clock
+        timing_path = active_run_dir / f"iteration_{round_idx}.timing.json"
+        timing_payload = {
+            "schema_version": "1.0",
+            "round": round_idx,
+            "archive_boundary": (
+                "after_iteration_json_archive_before_timing_sidecar"
+            ),
+            "iteration_path": str(artifact_path.resolve()),
+            "iteration_sha256": hashlib.sha256(
+                artifact_path.read_bytes()
+            ).hexdigest(),
+            "cumulative_wall_clock_seconds": cumulative_wall_clock,
+        }
+        timing_path.write_text(
+            json.dumps(
+                timing_payload,
+                ensure_ascii=False,
+                indent=2,
+                sort_keys=True,
+                allow_nan=False,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        selected["cumulative_wall_clock_seconds"] = cumulative_wall_clock
+        selected["timing_path"] = str(timing_path.resolve())
+        selected["timed_artifact_sha256"] = timing_payload["iteration_sha256"]
+        emit(
+            "artifact_written",
+            {
+                "round": round_idx,
+                "path": str(artifact_path),
+                "timing_path": str(timing_path),
+                "cumulative_wall_clock_seconds": cumulative_wall_clock,
+            },
+        )
 
         yield copy.deepcopy(selected)
 
@@ -1919,6 +1969,7 @@ def run_chain(
     evaluation_expectation: Mapping[str, Any] | None = None,
     metric_config: Mapping[str, Any] | None = None,
     render_timeout_seconds: int | None = None,
+    monotonic: Callable[[], float] = time.monotonic,
 ) -> Dict[str, Any]:
     selected: Dict[str, Any] = {}
     for result in iter_chain(
@@ -1942,6 +1993,7 @@ def run_chain(
         evaluation_expectation=evaluation_expectation,
         metric_config=metric_config,
         render_timeout_seconds=render_timeout_seconds,
+        monotonic=monotonic,
     ):
         selected = result
     return selected

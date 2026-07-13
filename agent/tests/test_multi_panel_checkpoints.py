@@ -74,6 +74,57 @@ def _panel_case(tmp_path: Path) -> dict[str, Any]:
     }
 
 
+def _panel_case_with_count(tmp_path: Path, panel_count: int) -> dict[str, Any]:
+    panel_ids = [f"panel-{index}" for index in range(1, panel_count + 1)]
+    panels = []
+    for index, panel_id in enumerate(panel_ids, 1):
+        data_path = tmp_path / f"{panel_id}.csv"
+        data_path.write_text(
+            f"category,value\nA,{index}\nB,{index + 1}\n",
+            encoding="utf-8",
+        )
+        panels.append(
+            {
+                "id": panel_id,
+                "data_path": str(data_path.resolve()),
+                "user_goal": panel_id,
+                "chart_family": "bar",
+                "intent": {"x": "category", "y": "value"},
+            }
+        )
+    return {
+        "case_id": f"multi-case-{panel_count}",
+        "panel_count": panel_count,
+        "split": "test",
+        "panels": panels,
+        "evaluation_expectation": {
+            "schema_version": "1.1.0",
+            "panels": [
+                {
+                    "panel_id": panel_id,
+                    "axis_index": 0,
+                    "series": [
+                        {
+                            "series_id": "value",
+                            "kind": "bar",
+                            "x": "category",
+                            "value": "value",
+                        }
+                    ],
+                }
+                for panel_id in panel_ids
+            ],
+            "panel_groups": [
+                {
+                    "group_id": "shared",
+                    "panels": panel_ids,
+                    "checks": {"shared_y_scale": True},
+                }
+            ],
+        },
+    }
+
+
 class _CombinedManifest:
     def __init__(self, manifests: Mapping[str, Mapping[str, Any]]) -> None:
         self.manifests = dict(manifests)
@@ -118,7 +169,9 @@ def _install_fake_panel_core(monkeypatch: pytest.MonkeyPatch) -> None:
         memory_mode = str(kwargs["memory_mode"])
         memory = kwargs["memory"]
         untyped_memory = kwargs["untyped_memory"]
-        panel_offset = PANEL_IDS.index(panel_id)
+        panel_offset = (
+            PANEL_IDS.index(panel_id) if panel_id in PANEL_IDS else 0
+        )
 
         for round_number in range(1, rounds + 1):
             if memory_mode in {"constraints", "full", "ephemeral"}:
@@ -295,11 +348,21 @@ def _assert_candidate_artifacts_are_frozen(
         "memory_trace",
         "memory_compatibility",
         "schedule_trace",
+        "timing",
     }
     paths_by_label = {label: set() for label in required}
     for candidate in outcome.record.candidates:
         candidate_id = candidate["candidate_id"]
         assert required <= set(candidate["artifact_paths"])
+        metadata_path = (
+            run_dir
+            / outcome.record.artifact_paths[f"{candidate_id}.metadata"]
+        )
+        assert json.loads(metadata_path.read_text(encoding="utf-8")) == candidate
+        assert (
+            outcome.record.artifact_hashes[f"{candidate_id}.metadata"]
+            == sha256_path(metadata_path)
+        )
         for label, relative_path in candidate["artifact_paths"].items():
             artifact = (run_dir / relative_path).resolve(strict=True)
             artifact.relative_to(run_dir.resolve())
@@ -338,6 +401,7 @@ def test_runner_writes_one_immutable_checkpoint_per_global_round(
     assert result["render_counts"] == {"left": 3, "right": 3}
     assert len(result["checkpoints"]) == 3
     render_hashes = []
+    previous_cumulative_wall_clock = 0.0
     for round_number, checkpoint in enumerate(result["checkpoints"], 1):
         assert checkpoint["global_round"] == round_number
         assert checkpoint["render_count"] == len(PANEL_IDS)
@@ -347,6 +411,13 @@ def test_runner_writes_one_immutable_checkpoint_per_global_round(
         assert checkpoint["schedule_event_count"] == (
             round_number * len(PANEL_IDS)
         )
+        assert (
+            checkpoint["cumulative_wall_clock_seconds"]
+            > previous_cumulative_wall_clock
+        )
+        previous_cumulative_wall_clock = checkpoint[
+            "cumulative_wall_clock_seconds"
+        ]
         schedule = json.loads(
             Path(checkpoint["artifacts"]["schedule_trace"]).read_text(
                 encoding="utf-8"
@@ -389,6 +460,83 @@ def test_runner_writes_one_immutable_checkpoint_per_global_round(
         Path(result["shared_memory_snapshot_path"]).read_bytes()
         == Path(final_checkpoint["artifacts"]["memory_snapshot"]).read_bytes()
     )
+
+
+@pytest.mark.parametrize("panel_count", [2, 3, 6])
+def test_global_round_timing_is_deterministic_for_each_panel_count(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    panel_count: int,
+) -> None:
+    _install_fake_panel_core(monkeypatch)
+    clock_values = iter((10.0, 11.0, 13.0))
+    result = multi_runner.run_multi_panel(
+        _panel_case_with_count(tmp_path, panel_count),
+        output_dir=tmp_path / f"timed-{panel_count}",
+        rounds=2,
+        initial_generation="defaults",
+        memory_mode="none",
+        monotonic=lambda: next(clock_values),
+    )
+
+    assert [
+        checkpoint["cumulative_render_count"]
+        for checkpoint in result["checkpoints"]
+    ] == [panel_count, panel_count * 2]
+    assert [
+        checkpoint["cumulative_wall_clock_seconds"]
+        for checkpoint in result["checkpoints"]
+    ] == [1.0, 3.0]
+    for checkpoint in result["checkpoints"]:
+        persisted = json.loads(
+            Path(checkpoint["result_path"]).read_text(encoding="utf-8")
+        )
+        timing = json.loads(
+            Path(checkpoint["timing_path"]).read_text(encoding="utf-8")
+        )
+        assert "cumulative_wall_clock_seconds" not in persisted
+        assert (
+            timing["cumulative_wall_clock_seconds"]
+            == checkpoint["cumulative_wall_clock_seconds"]
+        )
+        assert timing["checkpoint_sha256"] == hashlib.sha256(
+            Path(checkpoint["result_path"]).read_bytes()
+        ).hexdigest()
+        assert timing["archive_boundary"] == (
+            "after_checkpoint_json_archive_before_timing_sidecar"
+        )
+
+
+def test_nonmonotonic_global_clock_fails_after_preserving_prior_checkpoint(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _install_fake_panel_core(monkeypatch)
+    clock_values = iter((10.0, 11.0, 11.0))
+    output_dir = tmp_path / "nonmonotonic-time"
+
+    with pytest.raises(RuntimeError, match="strictly increasing"):
+        multi_runner.run_multi_panel(
+            _panel_case(tmp_path),
+            output_dir=output_dir,
+            rounds=2,
+            initial_generation="defaults",
+            memory_mode="none",
+            monotonic=lambda: next(clock_values),
+        )
+
+    first_timing = json.loads(
+        (
+            output_dir / "checkpoints/round_0001/checkpoint_timing.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert first_timing["cumulative_wall_clock_seconds"] == 1.0
+    assert (
+        output_dir / "checkpoints/round_0002/checkpoint.json"
+    ).is_file()
+    assert not (
+        output_dir / "checkpoints/round_0002/checkpoint_timing.json"
+    ).exists()
 
 
 def test_untyped_memory_is_checkpointed_at_each_round(
@@ -446,6 +594,26 @@ def test_iterative_provider_batch_exact_fills_scheduler_budget(
         item["provider_metadata"]["global_round"]
         for item in outcome.record.candidates
     ] == list(range(1, rounds + 1))
+    cumulative_times = [
+        item["provider_metadata"]["cumulative_wall_clock_seconds"]
+        for item in outcome.record.candidates
+    ]
+    assert all(
+        current > previous
+        for previous, current in zip([0.0, *cumulative_times], cumulative_times)
+    )
+    for candidate, cumulative_time in zip(
+        outcome.record.candidates,
+        cumulative_times,
+    ):
+        timing = json.loads(
+            (
+                Path(spec.artifact_root)
+                / spec.run_name
+                / candidate["artifact_paths"]["timing"]
+            ).read_text(encoding="utf-8")
+        )
+        assert timing["cumulative_wall_clock_seconds"] == cumulative_time
     assert [
         item["metrics"]["data_fidelity"]
         for item in outcome.record.candidates

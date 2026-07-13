@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import math
 import re
 import time
@@ -214,6 +215,9 @@ def _write_global_round_checkpoint(
     columns: int,
     full_expectation: Mapping[str, Any] | None,
     metric_config: Any,
+    trajectory_started: float,
+    previous_cumulative_wall_clock: float,
+    monotonic: Callable[[], float],
 ) -> dict[str, Any]:
     checkpoint_dir = (
         output_dir / "checkpoints" / f"round_{global_round:04d}"
@@ -373,6 +377,33 @@ def _write_global_round_checkpoint(
         "result_path": str(checkpoint_path.resolve()),
     }
     _write_json(checkpoint_path, checkpoint)
+    cumulative_wall_clock = monotonic() - trajectory_started
+    if (
+        not math.isfinite(cumulative_wall_clock)
+        or cumulative_wall_clock <= previous_cumulative_wall_clock
+    ):
+        raise RuntimeError(
+            "Global-round cumulative wall-clock metadata must be finite, "
+            "strictly positive, and strictly increasing"
+        )
+    timing_path = checkpoint_dir / "checkpoint_timing.json"
+    timing_payload = {
+        "schema_version": "1.0",
+        "global_round": global_round,
+        "archive_boundary": (
+            "after_checkpoint_json_archive_before_timing_sidecar"
+        ),
+        "checkpoint_path": str(checkpoint_path.resolve()),
+        "checkpoint_sha256": hashlib.sha256(
+            checkpoint_path.read_bytes()
+        ).hexdigest(),
+        "cumulative_wall_clock_seconds": cumulative_wall_clock,
+    }
+    _write_json(timing_path, timing_payload)
+    artifacts["timing"] = str(timing_path.resolve())
+    checkpoint["cumulative_wall_clock_seconds"] = cumulative_wall_clock
+    checkpoint["timing_path"] = str(timing_path.resolve())
+    checkpoint["timed_artifact_sha256"] = timing_payload["checkpoint_sha256"]
     return checkpoint
 
 
@@ -390,6 +421,7 @@ def run_multi_panel(
     memory_mode: str | None = None,
     render_timeout_seconds: int | None = None,
     base_dir: str | Path | None = None,
+    monotonic: Callable[[], float] = time.monotonic,
 ) -> dict[str, Any]:
     manifest_data, manifest_base_dir = _load_manifest(
         manifest,
@@ -536,10 +568,13 @@ def run_multi_panel(
             ),
             metric_config=metric_config,
             render_timeout_seconds=render_timeout_seconds,
+            monotonic=monotonic,
         )
 
     panel_order = [panel["id"] for panel in panels]
     scheduler_tick = 0
+    trajectory_started = monotonic()
+    previous_cumulative_wall_clock = 0.0
     for global_round in range(1, configured_rounds + 1):
         if configured_memory_mode == "ephemeral" and global_round > 1:
             shared_memory.clear_records(
@@ -579,6 +614,12 @@ def run_multi_panel(
             columns=columns,
             full_expectation=full_expectation,
             metric_config=metric_config,
+            trajectory_started=trajectory_started,
+            previous_cumulative_wall_clock=previous_cumulative_wall_clock,
+            monotonic=monotonic,
+        )
+        previous_cumulative_wall_clock = float(
+            checkpoint["cumulative_wall_clock_seconds"]
         )
         checkpoints.append(checkpoint)
 

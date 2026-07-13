@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -112,6 +113,129 @@ def _stub_render_and_judge(
 
     monkeypatch.setattr(single_runner, "execute_script", fake_execute)
     monkeypatch.setattr(single_runner, "judge", fake_judge)
+
+
+def test_single_chain_persists_deterministic_cumulative_round_time(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _disable_network(monkeypatch)
+    _stub_render_and_judge(monkeypatch)
+    data_path = tmp_path / "timed.csv"
+    _write_csv(data_path, "category", "value")
+    clock_values = iter((10.0, 11.0, 13.0))
+    run_dir = tmp_path / "timed-run"
+
+    result = single_runner.run_chain(
+        str(data_path),
+        "timed chart",
+        "bar",
+        rounds=2,
+        run_dir=run_dir,
+        initial_generation="defaults",
+        memory_mode="none",
+        model_client=FakeStageClient(),
+        monotonic=lambda: next(clock_values),
+    )
+
+    iterations = [
+        json.loads(
+            (run_dir / f"iteration_{round_number}.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        for round_number in (1, 2)
+    ]
+    timings = [
+        json.loads(
+            (run_dir / f"iteration_{round_number}.timing.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        for round_number in (1, 2)
+    ]
+    assert all(
+        "cumulative_wall_clock_seconds" not in iteration
+        for iteration in iterations
+    )
+    assert [
+        timing["cumulative_wall_clock_seconds"] for timing in timings
+    ] == [1.0, 3.0]
+    for round_number, timing in enumerate(timings, 1):
+        iteration_path = run_dir / f"iteration_{round_number}.json"
+        assert timing["iteration_sha256"] == hashlib.sha256(
+            iteration_path.read_bytes()
+        ).hexdigest()
+        assert timing["archive_boundary"] == (
+            "after_iteration_json_archive_before_timing_sidecar"
+        )
+    assert result["cumulative_wall_clock_seconds"] == 3.0
+
+
+def test_single_chain_failure_preserves_prior_timed_iteration(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _disable_network(monkeypatch)
+    data_path = tmp_path / "partial.csv"
+    _write_csv(data_path, "category", "value")
+    run_dir = tmp_path / "partial-run"
+    calls = 0
+
+    def fake_execute(
+        py_code: str,
+        df: Any,
+        intent: dict[str, Any],
+        ctx: dict[str, Any],
+        out_png: str,
+        timeout_s: int,
+    ) -> dict[str, Any]:
+        nonlocal calls
+        del py_code, df, intent, timeout_s
+        calls += 1
+        if calls == 2:
+            raise TimeoutError("synthetic round timeout")
+        output = Path(out_png)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        Image.new("RGB", (16, 16), (255, 255, 255)).save(output)
+        return {
+            "ok": True,
+            "png_path": str(output),
+            "stderr": "",
+            "ctx": dict(ctx),
+        }
+
+    monkeypatch.setattr(single_runner, "execute_script", fake_execute)
+    monkeypatch.setattr(
+        single_runner,
+        "judge",
+        lambda *args, **kwargs: {
+            "visual_form": 0.2,
+            "data_fidelity": 0.2,
+            "diagnostics": [],
+        },
+    )
+    clock_values = iter((20.0, 21.0))
+
+    with pytest.raises(TimeoutError, match="synthetic round timeout"):
+        single_runner.run_chain(
+            str(data_path),
+            "partial chart",
+            "bar",
+            rounds=2,
+            run_dir=run_dir,
+            initial_generation="defaults",
+            memory_mode="none",
+            model_client=FakeStageClient(),
+            monotonic=lambda: next(clock_values),
+        )
+
+    first_timing = json.loads(
+        (run_dir / "iteration_1.timing.json").read_text(encoding="utf-8")
+    )
+    assert first_timing["cumulative_wall_clock_seconds"] == 1.0
+    assert not (run_dir / "iteration_2.json").exists()
+    assert not (run_dir / "iteration_2.timing.json").exists()
 
 
 def test_offline_single_chain_writes_memory_artifacts(

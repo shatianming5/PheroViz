@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pheroviz.local/schemas/trajectory-candidate-metadata-1.0.json",
+  "title": "PheroViz trajectory candidate timing metadata",
+  "type": "object",
+  "required": [
+    "cumulative_render_count",
+    "cumulative_wall_clock_seconds"
+  ],
+  "properties": {
+    "cumulative_render_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "cumulative_wall_clock_seconds": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "provider_call_cumulative_render_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "provider_call_cumulative_wall_clock_seconds": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    }
+  }
+}

@@ -7,10 +7,11 @@ import json
 import math
 import os
 import random
+import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Iterator, Mapping, Optional, Protocol, Sequence
+from typing import Any, Callable, Dict, Iterator, Mapping, Optional, Protocol, Sequence
 
 from .manifest import (
     ManifestError,
@@ -424,7 +425,8 @@ class SingleChainProvider:
             raise ProviderExecutionError("Core runner produced no iteration records")
 
         candidates: list[CandidateResult] = []
-        for iteration_path in iteration_paths:
+        previous_cumulative_wall_clock = 0.0
+        for expected_round, iteration_path in enumerate(iteration_paths, 1):
             try:
                 iteration = json.loads(iteration_path.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError) as exc:
@@ -473,6 +475,50 @@ class SingleChainProvider:
             }
             artifacts = {"iteration": str(iteration_path)}
             round_number = iteration.get("round")
+            if round_number != expected_round:
+                raise ProviderExecutionError(
+                    "Single-chain iterations are not a contiguous trajectory: "
+                    f"expected {expected_round}, got {round_number!r}"
+                )
+            timing_path = (
+                discovered_run_dir / f"iteration_{round_number}.timing.json"
+            )
+            try:
+                timing = json.loads(timing_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as exc:
+                raise ProviderExecutionError(
+                    f"Cannot read core iteration timing {timing_path}: {exc}"
+                ) from exc
+            if (
+                not isinstance(timing, Mapping)
+                or timing.get("schema_version") != "1.0"
+                or timing.get("round") != round_number
+                or timing.get("archive_boundary")
+                != "after_iteration_json_archive_before_timing_sidecar"
+                or timing.get("iteration_path")
+                != str(iteration_path.resolve())
+                or timing.get("iteration_sha256")
+                != sha256_path(iteration_path)
+            ):
+                raise ProviderExecutionError(
+                    f"Core iteration timing binding is invalid: {timing_path}"
+                )
+            cumulative_wall_clock = timing.get(
+                "cumulative_wall_clock_seconds"
+            )
+            if (
+                isinstance(cumulative_wall_clock, bool)
+                or not isinstance(cumulative_wall_clock, (int, float))
+                or not math.isfinite(float(cumulative_wall_clock))
+                or float(cumulative_wall_clock)
+                <= previous_cumulative_wall_clock
+            ):
+                raise ProviderExecutionError(
+                    "Single-chain cumulative wall-clock metadata must be "
+                    "finite, strictly positive, and strictly increasing"
+                )
+            previous_cumulative_wall_clock = float(cumulative_wall_clock)
+            artifacts["iteration_timing"] = str(timing_path)
             if isinstance(round_number, int):
                 for label, pattern in (
                     ("render", f"figure_round_{round_number}.png"),
@@ -498,6 +544,10 @@ class SingleChainProvider:
                         "core_round": round_number,
                         "core_run_dir": str(discovered_run_dir),
                         "render_timeout_seconds": render_timeout_seconds,
+                        "cumulative_render_count": round_number,
+                        "cumulative_wall_clock_seconds": (
+                            previous_cumulative_wall_clock
+                        ),
                         "model_calls": {
                             str(stage_name): dict(
                                 stage.get("model_metadata") or {}
@@ -614,6 +664,7 @@ def _multi_panel_checkpoint_candidate(
     memory_mode: str,
     seed: int,
     render_timeout_seconds: int,
+    previous_cumulative_wall_clock_seconds: float,
     output_dir: Path,
 ) -> CandidateResult:
     if checkpoint.get("global_round") != expected_round:
@@ -632,6 +683,18 @@ def _multi_panel_checkpoint_candidate(
         raise ProviderExecutionError(
             f"Global round {expected_round} has inconsistent cumulative "
             "render accounting"
+        )
+    cumulative_wall_clock = checkpoint.get("cumulative_wall_clock_seconds")
+    if (
+        isinstance(cumulative_wall_clock, bool)
+        or not isinstance(cumulative_wall_clock, (int, float))
+        or not math.isfinite(float(cumulative_wall_clock))
+        or float(cumulative_wall_clock)
+        <= previous_cumulative_wall_clock_seconds
+    ):
+        raise ProviderExecutionError(
+            f"Global round {expected_round} has missing or nonmonotonic "
+            "cumulative wall-clock metadata"
         )
 
     panels = checkpoint.get("panels")
@@ -700,6 +763,7 @@ def _multi_panel_checkpoint_candidate(
         "memory_trace",
         "memory_compatibility",
         "schedule_trace",
+        "timing",
     }
     for panel_id in panel_ids:
         required_artifacts.update(
@@ -716,6 +780,33 @@ def _multi_panel_checkpoint_candidate(
         output_dir=output_dir,
         required_labels=required_artifacts,
     )
+    try:
+        timing = json.loads(
+            Path(artifacts["timing"]).read_text(encoding="utf-8")
+        )
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ProviderExecutionError(
+            f"Cannot read global-round timing sidecar: {exc}"
+        ) from exc
+    checkpoint_hash = sha256_path(Path(artifacts["result"]))
+    if (
+        not isinstance(timing, Mapping)
+        or timing.get("schema_version") != "1.0"
+        or timing.get("global_round") != expected_round
+        or timing.get("archive_boundary")
+        != "after_checkpoint_json_archive_before_timing_sidecar"
+        or timing.get("checkpoint_path")
+        != str(Path(artifacts["result"]).resolve())
+        or timing.get("checkpoint_sha256") != checkpoint_hash
+        or timing.get("cumulative_wall_clock_seconds")
+        != cumulative_wall_clock
+        or checkpoint.get("timing_path")
+        != str(Path(artifacts["timing"]).resolve())
+        or checkpoint.get("timed_artifact_sha256") != checkpoint_hash
+    ):
+        raise ProviderExecutionError(
+            f"Global round {expected_round} timing sidecar binding is invalid"
+        )
     _reject_failed_multi_panel_iterations(artifacts)
 
     served_models = sorted(
@@ -748,6 +839,7 @@ def _multi_panel_checkpoint_candidate(
             "seed": seed,
             "render_timeout_seconds": render_timeout_seconds,
             "cumulative_render_count": panel_count * expected_round,
+            "cumulative_wall_clock_seconds": float(cumulative_wall_clock),
             "served_models": served_models,
             "judge_models": judge_models,
         },
@@ -1015,8 +1107,10 @@ class MultiPanelProvider:
             if isinstance(panel, Mapping)
         ]
         candidate_seed = request.spec.seed + request.call_index - 1
-        candidates = tuple(
-            _multi_panel_checkpoint_candidate(
+        candidate_list: list[CandidateResult] = []
+        previous_cumulative_wall_clock = 0.0
+        for round_number, checkpoint in enumerate(checkpoints, 1):
+            candidate = _multi_panel_checkpoint_candidate(
                 checkpoint,
                 expected_round=round_number,
                 total_rounds=rounds,
@@ -1024,10 +1118,16 @@ class MultiPanelProvider:
                 memory_mode=memory_mode,
                 seed=candidate_seed,
                 render_timeout_seconds=render_timeout_seconds,
+                previous_cumulative_wall_clock_seconds=(
+                    previous_cumulative_wall_clock
+                ),
                 output_dir=request.output_dir,
             )
-            for round_number, checkpoint in enumerate(checkpoints, 1)
-        )
+            previous_cumulative_wall_clock = float(
+                candidate.metadata["cumulative_wall_clock_seconds"]
+            )
+            candidate_list.append(candidate)
+        candidates = tuple(candidate_list)
         if sum(candidate.render_count for candidate in candidates) != (
             panel_count * rounds
         ):
@@ -1088,8 +1188,10 @@ class PheroVizProvider:
         api_key_envs: Optional[Sequence[str]] = None,
         wall_clock_rounds: Optional[int] = None,
         manifest_data_root: Optional[str] = None,
+        monotonic: Callable[[], float] = time.monotonic,
     ) -> None:
         self.manifest_data_root = manifest_data_root
+        self._monotonic = monotonic
         self.single_provider = SingleChainProvider(
             api_key_envs=api_key_envs,
             wall_clock_rounds=wall_clock_rounds,
@@ -1099,6 +1201,7 @@ class PheroVizProvider:
             wall_clock_rounds=wall_clock_rounds,
             manifest_data_root=manifest_data_root,
         )
+        self._schedule_trajectory: Dict[str, Dict[str, float | int]] = {}
 
     def check_available(self) -> None:
         self.single_provider.check_available()
@@ -1168,12 +1271,201 @@ class PheroVizProvider:
             test_only=candidate.test_only,
         )
 
+    def _schedule_global_candidates(
+        self,
+        request: GenerationRequest,
+        candidates: Sequence[CandidateResult],
+        *,
+        key: str,
+        call_finished_monotonic: float,
+    ) -> tuple[CandidateResult, ...]:
+        state = self._schedule_trajectory.get(key)
+        if state is None:
+            raise ProviderExecutionError(
+                "Schedule-global trajectory state is unavailable"
+            )
+        if request.spec.schedule == "iterative":
+            if request.call_index != 1 or int(state["call_index"]) != 0:
+                raise ProviderExecutionError(
+                    "Iterative trajectory must be returned by exactly one "
+                    "provider call"
+                )
+            global_render = 0
+            global_time = 0.0
+            normalized: list[CandidateResult] = []
+            for candidate in candidates:
+                metadata = dict(candidate.metadata)
+                cumulative_render = metadata.get("cumulative_render_count")
+                cumulative_time = metadata.get(
+                    "cumulative_wall_clock_seconds"
+                )
+                if (
+                    isinstance(cumulative_render, bool)
+                    or not isinstance(cumulative_render, int)
+                    or cumulative_render
+                    != global_render + candidate.render_count
+                    or isinstance(cumulative_time, bool)
+                    or not isinstance(cumulative_time, (int, float))
+                    or not math.isfinite(float(cumulative_time))
+                    or float(cumulative_time) <= global_time
+                ):
+                    raise ProviderExecutionError(
+                        "Iterative provider returned missing or nonmonotonic "
+                        "schedule-global trajectory metadata"
+                    )
+                global_render = cumulative_render
+                global_time = float(cumulative_time)
+                normalized.append(candidate)
+            self._schedule_trajectory[key] = {
+                "call_index": 1,
+                "cumulative_render_count": global_render,
+                "cumulative_wall_clock_seconds": global_time,
+            }
+            return tuple(normalized)
+
+        if request.spec.schedule != "best_of_n" or len(candidates) != 1:
+            raise ProviderExecutionError(
+                "Unsupported or malformed schedule-global trajectory"
+            )
+        if request.call_index != int(state["call_index"]) + 1:
+            raise ProviderExecutionError(
+                "Best-of-N provider calls are not contiguous"
+            )
+        candidate = candidates[0]
+        metadata = dict(candidate.metadata)
+        local_render = metadata.get("cumulative_render_count")
+        local_time = metadata.get("cumulative_wall_clock_seconds")
+        if (
+            isinstance(local_render, bool)
+            or not isinstance(local_render, int)
+            or local_render != candidate.render_count
+            or isinstance(local_time, bool)
+            or not isinstance(local_time, (int, float))
+            or not math.isfinite(float(local_time))
+            or float(local_time) <= 0.0
+        ):
+            raise ProviderExecutionError(
+                "Best-of-N provider returned invalid per-call trajectory "
+                "metadata"
+            )
+        global_render = int(state["cumulative_render_count"]) + local_render
+        if not math.isfinite(call_finished_monotonic):
+            raise ProviderExecutionError(
+                "Best-of-N schedule clock returned a non-finite value"
+            )
+        schedule_started = float(state["schedule_started_monotonic"])
+        global_time = call_finished_monotonic - schedule_started
+        if (
+            global_render <= int(state["cumulative_render_count"])
+            or global_time <= float(state["cumulative_wall_clock_seconds"])
+            or global_time + 1e-12
+            < float(state["cumulative_wall_clock_seconds"]) + float(local_time)
+        ):
+            raise ProviderExecutionError(
+                "Best-of-N schedule-global trajectory is nonmonotonic"
+            )
+        metadata["provider_call_cumulative_render_count"] = local_render
+        metadata["provider_call_cumulative_wall_clock_seconds"] = float(
+            local_time
+        )
+        metadata["cumulative_render_count"] = global_render
+        metadata["cumulative_wall_clock_seconds"] = global_time
+        normalized_candidate = CandidateResult(
+            metrics=dict(candidate.metrics),
+            render_count=candidate.render_count,
+            artifacts=dict(candidate.artifacts),
+            metadata=metadata,
+            test_only=candidate.test_only,
+        )
+        self._schedule_trajectory[key] = {
+            "call_index": request.call_index,
+            "cumulative_render_count": global_render,
+            "cumulative_wall_clock_seconds": global_time,
+            "schedule_started_monotonic": schedule_started,
+        }
+        return (normalized_candidate,)
+
+    def _trajectory_key(self, request: GenerationRequest) -> str:
+        try:
+            attempt_dir = request.output_dir.resolve().parents[1]
+        except IndexError as exc:
+            raise ProviderExecutionError(
+                "Provider output directory has no attempt identity"
+            ) from exc
+        return f"{request.spec.spec_hash}:{attempt_dir}"
+
+    def _begin_schedule_call(self, request: GenerationRequest) -> str:
+        key = self._trajectory_key(request)
+        state = self._schedule_trajectory.get(key)
+        if request.call_index == 1:
+            prefix = f"{request.spec.spec_hash}:"
+            for stale_key in [
+                item
+                for item in self._schedule_trajectory
+                if item.startswith(prefix) and item != key
+            ]:
+                self._schedule_trajectory.pop(stale_key, None)
+            if state is not None:
+                raise ProviderExecutionError(
+                    "Schedule attempt already has trajectory state"
+                )
+            started = self._monotonic()
+            if not math.isfinite(started):
+                raise ProviderExecutionError(
+                    "Schedule clock returned a non-finite origin"
+                )
+            self._schedule_trajectory[key] = {
+                "call_index": 0,
+                "cumulative_render_count": 0,
+                "cumulative_wall_clock_seconds": 0.0,
+                "schedule_started_monotonic": started,
+            }
+        elif (
+            state is None
+            or request.spec.schedule != "best_of_n"
+            or request.call_index != int(state["call_index"]) + 1
+        ):
+            raise ProviderExecutionError(
+                "Provider call does not match an active schedule attempt"
+            )
+        return key
+
     def generate(
         self,
         request: GenerationRequest,
     ) -> CandidateResult | ProviderBatch:
-        panel_count, delegate = self._route(request)
-        result = delegate.generate(request)
+        key = self._begin_schedule_call(request)
+        try:
+            panel_count, delegate = self._route(request)
+            result = delegate.generate(request)
+            call_finished = self._monotonic()
+            batch = (
+                result
+                if isinstance(result, ProviderBatch)
+                else ProviderBatch(candidates=(result,))
+            )
+            normalized = self._schedule_global_candidates(
+                request,
+                batch.candidates,
+                key=key,
+                call_finished_monotonic=call_finished,
+            )
+        except Exception:
+            self._schedule_trajectory.pop(key, None)
+            raise
+        terminal = (
+            request.spec.schedule == "iterative"
+            or batch.stop
+            or (
+                request.remaining_renders is not None
+                and sum(
+                    candidate.render_count for candidate in normalized
+                )
+                == request.remaining_renders
+            )
+        )
+        if terminal:
+            self._schedule_trajectory.pop(key, None)
         if isinstance(result, ProviderBatch):
             return ProviderBatch(
                 candidates=tuple(
@@ -1182,13 +1474,13 @@ class PheroVizProvider:
                         panel_count=panel_count,
                         delegate=delegate,
                     )
-                    for candidate in result.candidates
+                    for candidate in normalized
                 ),
                 stop=result.stop,
                 test_only=result.test_only,
             )
         return self._annotate_candidate(
-            result,
+            normalized[0],
             panel_count=panel_count,
             delegate=delegate,
         )

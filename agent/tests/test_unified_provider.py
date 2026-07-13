@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from jsonschema import validate
 
 from experiments.harness import execute_experiment
 from experiments.models import sha256_path
@@ -24,6 +25,12 @@ from tests.test_experiment_support import make_spec, write_manifest
 
 
 PANEL_COUNTS = (1, 2, 3, 6)
+TIMING_SCHEMA = json.loads(
+    (
+        Path(__file__).resolve().parents[1]
+        / "experiments/schemas/trajectory_candidate_metadata.schema.json"
+    ).read_text(encoding="utf-8")
+)
 
 
 def _write_mixed_manifest(tmp_path: Path) -> Path:
@@ -153,6 +160,12 @@ class _RecordingDelegate:
             metadata={
                 "delegate_marker": self.name,
                 "delegate_candidate_index": candidate_index,
+                "cumulative_render_count": (
+                    panel_count * candidate_index
+                    if request.spec.schedule == "iterative"
+                    else panel_count
+                ),
+                "cumulative_wall_clock_seconds": float(candidate_index),
             },
         )
 
@@ -198,7 +211,14 @@ def _provider(
     single_failure: str | None = None,
     multi_failure: str | None = None,
 ) -> tuple[PheroVizProvider, _RecordingDelegate, _RecordingDelegate]:
-    provider = PheroVizProvider()
+    clock_value = 100.0
+
+    def monotonic() -> float:
+        nonlocal clock_value
+        clock_value += 1.0
+        return clock_value
+
+    provider = PheroVizProvider(monotonic=monotonic)
     single = _RecordingDelegate(
         "fake_single",
         fail_message=single_failure,
@@ -221,6 +241,16 @@ def _assert_archived_artifacts(outcome: Any, run_dir: Path) -> None:
         "schedule_trace",
     }
     for candidate in outcome.record.candidates:
+        candidate_id = candidate["candidate_id"]
+        metadata_path = (
+            run_dir
+            / outcome.record.artifact_paths[f"{candidate_id}.metadata"]
+        )
+        assert json.loads(metadata_path.read_text(encoding="utf-8")) == candidate
+        assert (
+            outcome.record.artifact_hashes[f"{candidate_id}.metadata"]
+            == sha256_path(metadata_path)
+        )
         assert required <= set(candidate["artifact_paths"])
         for label, relative_path in candidate["artifact_paths"].items():
             artifact = (run_dir / relative_path).resolve(strict=True)
@@ -283,17 +313,157 @@ def test_unified_provider_routes_mixed_cases_with_exact_render_accounting(
         if schedule == "iterative"
         else list(range(1, rounds + 1))
     )
+    assert [
+        candidate["provider_metadata"]["cumulative_render_count"]
+        for candidate in outcome.record.candidates
+    ] == [panel_count, panel_count * 2]
+    assert [
+        candidate["provider_metadata"]["cumulative_wall_clock_seconds"]
+        for candidate in outcome.record.candidates
+    ] == [1.0, 2.0]
     for candidate in outcome.record.candidates:
         metadata = candidate["provider_metadata"]
+        validate(instance=metadata, schema=TIMING_SCHEMA)
         assert metadata["delegate_marker"] == routed.name
         assert metadata["phero_viz_provider"] == {
             "router": "phero_viz",
             "delegate": routed.name,
             "panel_count": panel_count,
         }
+        if schedule == "iterative":
+            assert "provider_call_cumulative_render_count" not in metadata
+            assert "provider_call_cumulative_wall_clock_seconds" not in metadata
+        else:
+            assert (
+                metadata["provider_call_cumulative_render_count"]
+                == panel_count
+            )
+            assert (
+                metadata["provider_call_cumulative_wall_clock_seconds"]
+                == 1.0
+            )
 
     run_dir = Path(spec.artifact_root) / spec.run_name
     _assert_archived_artifacts(outcome, run_dir)
+
+
+@pytest.mark.parametrize("mutation", ["missing", "nonmonotonic"])
+def test_unified_provider_rejects_invalid_iterative_timing(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    class BadTimingDelegate(_RecordingDelegate):
+        def _candidate(
+            self,
+            request: GenerationRequest,
+            *,
+            candidate_index: int,
+        ) -> CandidateResult:
+            candidate = super()._candidate(
+                request,
+                candidate_index=candidate_index,
+            )
+            metadata = dict(candidate.metadata)
+            if mutation == "missing":
+                metadata.pop("cumulative_wall_clock_seconds")
+            else:
+                metadata["cumulative_wall_clock_seconds"] = 1.0
+            return CandidateResult(
+                metrics=dict(candidate.metrics),
+                render_count=candidate.render_count,
+                artifacts=dict(candidate.artifacts),
+                metadata=metadata,
+            )
+
+    _, spec = _spec(
+        tmp_path,
+        panel_count=2,
+        schedule="iterative",
+        budget_value=4,
+    )
+    provider, single, _ = _provider()
+    provider.multi_provider = BadTimingDelegate("bad_multi")
+
+    outcome = execute_experiment(
+        spec,
+        provider_loader=lambda import_path, options: provider,
+    )
+
+    assert outcome.record.status == "failed"
+    assert outcome.record.error is not None
+    assert outcome.record.error["type"] == "ProviderExecutionError"
+    assert "trajectory metadata" in outcome.record.error["message"]
+    assert single.requests == []
+
+
+def test_schedule_timing_resets_for_call_one_retry_on_same_provider(
+    tmp_path: Path,
+) -> None:
+    _, spec = _spec(
+        tmp_path,
+        panel_count=1,
+        schedule="best_of_n",
+        budget_value=2,
+    )
+    provider, single, _ = _provider(single_failure="transient setup failure")
+
+    first = execute_experiment(
+        spec,
+        provider_loader=lambda import_path, options: provider,
+    )
+    assert first.record.status == "failed"
+    assert provider._schedule_trajectory == {}
+
+    single.fail_message = None
+    second = execute_experiment(
+        spec,
+        resume=True,
+        provider_loader=lambda import_path, options: provider,
+    )
+
+    assert second.record.status == "completed"
+    assert second.record.attempt == 2
+    assert [request.call_index for request in single.requests] == [1, 1, 2]
+    assert [
+        candidate["provider_metadata"]["cumulative_wall_clock_seconds"]
+        for candidate in second.record.candidates
+    ] == [1.0, 2.0]
+    assert provider._schedule_trajectory == {}
+    assert "previous_attempt_001" in second.record.artifact_paths
+
+
+def test_best_of_n_schedule_clock_includes_setup_archive_and_between_call_time(
+    tmp_path: Path,
+) -> None:
+    _, spec = _spec(
+        tmp_path,
+        panel_count=1,
+        schedule="best_of_n",
+        budget_value=2,
+    )
+    clock_values = iter((100.0, 102.5, 106.0))
+    provider = PheroVizProvider(monotonic=lambda: next(clock_values))
+    single = _RecordingDelegate("fake_single")
+    multi = _RecordingDelegate("fake_multi")
+    provider.single_provider = single
+    provider.multi_provider = multi
+
+    outcome = execute_experiment(
+        spec,
+        provider_loader=lambda import_path, options: provider,
+    )
+
+    assert outcome.record.status == "completed"
+    assert [
+        candidate["provider_metadata"][
+            "provider_call_cumulative_wall_clock_seconds"
+        ]
+        for candidate in outcome.record.candidates
+    ] == [1.0, 1.0]
+    assert [
+        candidate["provider_metadata"]["cumulative_wall_clock_seconds"]
+        for candidate in outcome.record.candidates
+    ] == [2.5, 6.0]
 
 
 @pytest.mark.parametrize("panel_count", [2, 3, 6])
