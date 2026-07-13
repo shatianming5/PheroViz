@@ -1,0 +1,90 @@
+{
+  "aborted_roots": [
+    {
+      "completed_records": 66,
+      "error": {
+        "attribution": "unclassified",
+        "message": "Single-chain execution failed: Programmatic evaluation was requested but the sandbox did not produce a result: Traceback (most recent call last):\n  File \"/tmp/tmp3z62wt1z/shim.py\", line 19, in <module>\n    scaffold.run(df, intent, ctx, str(out_png))\n  File \"/tmp/tmp3z62wt1z/scaffold.py\", line 1281, in run\n    artists = slot_marks_dispatch(fig, ax_left, ax_right, encoded, spec, ctx) or []\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/tmp3z62wt1z/scaffold.py\", line 208, in slot_marks_dispatch\n    result = fn(axis, df, overlay, spec, ctx)\n             ^^^^^^^^^^^",
+        "type": "ProviderExecutionError"
+      },
+      "failed_record_hash": "7f32a2332d81fad98d23dc70347347ac30c6dc9133616904b1b1aafbe6d519ab",
+      "failed_records": 1,
+      "failed_run_name": "c4-mid-renderable-v1-seed0-br6__case-case-s41467-023-38847-1-figure1-panelg-263d16873f98__method-flat_iterative__backbone-gpt-4o-mini__seed-0__budget-renders-6",
+      "failed_run_record_sha256": "8430e8fc4eced6817fc640092fc80aac0a4d8e91a8af3170fe7cdc261030f002",
+      "git_commit": "aad7ef6b4d26832265b16c83896ccfa5a31f8d30",
+      "never_merge": true,
+      "root": "/mnt/SSD1_8TB/zechuan/PheroViz-6628a00/agent/experiments/runs/production/c4_mid_renderable_v1_seed0_br6_gpt4omini"
+    },
+    {
+      "completed_records": 66,
+      "error": {
+        "attribution": "unclassified",
+        "message": "Single-chain execution failed: Programmatic evaluation was requested but the sandbox did not produce a result: Traceback (most recent call last):\n  File \"/tmp/tmp4w0yt9vy/shim.py\", line 19, in <module>\n    scaffold.run(df, intent, ctx, str(out_png))\n  File \"/tmp/tmp4w0yt9vy/scaffold.py\", line 1281, in run\n    artists = slot_marks_dispatch(fig, ax_left, ax_right, encoded, spec, ctx) or []\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/tmp/tmp4w0yt9vy/scaffold.py\", line 208, in slot_marks_dispatch\n    result = fn(axis, df, overlay, spec, ctx)\n             ^^^^^^^^^^^",
+        "type": "ProviderExecutionError"
+      },
+      "failed_record_hash": "ce50e572bbfff7ec8a34d02515a3d244984e5960c9cb8f8b5be8a56b1969e703",
+      "failed_records": 1,
+      "failed_run_name": "c4-mid-renderable-v1-seed0-br6__case-case-s41467-023-38847-1-figure1-panelg-263d16873f98__method-flat_iterative__backbone-gpt-4o-mini__seed-0__budget-renders-6",
+      "failed_run_record_sha256": "0d2626f64a041921fd7fac4ca3458d79a35ca8212e0d98c3f6702c9c1abd5465",
+      "git_commit": "2c53a6fdb196ed99a5d74ea926933d27cb394612",
+      "never_merge": true,
+      "root": "/mnt/SSD1_8TB/zechuan/PheroViz-open-2c53a6f/agent/experiments/runs/production/c4_mid_renderable_v1_seed0_br6_gpt4omini"
+    }
+  ],
+  "calibration": {
+    "model_requested_invalid_palette_rounds": [
+      "slots_round_2.json",
+      "slots_round_3.json",
+      "slots_round_5.json",
+      "slots_round_6.json"
+    ],
+    "normalized_palette_iterations": [
+      "iteration_1.json",
+      "iteration_2.json",
+      "iteration_3.json",
+      "iteration_4.json",
+      "iteration_5.json",
+      "iteration_6.json"
+    ],
+    "record_hash": "40caf61e2e010f090f7d3c00dd4701f44f2d497a35854172f39b80d71679c7a5",
+    "renders": 6,
+    "root": "/mnt/SSD1_8TB/zechuan/PheroViz-mid-d90d655/agent/experiments/runs/calibration/mid_palette_repair_d90d655",
+    "run_name": "mid-palette-repair-d90d655__case-case-s41467-023-38847-1-figure1-panelg-263d16873f98__method-flat_iterative__backbone-gpt-4o-mini__seed-0__budget-renders-6",
+    "run_record_sha256": "657d7076516c8803b085e5989d7e6cf1b901e06981addbc64f3d59841212ea0c",
+    "spec_hash": "dc7c3ee6ae743a7876594141772c94a835f241c9e8b24b638f4c9fa64e6f0b1b",
+    "summary_hash": "7e5bb964d4794b31391ab2d5dbafd4268867e9060b0a2b4066b069d16360a4e8",
+    "summary_sha256": "7097ba839f80b8fc73ea26e13839b66d796126d3089add19f370b7e1cfe15720",
+    "text_model_calls": 6,
+    "usage": {
+      "completion_tokens": 4278,
+      "prompt_tokens": 9656,
+      "total_tokens": 13934
+    },
+    "vlm_calls": 0
+  },
+  "dataset_manifest_sha256": "6c6c5cb50603d899a9be0f41c9e562517c92ae15477610e9111f6504cd1757b3",
+  "fix": {
+    "fallback_palette": "tab10",
+    "fallback_recorded_in_ctx": true,
+    "git_commit": "d90d655b96bfb3b95bfdc37665692957969d8968",
+    "git_dirty": false
+  },
+  "generated_at": "2026-07-13T13:55:37.518721Z",
+  "no_method_outcome_inferred": true,
+  "report_hash": "897dc2299ae790951bbd081789e6693fbfe1d21ce3a3e3b7d3598cfcdb5eacea",
+  "root_cause": {
+    "exact_two_round_replay_after_fix": true,
+    "exact_two_round_replay_before_fix": true,
+    "exception": "ValueError: ColorBlindSafe is not a valid Matplotlib colormap name",
+    "mechanism": "round-persistent palette cache avoided lookup in round 1; later model-composed theme changed palette_global and triggered an invalid get_cmap lookup"
+  },
+  "schema_version": "1.0",
+  "status": "passed_runtime_repair_calibration",
+  "validation": {
+    "artifact_hashes_verified": true,
+    "local_targeted_tests": "25 passed",
+    "remote_external_portability_tests": "6 environment-gated failures: sibling baseline checkouts and venvs absent",
+    "remote_non_external_suite": "236 passed",
+    "secrets_absent": true
+  }
+}
