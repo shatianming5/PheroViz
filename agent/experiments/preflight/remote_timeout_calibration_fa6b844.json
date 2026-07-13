@@ -1,0 +1,89 @@
+{
+  "artifact_root": "/mnt/SSD1_8TB/zechuan/PheroViz-6628a00/agent/experiments/runs/calibration/remote_timeout_b0b5",
+  "case_id": "case-s41467-023-42692-7-figure1-panelh-53463702bfd3",
+  "code_commit": "fa6b84499980f16076ac210a0bb4bf9d48e153b5",
+  "code_dirty": false,
+  "host": "7352-10x4090-183",
+  "manifest_sha256": "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b",
+  "render_budget": 6,
+  "render_timeout_seconds": 120,
+  "runs": [
+    {
+      "method": "best_of_n",
+      "metrics": {
+        "data_fidelity": 1.0,
+        "visual_form": 1.0
+      },
+      "record_hash": "89a08636a21d53b1a721691e162ebe523d938af0501229bfc644873c1fef00df",
+      "render_count": 6,
+      "render_timeout_seconds": 120,
+      "run_name": "remote-timeout-calibration-b0b5__case-case-s41467-023-42692-7-figure1-panelh-53463702bfd3__method-best_of_n__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record_sha256": "b7c6e25102690d210a1a09d318036851b2420e68b501e4ee3c37eaf9f68b9e73",
+      "status": "completed",
+      "text_calls": 6,
+      "usage": {
+        "completion_tokens": 6975,
+        "prompt_tokens": 7260,
+        "total_tokens": 14235
+      },
+      "vlm_calls": 0,
+      "wall_clock_seconds": 139.15448336023837
+    },
+    {
+      "method": "flat_iterative",
+      "metrics": {
+        "data_fidelity": 1.0,
+        "visual_form": 1.0
+      },
+      "record_hash": "26be5a4b620606215f1af1fe7a51c9decf898b3d0fe5cea0397f0e0bbebd1f2d",
+      "render_count": 6,
+      "render_timeout_seconds": 120,
+      "run_name": "remote-timeout-calibration-b0b5__case-case-s41467-023-42692-7-figure1-panelh-53463702bfd3__method-flat_iterative__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record_sha256": "86bb73dbfb9ca9f0e6c2c780777fad0608e0699fae4a8714ec3c945e2be91ab8",
+      "status": "completed",
+      "text_calls": 6,
+      "usage": {
+        "completion_tokens": 5723,
+        "prompt_tokens": 7910,
+        "total_tokens": 13633
+      },
+      "vlm_calls": 0,
+      "wall_clock_seconds": 95.2573999161832
+    },
+    {
+      "method": "pheroviz_full",
+      "metrics": {
+        "data_fidelity": 1.0,
+        "visual_form": 1.0
+      },
+      "record_hash": "6acc9d98c8cb88d83dfc2005a070665a11ad2ad54051686ef3360133b58ddc0b",
+      "render_count": 6,
+      "render_timeout_seconds": 120,
+      "run_name": "remote-timeout-calibration-b0b5__case-case-s41467-023-42692-7-figure1-panelh-53463702bfd3__method-pheroviz_full__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+      "run_record_sha256": "5cf83dbcb5ea00a7c108f2f43830d4c94a26b2363f656ea9532bd618205fc8fc",
+      "status": "completed",
+      "text_calls": 6,
+      "usage": {
+        "completion_tokens": 5186,
+        "prompt_tokens": 43521,
+        "total_tokens": 48707
+      },
+      "vlm_calls": 0,
+      "wall_clock_seconds": 89.16537895612419
+    }
+  ],
+  "schema_version": "1.0",
+  "seed": 0,
+  "status": "passed",
+  "summary_hash": "6a9326d7c8fbad81a4b978a816450385109d29b51a3780dd9ead6f4a935d707b",
+  "tests": "219 passed in 33.14s",
+  "totals": {
+    "completion_tokens": 17884,
+    "prompt_tokens": 58691,
+    "renders": 18,
+    "text_calls": 18,
+    "total_tokens": 76575,
+    "vlm_calls": 0,
+    "wall_clock_seconds": 323.57726223254576
+  }
+}
