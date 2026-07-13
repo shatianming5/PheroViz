@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "status": "PASSED",
+  "code_commit": "ecb2c318564160de59364a2a0479caf54df69e83",
+  "code_dirty": false,
+  "tests": {
+    "c5_tests_passed": 52,
+    "failed": 0
+  },
+  "validated": {
+    "dual_judge_cli_merge": true,
+    "dual_judge_analysis": true,
+    "summary_schema_accepts_original_generated_at": true,
+    "clean_code_provenance": true,
+    "model_calls": 0
+  },
+  "remaining_execution_gates": [
+    "frontier, mid, and open roots each have 171 terminal records",
+    "513-row common-commit union is complete",
+    "all non-method failures are resolved",
+    "open-weight service teardown is sealed",
+    "C4 and cross-analysis Holm decisions are final"
+  ],
+  "checklist_sha256": "f5b0b8cd4bb1a310b39dbc96e146f4c9d00b8106e4344540d5e06b8d501f0e12"
+}
