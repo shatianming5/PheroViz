@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "c5_rejudge_batch.schema.json",
+  "title": "C5 sealed visual-form judge batch",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "status",
+    "source",
+    "judge_id",
+    "judge_request_model",
+    "judge_expected_served_model",
+    "judge_served_models",
+    "judge_protocol",
+    "judge_endpoint_class",
+    "judge_max_tokens",
+    "judge_config_hash",
+    "model_registry_sha256",
+    "rubric_hash",
+    "prompt_hash",
+    "input_manifest",
+    "input_manifest_hash",
+    "source_summary_hash",
+    "source_summary_sha256",
+    "selected_render_hashes",
+    "code_git_commit",
+    "code_git_dirty",
+    "completed",
+    "resumed",
+    "failures",
+    "sidecar_hashes",
+    "batch_hash"
+  ],
+  "properties": {
+    "schema_version": {"const": "2.0"},
+    "status": {"enum": ["completed", "failed"]},
+    "judge_id": {
+      "enum": ["visual-form-primary-v1", "visual-form-secondary-v1"]
+    },
+    "judge_request_model": {
+      "enum": ["claude-sonnet-4.6", "gemini-3.5-flash"]
+    },
+    "judge_expected_served_model": {
+      "enum": ["claude-sonnet-4.6", "gemini-3.5-flash"]
+    },
+    "judge_protocol": {"const": "anthropic_messages"},
+    "judge_endpoint_class": {"const": "anthropic_compatibility_gateway"},
+    "judge_max_tokens": {"const": 1024},
+    "code_git_dirty": {"const": false},
+    "input_manifest": {"type": "object"},
+    "completed": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "resumed": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "failures": {"type": "array"},
+    "sidecar_hashes": {
+      "type": "object",
+      "additionalProperties": {"$ref": "#/$defs/sha256"}
+    },
+    "selected_render_hashes": {
+      "type": "object",
+      "additionalProperties": {"$ref": "#/$defs/sha256"}
+    },
+    "judge_config_hash": {"$ref": "#/$defs/sha256"},
+    "model_registry_sha256": {"$ref": "#/$defs/sha256"},
+    "rubric_hash": {"$ref": "#/$defs/sha256"},
+    "prompt_hash": {"$ref": "#/$defs/sha256"},
+    "input_manifest_hash": {"$ref": "#/$defs/sha256"},
+    "source_summary_hash": {"$ref": "#/$defs/sha256"},
+    "source_summary_sha256": {"$ref": "#/$defs/sha256"},
+    "batch_hash": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "additionalProperties": true
+}

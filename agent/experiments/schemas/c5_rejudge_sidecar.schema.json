@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "c5_rejudge_sidecar.schema.json",
+  "title": "C5 sealed visual-form judge sidecar",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "status",
+    "run_name",
+    "record_hash",
+    "best_candidate_id",
+    "artifact_label",
+    "render_sha256",
+    "judge_id",
+    "judge_request_model",
+    "judge_expected_served_model",
+    "judge_served_model",
+    "judge_protocol",
+    "judge_endpoint_class",
+    "judge_max_tokens",
+    "rubric_hash",
+    "prompt_hash",
+    "input_manifest_hash",
+    "source_summary_hash",
+    "source_summary_sha256",
+    "code_git_commit",
+    "code_git_dirty",
+    "score",
+    "diagnostics",
+    "sidecar_hash"
+  ],
+  "properties": {
+    "schema_version": {"const": "2.0"},
+    "status": {"enum": ["completed", "failed"]},
+    "render_sha256": {"$ref": "#/$defs/sha256"},
+    "record_hash": {"$ref": "#/$defs/sha256"},
+    "rubric_hash": {"$ref": "#/$defs/sha256"},
+    "prompt_hash": {"$ref": "#/$defs/sha256"},
+    "input_manifest_hash": {"$ref": "#/$defs/sha256"},
+    "source_summary_hash": {"$ref": "#/$defs/sha256"},
+    "source_summary_sha256": {"$ref": "#/$defs/sha256"},
+    "sidecar_hash": {"$ref": "#/$defs/sha256"},
+    "judge_request_model": {
+      "enum": ["claude-sonnet-4.6", "gemini-3.5-flash"]
+    },
+    "judge_expected_served_model": {
+      "enum": ["claude-sonnet-4.6", "gemini-3.5-flash"]
+    },
+    "judge_served_model": {
+      "enum": ["claude-sonnet-4.6", "gemini-3.5-flash", null]
+    },
+    "judge_protocol": {"const": "anthropic_messages"},
+    "judge_endpoint_class": {"const": "anthropic_compatibility_gateway"},
+    "judge_max_tokens": {"const": 1024},
+    "code_git_dirty": {"const": false},
+    "score": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+    "diagnostics": {"type": "array", "items": {"type": "string"}}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "additionalProperties": true
+}

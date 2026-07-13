@@ -118,6 +118,94 @@ def _write_summary(path: Path, rows: Sequence[Mapping[str, Any]]) -> Path:
     return path
 
 
+def _write_c5_summary(
+    path: Path,
+    primary_scores: Mapping[str, float],
+    secondary_scores: Mapping[str, float],
+) -> Path:
+    rows = []
+    for method in primary_scores:
+        for case_id in ("case-1", "case-2"):
+            row = _row(method, case_id, primary_scores[method])
+            row["metric.visual_form.claude-sonnet-4.6"] = primary_scores[method]
+            row["metric.visual_form.gemini-3.5-flash"] = secondary_scores[method]
+            rows.append(row)
+    _write_summary(path, rows)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    original_hash = payload["summary_hash"]
+    payload.pop("summary_hash")
+    completed = {row["run_name"] for row in rows}
+    input_manifest_hash = _digest("c5-input-manifest")
+    registry_hash = _digest("c5-registry")
+
+    def judge(
+        judge_id: str,
+        model: str,
+        metric: str,
+    ) -> dict[str, Any]:
+        return {
+            "judge_id": judge_id,
+            "judge_request_model": model,
+            "judge_expected_served_model": model,
+            "judge_served_models": [model],
+            "metric": metric,
+            "input_manifest_hash": input_manifest_hash,
+            "batch_hash": _digest(f"batch-{judge_id}"),
+            "rubric_hash": _digest("rubric"),
+            "prompt_hash": _digest("prompt"),
+            "source_summary_hash": original_hash,
+            "source_summary_sha256": _digest("source-file"),
+            "model_registry_sha256": registry_hash,
+            "judge_config_hash": _digest(f"config-{judge_id}"),
+            "metric_values_hash": sha256_json(
+                {
+                    row["run_name"]: row[metric]
+                    for row in sorted(rows, key=lambda item: item["run_name"])
+                }
+            ),
+            "judge_max_tokens": 1024,
+            "code_git_commit": "d" * 40,
+            "code_git_dirty": False,
+            "sidecar_hashes": {
+                run_name: _digest(f"{judge_id}-{run_name}")
+                for run_name in completed
+            },
+            "selected_render_hashes": {
+                run_name: _digest(f"render-{run_name}")
+                for run_name in completed
+            },
+        }
+
+    payload["original_summary_hash"] = original_hash
+    payload["c5_rejudge"] = {
+        "schema_version": "2.0",
+        "original_summary_hash": original_hash,
+        "input_manifest_hash": input_manifest_hash,
+        "rubric_hash": _digest("rubric"),
+        "prompt_hash": _digest("prompt"),
+        "judge_order": [
+            "visual-form-primary-v1",
+            "visual-form-secondary-v1",
+        ],
+        "judges": {
+            "visual-form-primary-v1": judge(
+                "visual-form-primary-v1",
+                "claude-sonnet-4.6",
+                "metric.visual_form.claude-sonnet-4.6",
+            ),
+            "visual-form-secondary-v1": judge(
+                "visual-form-secondary-v1",
+                "gemini-3.5-flash",
+                "metric.visual_form.gemini-3.5-flash",
+            ),
+        },
+    }
+    payload["columns"] = sorted({key for row in rows for key in row})
+    payload["summary_hash"] = sha256_json(payload)
+    write_json_atomic(path, payload)
+    return path
+
+
 def test_paired_bootstrap_is_known_and_deterministic() -> None:
     constant = paired_bootstrap([2.0, 2.0, 2.0], seed=41, resamples=250)
     first = paired_bootstrap([1.0, -1.0, 2.0], seed=41, resamples=250)
@@ -555,7 +643,7 @@ def test_ordinal_panel_trend_and_holm_use_doi_clusters() -> None:
             result["comparison_families"]["panel_trend"]["adjustment"]
             == "holm"
         )
-        assert analysis["analysis_version"] == "3.1"
+        assert analysis["analysis_version"] == "3.2"
         assert analysis["right_censored_rmst"]["status"] == "not_implemented"
         assert "censoring" in analysis["right_censored_rmst"]["reason"]
 
@@ -890,6 +978,184 @@ def test_kendall_bootstrap_fails_closed_on_undefined_resamples() -> None:
         assert uncertainty["status"] == "not_estimable"
         assert uncertainty["ci95"] is None
         assert uncertainty["undefined_resamples"] > 0
+
+
+def test_c5_analysis_binds_batches_and_emits_frozen_pass(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _workspace("c5-pass") as workspace:
+        summary = load_provenance_summary(
+            _write_c5_summary(
+                workspace / "summary.json",
+                {
+                    "best_of_n": 0.3,
+                    "flat_iterative": 0.6,
+                    "pheroviz_full": 0.9,
+                },
+                {
+                    "best_of_n": 0.2,
+                    "flat_iterative": 0.5,
+                    "pheroviz_full": 0.8,
+                },
+            )
+        )
+        monkeypatch.setattr(
+            production_statistics,
+            "_git_provenance",
+            lambda: ("e" * 40, False),
+        )
+
+        analysis = analyze_summary(
+            summary,
+            reference="flat_iterative",
+            methods=["best_of_n", "pheroviz_full"],
+            metric="metric.visual_form.claude-sonnet-4.6",
+            second_judge_metric="metric.visual_form.gemini-3.5-flash",
+            bootstrap_resamples=50,
+            monte_carlo_permutations=50,
+        )
+
+        assert analysis["c5_provenance"]["input_summary_hash"] == summary.summary_hash
+        assert set(analysis["c5_provenance"]["batch_hashes"]) == {
+            "visual-form-primary-v1",
+            "visual-form-secondary-v1",
+        }
+        assert analysis["c5_decision"]["status"] == "pass"
+        assert analysis["c5_decision"]["concordance_claim_permitted"] is True
+        assert analysis["c5_decision"]["programmatic_correctness_privileged"] is True
+        ranking = analysis["slices"][0]["rankings"]
+        assert ranking["kendall_tau_b"] == 1.0
+        assert ranking["c5_decision"]["point_threshold"] == 0.5
+        assert ranking["c5_decision"]["ci_lower_comparison"] == ">"
+
+
+def test_c5_analysis_fails_decision_without_promoting_visual_correctness(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _workspace("c5-fail") as workspace:
+        summary = load_provenance_summary(
+            _write_c5_summary(
+                workspace / "summary.json",
+                {
+                    "best_of_n": 0.3,
+                    "flat_iterative": 0.6,
+                    "pheroviz_full": 0.9,
+                },
+                {
+                    "best_of_n": 0.9,
+                    "flat_iterative": 0.6,
+                    "pheroviz_full": 0.3,
+                },
+            )
+        )
+        monkeypatch.setattr(
+            production_statistics,
+            "_git_provenance",
+            lambda: ("e" * 40, False),
+        )
+
+        analysis = analyze_summary(
+            summary,
+            reference="flat_iterative",
+            methods=["best_of_n", "pheroviz_full"],
+            metric="metric.visual_form.claude-sonnet-4.6",
+            second_judge_metric="metric.visual_form.gemini-3.5-flash",
+            bootstrap_resamples=25,
+            monte_carlo_permutations=25,
+        )
+
+        assert analysis["c5_decision"]["status"] == "fail"
+        assert analysis["c5_decision"]["concordance_claim_permitted"] is False
+        assert "rankings separately" in analysis["c5_decision"]["failure_behavior"]
+        assert analysis["c5_provenance"]["programmatic_correctness_privileged"]
+
+
+def test_c5_analysis_rejects_missing_batch_or_dirty_code(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _workspace("c5-provenance-fail") as workspace:
+        path = _write_c5_summary(
+            workspace / "summary.json",
+            {
+                "best_of_n": 0.3,
+                "flat_iterative": 0.6,
+                "pheroviz_full": 0.9,
+            },
+            {
+                "best_of_n": 0.2,
+                "flat_iterative": 0.5,
+                "pheroviz_full": 0.8,
+            },
+        )
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload["c5_rejudge"]["judges"]["visual-form-primary-v1"].pop("batch_hash")
+        payload.pop("summary_hash")
+        payload["summary_hash"] = sha256_json(payload)
+        write_json_atomic(path, payload)
+        with pytest.raises(StatisticsError, match="batch_hash"):
+            analyze_summary(
+                load_provenance_summary(path),
+                reference="flat_iterative",
+                methods=["best_of_n", "pheroviz_full"],
+                metric="metric.visual_form.claude-sonnet-4.6",
+                second_judge_metric="metric.visual_form.gemini-3.5-flash",
+                bootstrap_resamples=10,
+                monte_carlo_permutations=10,
+            )
+
+        with pytest.raises(StatisticsError, match="Claude primary"):
+            analyze_summary(
+                load_provenance_summary(
+                    _write_c5_summary(
+                        workspace / "reversed.json",
+                        {
+                            "best_of_n": 0.3,
+                            "flat_iterative": 0.6,
+                            "pheroviz_full": 0.9,
+                        },
+                        {
+                            "best_of_n": 0.2,
+                            "flat_iterative": 0.5,
+                            "pheroviz_full": 0.8,
+                        },
+                    )
+                ),
+                reference="flat_iterative",
+                methods=["best_of_n", "pheroviz_full"],
+                metric="metric.visual_form.gemini-3.5-flash",
+                second_judge_metric="metric.visual_form.claude-sonnet-4.6",
+                bootstrap_resamples=10,
+                monte_carlo_permutations=10,
+            )
+
+        clean_path = _write_c5_summary(
+            workspace / "clean.json",
+            {
+                "best_of_n": 0.3,
+                "flat_iterative": 0.6,
+                "pheroviz_full": 0.9,
+            },
+            {
+                "best_of_n": 0.2,
+                "flat_iterative": 0.5,
+                "pheroviz_full": 0.8,
+            },
+        )
+        monkeypatch.setattr(
+            production_statistics,
+            "_git_provenance",
+            lambda: ("e" * 40, True),
+        )
+        with pytest.raises(StatisticsError, match="dirty"):
+            analyze_summary(
+                load_provenance_summary(clean_path),
+                reference="flat_iterative",
+                methods=["best_of_n", "pheroviz_full"],
+                metric="metric.visual_form.claude-sonnet-4.6",
+                second_judge_metric="metric.visual_form.gemini-3.5-flash",
+                bootstrap_resamples=10,
+                monte_carlo_permutations=10,
+            )
 
 
 @pytest.mark.parametrize(

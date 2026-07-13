@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "c5_summary_provenance.schema.json",
+  "title": "C5 dual-judge merged-summary provenance",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "original_summary_hash",
+    "original_summary_sha256",
+    "input_manifest_hash",
+    "rubric_hash",
+    "prompt_hash",
+    "judge_order",
+    "judges",
+    "merge_parent_summary_hashes"
+  ],
+  "properties": {
+    "schema_version": {"const": "2.0"},
+    "original_summary_hash": {"$ref": "#/$defs/sha256"},
+    "original_summary_sha256": {"$ref": "#/$defs/sha256"},
+    "input_manifest_hash": {"$ref": "#/$defs/sha256"},
+    "rubric_hash": {"$ref": "#/$defs/sha256"},
+    "prompt_hash": {"$ref": "#/$defs/sha256"},
+    "judge_order": {
+      "type": "array",
+      "items": {
+        "enum": ["visual-form-primary-v1", "visual-form-secondary-v1"]
+      },
+      "minItems": 1,
+      "maxItems": 2,
+      "uniqueItems": true
+    },
+    "judges": {
+      "type": "object",
+      "propertyNames": {
+        "enum": ["visual-form-primary-v1", "visual-form-secondary-v1"]
+      },
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "batch_hash",
+          "metric",
+          "metric_values_hash",
+          "sidecar_hashes",
+          "selected_render_hashes",
+          "input_manifest_hash",
+          "source_summary_hash"
+        ]
+      }
+    },
+    "merge_parent_summary_hashes": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/sha256"},
+      "minItems": 1,
+      "maxItems": 2
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "additionalProperties": false
+}

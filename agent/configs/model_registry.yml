@@ -30,16 +30,34 @@ generators:
 
 visual_judges:
   primary:
+    judge_id: visual-form-primary-v1
     request_model: claude-sonnet-4.6
+    served_model: claude-sonnet-4.6
     protocol: anthropic_messages
+    endpoint_class: anthropic_compatibility_gateway
     base_url_env: ANTHROPIC_BASE_URL
     api_key_env: ANTHROPIC_AUTH_TOKEN
     max_tokens: 1024
+    timeout_seconds: 180
+    connect_timeout_seconds: 10
+    retries: 2
+    rubric_version: visual-form-v1
+    rubric_hash: 259261257f56eacd8c700747e127ff71373c5d9f973b0ffb25e356be0c0ccc16
+    prompt_hash: fa2c1f6199df16fe6d2e47e413f43f1637e464608e212b2a01f66305ab078de1
     model_cutoff: null
   secondary:
+    judge_id: visual-form-secondary-v1
     request_model: gemini-3.5-flash
+    served_model: gemini-3.5-flash
     protocol: anthropic_messages
+    endpoint_class: anthropic_compatibility_gateway
     base_url_env: ANTHROPIC_BASE_URL
     api_key_env: ANTHROPIC_AUTH_TOKEN
     max_tokens: 1024
+    timeout_seconds: 180
+    connect_timeout_seconds: 10
+    retries: 2
+    rubric_version: visual-form-v1
+    rubric_hash: 259261257f56eacd8c700747e127ff71373c5d9f973b0ffb25e356be0c0ccc16
+    prompt_hash: fa2c1f6199df16fe6d2e47e413f43f1637e464608e212b2a01f66305ab078de1
     model_cutoff: null

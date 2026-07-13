@@ -108,7 +108,12 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Read sealed best-candidate renders and run a post-hoc visual judge",
     )
     rejudge_parser.add_argument("source", type=Path)
-    rejudge_parser.add_argument("--judge-model", required=True)
+    rejudge_parser.add_argument(
+        "--judge-model",
+        required=True,
+        choices=("claude-sonnet-4.6", "gemini-3.5-flash"),
+        help="Exact frozen C5 judge request identity",
+    )
     rejudge_parser.add_argument("--out", type=Path, default=None)
     rejudge_parser.add_argument("--resume", action="store_true")
 
@@ -276,7 +281,7 @@ def _merge_rejudge_command(args: argparse.Namespace) -> int:
         json.dumps(
             {
                 "rejudged_summary": str(path),
-                "second_judge_metric": metric,
+                "merged_judge_metric": metric,
             },
             ensure_ascii=False,
             indent=2,

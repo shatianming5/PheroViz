@@ -54,3 +54,53 @@ def test_open_weight_registry_matches_remote_model_audit() -> None:
         "model_service_started": False,
         "gpu_workload_started": False,
     }
+
+
+def test_visual_judges_are_exactly_frozen_for_c5() -> None:
+    registry = yaml.safe_load(
+        (AGENT_ROOT / "configs" / "model_registry.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    judges = registry["visual_judges"]
+
+    assert set(judges) == {"primary", "secondary"}
+    assert {
+        judges["primary"]["request_model"],
+        judges["secondary"]["request_model"],
+    } == {"claude-sonnet-4.6", "gemini-3.5-flash"}
+    assert {
+        judges["primary"]["judge_id"],
+        judges["secondary"]["judge_id"],
+    } == {"visual-form-primary-v1", "visual-form-secondary-v1"}
+    for judge in judges.values():
+        assert judge["served_model"] == judge["request_model"]
+        assert judge["protocol"] == "anthropic_messages"
+        assert judge["endpoint_class"] == "anthropic_compatibility_gateway"
+        assert judge["base_url_env"] == "ANTHROPIC_BASE_URL"
+        assert judge["api_key_env"] == "ANTHROPIC_AUTH_TOKEN"
+        assert judge["max_tokens"] == 1024
+        assert judge["timeout_seconds"] == 180
+        assert judge["connect_timeout_seconds"] == 10
+        assert judge["retries"] == 2
+        assert judge["rubric_version"] == "visual-form-v1"
+        assert judge["rubric_hash"] == (
+            "259261257f56eacd8c700747e127ff71373c5d9f973b0ffb25e356be0c0ccc16"
+        )
+        assert judge["prompt_hash"] == (
+            "fa2c1f6199df16fe6d2e47e413f43f1637e464608e212b2a01f66305ab078de1"
+        )
+        assert judge["model_cutoff"] is None
+
+
+def test_c5_provenance_schemas_are_versioned() -> None:
+    schema_root = AGENT_ROOT / "experiments" / "schemas"
+    for name in (
+        "c5_rejudge_batch.schema.json",
+        "c5_rejudge_sidecar.schema.json",
+        "c5_summary_provenance.schema.json",
+    ):
+        schema = json.loads((schema_root / name).read_text(encoding="utf-8"))
+        assert schema["$schema"].endswith("2020-12/schema")
+        assert schema["type"] == "object"
+        assert schema["properties"]["schema_version"]["const"] == "2.0"

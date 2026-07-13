@@ -23,6 +23,7 @@ from experiments.rejudge import (
     CodeGitState,
     RejudgeError,
     SIDECAR_BATCH_FILENAME,
+    VISUAL_FORM_PROMPT_HASH,
     VISUAL_FORM_RUBRIC_HASH,
     merge_rejudged_summary,
     rejudge_batch,
@@ -84,10 +85,14 @@ class FakeModelClient:
         score: float = 0.75,
         stop_reason: str = "end_turn",
         error: Exception | None = None,
+        served_model: str | None = None,
+        on_call: Any = None,
     ) -> None:
         self.score = score
         self.stop_reason = stop_reason
         self.error = error
+        self.served_model = served_model
+        self.on_call = on_call
         self.calls: list[dict[str, Any]] = []
 
     def evaluate_image_json(
@@ -105,12 +110,14 @@ class FakeModelClient:
         )
         if self.error is not None:
             raise self.error
+        if self.on_call is not None:
+            self.on_call()
         return ModelResponse(
             value={
                 "visual_form": self.score,
                 "diagnostics": ["Text and layout are legible."],
             },
-            model="served-judge-v2",
+            model=self.served_model or str(kwargs["model"]),
             request_id="request-123",
             usage={"input_tokens": 10, "output_tokens": 5},
             stop_reason=self.stop_reason,
@@ -196,13 +203,17 @@ def test_rejudge_binds_best_render_is_read_only_and_resumes() -> None:
         spec, record = _create_run(workspace)
         run_root = Path(spec.artifact_root)
         run_dir = run_root / record.run_name
+        _, summary_path = aggregate_runs(
+            run_root,
+            output_dir=workspace / "summary",
+        )
         before = _run_snapshot(run_dir)
         client = FakeModelClient()
         sidecar_dir = workspace / "sidecars"
 
         first = rejudge_batch(
-            run_root,
-            judge_model="judge/model-v1",
+            summary_path,
+            judge_model="claude-sonnet-4.6",
             output_dir=sidecar_dir,
             model_client=client,
         )
@@ -210,15 +221,16 @@ def test_rejudge_binds_best_render_is_read_only_and_resumes() -> None:
         assert first.exit_code == 0
         assert len(client.calls) == 1
         assert "call_0002" in client.calls[0]["image_path"].as_posix()
-        assert client.calls[0]["kwargs"]["model"] == "judge/model-v1"
+        assert client.calls[0]["kwargs"]["model"] == "claude-sonnet-4.6"
+        assert client.calls[0]["kwargs"]["max_tokens"] == 1024
         payload = json.loads(_sidecar_path(sidecar_dir).read_text(encoding="utf-8"))
         assert payload["run_name"] == record.run_name
         assert payload["record_hash"] == record.record_hash
         assert payload["render_sha256"] == sha256_file(
             client.calls[0]["image_path"]
         )
-        assert payload["judge_request_model"] == "judge/model-v1"
-        assert payload["judge_served_model"] == "served-judge-v2"
+        assert payload["judge_request_model"] == "claude-sonnet-4.6"
+        assert payload["judge_served_model"] == "claude-sonnet-4.6"
         assert payload["rubric_hash"] == VISUAL_FORM_RUBRIC_HASH
         assert payload["code_git_commit"] == CLEAN_CODE_COMMIT
         assert payload["code_git_dirty"] is False
@@ -233,8 +245,8 @@ def test_rejudge_binds_best_render_is_read_only_and_resumes() -> None:
         assert batch["code_git_dirty"] is False
 
         resumed = rejudge_batch(
-            run_root,
-            judge_model="judge/model-v1",
+            summary_path,
+            judge_model="claude-sonnet-4.6",
             output_dir=sidecar_dir,
             resume=True,
             model_client=client,
@@ -249,11 +261,15 @@ def test_rejudge_binds_best_render_is_read_only_and_resumes() -> None:
 def test_resume_rejects_rejudge_code_commit_mismatch() -> None:
     with experiment_workspace("rejudge-commit-mismatch") as workspace:
         spec, _ = _create_run(workspace, scores=(0.8,))
+        _, summary_path = aggregate_runs(
+            Path(spec.artifact_root),
+            output_dir=workspace / "summary",
+        )
         sidecar_dir = workspace / "sidecars"
         client = FakeModelClient()
         first = rejudge_batch(
-            Path(spec.artifact_root),
-            judge_model="judge-a",
+            summary_path,
+            judge_model="claude-sonnet-4.6",
             output_dir=sidecar_dir,
             model_client=client,
             git_state=CodeGitState(commit="a" * 40, dirty=False),
@@ -261,8 +277,8 @@ def test_resume_rejects_rejudge_code_commit_mismatch() -> None:
         assert first.exit_code == 0
 
         resumed = rejudge_batch(
-            Path(spec.artifact_root),
-            judge_model="judge-a",
+            summary_path,
+            judge_model="claude-sonnet-4.6",
             output_dir=sidecar_dir,
             resume=True,
             model_client=client,
@@ -277,12 +293,16 @@ def test_resume_rejects_rejudge_code_commit_mismatch() -> None:
 def test_dirty_rejudge_code_is_rejected_by_default() -> None:
     with experiment_workspace("rejudge-dirty") as workspace:
         spec, _ = _create_run(workspace, scores=(0.8,))
+        _, summary_path = aggregate_runs(
+            Path(spec.artifact_root),
+            output_dir=workspace / "summary",
+        )
         client = FakeModelClient()
 
         with pytest.raises(RejudgeError, match="worktree is dirty"):
             rejudge_batch(
-                Path(spec.artifact_root),
-                judge_model="judge-a",
+                summary_path,
+                judge_model="claude-sonnet-4.6",
                 output_dir=workspace / "sidecars",
                 model_client=client,
                 git_state=CodeGitState(commit="a" * 40, dirty=True),
@@ -295,11 +315,15 @@ def test_dirty_rejudge_code_is_rejected_by_default() -> None:
 def test_resume_rejects_tampered_sidecar() -> None:
     with experiment_workspace("rejudge-sidecar-tamper") as workspace:
         spec, _ = _create_run(workspace, scores=(0.8,))
+        _, summary_path = aggregate_runs(
+            Path(spec.artifact_root),
+            output_dir=workspace / "summary",
+        )
         client = FakeModelClient()
         sidecar_dir = workspace / "sidecars"
         first = rejudge_batch(
-            Path(spec.artifact_root),
-            judge_model="judge-a",
+            summary_path,
+            judge_model="claude-sonnet-4.6",
             output_dir=sidecar_dir,
             model_client=client,
         )
@@ -310,8 +334,8 @@ def test_resume_rejects_tampered_sidecar() -> None:
         sidecar.write_text(json.dumps(payload), encoding="utf-8")
 
         resumed = rejudge_batch(
-            Path(spec.artifact_root),
-            judge_model="judge-a",
+            summary_path,
+            judge_model="claude-sonnet-4.6",
             output_dir=sidecar_dir,
             resume=True,
             model_client=client,
@@ -325,6 +349,10 @@ def test_resume_rejects_tampered_sidecar() -> None:
 def test_render_tamper_fails_before_model_call() -> None:
     with experiment_workspace("rejudge-render-tamper") as workspace:
         spec, record = _create_run(workspace, scores=(0.8,))
+        _, summary_path = aggregate_runs(
+            Path(spec.artifact_root),
+            output_dir=workspace / "summary",
+        )
         run_dir = Path(spec.artifact_root) / record.run_name
         best = next(
             item
@@ -335,19 +363,14 @@ def test_render_tamper_fails_before_model_call() -> None:
         render.write_bytes(render.read_bytes() + b"tamper")
         client = FakeModelClient()
 
-        result = rejudge_batch(
-            Path(spec.artifact_root),
-            judge_model="judge-a",
-            output_dir=workspace / "sidecars",
-            model_client=client,
-        )
-
-        assert result.exit_code == 1
-        assert "integrity check" in result.failures[0]["message"]
+        with pytest.raises(RejudgeError, match="integrity check"):
+            rejudge_batch(
+                summary_path,
+                judge_model="claude-sonnet-4.6",
+                output_dir=workspace / "sidecars",
+                model_client=client,
+            )
         assert client.calls == []
-        batch = json.loads(result.batch_path.read_text(encoding="utf-8"))
-        assert batch["status"] == "failed"
-        assert batch["failures"]
 
 
 @pytest.mark.parametrize(
@@ -369,11 +392,15 @@ def test_model_failure_or_truncation_never_falls_back(
 ) -> None:
     with experiment_workspace("rejudge-model-failure") as workspace:
         spec, _ = _create_run(workspace, scores=(0.8,))
+        _, summary_path = aggregate_runs(
+            Path(spec.artifact_root),
+            output_dir=workspace / "summary",
+        )
         sidecar_dir = workspace / "sidecars"
 
         result = rejudge_batch(
-            Path(spec.artifact_root),
-            judge_model="judge-a",
+            summary_path,
+            judge_model="claude-sonnet-4.6",
             output_dir=sidecar_dir,
             model_client=client,
         )
@@ -395,7 +422,7 @@ def test_merge_creates_new_hashed_summary_and_preserves_original() -> None:
         sidecar_dir = workspace / "sidecars"
         result = rejudge_batch(
             summary_path,
-            judge_model="judge/model-v1",
+            judge_model="claude-sonnet-4.6",
             output_dir=sidecar_dir,
             model_client=FakeModelClient(score=0.61),
         )
@@ -408,15 +435,19 @@ def test_merge_creates_new_hashed_summary_and_preserves_original() -> None:
         )
 
         assert summary_path.read_bytes() == original_bytes
-        assert metric == "metric.visual_form.judge-model-v1"
+        assert metric == "metric.visual_form.claude-sonnet-4.6"
         merged = json.loads(merged_path.read_text(encoding="utf-8"))
         assert merged["original_summary_hash"] == original["summary_hash"]
         assert merged["summary_hash"] != original["summary_hash"]
         assert merged["runs"][0][metric] == 0.61
         assert merged["runs"][0]["record_hash"] == record.record_hash
         assert metric in merged["columns"]
-        assert merged["rejudge"]["code_git_commit"] == CLEAN_CODE_COMMIT
-        assert merged["rejudge"]["code_git_dirty"] is False
+        primary = merged["c5_rejudge"]["judges"]["visual-form-primary-v1"]
+        assert primary["code_git_commit"] == CLEAN_CODE_COMMIT
+        assert primary["code_git_dirty"] is False
+        assert primary["batch_hash"] == json.loads(
+            result.batch_path.read_text(encoding="utf-8")
+        )["batch_hash"]
         validated = load_provenance_summary(merged_path)
         assert validated.summary_hash == merged["summary_hash"]
 
@@ -435,7 +466,7 @@ def test_rejudge_zeros_failed_methods_without_sidecars() -> None:
 
         result = rejudge_batch(
             summary_path,
-            judge_model="judge/model-v1",
+            judge_model="claude-sonnet-4.6",
             output_dir=sidecar_dir,
             model_client=client,
         )
@@ -457,7 +488,9 @@ def test_rejudge_zeros_failed_methods_without_sidecars() -> None:
         merged = json.loads(merged_path.read_text(encoding="utf-8"))
         rows = {row["run_name"]: row for row in merged["runs"]}
         assert rows[failed_record.run_name][metric] == 0.0
-        assert merged["rejudge"]["failed_zero_runs"] == [
+        assert merged["c5_rejudge"]["judges"]["visual-form-primary-v1"][
+            "failed_zero_runs"
+        ] == [
             failed_record.run_name
         ]
 
@@ -470,8 +503,8 @@ def test_rejudge_all_failed_summary_needs_no_render_sidecars() -> None:
         client = FakeModelClient()
 
         result = rejudge_batch(
-            Path(spec.artifact_root),
-            judge_model="judge/model-v1",
+            summary_path,
+            judge_model="claude-sonnet-4.6",
             output_dir=sidecar_dir,
             model_client=client,
         )
@@ -490,7 +523,9 @@ def test_rejudge_all_failed_summary_needs_no_render_sidecars() -> None:
         merged = json.loads(merged_path.read_text(encoding="utf-8"))
         assert merged["runs"][0]["run_name"] == failed_record.run_name
         assert merged["runs"][0][metric] == 0.0
-        assert merged["rejudge"]["sidecar_hashes"] == {}
+        assert merged["c5_rejudge"]["judges"]["visual-form-primary-v1"][
+            "sidecar_hashes"
+        ] == {}
 
 
 def test_merge_requires_exact_completed_sidecar_coverage() -> None:
@@ -500,7 +535,7 @@ def test_merge_requires_exact_completed_sidecar_coverage() -> None:
         sidecar_dir = workspace / "sidecars"
         result = rejudge_batch(
             summary_path,
-            judge_model="judge/model-v1",
+            judge_model="claude-sonnet-4.6",
             output_dir=sidecar_dir,
             model_client=FakeModelClient(),
         )
@@ -513,7 +548,7 @@ def test_merge_requires_exact_completed_sidecar_coverage() -> None:
         batch["batch_hash"] = sha256_json(batch)
         batch_path.write_text(json.dumps(batch), encoding="utf-8")
 
-        with pytest.raises(RejudgeError, match="completed summary runs"):
+        with pytest.raises(RejudgeError, match="input manifest"):
             merge_rejudged_summary(
                 summary_path,
                 sidecar_dir,
@@ -531,9 +566,9 @@ def test_cli_rejudge_and_merge_commands(
         sidecar_dir = workspace / "sidecars"
         fake = FakeModelClient()
         monkeypatch.setattr(
-            rejudge_module.ModelClient,
-            "from_env",
-            classmethod(lambda cls, **kwargs: fake),
+            rejudge_module,
+            "_model_client_from_config",
+            lambda config: fake,
         )
 
         rejudge_exit = main(
@@ -541,7 +576,7 @@ def test_cli_rejudge_and_merge_commands(
                 "rejudge",
                 str(summary_path),
                 "--judge-model",
-                "judge-cli",
+                "claude-sonnet-4.6",
                 "--out",
                 str(sidecar_dir),
             ]
@@ -564,8 +599,8 @@ def test_cli_rejudge_and_merge_commands(
         assert merge_exit == 0
         assert merge_output["rejudged_summary"] == str(merged_path)
         assert (
-            merge_output["second_judge_metric"]
-            == "metric.visual_form.judge-cli"
+            merge_output["merged_judge_metric"]
+            == "metric.visual_form.claude-sonnet-4.6"
         )
 
 
@@ -575,20 +610,24 @@ def test_cli_rejudge_returns_nonzero_and_records_batch_failure(
 ) -> None:
     with experiment_workspace("rejudge-cli-failure") as workspace:
         spec, _ = _create_run(workspace, scores=(0.8,))
+        _, summary_path = aggregate_runs(
+            Path(spec.artifact_root),
+            output_dir=workspace / "summary",
+        )
         sidecar_dir = workspace / "sidecars"
         fake = FakeModelClient(error=ModelClientError("intentional outage"))
         monkeypatch.setattr(
-            rejudge_module.ModelClient,
-            "from_env",
-            classmethod(lambda cls, **kwargs: fake),
+            rejudge_module,
+            "_model_client_from_config",
+            lambda config: fake,
         )
 
         exit_code = main(
             [
                 "rejudge",
-                str(Path(spec.artifact_root)),
+                str(summary_path),
                 "--judge-model",
-                "judge-cli",
+                "claude-sonnet-4.6",
                 "--out",
                 str(sidecar_dir),
             ]
@@ -602,3 +641,178 @@ def test_cli_rejudge_returns_nonzero_and_records_batch_failure(
         )
         assert batch["status"] == "failed"
         assert batch["failures"][0]["message"] == "intentional outage"
+
+
+def test_rejudge_binds_frozen_manifest_and_excludes_request_leakage() -> None:
+    with experiment_workspace("rejudge-manifest") as workspace:
+        spec, record = _create_run(workspace, scores=(0.8,))
+        _, summary_path = aggregate_runs(Path(spec.artifact_root))
+        client = FakeModelClient()
+
+        result = rejudge_batch(
+            summary_path,
+            judge_model="claude-sonnet-4.6",
+            output_dir=workspace / "sidecars",
+            model_client=client,
+        )
+
+        assert result.exit_code == 0
+        batch = json.loads(result.batch_path.read_text(encoding="utf-8"))
+        sidecar = json.loads(
+            _sidecar_path(result.output_dir).read_text(encoding="utf-8")
+        )
+        manifest = batch["input_manifest"]
+        assert batch["prompt_hash"] == VISUAL_FORM_PROMPT_HASH
+        assert batch["judge_max_tokens"] == 1024
+        assert batch["judge_protocol"] == "anthropic_messages"
+        assert batch["judge_endpoint_class"] == "anthropic_compatibility_gateway"
+        assert manifest["source_summary_hash"] == load_provenance_summary(
+            summary_path
+        ).summary_hash
+        assert manifest["completed_runs"][0]["record_hash"] == record.record_hash
+        assert (
+            manifest["completed_runs"][0]["render_sha256"]
+            == sidecar["render_sha256"]
+        )
+        assert batch["selected_render_hashes"][record.run_name] == sidecar[
+            "render_sha256"
+        ]
+        assert sidecar["input_manifest_hash"] == batch["input_manifest_hash"]
+        prompt = client.calls[0]["prompt"]
+        assert record.method not in prompt
+        assert str(summary_path) not in prompt
+        assert "prior_scores" not in prompt
+
+
+def test_rejudge_rejects_unregistered_or_mismatched_identity() -> None:
+    with experiment_workspace("rejudge-identities") as workspace:
+        spec, _ = _create_run(workspace, scores=(0.8,))
+        _, summary_path = aggregate_runs(Path(spec.artifact_root))
+        client = FakeModelClient()
+
+        with pytest.raises(RejudgeError, match="exactly registered"):
+            rejudge_batch(
+                summary_path,
+                judge_model="judge-not-frozen",
+                output_dir=workspace / "unregistered",
+                model_client=client,
+            )
+        assert client.calls == []
+
+        mismatch = FakeModelClient(served_model="claude-sonnet-4.6-latest")
+        result = rejudge_batch(
+            summary_path,
+            judge_model="claude-sonnet-4.6",
+            output_dir=workspace / "mismatch",
+            model_client=mismatch,
+        )
+        assert result.exit_code == 1
+        assert "Served judge identity mismatch" in result.failures[0]["message"]
+
+
+def test_judge_client_uses_only_exact_registry_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ANTHROPIC_BASE_URL", "https://frozen-gateway.example")
+    monkeypatch.setenv("ANTHROPIC_AUTH_TOKEN", "test-token")
+    monkeypatch.setenv("MODEL_API_BASE", "https://wrong-precedence.example")
+    monkeypatch.setenv("LLM_MAX_TOKENS", "4096")
+    config = rejudge_module._load_judge_config("claude-sonnet-4.6")
+
+    client = rejudge_module._model_client_from_config(config)
+
+    assert client.config.base_url == "https://frozen-gateway.example"
+    assert client.config.model == "claude-sonnet-4.6"
+    assert client.config.max_tokens == 1024
+    assert client.config.retries == 2
+
+
+def test_rejudge_marks_batch_failed_if_source_changes_during_calls() -> None:
+    with experiment_workspace("rejudge-stale-source") as workspace:
+        spec, _ = _create_run(workspace, scores=(0.8,))
+        _, summary_path = aggregate_runs(Path(spec.artifact_root))
+
+        def mutate_summary() -> None:
+            summary_path.write_bytes(summary_path.read_bytes() + b"\n")
+
+        result = rejudge_batch(
+            summary_path,
+            judge_model="claude-sonnet-4.6",
+            output_dir=workspace / "sidecars",
+            model_client=FakeModelClient(on_call=mutate_summary),
+        )
+
+        assert result.exit_code == 1
+        assert result.failures[-1]["run_name"] == "__source_summary__"
+        batch = json.loads(result.batch_path.read_text(encoding="utf-8"))
+        assert batch["status"] == "failed"
+
+
+def test_merge_rejects_duplicate_sidecar_run_name() -> None:
+    with experiment_workspace("rejudge-duplicate-sidecar") as workspace:
+        spec, _ = _create_run(workspace, scores=(0.8,))
+        _, summary_path = aggregate_runs(Path(spec.artifact_root))
+        result = rejudge_batch(
+            summary_path,
+            judge_model="claude-sonnet-4.6",
+            output_dir=workspace / "sidecars",
+            model_client=FakeModelClient(),
+        )
+        duplicate = result.output_dir / "duplicate.json"
+        duplicate.write_bytes(_sidecar_path(result.output_dir).read_bytes())
+
+        with pytest.raises(RejudgeError, match="Duplicate sidecar"):
+            merge_rejudged_summary(
+                summary_path,
+                result.output_dir,
+                output_path=workspace / "merged.json",
+            )
+
+
+def test_two_judge_merge_preserves_independent_provenance() -> None:
+    with experiment_workspace("rejudge-dual-merge") as workspace:
+        spec, _ = _create_run(workspace, scores=(0.8,))
+        _, summary_path = aggregate_runs(Path(spec.artifact_root))
+        source = json.loads(summary_path.read_text(encoding="utf-8"))
+        primary = rejudge_batch(
+            summary_path,
+            judge_model="claude-sonnet-4.6",
+            output_dir=workspace / "primary",
+            model_client=FakeModelClient(score=0.7),
+        )
+        secondary = rejudge_batch(
+            summary_path,
+            judge_model="gemini-3.5-flash",
+            output_dir=workspace / "secondary",
+            model_client=FakeModelClient(score=0.8),
+        )
+        first_path, primary_metric = merge_rejudged_summary(
+            summary_path,
+            primary.output_dir,
+            output_path=workspace / "first.json",
+        )
+        final_path, secondary_metric = merge_rejudged_summary(
+            first_path,
+            secondary.output_dir,
+            output_path=workspace / "final.json",
+        )
+
+        final = json.loads(final_path.read_text(encoding="utf-8"))
+        c5 = final["c5_rejudge"]
+        assert final["original_summary_hash"] == source["summary_hash"]
+        assert set(c5["judges"]) == {
+            "visual-form-primary-v1",
+            "visual-form-secondary-v1",
+        }
+        assert c5["input_manifest_hash"] == json.loads(
+            primary.batch_path.read_text(encoding="utf-8")
+        )["input_manifest_hash"]
+        assert c5["judges"]["visual-form-primary-v1"]["batch_hash"] == json.loads(
+            primary.batch_path.read_text(encoding="utf-8")
+        )["batch_hash"]
+        assert c5["judges"]["visual-form-secondary-v1"]["batch_hash"] == json.loads(
+            secondary.batch_path.read_text(encoding="utf-8")
+        )["batch_hash"]
+        assert final["runs"][0][primary_metric] == 0.7
+        assert final["runs"][0][secondary_metric] == 0.8
+        assert load_provenance_summary(final_path).summary_hash == final["summary_hash"]

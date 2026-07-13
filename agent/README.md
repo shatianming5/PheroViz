@@ -119,6 +119,11 @@ MatPlotAgent 与 nvAgent 的单 panel case 若声明 `evaluation_expectation`，
 没有 expectation 的工程 manifest 仍只记录 `execution_success`；该流程不是
 OS sandbox，危险/不支持代码、非唯一 Figure、越界 artifact 或评测错误均失败
 关闭，且不声称 nvAgent 支持 multi-panel cohesion。
+MatPlotAgent mainworkflow 正常返回但缺少 code/PNG 时，driver 会写入带一次性
+invocation ID 的结构化 output-contract marker；只有该 marker 严格验签后才按
+method failure 记零行。API/auth/import/dependency、畸形 marker、adapter safety
+timeout，以及无法由 hash-bound static rejection 证明来源的 evaluator/config
+错误仍为 blocking failure；分类从不依赖 stderr/stdout/model 文本匹配。
 
 MatPlotAgent 与 nvAgent 的 paper-ready 单 panel 子轨分别由
 `experiments/baseline_specs/matplotagent-single-test-renderable-v1.json` 和
@@ -206,6 +211,17 @@ run 目录前检查 render budget 是正整数且能被每个已选 case 的 pan
 python -m experiments run \
   experiments/matrices/c1_c3_final_benchmark_v2_seed0.yaml --dry-run
 ```
+
+C3 memory-mode matrix 的 tracked template 是
+`experiments/matrices/c3_memory_modes_final_benchmark_v2_seed0_br6_gpt56sol.yaml`。
+它固定 renderable derivative manifest SHA-256、P=2/3/6 三个 test cases、
+六种 memory mode、seeds 0/1/2、`gpt-5.6-sol` 和 `B_R=6`，共 54 specs；
+tracked 文件不含绝对路径。正式运行前，必须在 clean relocated checkout 中用
+`experiments.c3_runtime_materializer` 生成 Git-ignored runtime matrix、spec
+hash manifest 和 summary。materializer 会重映射 `manifest_data_root`、绑定
+runtime commit/代码/manifest hashes，并拒绝未被 ignore policy 覆盖的 artifact
+root。F=1、C=1、renders=6 仅为 outcome-independent prospective quality
+threshold；wall-clock tau 仍为 BLOCKED，因此不存在可运行的 RMST config。
 
 ### C4 backbone tiers
 

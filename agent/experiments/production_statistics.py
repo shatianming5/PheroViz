@@ -35,9 +35,16 @@ _PANEL_STRATUM_SCORES = {
     stratum: float(index)
     for index, stratum in enumerate(_PANEL_STRATA, 1)
 }
-_ANALYSIS_VERSION = "3.1"
+_ANALYSIS_VERSION = "3.2"
+_SUPPORTED_ANALYSIS_VERSIONS = {"3.1", "3.2"}
 _HOLM_FAMILY_VERSION = "1.0"
 _PANEL_SCOPES = {"all", "single_panel", "multi_panel"}
+_C5_POINT_THRESHOLD = 0.5
+_C5_CI_LOWER_THRESHOLD = 0.0
+_C5_METRICS = {
+    "metric.visual_form.claude-sonnet-4.6": "visual-form-primary-v1",
+    "metric.visual_form.gemini-3.5-flash": "visual-form-secondary-v1",
+}
 
 
 class StatisticsError(ProvenanceError):
@@ -50,6 +57,7 @@ class ValidatedSummary:
     summary_hash: str
     source_root: Optional[Path]
     rows: tuple[Dict[str, Any], ...]
+    payload: Dict[str, Any]
 
 
 def _reject_json_constant(value: str) -> None:
@@ -260,6 +268,7 @@ def load_provenance_summary(path: Path) -> ValidatedSummary:
         summary_hash=recorded_hash,
         source_root=source_root,
         rows=tuple(validated),
+        payload=dict(data),
     )
 
 
@@ -834,6 +843,183 @@ def _kendall_doi_bootstrap(
     }
 
 
+def _c5_summary_provenance(
+    summary: ValidatedSummary,
+    primary_metric: str,
+    second_metric: Optional[str],
+) -> Optional[Dict[str, Any]]:
+    requested = {primary_metric}
+    if second_metric is not None:
+        requested.add(second_metric)
+    touches_c5 = any(metric.startswith("metric.visual_form.") for metric in requested)
+    if not touches_c5:
+        return None
+    if (
+        primary_metric != "metric.visual_form.claude-sonnet-4.6"
+        or second_metric != "metric.visual_form.gemini-3.5-flash"
+    ):
+        raise StatisticsError(
+            "C5 analysis requires Claude primary and Gemini secondary metrics"
+        )
+    c5 = summary.payload.get("c5_rejudge")
+    if not isinstance(c5, Mapping) or c5.get("schema_version") != "2.0":
+        raise StatisticsError("C5 summary lacks unambiguous dual-judge provenance")
+    if c5.get("original_summary_hash") != summary.payload.get(
+        "original_summary_hash"
+    ):
+        raise StatisticsError("C5 original summary lineage is inconsistent")
+    input_manifest_hash = c5.get("input_manifest_hash")
+    if (
+        not isinstance(input_manifest_hash, str)
+        or not _SHA256_RE.fullmatch(input_manifest_hash)
+    ):
+        raise StatisticsError("C5 input_manifest_hash is invalid")
+    judges = c5.get("judges")
+    order = c5.get("judge_order")
+    if (
+        not isinstance(judges, Mapping)
+        or set(judges) != set(_C5_METRICS.values())
+        or not isinstance(order, list)
+        or len(order) != 2
+        or set(order) != set(judges)
+    ):
+        raise StatisticsError("C5 summary must contain exactly two distinct judges")
+
+    batch_hashes: Dict[str, str] = {}
+    summary_source_hashes: set[str] = set()
+    registry_hashes: set[str] = set()
+    code_commits: set[str] = set()
+    render_binding_hashes: set[str] = set()
+    rubric_hashes: set[str] = set()
+    prompt_hashes: set[str] = set()
+    completed_names = {
+        str(row["run_name"])
+        for row in summary.rows
+        if row.get("status") == "completed"
+    }
+    for metric, judge_id in _C5_METRICS.items():
+        judge = judges.get(judge_id)
+        if not isinstance(judge, Mapping):
+            raise StatisticsError(f"C5 judge provenance is missing: {judge_id}")
+        batch_hash = judge.get("batch_hash")
+        if not isinstance(batch_hash, str) or not _SHA256_RE.fullmatch(batch_hash):
+            raise StatisticsError(f"C5 judge batch_hash is invalid: {judge_id}")
+        if (
+            judge.get("judge_id") != judge_id
+            or judge.get("judge_request_model")
+            != metric.removeprefix("metric.visual_form.")
+            or judge.get("judge_expected_served_model")
+            != metric.removeprefix("metric.visual_form.")
+            or judge.get("judge_served_models")
+            != (
+                [metric.removeprefix("metric.visual_form.")]
+                if completed_names
+                else []
+            )
+            or judge.get("metric") != metric
+            or judge.get("input_manifest_hash") != input_manifest_hash
+            or judge.get("code_git_dirty") is not False
+            or judge.get("judge_max_tokens") != 1024
+        ):
+            raise StatisticsError(f"C5 judge provenance mismatch: {judge_id}")
+        for name in (
+            "rubric_hash",
+            "prompt_hash",
+            "source_summary_hash",
+            "source_summary_sha256",
+            "model_registry_sha256",
+            "judge_config_hash",
+            "metric_values_hash",
+        ):
+            value = judge.get(name)
+            if not isinstance(value, str) or not _SHA256_RE.fullmatch(value):
+                raise StatisticsError(f"C5 {judge_id}.{name} is invalid")
+        sidecars = judge.get("sidecar_hashes")
+        renders = judge.get("selected_render_hashes")
+        if not isinstance(sidecars, Mapping) or not isinstance(renders, Mapping):
+            raise StatisticsError(f"C5 {judge_id} lacks sidecar/render hashes")
+        if set(sidecars) != completed_names:
+            raise StatisticsError(f"C5 {judge_id} sidecar coverage is not exact")
+        if set(renders) != completed_names:
+            raise StatisticsError(f"C5 {judge_id} render coverage is not exact")
+        if any(
+            not isinstance(value, str) or not _SHA256_RE.fullmatch(value)
+            for value in [*sidecars.values(), *renders.values()]
+        ):
+            raise StatisticsError(f"C5 {judge_id} has invalid sidecar/render hashes")
+        render_binding_hashes.add(sha256_json(dict(renders)))
+        metric_values = {
+            str(row["run_name"]): row.get(metric)
+            for row in sorted(summary.rows, key=lambda item: str(item["run_name"]))
+        }
+        if sha256_json(metric_values) != judge["metric_values_hash"]:
+            raise StatisticsError(f"C5 {judge_id} metric values are stale")
+        batch_hashes[judge_id] = batch_hash
+        summary_source_hashes.add(str(judge["source_summary_hash"]))
+        registry_hashes.add(str(judge["model_registry_sha256"]))
+        code_commits.add(str(judge.get("code_git_commit")))
+        rubric_hashes.add(str(judge["rubric_hash"]))
+        prompt_hashes.add(str(judge["prompt_hash"]))
+    if (
+        len(summary_source_hashes) != 1
+        or next(iter(summary_source_hashes)) != c5.get("original_summary_hash")
+        or len(registry_hashes) != 1
+        or len(code_commits) != 1
+        or len(render_binding_hashes) != 1
+        or len(rubric_hashes) != 1
+        or len(prompt_hashes) != 1
+        or next(iter(rubric_hashes)) != c5.get("rubric_hash")
+        or next(iter(prompt_hashes)) != c5.get("prompt_hash")
+    ):
+        raise StatisticsError("C5 judges do not share source/registry/code provenance")
+    return {
+        "status": "verified",
+        "input_summary_hash": summary.summary_hash,
+        "original_summary_hash": c5["original_summary_hash"],
+        "input_manifest_hash": input_manifest_hash,
+        "batch_hashes": batch_hashes,
+        "model_registry_sha256": next(iter(registry_hashes)),
+        "rejudge_code_git_commit": next(iter(code_commits)),
+        "programmatic_correctness_privileged": True,
+        "scope": (
+            "Visual-form agreement is supporting evidence only; programmatic "
+            "fidelity and cohesion remain authoritative for correctness."
+        ),
+    }
+
+
+def _c5_kendall_decision(uncertainty: Mapping[str, Any]) -> Dict[str, Any]:
+    estimate = uncertainty.get("estimate")
+    ci = uncertainty.get("ci95")
+    estimable = (
+        uncertainty.get("status") == "ok"
+        and isinstance(estimate, (int, float))
+        and not isinstance(estimate, bool)
+        and isinstance(ci, list)
+        and len(ci) == 2
+    )
+    passed = bool(
+        estimable
+        and float(estimate) >= _C5_POINT_THRESHOLD
+        and float(ci[0]) > _C5_CI_LOWER_THRESHOLD
+    )
+    return {
+        "status": (
+            "pass"
+            if passed
+            else ("fail" if estimable else "not_estimable")
+        ),
+        "point_threshold": _C5_POINT_THRESHOLD,
+        "point_comparison": ">=",
+        "ci_lower_threshold": _C5_CI_LOWER_THRESHOLD,
+        "ci_lower_comparison": ">",
+        "estimate": estimate,
+        "ci95": ci,
+        "concordance_claim_permitted": passed,
+        "programmatic_correctness_privileged": True,
+    }
+
+
 def _ranking_analysis(
     rows: Sequence[Mapping[str, Any]],
     methods: Sequence[str],
@@ -906,6 +1092,15 @@ def _ranking_analysis(
                 "ok"
                 if uncertainty["status"] == "ok"
                 else "not_estimable"
+            ),
+            "c5_decision": (
+                _c5_kendall_decision(uncertainty)
+                if {
+                    primary_metric,
+                    second_judge_metric,
+                }
+                == set(_C5_METRICS)
+                else None
             ),
         }
     )
@@ -1744,12 +1939,13 @@ def analyze_summary(
     monte_carlo_permutations: int = 100_000,
     exact_max_n: int = 16,
 ) -> Dict[str, Any]:
-    """Build analysis schema v3.1.
+    """Build analysis schema v3.2.
 
     Version 3.1 adds a provenance-recorded panel scope so structurally
     inapplicable single-panel cohesion rows can be excluded before pairing.
     When and only when an explicit trajectory threshold is supplied, the same
     schema also emits the provenance-checked C3 right-censored extension.
+    Version 3.2 adds provenance-bound dual-judge C5 decisions.
     No production quality threshold is defined in code.
     """
 
@@ -1765,6 +1961,11 @@ def analyze_summary(
         raise StatisticsError(
             f"panel_scope must be one of {sorted(_PANEL_SCOPES)}"
         )
+    c5_provenance = _c5_summary_provenance(
+        summary,
+        metric,
+        second_judge_metric,
+    )
     normalized_trajectory: Optional[Dict[str, Any]] = None
     if trajectory_threshold is not None:
         normalized_trajectory = normalize_trajectory_threshold_config(
@@ -2063,13 +2264,53 @@ def analyze_summary(
             "resamples": bootstrap_resamples,
         },
     }
+    if c5_provenance is not None:
+        config["c5_frozen_decision"] = {
+            "point_threshold": _C5_POINT_THRESHOLD,
+            "point_comparison": ">=",
+            "ci_lower_threshold": _C5_CI_LOWER_THRESHOLD,
+            "ci_lower_comparison": ">",
+            "required_scope": "every_backbone_slice",
+            "programmatic_correctness_privileged": True,
+        }
     if normalized_trajectory is not None:
         config["trajectory_threshold"] = normalized_trajectory
     commit, dirty = _git_provenance()
-    if normalized_trajectory is not None and dirty:
+    if (normalized_trajectory is not None or c5_provenance is not None) and dirty:
         raise StatisticsError(
-            "C3 trajectory analysis refuses a dirty analysis worktree"
+            "C3/C5 confirmatory analysis refuses a dirty analysis worktree"
         )
+    c5_slice_decisions = [
+        {
+            "backbone": item["backbone"],
+            **item["rankings"]["c5_decision"],
+        }
+        for item in slice_results
+        if item["rankings"].get("c5_decision") is not None
+    ]
+    c5_decision = None
+    if c5_provenance is not None:
+        all_pass = bool(c5_slice_decisions) and all(
+            item["status"] == "pass" for item in c5_slice_decisions
+        )
+        any_not_estimable = any(
+            item["status"] == "not_estimable" for item in c5_slice_decisions
+        )
+        c5_decision = {
+            "status": (
+                "pass"
+                if all_pass
+                else ("not_estimable" if any_not_estimable else "fail")
+            ),
+            "concordance_claim_permitted": all_pass,
+            "required_scope": "every_backbone_slice",
+            "slice_decisions": c5_slice_decisions,
+            "programmatic_correctness_privileged": True,
+            "failure_behavior": (
+                "Report judge rankings separately; do not make a concordance "
+                "or correctness claim from visual judges."
+            ),
+        }
     right_censored_rmst = (
         _trajectory_analysis(
             summary,
@@ -2101,6 +2342,8 @@ def analyze_summary(
         "analysis_config_hash": sha256_json(config),
         "code_git_commit": commit,
         "code_git_dirty": dirty,
+        "c5_provenance": c5_provenance,
+        "c5_decision": c5_decision,
         "right_censored_rmst": right_censored_rmst,
         "slices": slice_results,
     }
@@ -2123,9 +2366,10 @@ def _load_analysis_artifact(path: Path) -> Dict[str, Any]:
         raise StatisticsError(f"Invalid analysis JSON: {exc}") from exc
     if not isinstance(analysis, dict):
         raise StatisticsError("Analysis artifact must be an object")
-    if analysis.get("analysis_version") != _ANALYSIS_VERSION:
+    if analysis.get("analysis_version") not in _SUPPORTED_ANALYSIS_VERSIONS:
         raise StatisticsError(
-            f"Holm family requires analysis_version {_ANALYSIS_VERSION}"
+            "Holm family requires a supported analysis_version: "
+            f"{sorted(_SUPPORTED_ANALYSIS_VERSIONS)}"
         )
     recorded_hash = analysis.get("analysis_hash")
     if not isinstance(recorded_hash, str) or not _SHA256_RE.fullmatch(
@@ -2513,6 +2757,12 @@ def _analysis_csv_rows(analysis: Mapping[str, Any]) -> list[Dict[str, Any]]:
                     tau_ci[1] if tau_ci is not None else None
                 ),
                 "kendall_tau_b_resamples": tau_uncertainty["resamples"],
+                "c5_decision_status": (
+                    ranking.get("c5_decision") or {}
+                ).get("status"),
+                "c5_concordance_claim_permitted": (
+                    ranking.get("c5_decision") or {}
+                ).get("concordance_claim_permitted"),
                 "panel_trend_status": trend["status"],
                 "panel_trend_statistic": trend["statistic"],
                 "panel_trend_p_value": trend["p_value"],
