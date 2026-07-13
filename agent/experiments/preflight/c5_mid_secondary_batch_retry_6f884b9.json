@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "status": "ONE_FULL_BATCH_RETRY_AUTHORIZED",
+  "code_commit": "6f884b91bab08a7c35b4dbe5b1235db868e296c5",
+  "failed_batch": {
+    "tier": "mid",
+    "judge": "visual-form-secondary-v1",
+    "model": "gemini-3.5-flash",
+    "batch_hash": "86a562052ab1bfd63570035c4007f758e36a60bbf02f564bf3005d33d4d45e48",
+    "completed": 170,
+    "failed": 1,
+    "total_attempts": 182,
+    "failed_run": "c4-mid-renderable-v1-seed0-br6__case-case-s41467-021-25210-5-figure2-panele-40ed0f36fcb1__method-flat_iterative__backbone-gpt-4o-mini__seed-0__budget-renders-6",
+    "failed_validation_attempts": 3,
+    "failure": "Vision response must contain exactly visual_form and diagnostics"
+  },
+  "policy": {
+    "failed_batch_never_merge": true,
+    "completed_rows_reused": false,
+    "scores_inspected_for_retry_decision": false,
+    "retry_scope": "all 171 renders in a new output root",
+    "maximum_additional_full_batch_attempts": 1,
+    "select_between_batches": false
+  },
+  "diagnostic": {
+    "calls": 1,
+    "result_used_as_score": false,
+    "response_schema_valid": true,
+    "purpose": "Confirm the persistent failure was not caused by an immutable image or prompt incompatibility before rerunning the whole batch."
+  }
+}
