@@ -201,6 +201,54 @@ def test_unreachable_article_returns_zero_not_none(
     )
 
 
+def test_source_metadata_keeps_distinct_urls_with_the_same_label(
+    monkeypatch: pytest.MonkeyPatch,
+    workdir: Path,
+) -> None:
+    article_url = "https://www.nature.com/articles/s41467-019-00001-1"
+    html = """
+        <a href="https://static.example/source-a.xlsx">Source Data</a>
+        <a href="https://static.example/source-b.xlsx">Source Data</a>
+    """
+
+    class Response:
+        text = html
+        url = article_url
+
+    monkeypatch.setattr(module, "polite_get", lambda *args, **kwargs: Response())
+
+    def fake_download(url, out_path, **kwargs):
+        out_path.write_bytes(url.encode("utf-8"))
+        return str(out_path), None, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+    monkeypatch.setattr(module, "download_binary", fake_download)
+
+    assert module.cmd_source(
+        argparse.Namespace(
+            url=article_url,
+            out=str(workdir),
+            section_id=None,
+            filter=None,
+            sleep=0,
+            timeout=1,
+            max_retries=1,
+            _license_prevalidated=True,
+        )
+    )
+    metadata = json.loads(
+        (
+            workdir
+            / "s41467-019-00001-1"
+            / "meta"
+            / "source_data.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert [entry["url"] for entry in metadata] == [
+        "https://static.example/source-a.xlsx",
+        "https://static.example/source-b.xlsx",
+    ]
+
+
 def test_proposal_output_cannot_overwrite_candidate_directory(
     workdir: Path,
 ) -> None:

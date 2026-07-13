@@ -931,7 +931,7 @@ def cmd_source(args):
             print(f"      saved as {chosen_name}")
             entry = {"label": label, "url": file_url, "saved_as": str(final_path), "saved_name": chosen_name, "orig_name": fname_url, "content_name": remote_name, "content_type": content_type}
             manifest.append(entry)
-            upsert_json_list(json_path, entry, key="label")
+            upsert_json_list(json_path, entry, key="url")
             saved_count += 1
         except Exception as e:
             if tmp_path.exists():
@@ -947,7 +947,7 @@ def cmd_source(args):
                     pass
             entry = {"label": label, "url": file_url, "error": str(e), "saved_name": None, "orig_name": fname_url, "content_name": None, "content_type": None}
             manifest.append(entry)
-            upsert_json_list(json_path, entry, key="label")
+            upsert_json_list(json_path, entry, key="url")
 
     if saved_count == 0:
         print("[warn] Source data downloads all failed; skip article")
