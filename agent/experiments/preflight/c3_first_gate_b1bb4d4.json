@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "status": "PASSED_FIRST_RECORD_GATE",
+  "run_name": "c3-memory-modes-final-benchmark-v2-seed0-br6__case-multi-s41467-021-25210-5-figure2-63db04e10c86__method-memory_none__backbone-gpt-5.6-sol__seed-0__budget-renders-6",
+  "record_hash": "cb95e72f01c0a8fd7325d3084b7e35c564540f92f3e022a087b98f6328276df5",
+  "run_record_sha256": "66003a5c53483c5412199787cafef7cb1aa22348d93ef50634c59214ef04373e",
+  "spec_hash": "5f486c270bca04f0f3a6af399e62c0172ff33ba62a54d0355cb0fd74ecc87aca",
+  "git_commit": "b1bb4d4f4e9dad0b3437356f39bf2f8e8ae03561",
+  "git_dirty": false,
+  "dataset_manifest_sha256": "6c6c5cb50603d899a9be0f41c9e562517c92ae15477610e9111f6504cd1757b3",
+  "case": {
+    "panel_count": 6,
+    "render_count": 6,
+    "candidate_count": 1
+  },
+  "method": {
+    "name": "memory_none",
+    "memory_mode": "none",
+    "backbone_requested": "gpt-5.6-sol",
+    "backbone_served": "gpt-5.6-sol"
+  },
+  "trajectory": {
+    "cumulative_render_counts": [
+      6
+    ],
+    "cumulative_wall_clock_seconds": [
+      292.0978325577453
+    ],
+    "timing_sidecars_required": true
+  },
+  "validation": {
+    "strict_artifact_hashes": true,
+    "judge_models": [],
+    "vlm_calls": 0,
+    "partial_metrics_interpreted": false
+  },
+  "runner": {
+    "host": "7352-10x4090-183",
+    "pid": 2873907,
+    "expected_total_specs": 54
+  }
+}
