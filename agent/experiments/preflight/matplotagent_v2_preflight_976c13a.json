@@ -1,0 +1,50 @@
+{
+  "bindings": {
+    "local_clean_manifest_sha256": "44d7e585b52357fe7e4be7d10d4101a294f81cfca0b603c7c1a4a2af1b3d4d71",
+    "local_clean_matrix_sha256": "026cd7583722dadaaf901f8344620a7fc42fb8869ca0bfedc4c9b36897b4c3cf",
+    "materialization_summary_file_sha256": "c427fd419cb26e45b227ef719a1620fe10ff811761f562083e7f416ad13a111d",
+    "materialization_summary_hash": "8a283b3817bd47b8656acf9278e9d91a566a5d5d5b415d0dcefe04b0f331d21e",
+    "normalization_code_sha256": "38e8f0d0420004d2676df1e487f067bc48a58bcfe435cc7cc520bd9fa1a87046",
+    "normalized_tables_hash": "7a5d0d4d4b1e4867fe6ce5b80df5b3fd0293d0e49f8ddaf65bc242829a8dc10d",
+    "spec_sha256": "3ceee3257c99f6e97938797d440a51c53ae9dc88159b897f3610bbf0c38d1270"
+  },
+  "code_commit": "976c13a742b02791345c19eda4df29c5eb60f9b7",
+  "code_dirty": false,
+  "generated_at": "2026-07-13T14:17:33.696504Z",
+  "model_calls": 0,
+  "parent_manifest_sha256": "6c6c5cb50603d899a9be0f41c9e562517c92ae15477610e9111f6504cd1757b3",
+  "report_hash": "2d60e1bc6f1b4af44f7ff667ef5538543ef3ce1e16cec64d38317886145968df",
+  "runtime_note": "Materialized hashes bind this local clean root and must be regenerated on another execution host.",
+  "schema_version": "1.0",
+  "status": "passed_no_model_preflight",
+  "subtrack": {
+    "baseline": "MatPlotAgent",
+    "cases": 16,
+    "cohesion": "NA",
+    "license_status": "not_declared",
+    "panel_count": 1,
+    "render_budget": 1,
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "spec_count": 96,
+    "unique_dois": 6,
+    "version": "normalized-v2"
+  },
+  "v1_isolation": {
+    "overwrite_or_merge": false,
+    "v1_remains_descriptive_only": true
+  },
+  "validation": {
+    "clean_materialization": true,
+    "exact_pairing": true,
+    "outcome_fields_forbidden": true,
+    "parent_unchanged": true,
+    "same_normalized_csv_for_both_methods": true,
+    "strict_sealed_dry_run": true,
+    "targeted_tests": "41 passed",
+    "tracked_absolute_paths": false
+  }
+}
