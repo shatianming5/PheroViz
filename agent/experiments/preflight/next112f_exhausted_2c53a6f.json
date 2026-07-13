@@ -1,0 +1,63 @@
+{
+  "schema_version": "1.0",
+  "status": "SEALED_UNIVERSE_EXHAUSTED_NO_SOURCE_DATA_NO_CASES",
+  "code": {
+    "commit": "2c53a6fdb196ed99a5d74ea926933d27cb394612",
+    "dirty": false,
+    "corpus_policy_commit": "305aeddf97da154e221d99dbce1cacdf518ecfc0",
+    "tests": "152 passed"
+  },
+  "frozen_input": {
+    "records": 112,
+    "bytes": 148830,
+    "sha256": "cfcd12f795132a6d2023123e78542893683313551e97084db82e448f8d76f602",
+    "processed_without_early_stop": true
+  },
+  "terminal_counts": {
+    "no-figures": 10,
+    "no-source-data": 102
+  },
+  "trust_chain": {
+    "corpus_manifest_articles": 112,
+    "corpus_manifest_valid": 112,
+    "corpus_manifest_invalid": 0,
+    "corpus_manifest_sha256": "502e28c62fe189ed16dcd68906fe9b82c687ed68a1e43c7cbdd36222ea1fe545",
+    "source_data_dois": 0,
+    "candidate_cases": 0,
+    "proposals": 0,
+    "review_calls": 0,
+    "accepted_single": 0,
+    "accepted_multi": 0,
+    "secret_scan_clean": true
+  },
+  "c2_readiness": {
+    "new_contribution": {
+      "P=2": 0,
+      "P=3-4": 0,
+      "P=5+": 0
+    },
+    "cumulative_counts": {
+      "P=2": 2,
+      "P=3-4": 3,
+      "P=5+": 1
+    },
+    "ready": false,
+    "blocker": "The frozen Nature Communications universe is exhausted and P=5+ still has fewer than two accepted independent DOI clusters"
+  },
+  "next_acquisition": {
+    "status": "RULE_FROZEN_NOT_SELECTED",
+    "source_universe_remaining_nature_communications": 0,
+    "universe_rule": "Freeze all previously unused strict-VOR CC-BY records from Scientific Reports and journal titles beginning `npj `, ordered by normalized journal title, descending publication date, then DOI; exclude every DOI in the eight frozen Nature Communications batches; process deterministic chunks without outcome-based selection."
+  },
+  "source_artifact": {
+    "path": "nature_download/outputs/ccby_asset_nc_next112f_clean_2c53a6f/sealed_report_v1/sealed_report.json",
+    "semantic_hash": "2517c0801bec4c2a28b4ad16329dcf8ff7dc0ee2fe8083f95551f5a2b1456cd0",
+    "file_sha256": "efb21d9815fc48ab3dfa476e4015e30c80971cbe56b87d751594c517589cc974",
+    "artifact_count": 157
+  },
+  "policy": {
+    "outcome_independent": true,
+    "review_or_experiment_outcomes_used": false,
+    "no_method_outcome_inferred": true
+  }
+}
