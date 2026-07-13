@@ -261,8 +261,8 @@ def test_matplotagent_injects_standard_openai_environment() -> None:
 
 def test_nvagent_openai_compatible_mode_is_explicit() -> None:
     with experiment_workspace("nvagent-openai-compatible") as workspace:
-        table = workspace / "table.csv"
-        table.write_text("x,y\n1,2\n", encoding="utf-8")
+        table = workspace / "source-table.csv"
+        table.write_text("x-value,y value\n1,2\n", encoding="utf-8")
         spec = replace(
             _external_spec(workspace),
             method_config={"openai_compatible": True},
@@ -275,7 +275,7 @@ def test_nvagent_openai_compatible_mode_is_explicit() -> None:
             payload={
                 "input_track": "table_nl_instruction",
                 "data_path": str(table),
-                "instruction": "Plot y against x.",
+                "instruction": "Plot `y value` against `x-value`.",
             },
         )
         provider = NvAgentProvider(
@@ -304,6 +304,17 @@ def test_nvagent_openai_compatible_mode_is_explicit() -> None:
             invocation.environment["DYLD_FALLBACK_LIBRARY_PATH"]
             == "/opt/cairo/lib"
         )
+        assert config["instruction"] == (
+            "Plot `c_y_value` against `c_x_value`."
+        )
+        assert Path(config["tables"][0]).name == "t_source_table.csv"
+        aliases = json.loads(
+            Path(config["input_aliases_path"]).read_text(encoding="utf-8")
+        )
+        assert aliases["tables"][0]["column_aliases"] == {
+            "x-value": "c_x_value",
+            "y value": "c_y_value",
+        }
         assert "PROVIDER_NAME = core_const.PROCESSOR_NAME" in _NVAGENT_DRIVER
 
 

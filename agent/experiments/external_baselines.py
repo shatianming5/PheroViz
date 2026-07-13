@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -9,6 +10,8 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, Mapping, Optional, Sequence
+
+import pandas as pd
 
 from .baseline_registry import (
     BASELINE_REGISTRY,
@@ -194,6 +197,94 @@ def _copy_inputs(paths: Sequence[Path], destination: Path) -> list[Path]:
         shutil.copy2(source, target)
         copied.append(target)
     return copied
+
+
+def _sql_safe_identifier(
+    value: str,
+    *,
+    prefix: str,
+    used: set[str],
+) -> str:
+    stem = re.sub(r"[^A-Za-z0-9_]+", "_", value).strip("_").lower()
+    stem = stem or "value"
+    candidate = f"{prefix}_{stem}"
+    index = 2
+    while candidate.casefold() in used:
+        candidate = f"{prefix}_{stem}_{index}"
+        index += 1
+    used.add(candidate.casefold())
+    return candidate
+
+
+def _prepare_nvagent_tables(
+    paths: Sequence[Path],
+    destination: Path,
+    *,
+    instruction: str,
+) -> tuple[list[Path], str, Path]:
+    destination.mkdir(parents=True, exist_ok=False)
+    copied: list[Path] = []
+    replacements: Dict[str, str] = {}
+    tables: list[Dict[str, Any]] = []
+    used_tables: set[str] = set()
+    for source in paths:
+        suffix = source.suffix.lower()
+        if suffix == ".csv":
+            frame = pd.read_csv(source)
+        elif suffix == ".tsv":
+            frame = pd.read_csv(source, sep="\t")
+        elif suffix in {".xls", ".xlsx", ".xlsm"}:
+            frame = pd.read_excel(source)
+        else:
+            raise ProviderExecutionError(
+                f"nvAgent cannot normalize table format: {source.suffix}"
+            )
+
+        table_alias = _sql_safe_identifier(
+            source.stem,
+            prefix="t",
+            used=used_tables,
+        )
+        used_columns: set[str] = set()
+        column_aliases = {
+            str(column): _sql_safe_identifier(
+                str(column),
+                prefix="c",
+                used=used_columns,
+            )
+            for column in frame.columns
+        }
+        target = destination / f"{table_alias}.csv"
+        frame.rename(columns=column_aliases).to_csv(target, index=False)
+        copied.append(target)
+        replacements[source.stem] = table_alias
+        replacements.update(column_aliases)
+        tables.append(
+            {
+                "source_name": source.name,
+                "table_alias": table_alias,
+                "column_aliases": column_aliases,
+            }
+        )
+
+    normalized_instruction = instruction
+    for original, alias in sorted(
+        replacements.items(),
+        key=lambda item: len(item[0]),
+        reverse=True,
+    ):
+        normalized_instruction = normalized_instruction.replace(original, alias)
+    alias_path = destination.parent.parent / "input_aliases.json"
+    write_json_atomic(
+        alias_path,
+        {
+            "schema_version": "1.0",
+            "tables": tables,
+            "original_instruction": instruction,
+            "normalized_instruction": normalized_instruction,
+        },
+    )
+    return copied, normalized_instruction, alias_path
 
 
 class ExternalBaselineProvider:
@@ -437,7 +528,13 @@ class ExternalBaselineProvider:
             "subprocess_result": str(metadata_path),
             "driver_result": str(invocation.result_manifest),
         }
-        for label in ("code", "image", "log", "raw_response"):
+        for label in (
+            "code",
+            "image",
+            "log",
+            "raw_response",
+            "input_aliases",
+        ):
             raw_path = result_data.get(f"{label}_path")
             if raw_path is None:
                 continue
@@ -452,7 +549,7 @@ class ExternalBaselineProvider:
                     f"External artifact {label!r} escaped its work directory",
                     artifacts=failure_artifacts,
                 ) from exc
-            if label in {"code", "log", "raw_response"}:
+            if label in {"code", "log", "raw_response", "input_aliases"}:
                 _redact_text_artifact(resolved, secret_values)
             output_artifacts[label] = str(resolved)
 
@@ -599,7 +696,15 @@ class NvAgentProvider(ExternalBaselineProvider):
         db_id = slug_identifier(case.case_id)
         dataset_root = request.output_dir / "dataset"
         database_dir = dataset_root / "databases" / db_id
-        copied_tables = _copy_inputs(tables, database_dir)
+        (
+            copied_tables,
+            normalized_instruction,
+            alias_path,
+        ) = _prepare_nvagent_tables(
+            tables,
+            database_dir,
+            instruction=_case_instruction(case),
+        )
         logs_dir = request.output_dir / "logs"
         logs_dir.mkdir()
         result_path = request.output_dir / "driver_result.json"
@@ -610,7 +715,8 @@ class NvAgentProvider(ExternalBaselineProvider):
                 "dataset_root": str(dataset_root),
                 "db_id": db_id,
                 "tables": [str(path) for path in copied_tables],
-                "instruction": _case_instruction(case),
+                "instruction": normalized_instruction,
+                "input_aliases_path": str(alias_path),
                 "model": request.spec.backbone,
                 "openai_compatible": bool(
                     request.spec.method_config.get(
@@ -839,6 +945,7 @@ Path(config["result_path"]).write_text(
             "code_path": config["code_path"],
             "image_path": config["image_path"],
             "log_path": config["log_path"],
+            "input_aliases_path": config["input_aliases_path"],
         }
     ),
     encoding="utf-8",
