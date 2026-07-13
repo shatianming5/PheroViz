@@ -1,0 +1,127 @@
+{
+  "schema_version": "1.0",
+  "status": "COMPLETED_NO_CONCORDANCE",
+  "generation": {
+    "code_commit": "6f884b91bab08a7c35b4dbe5b1235db868e296c5",
+    "code_dirty": false,
+    "selected_renders": 513,
+    "valid_batches": 6,
+    "total_calls": 1065,
+    "primary_calls": {
+      "frontier": 171,
+      "mid": 171,
+      "open": 171
+    },
+    "secondary_calls": {
+      "frontier": 197,
+      "mid": 177,
+      "open": 178
+    }
+  },
+  "batch_hashes": {
+    "frontier.primary": "16003c45fb31c5ae200eec8a97138cb6549220e4bd947f324c2f6bc1ec6e67f5",
+    "frontier.secondary": "0a91e41ecbf485dfa530512f848cd7dc9cd21ae42697245e015c530932d141d0",
+    "mid.primary": "3f4e092518be892d9ba6a31e848378794070a0668cb43c6016594f5f8f8c9278",
+    "mid.secondary": "756f1700cdd418a1c96144004731728c32953b1e8d5227610abc7cbb0f13ba7f",
+    "open.primary": "f85b51c6d28433d697a5acf605a6505b2ef6689e3bd5b64fbbfadfd657cbad72",
+    "open.secondary": "e5f3936175990b44ce87e7b921f3b5ac0cd13db6fac7ec94e9c6788e086fc30d"
+  },
+  "analysis": {
+    "code_commit": "100522961e3615cc2726eda57f70510552094bbd",
+    "code_dirty": false,
+    "frontier_hash": "0879a0cc274586b744ae87c0bb7232a2ba96a353f0354110f1a6dbe8c4afc503",
+    "frontier_file_sha256": "b3fe1ceebaaaf1f3459f76620f2fbbc9b90b12e42981d440aaf2012d2ef9ad8f",
+    "mid_hash": "69de8a812867642239a91d4df4c856c178f7f3c1df59430a96067d3fda9b3585",
+    "mid_file_sha256": "84410f22f3828d66181842d78c2c86f67f44115918038ee192847c2b4f2f5447",
+    "open_hash": "707887bfbb226621bda72edc9cca7e100411aaafc2d634fa0bc7b20fa55d13ad",
+    "open_file_sha256": "e2e42641746567ab00d47b040954758791a15295e665dd1f37eeb788d68c33b0"
+  },
+  "rankings": {
+    "frontier": {
+      "primary": [
+        "flat_iterative",
+        "best_of_n",
+        "pheroviz_full"
+      ],
+      "secondary": [
+        "best_of_n",
+        "flat_iterative",
+        "pheroviz_full"
+      ],
+      "kendall_tau_b": 0.3333333333333333,
+      "ci95": null,
+      "status": "NOT_ESTIMABLE"
+    },
+    "mid": {
+      "primary": [
+        "pheroviz_full",
+        "best_of_n",
+        "flat_iterative"
+      ],
+      "secondary": [
+        "best_of_n",
+        "pheroviz_full",
+        "flat_iterative"
+      ],
+      "kendall_tau_b": 0.3333333333333333,
+      "ci95": [
+        -0.3333333333333333,
+        1.0
+      ],
+      "status": "FAIL"
+    },
+    "open": {
+      "primary": [
+        "pheroviz_full",
+        "flat_iterative",
+        "best_of_n"
+      ],
+      "secondary": [
+        "pheroviz_full",
+        "best_of_n",
+        "flat_iterative"
+      ],
+      "kendall_tau_b": 0.3333333333333333,
+      "ci95": null,
+      "status": "NOT_ESTIMABLE"
+    }
+  },
+  "pheroviz_primary_effect_vs_flat": {
+    "frontier": {
+      "mean_gap": -0.034920634920634915,
+      "ci95": [
+        -0.09166666666666667,
+        0.0065476190476190564
+      ],
+      "p_value": 0.375
+    },
+    "mid": {
+      "mean_gap": 0.013690476190476197,
+      "ci95": [
+        -0.016865079365079364,
+        0.05099206349206351
+      ],
+      "p_value": 0.75
+    },
+    "open": {
+      "mean_gap": 0.025396825396825404,
+      "ci95": [
+        -0.09543650793650792,
+        0.16706349206349205
+      ],
+      "p_value": 0.65625
+    }
+  },
+  "decision": {
+    "judge_concordance_supported": false,
+    "visual_form_superiority_supported": false,
+    "programmatic_correctness_privileged": true,
+    "human_evaluation_status": "NOT_RUN_EXTERNAL_GATE",
+    "allowed_wording": "The two sealed visual-form judges produced different method orderings; Kendall tau-b was 0.333 at every tier and did not satisfy the frozen concordance rule. No visual-form superiority or evaluator-robustness claim is supported."
+  },
+  "excluded_evidence": {
+    "first_six_batches": "ABORTED_NEVER_MERGE",
+    "failed_mid_secondary_batch": "ABORTED_NEVER_MERGE",
+    "diagnostic_call_used_as_score": false
+  }
+}
