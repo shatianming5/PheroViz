@@ -1,0 +1,47 @@
+experiment_name: c4-mid-final-benchmark-v2-seed0-br6
+dataset_manifest: ../../../nature_download/outputs/combined_verified_400/final_benchmark_v2_seed0/benchmark_manifest.json
+dataset_manifest_sha256: 6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b
+dataset_mode: sealed_benchmark
+artifact_root: ../runs/production/c4_mid_final_benchmark_v2_seed0_br6_gpt4omini
+
+provider: experiments.providers:UnifiedBenchmarkProvider
+provider_options:
+  manifest_data_root: /Users/tommy/Downloads/mayi/PheroViz
+methods:
+  - name: best_of_n
+    schedule: best_of_n
+    memory_mode: none
+    initial_generation: model_spec
+    render_timeout_seconds: 120
+    temperature: 0.2
+  - name: flat_iterative
+    schedule: iterative
+    memory_mode: none
+    initial_generation: model_spec
+    render_timeout_seconds: 120
+    temperature: 0.2
+  - name: pheroviz_full
+    schedule: iterative
+    memory_mode: full
+    initial_generation: model_spec
+    render_timeout_seconds: 120
+    temperature: 0.2
+
+backbones:
+  - gpt-4o-mini
+seeds:
+  - 0
+  - 1
+  - 2
+budgets:
+  - type: renders
+    value: 6
+splits:
+  - test
+
+metric:
+  version: programmatic-v2
+  config:
+    selection:
+      metric: data_fidelity
+      direction: maximize

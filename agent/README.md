@@ -145,6 +145,27 @@ python -m experiments run \
   experiments/matrices/c1_c3_final_benchmark_v2_seed0.yaml --dry-run
 ```
 
+### C4 backbone tiers
+
+C4 复用上述 frontier 矩阵，并新增
+`c4_mid_final_benchmark_v2_seed0.yaml`（`gpt-4o-mini`）和
+`c4_open_final_benchmark_v2_seed0.yaml`
+（`Qwen/Qwen2.5-Coder-7B-Instruct`）。三个 tier 的 20 个 test cases、
+方法、seeds、`B_R=6`、metric 和 dataset hash 完全一致，但必须在不同
+进程/环境中运行，并写入各自被 Git 忽略的 artifact root。每个矩阵展开
+180 个互异 spec，三者 run name 的并集为 540。
+
+Mid tier 按 registry 固定 `temperature=0.2`。Open tier 的 registry 尚未
+声明可复现的 temperature/seed 契约，因此矩阵不设置 temperature；正式启动
+前必须验证服务返回的模型身份恰为上述名称及 revision
+`c03e6d358207e414f1eca0bb1891e29f1db0e242`（remote model audit commit
+`39adeb5`），并关闭任何不能证明的确定性声明。服务 endpoint、host 和
+credentials 只由该 tier 的运行环境提供，不得写入矩阵。
+
+后续 combined C4 summary 必须显式读取并验证三个独立 per-tier
+`summary.json` 后再合并；不得扫描 `runs/production` 或其它 mixed root
+来隐式聚合。
+
 ## Open-weight Transformers 文本服务
 
 `experiments.transformers_server` 提供仅文本的 OpenAI-compatible

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 import hashlib
 import json
 import subprocess
@@ -594,6 +595,166 @@ def test_production_c1_c3_matrix_contract_expands_cleanly() -> None:
             spec.provider_options["manifest_data_root"] for spec in specs
         } == {"/Users/tommy/Downloads/mayi/PheroViz"}
         assert not artifact_root.exists()
+
+
+def test_c4_backbone_matrices_share_the_frozen_contract() -> None:
+    agent_root = Path(__file__).resolve().parents[1]
+    matrix_root = agent_root / "experiments" / "matrices"
+    paths = {
+        "frontier": matrix_root / "c1_c3_final_benchmark_v2_seed0.yaml",
+        "mid": matrix_root / "c4_mid_final_benchmark_v2_seed0.yaml",
+        "open": matrix_root / "c4_open_final_benchmark_v2_seed0.yaml",
+    }
+    matrices = {
+        tier: yaml.safe_load(path.read_text(encoding="utf-8"))
+        for tier, path in paths.items()
+    }
+    specs_by_tier = {
+        tier: load_and_expand_matrix(path) for tier, path in paths.items()
+    }
+
+    expected_backbones = {
+        "frontier": "gpt-5.6-sol",
+        "mid": "gpt-4o-mini",
+        "open": "Qwen/Qwen2.5-Coder-7B-Instruct",
+    }
+    expected_root_names = {
+        "frontier": "c1_c3_final_benchmark_v2_seed0_br6_gpt56sol",
+        "mid": "c4_mid_final_benchmark_v2_seed0_br6_gpt4omini",
+        "open": "c4_open_final_benchmark_v2_seed0_br6_qwen2p5coder7b",
+    }
+    artifact_roots = {
+        tier: (path.parent / matrices[tier]["artifact_root"]).resolve()
+        for tier, path in paths.items()
+    }
+
+    assert len(set(artifact_roots.values())) == 3
+    for tier, root in artifact_roots.items():
+        assert root == agent_root / "experiments" / "runs" / "production" / (
+            expected_root_names[tier]
+        )
+        assert subprocess.run(
+            ["git", "check-ignore", "--quiet", str(root)],
+            cwd=agent_root.parent,
+            check=False,
+        ).returncode == 0
+
+    all_run_names: set[str] = set()
+    normalized_contracts: dict[str, set[str]] = {}
+    for tier, specs in specs_by_tier.items():
+        assert len(specs) == 180
+        run_names = {spec.run_name for spec in specs}
+        assert len(run_names) == 180
+        assert all_run_names.isdisjoint(run_names)
+        all_run_names.update(run_names)
+
+        case_panels = {spec.case_id: spec.panel_count for spec in specs}
+        assert len(case_panels) == 20
+        assert Counter(case_panels.values()) == {1: 17, 2: 1, 3: 1, 6: 1}
+        assert {spec.backbone for spec in specs} == {
+            expected_backbones[tier]
+        }
+        assert {spec.seed for spec in specs} == {0, 1, 2}
+        assert {
+            (spec.budget_type, spec.budget_value) for spec in specs
+        } == {("renders", 6.0)}
+        assert {spec.provider for spec in specs} == {
+            PHEROVIZ_PROVIDER_IMPORT_PATH
+        }
+        assert {
+            spec.provider_options["manifest_data_root"] for spec in specs
+        } == {"/Users/tommy/Downloads/mayi/PheroViz"}
+        assert {
+            spec.method_config["render_timeout_seconds"] for spec in specs
+        } == {120}
+        assert {
+            spec.method_config["initial_generation"] for spec in specs
+        } == {"model_spec"}
+        assert {spec.dataset_manifest_hash for spec in specs} == {
+            "6059edf04d9b2c142af74f561fc0ed29b1b00d85068e32bdb35943d61d36a66b"
+        }
+        assert {spec.split for spec in specs} == {"test"}
+
+        normalized: set[str] = set()
+        for spec in specs:
+            payload = spec.to_dict()
+            for allowed_difference in (
+                "run_name",
+                "backbone",
+                "artifact_root",
+            ):
+                payload.pop(allowed_difference)
+            method_config = dict(payload["method_config"])
+            method_config.pop("temperature", None)
+            payload["method_config"] = method_config
+            normalized.add(json.dumps(payload, sort_keys=True))
+        normalized_contracts[tier] = normalized
+
+    assert len(all_run_names) == 540
+    assert normalized_contracts["frontier"] == normalized_contracts["mid"]
+    assert normalized_contracts["frontier"] == normalized_contracts["open"]
+    assert {
+        spec.method_config["temperature"]
+        for spec in specs_by_tier["mid"]
+    } == {0.2}
+    assert all(
+        "temperature" not in spec.method_config
+        for tier in ("frontier", "open")
+        for spec in specs_by_tier[tier]
+    )
+
+    forbidden_key_fragments = {
+        "api_key",
+        "apikey",
+        "base_url",
+        "endpoint",
+        "host",
+        "password",
+        "secret",
+        "token",
+    }
+
+    def visit(value: object) -> None:
+        if isinstance(value, dict):
+            for raw_key, child in value.items():
+                key = str(raw_key).casefold().replace("-", "_")
+                assert not any(
+                    fragment in key for fragment in forbidden_key_fragments
+                )
+                visit(child)
+        elif isinstance(value, list):
+            for child in value:
+                visit(child)
+        elif isinstance(value, str):
+            lowered = value.casefold()
+            assert "://" not in lowered
+            assert "localhost" not in lowered
+
+    for matrix in matrices.values():
+        visit(matrix)
+
+    registry = yaml.safe_load(
+        (agent_root / "configs" / "model_registry.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert registry["generators"]["mid_tier"] == {
+        "request_model": "gpt-4o-mini",
+        "protocol": "openai_chat_completions",
+        "base_url_env": "ANTHROPIC_BASE_URL",
+        "api_key_env": "ANTHROPIC_AUTH_TOKEN",
+        "temperature": 0.2,
+        "seed_supported": True,
+        "response_format": "json_object",
+        "model_cutoff": None,
+    }
+    open_registry = registry["generators"]["open_weight"]
+    assert open_registry["request_model"] == expected_backbones["open"]
+    assert open_registry["revision"] == (
+        "c03e6d358207e414f1eca0bb1891e29f1db0e242"
+    )
+    assert "temperature" not in open_registry
+    assert "seed_supported" not in open_registry
 
 
 @pytest.mark.parametrize(
