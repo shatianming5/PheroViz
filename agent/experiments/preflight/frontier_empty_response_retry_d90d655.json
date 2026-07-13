@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "status": "ONE_RETRY_AUTHORIZED",
+  "run_name": "c1-c3-renderable-v1-seed0-br6__case-case-s41467-023-38847-1-figure1-panelg-263d16873f98__method-pheroviz_full__backbone-gpt-5.6-sol__seed-1__budget-renders-6",
+  "spec_hash": "b19c7a582f777446fe8880f4eca573b7bc1dc8b2ff7cacc0fc3d6e9e8f45b25f",
+  "failed_attempt": {
+    "attempt": 1,
+    "record_hash": "8803b4b9cac5900d23e8560335dec3c2ea51157aef0d62f24b75f3c0fb7920be",
+    "run_record_sha256": "757b58d45f5b61306057752064331abf866c6644e5a15d98176b0c4d5af1eb3e",
+    "partial_artifact_sha256": "57105810db2981113bf3726bda7c82129397e659157d8b92a07d7a1a91c926ed",
+    "recorded_render_count": 0,
+    "partial_archived_iterations": 2,
+    "partial_archived_renders": 2,
+    "wall_clock_seconds": 181.11781344516203,
+    "error_type": "ProviderExecutionError",
+    "error_attribution": "unclassified",
+    "error_message": "Single-chain execution failed: Model response content was empty"
+  },
+  "classification": {
+    "method_outcome_inferred": false,
+    "reason": "The generation provider returned empty content after two previously archived rounds; no candidate batch was admitted to the experiment harness.",
+    "retry_scope": "exact same immutable spec only",
+    "maximum_additional_attempts": 1,
+    "failed_attempt_enters_results": false
+  },
+  "provenance": {
+    "experiment_git_commit": "d90d655b96bfb3b95bfdc37665692957969d8968",
+    "dataset_manifest_sha256": "6c6c5cb50603d899a9be0f41c9e562517c92ae15477610e9111f6504cd1757b3",
+    "render_budget": 6,
+    "render_timeout_seconds": 120
+  }
+}
