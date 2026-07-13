@@ -1,0 +1,50 @@
+{
+  "schema_version": "1.0",
+  "status": "passed_no_model_preflight",
+  "code_commit": "3d18bc6cda838523ffba53ea5b5307997b762be3",
+  "code_dirty": false,
+  "parent_manifest_sha256": "6c6c5cb50603d899a9be0f41c9e562517c92ae15477610e9111f6504cd1757b3",
+  "materialization_summary_hash": "249e17c107f84f2f4c72f439c8d61a8c0a2de2b753645642c17cf33fdee79684",
+  "model_calls": 0,
+  "validation": {
+    "targeted_tests": "35 passed",
+    "clean_materialization": true,
+    "strict_sealed_dry_runs": true,
+    "single_panel_only": true,
+    "paired_seeds": [
+      0,
+      1,
+      2
+    ],
+    "cohesion": "NA",
+    "chartcoder_result_row": false,
+    "tracked_absolute_paths": false
+  },
+  "subtracks": {
+    "matplotagent": {
+      "input_track": "table_instruction",
+      "case_count": 2,
+      "spec_count": 12,
+      "spec_sha256": "33c52b5f48a851b5c69ec04fc58a7e9e6dbce5635df65bcf190f1f400682caad",
+      "local_clean_manifest_sha256": "02d82f71dc80155508031ae223b562b3fbb37215d5761fb00af1892301223781",
+      "local_clean_matrix_sha256": "4153316d7e6b79804fc783b1aaefac0df7447c1e3e133322c015df8e91f4e530",
+      "license_status": "not_declared"
+    },
+    "nvagent": {
+      "input_track": "table_nl_instruction",
+      "case_count": 16,
+      "spec_count": 96,
+      "spec_sha256": "1b37f50e49814f2d1ae203314ead447b621a1c19b966f99609e9dd914ce7a0c2",
+      "local_clean_manifest_sha256": "d3225159c7cced13e17ea98c81be47cbaf75cd845eac1de45f93e98f4d3b7a0a",
+      "local_clean_matrix_sha256": "b8f3422612bae21067b2143b478c7354f5b43201f3c00abd0400062ed7a31b05",
+      "license_status": "not_declared"
+    }
+  },
+  "runtime_note": "Materialized manifest and matrix hashes bind the runtime repository root and must be regenerated and revalidated on the execution host.",
+  "remaining_execution_gates": [
+    "stage exact external checkout commits and dependency-complete virtual environments on the execution host",
+    "stage all sealed source-binding files at the remapped repository-relative paths",
+    "provide the gateway endpoint and credential through environment variables only",
+    "run from a clean committed worktree and archive the runtime materialization summary"
+  ]
+}
