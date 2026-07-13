@@ -1,0 +1,58 @@
+{
+  "schema_version": "1.0",
+  "status": "CHUNKS_001_002_SEALED",
+  "universe": {
+    "records": 2463,
+    "unique_dois": 2463,
+    "sha256": "51848466c6bf6bf400b58faf539953830349abab21438e527eaefd74103450df",
+    "freeze_summary_hash": "6cdb5f8398cc70960d108c6319c93c2121327ce757af405bc44bca687a71056d",
+    "freeze_summary_file_sha256": "64684e64b6a4e54c508685fb745e303dfca84e6d499e96568f40c80c5dff368b",
+    "chunk_size": 200,
+    "chunk_count": 13,
+    "final_chunk_records": 63,
+    "selection": "All previously unused strict-VOR CC-BY Scientific Reports and npj records, excluding the eight frozen Nature Communications batches, sorted before fetch."
+  },
+  "chunk_001": {
+    "records": 200,
+    "terminal_counts": {
+      "downloaded": 1,
+      "no-figures": 33,
+      "no-source-data": 166
+    },
+    "source_data_dois": 1,
+    "candidate_cases": 0,
+    "proposals": 0,
+    "review_calls": 0,
+    "report_hash": "6aa893315110b9b0ec7c4a956814f3922015726b9f8f28616736464954797289",
+    "report_file_sha256": "c6511ccd76fad8f41cac2d297ddbd6710fc861e7b0615aa46dfd8b7e9fdaa5cc"
+  },
+  "chunk_002": {
+    "records": 200,
+    "terminal_counts": {
+      "fetch-error": 1,
+      "no-figures": 30,
+      "no-source-data": 169
+    },
+    "source_data_dois": 0,
+    "candidate_cases": 0,
+    "proposals": 0,
+    "review_calls": 0,
+    "report_hash": "8b0f506a6edf373ca186fd87349f72e68e9d99ce7de4c3b3fae27e52e2758203",
+    "report_file_sha256": "96aacc7dab4341a289b02ca244001980d221d82cd252f47c6cb3ea6860dc93cf"
+  },
+  "c2_readiness": {
+    "cumulative_counts": {
+      "P=2": 2,
+      "P=3-4": 3,
+      "P=5+": 1
+    },
+    "ready": false,
+    "chunks_remaining": 11
+  },
+  "policy": {
+    "outcome_independent": true,
+    "no_early_stop_within_chunk": true,
+    "dual_review_skipped_only_because_no_proposals": true,
+    "code_commit": "ca98442b9e805110089b03083cb240e19b58d4a2"
+  }
+}
