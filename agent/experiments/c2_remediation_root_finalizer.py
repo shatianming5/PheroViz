@@ -1,8 +1,8 @@
 """Fail-closed finalization of a fresh, separately acquired C2 remediation root.
 
-This module deliberately consumes an immutable raw-evidence root and publishes a
-new, previously absent remediation root.  It never runs acquisition, calls a
-model, or mutates the raw-evidence root.
+This module deliberately consumes an immutable raw-evidence root and atomically
+seals a new, previously absent, non-admissive remediation evidence root. It
+never runs acquisition, calls a model, admits a result, or mutates the raw root.
 """
 
 from __future__ import annotations
@@ -24,6 +24,12 @@ from typing import Any, Iterable, Mapping
 
 from .c2_m1_trust_boundary import (
     require_owner_authorized_c2_execution as require_external_m1_trust_lock,
+)
+from .c2_owner_remediation_execution_policy import (
+    C2OwnerRemediationExecutionPolicyError,
+    OwnerRemediationChunkBinding,
+    OwnerRemediationExecutionPolicy,
+    load_owner_remediation_execution_policy,
 )
 from .models import (
     ProvenanceError,
@@ -258,6 +264,55 @@ RETAINED_CANDIDATE_EXCLUSIONS = (
     "ccby_sr_npj_chunk012_rerun2_clean_ca98442",
 )
 SUPPORTED_REMEDIATION_CHUNKS = frozenset(OLD_ROOT_PRESERVATION)
+_FRESH_REMEDIATION_POLICY_ACTIONS = frozenset(
+    {
+        "FRESH_REMEDIATION_REQUIRED",
+        "STRICT_PATH_ONLY_DERIVATIVE_OR_REMEDIATION_REQUIRED",
+        "TRANSPARENT_63_INPUT_DERIVATIVE_OR_FRESH_3X63_REQUIRED",
+    }
+)
+
+
+def _require_owner_remediation_policy_for_chunk(
+    chunk_id: str,
+    partition: FrozenPartition,
+) -> tuple[
+    Any,
+    OwnerRemediationExecutionPolicy,
+    OwnerRemediationChunkBinding,
+]:
+    """Bind evidence-root sealing to the fixed owner authorization and policy."""
+
+    authorization = require_external_m1_trust_lock()
+    _require(
+        authorization.non_admissive_evidence_root_sealing_authorized,
+        "owner authorization does not permit non-admissive evidence-root sealing",
+    )
+    try:
+        policy = load_owner_remediation_execution_policy()
+        binding = policy.chunk(chunk_id)
+    except C2OwnerRemediationExecutionPolicyError as exc:
+        raise C2RemediationError(
+            f"owner remediation execution policy is unavailable: {exc}"
+        ) from exc
+    _require(
+        policy.non_admissive_evidence_root_sealing_authorized
+        and not policy.admission_authorized,
+        "owner remediation policy does not permit non-admissive evidence sealing",
+    )
+    _require(
+        policy.universe_file_sha256 == FROZEN_UNIVERSE_SHA256
+        and binding.input_total == partition.records
+        and binding.chunk_file_sha256 == partition.source_sha256
+        and binding.first_global_ordinal == partition.start_index_1based
+        and binding.last_global_ordinal == partition.end_index_1based,
+        "owner remediation policy partition differs from the finalizer binding",
+    )
+    _require(
+        binding.required_action in _FRESH_REMEDIATION_POLICY_ACTIONS,
+        "owner remediation policy does not authorize fresh remediation for chunk",
+    )
+    return authorization, policy, binding
 
 
 def expected_target_root_name(chunk_id: str) -> str:
@@ -2319,6 +2374,9 @@ def finalize_remediation_root(
         "chunk is not authorized for fresh remediation",
     )
     partition = FROZEN_PARTITIONS[chunk_id]
+    execution_authorization, execution_policy, execution_binding = (
+        _require_owner_remediation_policy_for_chunk(chunk_id, partition)
+    )
     _require(raw_root.is_absolute(), "raw root must be absolute")
     _require(target_root.is_absolute(), "target root must be absolute")
     _require(source_chunk.is_absolute(), "source chunk must be absolute")
@@ -2993,6 +3051,17 @@ def finalize_remediation_root(
             "sealed_report_version": "3.0",
             "status": report_status,
             "root": str(target.path),
+            "execution_authorization": {
+                "authorization_mode": "OWNER_AUTHORIZED_NON_INDEPENDENT",
+                "authorization_id_sha256": (
+                    execution_authorization.authorization_id_sha256
+                ),
+                "policy_id_sha256": execution_policy.policy_id_sha256,
+                "required_action": execution_binding.required_action,
+                "non_admissive_evidence_root_sealing_authorized": True,
+                "admission_authorized": False,
+                "scientific_publication_authorized": False,
+            },
             "publication": {
                 "method": (
                     "descriptor-relative atomic no-replace directory rename "

@@ -6,7 +6,7 @@
     "C2_SOURCE_EXTENSION_BUILD_REPLAY",
     "C2_CANDIDATE_VALIDATION"
   ],
-  "authorization_id_sha256": "9dd1b4bdb93082d04e14ea8fd21a21ca40700614cc16975f2fee21541fb7e17a",
+  "authorization_id_sha256": "e9904025acb67abe3a2fa3c8211b4ff578458004062be8b1c6266163a98c578a",
   "chunk_actions": [
     {
       "chunk_id": "001",
@@ -159,7 +159,8 @@
     "universe_file_sha256": "51848466c6bf6bf400b58faf539953830349abab21438e527eaefd74103450df"
   },
   "independent_verification": false,
-  "policy_id_sha256": "f1efdbc434523231f92da9746b890b31883d3ecd7616620cff0738d0531d9298",
+  "non_admissive_evidence_root_sealing_authorized": true,
+  "policy_id_sha256": "1b10e548f3489e7c4dbde7a17d5ec7b174c72f132595591e6adf6dfcc8648514",
   "policy_phase": "PRE_REMEDIATION_EXECUTION",
   "policy_type": "C2_OWNER_REMEDIATION_EXECUTION_POLICY",
   "publication_authorized": false,

@@ -28,7 +28,7 @@ class C2OwnerRemediationExecutionPolicyError(ProvenanceError):
 
 SCHEMA_ID = "c2_owner_remediation_execution_policy_v1.schema.json"
 SCHEMA_PATH = Path(__file__).resolve().parent / "schemas" / SCHEMA_ID
-SCHEMA_SHA256 = "4c93e0aa55a68ab6e81abbe06ac9ad8b86ad67b4b8fb5880bbaa560e5e848b79"
+SCHEMA_SHA256 = "bfa7bc0d5c93162b0fc9b5e7654cc1c0e2578dddbd60690c922db30d8224ed8a"
 RESOURCE_PACKAGE = "experiments"
 RESOURCE_PARTS = ("resources", "c2_owner_remediation_execution_policy_v1.json")
 CHUNK_IDS = tuple(f"{number:03d}" for number in range(1, 14))
@@ -74,6 +74,18 @@ class OwnerRemediationExecutionPolicy:
     @property
     def admission_authorized(self) -> bool:
         return False
+
+    @property
+    def non_admissive_evidence_root_sealing_authorized(self) -> bool:
+        return True
+
+    def chunk(self, chunk_id: str) -> OwnerRemediationChunkBinding:
+        for binding in self.chunks:
+            if binding.chunk_id == chunk_id:
+                return binding
+        raise C2OwnerRemediationExecutionPolicyError(
+            f"Owner execution policy has no chunk {chunk_id}"
+        )
 
 
 def _reject_json_constant(value: str) -> None:

@@ -43,6 +43,15 @@ def _exercise_guarded_remediation_calls(
         "require_test_only_source_extension_gate",
         lambda: None,
     )
+    monkeypatch.setattr(
+        finalizer,
+        "_require_owner_remediation_policy_for_chunk",
+        lambda _chunk_id, _partition: (
+            SimpleNamespace(authorization_id_sha256="test-authorization"),
+            SimpleNamespace(policy_id_sha256="test-policy"),
+            SimpleNamespace(required_action="FRESH_REMEDIATION_REQUIRED"),
+        ),
+    )
 
 
 def _canonical(value: Any) -> bytes:
@@ -1391,6 +1400,79 @@ def test_v2_opt_in_seals_prior_attempt_source_under_fixed_stage_b_policy(
         assert not (
             paths["target_root"] / "control/source_classification_blocked.json"
         ).exists()
+        inventory = [
+            json.loads(line)
+            for line in (
+                paths["target_root"]
+                / "source_inventory_v2/source_inventory.jsonl"
+            ).read_text(encoding="utf-8").splitlines()
+        ]
+        classifications = [
+            json.loads(line)
+            for line in (
+                paths["target_root"]
+                / "p_evidence_v2/source_classifications.jsonl"
+            ).read_text(encoding="utf-8").splitlines()
+        ]
+        dispositions = [
+            json.loads(line)
+            for line in (
+                paths["target_root"]
+                / "p_evidence_v2/acquisition_dispositions.jsonl"
+            ).read_text(encoding="utf-8").splitlines()
+        ]
+        assert inventory
+        assert [item["doi_id"] for item in classifications] == ["10.9999/c2-1"]
+        assert dispositions[0]["terminal_status"] == "NO_SOURCE_DATA"
+        assert dispositions[0]["final_disposition"] == (
+            "STRATIFIED_SOURCE_CANONICAL"
+        )
+        assert dispositions[0]["classification_reason"] == (
+            "VERIFIED_PRIOR_ATTEMPT_SOURCE_CANONICAL_ALL_CASES"
+        )
+        assert dispositions[0]["source_inventory_binding_or_null"] is not None
+
+
+def test_exact_63_prior_attempt_source_is_fully_accounted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with experiment_workspace("c2-source-bearing-prior-download-013") as workspace:
+        paths = _make_fixture(
+            workspace,
+            monkeypatch,
+            chunk_id="013",
+            downloaded_mode="source",
+            downloaded_attempt="initial",
+        )
+        _upgrade_raw_source_descriptor_v2(paths["raw_root"])
+        result = finalizer.finalize_remediation_root(
+            chunk_id="013",
+            source_bearing_v2=True,
+            **paths,
+        )
+
+        assert result["status"] == "SEALED_COMPLETE_ATTEMPT_EVIDENCE_SOURCE_V2"
+        assert result["input_total"] == 63
+        classifications = [
+            json.loads(line)
+            for line in (
+                paths["target_root"]
+                / "p_evidence_v2/source_classifications.jsonl"
+            ).read_text(encoding="utf-8").splitlines()
+        ]
+        dispositions = [
+            json.loads(line)
+            for line in (
+                paths["target_root"]
+                / "p_evidence_v2/acquisition_dispositions.jsonl"
+            ).read_text(encoding="utf-8").splitlines()
+        ]
+        assert len(classifications) == 1
+        assert len(dispositions) == 63
+        assert dispositions[0]["source_inventory_binding_or_null"] is not None
+        assert dispositions[0]["source_classification_record_hash_or_null"] == (
+            classifications[0]["record_hash"]
+        )
 
 
 def test_stage_b_execution_keeps_raw_acquisition_binding_separate(

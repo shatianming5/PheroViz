@@ -34,10 +34,10 @@ OWNER_EXECUTION_AUTHORIZATION_SCHEMA_ID = (
     "c2_owner_execution_authorization_v1.schema.json"
 )
 OWNER_EXECUTION_AUTHORIZATION_SCHEMA_SHA256 = (
-    "d60b0daff01ff878419d8f314cca72b9586a699a7af854b7695816d9ecd4c562"
+    "2e62d13c00bed3f8459d17cdb6e9b0728e71c3bc0cd0fc1d5855d59ebe116beb"
 )
 OWNER_EXECUTION_AUTHORIZATION_RESOURCE_SHA256 = (
-    "2817d31c820894c529a3385c4e263276dfc9f7e7d030c726cdb0f00cd5835398"
+    "9cd5d5c4afbfcaa43a443e595c92df1fac1f554279dc8eb84f84383a269ff5d9"
 )
 _OWNER_EXECUTION_AUTHORIZATION_SCHEMA_PATH = (
     Path(__file__).resolve().parent
@@ -98,6 +98,10 @@ class OwnerExecutionAuthorization:
     def admission_authorized(self) -> bool:
         return False
 
+    @property
+    def non_admissive_evidence_root_sealing_authorized(self) -> bool:
+        return True
+
     def to_report_dict(self) -> dict[str, object]:
         return {
             "authorization_mode": "OWNER_AUTHORIZED_NON_INDEPENDENT",
@@ -108,6 +112,7 @@ class OwnerExecutionAuthorization:
             "frozen_universe_sha256": self.frozen_universe_sha256,
             "independent_verification": False,
             "execution_authorized": True,
+            "non_admissive_evidence_root_sealing_authorized": True,
             "admission_authorized": False,
             "publication_authorized": False,
             "scientific_outcome_preapproved": False,

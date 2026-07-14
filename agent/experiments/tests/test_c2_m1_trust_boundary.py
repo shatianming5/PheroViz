@@ -101,11 +101,40 @@ def test_owner_execution_authorization_is_explicitly_non_independent() -> None:
 
     assert report["authorization_mode"] == "OWNER_AUTHORIZED_NON_INDEPENDENT"
     assert report["execution_authorized"] is True
+    assert report["non_admissive_evidence_root_sealing_authorized"] is True
     assert report["independent_verification"] is False
     assert report["admission_authorized"] is False
     assert report["publication_authorized"] is False
     assert report["scientific_outcome_preapproved"] is False
     _assert_unavailable(m1_trust_boundary.require_external_m1_trust_lock)
+
+
+def test_remediation_finalizer_enforces_fixed_owner_policy_actions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        remediation,
+        "require_external_m1_trust_lock",
+        m1_trust_boundary.require_owner_authorized_c2_execution,
+    )
+    authorization, policy, binding = (
+        remediation._require_owner_remediation_policy_for_chunk(
+            "001",
+            remediation.FROZEN_PARTITIONS["001"],
+        )
+    )
+    assert authorization.non_admissive_evidence_root_sealing_authorized
+    assert policy.non_admissive_evidence_root_sealing_authorized
+    assert binding.required_action == "FRESH_REMEDIATION_REQUIRED"
+
+    with pytest.raises(
+        remediation.C2RemediationError,
+        match="does not authorize fresh remediation",
+    ):
+        remediation._require_owner_remediation_policy_for_chunk(
+            "009",
+            remediation.FROZEN_PARTITIONS["009"],
+        )
 
 
 def test_production_source_routes_expose_no_attestation_injection() -> None:

@@ -2283,7 +2283,7 @@ def _applicable_case_set_doi_ids(
     terminal_rows: Sequence[Mapping[str, Any]],
     source_by_article: Mapping[str, Mapping[str, Any]],
 ) -> tuple[str, ...]:
-    """Return frozen-order downloaded DOI with complete verified source inventory."""
+    """Return frozen-order DOI with complete verified source from any attempt."""
 
     doi_ids: list[str] = []
     for terminal in sorted(
@@ -2295,8 +2295,6 @@ def _applicable_case_set_doi_ids(
             and terminal_status_raw in _TERMINAL_STATUS_ADAPTER,
             "terminal status is not in the closed adapter",
         )
-        if _TERMINAL_STATUS_ADAPTER[terminal_status_raw] != "DOWNLOADED":
-            continue
         article_id = _require_identifier(
             terminal.get("article_id"), "terminal article ID is invalid"
         )
@@ -3321,8 +3319,6 @@ class _Builder:
         for doi_id in sorted(cases_by_doi):
             terminal = terminal_by_doi.get(doi_id)
             _require(terminal is not None, "canonical case has no terminal DOI record")
-            if _TERMINAL_STATUS_ADAPTER[terminal["terminal_status"]] != "DOWNLOADED":
-                continue
             doi_cases = sorted(
                 cases_by_doi[doi_id],
                 key=lambda item: str(item["case_id"]),
@@ -3392,12 +3388,20 @@ class _Builder:
             doi_cases = sorted(
                 cases_by_doi.get(doi_id, ()), key=lambda item: str(item["case_id"])
             )
-            if terminal_status == "DOWNLOADED" and doi_id in case_stratum:
+            if source_present and doi_id in case_stratum:
                 disposition = "STRATIFIED_SOURCE_CANONICAL"
-                reason = "VERIFIED_SOURCE_CANONICAL_ALL_CASES"
-            elif terminal_status == "DOWNLOADED" and source_present:
+                reason = (
+                    "VERIFIED_SOURCE_CANONICAL_ALL_CASES"
+                    if terminal_status == "DOWNLOADED"
+                    else "VERIFIED_PRIOR_ATTEMPT_SOURCE_CANONICAL_ALL_CASES"
+                )
+            elif source_present:
                 disposition = "NON_STRATIFIED_SOURCE_NO_CANONICAL_CASE"
-                reason = "DOWNLOADED_SOURCE_NO_QUALIFYING_CASE"
+                reason = (
+                    "DOWNLOADED_SOURCE_NO_QUALIFYING_CASE"
+                    if terminal_status == "DOWNLOADED"
+                    else "PRIOR_ATTEMPT_SOURCE_NO_QUALIFYING_CASE"
+                )
             elif terminal_status == "DOWNLOADED":
                 disposition = "NON_STRATIFIED_DOWNLOADED_NO_VERIFIED_SOURCE"
                 reason = "DOWNLOADED_WITHOUT_VERIFIED_SOURCE"
@@ -3417,7 +3421,7 @@ class _Builder:
                 "terminal attempt evidence is incomplete",
             )
             source_inventory_binding: dict[str, Any] | None = None
-            if source_present and terminal_status == "DOWNLOADED":
+            if source_present:
                 evidence = self.source_by_article[article_id]["source_evidence"]
                 source_inventory_binding = {
                     "source_inventory_collection_hash": source_inventory_hash,
@@ -3440,7 +3444,7 @@ class _Builder:
                     ],
                 }
             canonical_builder_binding: dict[str, Any] | None = None
-            if terminal_status == "DOWNLOADED" and source_present:
+            if source_present:
                 canonical_builder_binding = {
                     "canonical_builder_rule_id": CANONICAL_RULE_ID,
                     "canonical_builder_rule_version": "1",
@@ -3467,7 +3471,7 @@ class _Builder:
                 "canonical_builder_binding_or_null": canonical_builder_binding,
                 "all_eligible_case_ids": (
                     [item["case_id"] for item in doi_cases]
-                    if terminal_status == "DOWNLOADED"
+                    if source_present
                     else []
                 ),
                 "classification_reason": reason,
@@ -5161,12 +5165,7 @@ def _validate_source_bearing_extension_with_attestation(
             "P stratum recomputation mismatch",
         )
         classifications_by_doi[doi_id] = item
-    expected_classification_dois = {
-        doi_id
-        for doi_id in cases_by_doi
-        if _TERMINAL_STATUS_ADAPTER[terminal_by_doi[doi_id]["terminal_status"]]
-        == "DOWNLOADED"
-    }
+    expected_classification_dois = set(cases_by_doi)
     _require(
         set(classifications_by_doi) == expected_classification_dois,
         "source classification canonical coverage mismatch",
@@ -5214,12 +5213,21 @@ def _validate_source_bearing_extension_with_attestation(
         doi_cases = sorted(
             cases_by_doi.get(doi_id, ()), key=lambda item: str(item["case_id"])
         )
-        if terminal_status == "DOWNLOADED" and doi_id in classifications_by_doi:
+        source_present = source_inventory_binding is not None
+        if source_present and doi_id in classifications_by_doi:
             final_disposition = "STRATIFIED_SOURCE_CANONICAL"
-            reason = "VERIFIED_SOURCE_CANONICAL_ALL_CASES"
-        elif terminal_status == "DOWNLOADED" and source_inventory_binding is not None:
+            reason = (
+                "VERIFIED_SOURCE_CANONICAL_ALL_CASES"
+                if terminal_status == "DOWNLOADED"
+                else "VERIFIED_PRIOR_ATTEMPT_SOURCE_CANONICAL_ALL_CASES"
+            )
+        elif source_present:
             final_disposition = "NON_STRATIFIED_SOURCE_NO_CANONICAL_CASE"
-            reason = "DOWNLOADED_SOURCE_NO_QUALIFYING_CASE"
+            reason = (
+                "DOWNLOADED_SOURCE_NO_QUALIFYING_CASE"
+                if terminal_status == "DOWNLOADED"
+                else "PRIOR_ATTEMPT_SOURCE_NO_QUALIFYING_CASE"
+            )
         elif terminal_status == "DOWNLOADED":
             final_disposition = "NON_STRATIFIED_DOWNLOADED_NO_VERIFIED_SOURCE"
             reason = "DOWNLOADED_WITHOUT_VERIFIED_SOURCE"
@@ -5256,8 +5264,7 @@ def _validate_source_bearing_extension_with_attestation(
                 ),
                 "consumption_bijection_hash": bijection["consumption_bijection_hash"],
             }
-            if terminal_status == "DOWNLOADED"
-            and source_inventory_binding is not None
+            if source_present
             else None
         )
         _require(
@@ -5275,7 +5282,7 @@ def _validate_source_bearing_extension_with_attestation(
             and disposition.get("all_eligible_case_ids")
             == (
                 [item["case_id"] for item in doi_cases]
-                if terminal_status == "DOWNLOADED"
+                if source_present
                 else []
             )
             and disposition.get("classification_reason") == reason,
@@ -5495,11 +5502,6 @@ def _build_source_bearing_extension_with_attestation(
             article_id in terminal_status_by_article,
             "source evidence has no terminal article record",
         )
-        if (
-            _TERMINAL_STATUS_ADAPTER[terminal_status_by_article[article_id]]
-            != "DOWNLOADED"
-        ):
-            continue
         for asset in validated:
             relative = str(asset["relative_path"])
             snapshot = raw_reader.reads.get(relative)
