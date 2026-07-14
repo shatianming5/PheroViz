@@ -20,11 +20,11 @@ def _digest(label: str) -> str:
 
 
 def _seal(entry: dict[str, Any]) -> None:
-    entry["registry_entry_sha256"] = sha256_json(
+    entry["registry_id_sha256"] = sha256_json(
         {
             key: value
             for key, value in entry.items()
-            if key != "registry_entry_sha256"
+            if key != "registry_id_sha256"
         }
     )
 
@@ -35,8 +35,7 @@ def _synthetic_entry() -> dict[str, Any]:
     entry: dict[str, Any] = {
         "schema_version": "c2-stageb-source-extension-code-attestation-v1",
         "registry_entry_type": "C2_STAGEB_SOURCE_EXTENSION_CODE_ATTESTATION",
-        "registry_entry_id": "synthetic-source-extension-code-anchor",
-        "registry_entry_sha256": "",
+        "registry_id_sha256": "",
         "extension_implementation_commit_full": "a" * 40,
         "manifest_only_attestation_commit_full": "b" * 40,
         "manifest_sha256": _digest("synthetic-manifest"),
@@ -83,6 +82,8 @@ def test_typed_fixture_compiles_but_production_loader_stays_non_admissive(
         (binding.runtime_path, binding.role)
         for binding in compiled.covered_runtime_paths
     ) == code_attestation.SOURCE_EXTENSION_RUNTIME_PATH_ROLES
+    assert compiled.registry_id == entry["registry_id_sha256"]
+    assert "registry_entry_id" not in compiled.to_dict()
     assert compiled.to_dict() == entry
 
     monkeypatch.setattr(
@@ -217,13 +218,25 @@ def test_manifest_only_attestation_commit_must_differ_from_implementation() -> N
         _compile(entry)
 
 
-def test_registry_identifier_cannot_encode_dynamic_or_classification_semantics() -> None:
+@pytest.mark.parametrize(
+    "declared_id",
+    [
+        "outcome-admitted",
+        "result-supported",
+        "status-blocked-insufficient",
+        "admission-report-not-run",
+        "cluster-p1-sentinel",
+    ],
+)
+def test_free_form_compound_outcome_and_status_ids_are_rejected(
+    declared_id: str,
+) -> None:
     entry = _synthetic_entry()
-    entry["registry_entry_id"] = "P1-sentinel-head-fallback"
+    entry["registry_entry_id"] = declared_id
     _seal(entry)
     with pytest.raises(
         C2FullReplacementPolicyError,
-        match="identifier encodes a forbidden dynamic/semantic value",
+        match="schema validation failed",
     ):
         _compile(entry)
 
