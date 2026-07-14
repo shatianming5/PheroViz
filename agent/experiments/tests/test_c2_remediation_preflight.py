@@ -18,7 +18,7 @@ from tests.test_experiment_support import experiment_workspace
 @dataclass
 class SyntheticPreflightFixture:
     plan: dict[str, Any]
-    bindings: preflight.PreflightBindings
+    bindings: preflight.TestOnlyPreflightBindings
     roots: dict[str, Path]
 
 
@@ -50,7 +50,7 @@ def _synthetic_fixture() -> Iterator[SyntheticPreflightFixture]:
         ]
         universe_path = frozen / "universe.jsonl"
         universe_path.write_bytes(_jsonl(universe_records))
-        bindings: list[preflight.FrozenChunkBinding] = []
+        bindings: list[preflight.TestOnlyChunkBinding] = []
         roots: dict[str, Path] = {}
         plan_chunks: list[dict[str, Any]] = []
         first_ordinal = 1
@@ -69,7 +69,7 @@ def _synthetic_fixture() -> Iterator[SyntheticPreflightFixture]:
             (root / "accepted.jsonl").write_bytes(payload)
             roots[chunk_id] = root
             bindings.append(
-                preflight.FrozenChunkBinding(
+                preflight.TestOnlyChunkBinding(
                     chunk_id=chunk_id,
                     input_total=input_total,
                     sha256=hashlib.sha256(payload).hexdigest(),
@@ -109,7 +109,7 @@ def _synthetic_fixture() -> Iterator[SyntheticPreflightFixture]:
                 "frozen_universe_path": str(universe_path),
                 "chunks": plan_chunks,
             },
-            bindings=preflight.PreflightBindings(
+            bindings=preflight.TestOnlyPreflightBindings(
                 frozen_universe_sha256=hashlib.sha256(
                     universe_path.read_bytes()
                 ).hexdigest(),
@@ -129,8 +129,14 @@ def _violation_codes(chunk: dict[str, Any]) -> set[str]:
 
 def test_inventories_exact_frozen_partition_and_blocks_until_integrated_gates() -> None:
     with _synthetic_fixture() as fixture:
-        report = preflight.run_preflight(fixture.plan, bindings=fixture.bindings)
-        repeated = preflight.run_preflight(fixture.plan, bindings=fixture.bindings)
+        report = preflight.run_preflight_for_testing(
+            fixture.plan,
+            test_bindings=fixture.bindings,
+        )
+        repeated = preflight.run_preflight_for_testing(
+            fixture.plan,
+            test_bindings=fixture.bindings,
+        )
 
     assert report == repeated
     assert report["overall_status"] == "BLOCKED"
@@ -171,6 +177,45 @@ def test_inventories_exact_frozen_partition_and_blocks_until_integrated_gates() 
     ] == "BLOCKED"
 
 
+def test_public_api_rejects_sha_count_and_slice_binding_overrides() -> None:
+    with _synthetic_fixture() as fixture:
+        first = fixture.bindings.chunks[0]
+        overrides = preflight.TestOnlyPreflightBindings(
+            frozen_universe_sha256="f" * 64,
+            chunks=(
+                preflight.TestOnlyChunkBinding(
+                    chunk_id=first.chunk_id,
+                    input_total=201,
+                    sha256="e" * 64,
+                    first_global_ordinal=2,
+                    last_global_ordinal=202,
+                ),
+                *fixture.bindings.chunks[1:],
+            ),
+        )
+
+        with pytest.raises(TypeError, match="unexpected keyword argument 'bindings'"):
+            preflight.run_preflight(fixture.plan, bindings=overrides)
+        with pytest.raises(
+            TypeError,
+            match="unexpected keyword argument 'test_bindings'",
+        ):
+            preflight.run_preflight(fixture.plan, test_bindings=overrides)
+
+        production_report = preflight.run_preflight(fixture.plan)
+
+    assert production_report["overall_status"] == "BLOCKED"
+    assert production_report["frozen_universe"]["expected_sha256"] == (
+        preflight.FROZEN_UNIVERSE_SHA256
+    )
+    assert production_report["frozen_universe"]["status"] == "REJECTED"
+    assert _chunk(production_report, "001")["expected_input_total"] == 200
+    assert _chunk(production_report, "001")["frozen_chunk"]["expected_sha256"] != (
+        overrides.chunks[0].sha256
+    )
+    assert _chunk(production_report, "013")["expected_input_total"] == 63
+
+
 def test_rejects_padded_accepted_input_without_repartitioning_it() -> None:
     with _synthetic_fixture() as fixture:
         accepted = fixture.roots["001"] / "accepted.jsonl"
@@ -179,7 +224,10 @@ def test_rejects_padded_accepted_input_without_repartitioning_it() -> None:
             + b'{"doi":"10.4242/c2-preflight-unbound-padding"}\n'
         )
 
-        report = preflight.run_preflight(fixture.plan, bindings=fixture.bindings)
+        report = preflight.run_preflight_for_testing(
+            fixture.plan,
+            test_bindings=fixture.bindings,
+        )
 
     chunk = _chunk(report, "001")
     assert report["overall_status"] == "BLOCKED"
@@ -199,7 +247,10 @@ def test_rejects_merged_chunk_root_plan() -> None:
             preflight.C2RemediationPreflightError,
             match="merging chunks is forbidden",
         ):
-            preflight.run_preflight(plan, bindings=fixture.bindings)
+            preflight.run_preflight_for_testing(
+                plan,
+                test_bindings=fixture.bindings,
+            )
 
 
 def test_rejects_unsafe_root_and_final_or_unverified_source_claims() -> None:
@@ -217,7 +268,10 @@ def test_rejects_unsafe_root_and_final_or_unverified_source_claims() -> None:
             }
         )
 
-        report = preflight.run_preflight(plan, bindings=fixture.bindings)
+        report = preflight.run_preflight_for_testing(
+            plan,
+            test_bindings=fixture.bindings,
+        )
 
     chunk = _chunk(report, "001")
     assert chunk["root"]["status"] == "REJECTED"
@@ -261,10 +315,106 @@ def test_rejects_root_swapped_during_immutable_inventory(
             "_read_regular_file_at",
             swap_after_first_inventory_read,
         )
-        report = preflight.run_preflight(fixture.plan, bindings=fixture.bindings)
+        report = preflight.run_preflight_for_testing(
+            fixture.plan,
+            test_bindings=fixture.bindings,
+        )
 
     chunk = _chunk(report, "001")
     assert swapped is True
     assert chunk["root"]["status"] == "REJECTED"
     assert "ROOT_INPUT_UNSAFE_OR_UNBOUND" in _violation_codes(chunk)
     assert "changed during immutable inventory" in chunk["root"]["reason"]
+
+
+@pytest.mark.skipif(
+    not hasattr(os, "mkfifo"),
+    reason="FIFO creation is unavailable on this platform",
+)
+def test_regular_reader_rejects_fifo_before_opening_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with experiment_workspace("c2-remediation-preflight-fifo") as workspace:
+        workspace.chmod(0o700)
+        fifo = workspace / "input.fifo"
+        os.mkfifo(fifo, mode=0o600)
+        parent_fd = os.open(workspace, preflight._directory_flags())
+        original_open = os.open
+        opened_fifo = False
+
+        def track_open(
+            name: str,
+            flags: int,
+            mode: int = 0o777,
+            *,
+            dir_fd: int | None = None,
+        ) -> int:
+            nonlocal opened_fifo
+            if name == "input.fifo" and dir_fd == parent_fd:
+                opened_fifo = True
+            return original_open(name, flags, mode, dir_fd=dir_fd)
+
+        monkeypatch.setattr(preflight.os, "open", track_open)
+        try:
+            with pytest.raises(
+                preflight.C2RemediationPreflightError,
+                match="regular single-link file before open",
+            ):
+                preflight._read_regular_file_at(
+                    parent_fd,
+                    "input.fifo",
+                    label="FIFO regression input",
+                )
+        finally:
+            os.close(parent_fd)
+
+    assert opened_fifo is False
+
+
+@pytest.mark.skipif(
+    not hasattr(os, "mkfifo") or not hasattr(os, "O_NONBLOCK"),
+    reason="nonblocking FIFO regression requires O_NONBLOCK and mkfifo",
+)
+def test_regular_reader_rejects_fifo_stat_open_race_without_blocking(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with experiment_workspace("c2-remediation-preflight-fifo-race") as workspace:
+        workspace.chmod(0o700)
+        candidate = workspace / "race-input"
+        candidate.write_bytes(b"regular input")
+        parent_fd = os.open(workspace, preflight._directory_flags())
+        original_open = os.open
+        swapped_to_fifo = False
+        saw_nonblocking_flag = False
+
+        def replace_then_open(
+            name: str,
+            flags: int,
+            mode: int = 0o777,
+            *,
+            dir_fd: int | None = None,
+        ) -> int:
+            nonlocal saw_nonblocking_flag, swapped_to_fifo
+            if name == "race-input" and dir_fd == parent_fd and not swapped_to_fifo:
+                saw_nonblocking_flag = bool(flags & os.O_NONBLOCK)
+                candidate.unlink()
+                os.mkfifo(candidate, mode=0o600)
+                swapped_to_fifo = True
+            return original_open(name, flags, mode, dir_fd=dir_fd)
+
+        monkeypatch.setattr(preflight.os, "open", replace_then_open)
+        try:
+            with pytest.raises(
+                preflight.C2RemediationPreflightError,
+                match="changed while opening",
+            ):
+                preflight._read_regular_file_at(
+                    parent_fd,
+                    "race-input",
+                    label="FIFO stat/open race",
+                )
+        finally:
+            os.close(parent_fd)
+
+    assert swapped_to_fifo is True
+    assert saw_nonblocking_flag is True
