@@ -16,7 +16,12 @@ from typing import Any, Mapping, Sequence
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
 
-from .models import ProvenanceError, sha256_json, write_json_atomic
+from .models import (
+    ProvenanceError,
+    normalize_output_path,
+    sha256_json,
+    write_json_atomic,
+)
 
 
 C2_FINALIZER_VERSION = "1.0"
@@ -668,18 +673,17 @@ def finalize_manifest(manifest_path: Path) -> dict[str, Any]:
     return prepare_finalization(manifest_path).report
 
 
-def _resolve_output_path(path: Path) -> Path:
+def _normalize_final_output_path(path: Path) -> Path:
     try:
-        return path.expanduser().resolve(strict=False)
-    except (OSError, RuntimeError) as exc:
+        return normalize_output_path(path)
+    except ProvenanceError as exc:
         raise C2AdmissionError(f"Cannot resolve final report output path: {path}") from exc
 
 
 def _reject_output_input_collision(
-    output_path: Path,
+    normalized_output_path: Path,
     admitted_input_paths: Sequence[Path],
 ) -> None:
-    resolved_output = _resolve_output_path(output_path)
     for input_path in admitted_input_paths:
         try:
             resolved_input = input_path.resolve(strict=True)
@@ -688,13 +692,13 @@ def _reject_output_input_collision(
                 f"Admitted input path became unavailable: {input_path}"
             ) from exc
         try:
-            aliases_input = resolved_output == resolved_input or (
-                resolved_output.exists()
-                and resolved_output.samefile(resolved_input)
+            aliases_input = normalized_output_path == resolved_input or (
+                normalized_output_path.exists()
+                and normalized_output_path.samefile(resolved_input)
             )
         except OSError as exc:
             raise C2AdmissionError(
-                f"Cannot compare final report output path: {output_path}"
+                f"Cannot compare final report output path: {normalized_output_path}"
             ) from exc
         if aliases_input:
             raise C2AdmissionError(
@@ -713,9 +717,17 @@ def write_final_report(
             "write_final_report requires a FinalizedAdmission from prepare_finalization"
         )
     _validate_final_report(finalized.report)
-    _reject_output_input_collision(output_path, finalized.admitted_input_paths)
-    write_json_atomic(output_path, finalized.report)
-    return output_path
+    normalized_output_path = _normalize_final_output_path(output_path)
+    _reject_output_input_collision(
+        normalized_output_path,
+        finalized.admitted_input_paths,
+    )
+    write_json_atomic(
+        normalized_output_path,
+        finalized.report,
+        normalized_path=True,
+    )
+    return normalized_output_path
 
 
 def finalize_to_path(

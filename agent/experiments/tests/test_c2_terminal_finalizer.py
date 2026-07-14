@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 import uuid
 from contextlib import contextmanager
@@ -11,6 +12,7 @@ from typing import Any, Iterator
 import pytest
 
 import experiments.c2_terminal_finalizer as c2_terminal_finalizer
+import experiments.models as experiment_models
 from experiments.c2_terminal_finalizer import (
     CHUNK_IDS,
     REPLACEMENT_CHUNK_IDS,
@@ -23,7 +25,7 @@ from experiments.c2_terminal_finalizer import (
     write_final_report,
 )
 from experiments.cli import main as cli_main
-from experiments.models import sha256_file, sha256_json
+from experiments.models import sha256_file, sha256_json, write_json_atomic
 
 
 SYNTHETIC_CODE_COMMIT = "a" * 40
@@ -550,6 +552,64 @@ def test_cli_rejects_relative_manifest_output_collision(
         assert _read_json(manifest_path)["manifest_hash"] == manifest["manifest_hash"]
 
 
+def test_cli_rejects_tilde_manifest_output_collision_without_writing(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with _workspace("tilde-manifest-output-collision") as workspace:
+        manifest_path, _, _ = _build_admission(workspace)
+        manifest_bytes = manifest_path.read_bytes()
+        monkeypatch.setenv("HOME", str(workspace))
+        monkeypatch.chdir(workspace)
+
+        assert (
+            cli_main(
+                [
+                    "c2-terminal-finalize",
+                    str(manifest_path),
+                    "--out",
+                    "~/admission-manifest.json",
+                ]
+            )
+            == 2
+        )
+        assert "aliases an admitted input path" in capsys.readouterr().err
+        assert manifest_path.read_bytes() == manifest_bytes
+        assert not (workspace / "~" / "admission-manifest.json").exists()
+
+
+def test_library_passes_one_normalized_tilde_output_path_to_writer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _workspace("tilde-normalized-output") as workspace:
+        manifest_path, _, _ = _build_admission(workspace)
+        expected_output = workspace / "final-report.json"
+        writes: list[tuple[Path, bool]] = []
+        original_writer = c2_terminal_finalizer.write_json_atomic
+        monkeypatch.setenv("HOME", str(workspace))
+        monkeypatch.chdir(workspace)
+
+        def _record_writer(
+            path: Path,
+            payload: dict[str, Any],
+            *,
+            normalized_path: bool = False,
+        ) -> None:
+            writes.append((path, normalized_path))
+            original_writer(path, payload, normalized_path=normalized_path)
+
+        monkeypatch.setattr(c2_terminal_finalizer, "write_json_atomic", _record_writer)
+        report, written_path = finalize_to_path(
+            manifest_path,
+            Path("~/final-report.json"),
+        )
+
+        assert written_path == expected_output
+        assert writes == [(expected_output, True)]
+        assert _read_json(expected_output) == report
+        assert not (workspace / "~" / "final-report.json").exists()
+
+
 def test_library_rejects_symlink_alias_to_chunk_report() -> None:
     with _workspace("chunk-output-collision") as workspace:
         manifest_path, _, report_paths = _build_admission(workspace)
@@ -574,6 +634,54 @@ def test_library_writes_a_noncolliding_output_path() -> None:
 
         assert written_path == output_path
         assert _read_json(output_path) == report
+
+
+def test_atomic_writer_ignores_old_predictable_staging_symlink_to_manifest() -> None:
+    with _workspace("manifest-staging-symlink") as workspace:
+        manifest_path, _, _ = _build_admission(workspace)
+        manifest_bytes = manifest_path.read_bytes()
+        output_path = workspace / "final-report.json"
+        old_staging_path = output_path.with_name(f".{output_path.name}.tmp")
+        old_staging_path.symlink_to(manifest_path)
+
+        write_json_atomic(output_path, {"kind": "safe-output"})
+
+        assert manifest_path.read_bytes() == manifest_bytes
+        assert old_staging_path.is_symlink()
+        assert _read_json(output_path) == {"kind": "safe-output"}
+
+
+def test_atomic_writer_ignores_old_predictable_staging_hardlink_to_chunk() -> None:
+    with _workspace("chunk-staging-hardlink") as workspace:
+        _, _, report_paths = _build_admission(workspace)
+        report_path = report_paths["013"]
+        report_bytes = report_path.read_bytes()
+        output_path = workspace / "final-report.json"
+        old_staging_path = output_path.with_name(f".{output_path.name}.tmp")
+        os.link(report_path, old_staging_path)
+
+        write_json_atomic(output_path, {"kind": "safe-output"})
+
+        assert report_path.read_bytes() == report_bytes
+        assert old_staging_path.samefile(report_path)
+        assert _read_json(output_path) == {"kind": "safe-output"}
+
+
+def test_atomic_writer_cleans_random_staging_after_replace_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _workspace("staging-cleanup") as workspace:
+        output_path = workspace / "final-report.json"
+
+        def _fail_replace(source: str | Path, destination: str | Path) -> None:
+            raise OSError("synthetic replace failure")
+
+        monkeypatch.setattr(experiment_models.os, "replace", _fail_replace)
+        with pytest.raises(OSError, match="synthetic replace failure"):
+            write_json_atomic(output_path, {"kind": "failed-output"})
+
+        assert not list(workspace.glob(".final-report.json.*.tmp"))
+        assert not output_path.exists()
 
 
 def test_p5plus_deficiency_is_explicitly_blocked_without_analysis() -> None:

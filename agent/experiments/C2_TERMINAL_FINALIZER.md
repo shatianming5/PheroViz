@@ -16,6 +16,8 @@ and fail on missing or stale files. The report and manifest file digests in the
 final output are computed from the exact bytes parsed and validated in one read.
 The output path must not resolve to the manifest or any sealed chunk report;
 relative paths and symlink aliases are rejected before writing.
+Writes use a fresh exclusive staging file in the normalized output directory,
+so legacy predictable staging names cannot alias sealed evidence.
 
 Chunks `009`–`012` must be replacement roots and must explicitly exclude their
 superseded root IDs. Every DOI needs three terminal attempts and complete,

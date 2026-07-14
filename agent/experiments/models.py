@@ -5,6 +5,7 @@ import json
 import math
 import os
 import re
+import tempfile
 from dataclasses import asdict, dataclass, field, fields
 from datetime import datetime, timezone
 from pathlib import Path
@@ -49,6 +50,13 @@ def canonical_json(data: Any) -> str:
 
 def sha256_json(data: Any) -> str:
     return hashlib.sha256(canonical_json(data).encode("utf-8")).hexdigest()
+
+
+def normalize_output_path(path: Path) -> Path:
+    try:
+        return path.expanduser().resolve(strict=False)
+    except (OSError, RuntimeError) as exc:
+        raise ProvenanceError(f"Cannot resolve output path: {path}") from exc
 
 
 def slug_identifier(value: str) -> str:
@@ -114,9 +122,14 @@ def verify_artifacts(record: "RunRecord", run_dir: Path) -> None:
             )
 
 
-def write_json_atomic(path: Path, payload: Mapping[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f".{path.name}.tmp")
+def write_json_atomic(
+    path: Path,
+    payload: Mapping[str, Any],
+    *,
+    normalized_path: bool = False,
+) -> None:
+    final_path = path if normalized_path else normalize_output_path(path)
+    final_path.parent.mkdir(parents=True, exist_ok=True)
     encoded = json.dumps(
         payload,
         ensure_ascii=False,
@@ -124,16 +137,32 @@ def write_json_atomic(path: Path, payload: Mapping[str, Any]) -> None:
         sort_keys=True,
         allow_nan=False,
     )
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{final_path.name}.",
+        suffix=".tmp",
+        dir=final_path.parent,
+        text=True,
+    )
+    temporary = Path(temporary_name)
     try:
-        with temporary.open("w", encoding="utf-8") as handle:
+        handle = os.fdopen(descriptor, "w", encoding="utf-8")
+        descriptor = -1
+        with handle:
             handle.write(encoded)
             handle.write("\n")
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(temporary, path)
+        os.replace(temporary, final_path)
     finally:
-        if temporary.exists():
+        if descriptor != -1:
+            try:
+                os.close(descriptor)
+            except OSError:
+                pass
+        try:
             temporary.unlink()
+        except OSError:
+            pass
 
 
 def read_json(path: Path) -> Dict[str, Any]:
