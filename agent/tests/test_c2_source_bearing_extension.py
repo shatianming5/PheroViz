@@ -869,31 +869,28 @@ def test_test_only_code_attestation_rejects_invalid_child_topologies_and_manifes
             )
 
 
-def test_production_extension_routes_fail_before_candidate_attestation() -> None:
-    root = _MemoryRoot()
-    with pytest.raises(
-        SourceBearingExtensionError,
-        match="STAGEB_POLICY_REQUIRED",
-    ):
-        build_source_bearing_extension(
-            root=root,
-            raw_reader=object(),
-            records=(),
-            provenance={},
-            terminal_rows=(),
-            partition_records=0,
-            source_chunk_sha256="a" * 64,
-        )
-    with pytest.raises(
-        SourceBearingExtensionError,
-        match="STAGEB_POLICY_REQUIRED",
-    ):
-        validate_source_bearing_extension(
-            root,
-            partition_records=0,
-            source_chunk_sha256="a" * 64,
-        )
-    assert root.payloads == {}
+def test_production_extension_routes_use_fixed_runtime_attestation() -> None:
+    root, reader, records, provenance, terminal_rows = _source_root(
+        source_assets=_bound_assets()
+    )
+    result = build_source_bearing_extension(
+        root=root,
+        raw_reader=reader,
+        records=records,
+        provenance=provenance,
+        terminal_rows=terminal_rows,
+        partition_records=1,
+        source_chunk_sha256="a" * 64,
+    )
+    replay = validate_source_bearing_extension(
+        root,
+        partition_records=1,
+        source_chunk_sha256="a" * 64,
+    )
+
+    assert result.status == "SOURCE_CLASSIFICATION_V2_COMPLETE"
+    assert replay["status"] == "PASS"
+    assert replay["source_classification_count"] == 1
 
 
 def test_csv_pipeline_replays_without_models_and_retains_single_case() -> None:

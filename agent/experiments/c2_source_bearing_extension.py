@@ -1155,7 +1155,9 @@ def verify_source_extension_code_attestation_for_testing(
             "source extension attestation is not an ancestor of HEAD"
         ) from exc
     implementation_commit = _git_text(
-        resolved_worktree, ("rev-parse", "HEAD^"), "implementation parent commit"
+        resolved_worktree,
+        ("rev-parse", f"{attestation_commit}^"),
+        "implementation parent commit",
     )
     _require(
         _GIT_OBJECT_RE.fullmatch(implementation_commit) is not None,
