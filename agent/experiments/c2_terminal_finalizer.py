@@ -23,6 +23,7 @@ from .models import (
     normalize_output_path,
     sha256_json,
     open_secure_output_target,
+    verify_secure_output_target,
     write_json_atomic_to_target,
 )
 
@@ -736,16 +737,27 @@ def write_final_report(
         )
     _validate_final_report(finalized.report)
     normalized_output_path = _normalize_final_output_path(output_path)
-    output_target = open_secure_output_target(
-        normalized_output_path,
-        normalized_path=True,
-    )
+    try:
+        output_target = open_secure_output_target(
+            normalized_output_path,
+            normalized_path=True,
+        )
+    except ProvenanceError as exc:
+        raise C2AdmissionError(
+            f"Cannot secure final report output path: {normalized_output_path}"
+        ) from exc
     try:
         _reject_output_input_collision(
             output_target,
             finalized.admitted_input_paths,
         )
-        write_json_atomic_to_target(output_target, finalized.report)
+        try:
+            write_json_atomic_to_target(output_target, finalized.report)
+            verify_secure_output_target(output_target)
+        except ProvenanceError as exc:
+            raise C2AdmissionError(
+                f"Final report output verification failed: {normalized_output_path}"
+            ) from exc
         return output_target.final_path
     finally:
         output_target.close()

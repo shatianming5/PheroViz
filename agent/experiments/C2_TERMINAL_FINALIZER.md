@@ -20,6 +20,9 @@ Writes use a fresh exclusive staging file in the normalized output directory,
 so legacy predictable staging names cannot alias sealed evidence.
 Leaf output symlinks and platforms without descriptor-relative atomic writes
 fail closed.
+After publication, the visible parent and leaf are revalidated against the
+anchored descriptor and captured published-output inode; a detected parent/leaf
+swap fails without reporting output success.
 If the descriptor-relative rename fails, one random mode-0600 staging file can
 remain in the output directory; it is deliberately left for verified
 operational cleanup rather than risking pathname-based deletion of reused data.

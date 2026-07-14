@@ -80,6 +80,8 @@ class SecureOutputTarget:
     final_path: Path
     leaf_name: str
     parent_fd: int
+    published_device: Optional[int] = None
+    published_inode: Optional[int] = None
 
     def close(self) -> None:
         if self.parent_fd != -1:
@@ -107,7 +109,7 @@ def _directory_open_flags() -> int:
     return flags
 
 
-def _open_secure_parent(parent_path: Path) -> int:
+def _open_secure_parent(parent_path: Path, *, create: bool = True) -> int:
     _require_secure_output_primitives()
     if not parent_path.is_absolute():
         raise ProvenanceError("Secure output parent must be absolute")
@@ -122,6 +124,8 @@ def _open_secure_parent(parent_path: Path) -> int:
                     dir_fd=descriptor,
                 )
             except FileNotFoundError:
+                if not create:
+                    raise
                 try:
                     os.mkdir(component, mode=0o755, dir_fd=descriptor)
                 except FileExistsError:
@@ -172,6 +176,72 @@ def open_secure_output_target(
     except Exception:
         os.close(parent_fd)
         raise
+
+
+def verify_secure_output_target(target: SecureOutputTarget) -> None:
+    """Verify that the user-visible output still names the anchored publication."""
+
+    if target.parent_fd == -1:
+        raise ProvenanceError("Secure output target is already closed")
+    if target.published_device is None or target.published_inode is None:
+        raise ProvenanceError("Secure output has not been published")
+    anchored_parent = os.fstat(target.parent_fd)
+    try:
+        anchored_leaf = os.stat(
+            target.leaf_name,
+            dir_fd=target.parent_fd,
+            follow_symlinks=False,
+        )
+    except FileNotFoundError as exc:
+        raise ProvenanceError(
+            f"Final output leaf changed after publication: {target.final_path}"
+        ) from exc
+    if (
+        stat.S_ISLNK(anchored_leaf.st_mode)
+        or anchored_leaf.st_dev != target.published_device
+        or anchored_leaf.st_ino != target.published_inode
+    ):
+        raise ProvenanceError(
+            f"Final output leaf changed after publication: {target.final_path}"
+        )
+    try:
+        visible_parent_fd = _open_secure_parent(
+            target.final_path.parent,
+            create=False,
+        )
+    except OSError as exc:
+        raise ProvenanceError(
+            f"Final output parent changed after publication: {target.final_path}"
+        ) from exc
+    try:
+        visible_parent = os.fstat(visible_parent_fd)
+        if (
+            visible_parent.st_dev != anchored_parent.st_dev
+            or visible_parent.st_ino != anchored_parent.st_ino
+        ):
+            raise ProvenanceError(
+                f"Final output parent changed after publication: {target.final_path}"
+            )
+        try:
+            visible_leaf = os.stat(
+                target.leaf_name,
+                dir_fd=visible_parent_fd,
+                follow_symlinks=False,
+            )
+        except FileNotFoundError as exc:
+            raise ProvenanceError(
+                f"Final output leaf changed after publication: {target.final_path}"
+            ) from exc
+        if (
+            stat.S_ISLNK(visible_leaf.st_mode)
+            or visible_leaf.st_dev != target.published_device
+            or visible_leaf.st_ino != target.published_inode
+        ):
+            raise ProvenanceError(
+                f"Final output leaf changed after publication: {target.final_path}"
+            )
+    finally:
+        os.close(visible_parent_fd)
 
 
 def slug_identifier(value: str) -> str:
@@ -286,23 +356,33 @@ def write_json_atomic_to_target(
         else:
             raise ProvenanceError("Cannot allocate secure output staging file")
 
-        handle = os.fdopen(descriptor, "w", encoding="utf-8")
-        descriptor = -1
+        handle = os.fdopen(
+            descriptor,
+            "w",
+            encoding="utf-8",
+            closefd=False,
+        )
         with handle:
             handle.write(encoded)
             handle.write("\n")
             handle.flush()
             os.fsync(handle.fileno())
+        published_leaf = os.fstat(descriptor)
         os.rename(
             temporary_name,
             target.leaf_name,
             src_dir_fd=target.parent_fd,
             dst_dir_fd=target.parent_fd,
         )
+        target.published_device = published_leaf.st_dev
+        target.published_inode = published_leaf.st_ino
+        os.close(descriptor)
+        descriptor = -1
         try:
             os.fsync(target.parent_fd)
         except OSError:
             pass
+        verify_secure_output_target(target)
     finally:
         if descriptor != -1:
             try:

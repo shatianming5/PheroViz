@@ -826,12 +826,14 @@ def test_atomic_writer_preserves_reused_staging_name_after_rename(
         assert _read_json(output_path) == {"kind": "safe-output"}
 
 
-def test_finalizer_output_anchor_survives_parent_symlink_swap(
+def test_library_rejects_parent_swap_after_safe_publication(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     with _workspace("output-parent-swap") as workspace:
-        manifest_path, _, _ = _build_admission(workspace)
+        manifest_path, _, report_paths = _build_admission(workspace)
         manifest_bytes = manifest_path.read_bytes()
+        chunk_path = report_paths["013"]
+        chunk_bytes = chunk_path.read_bytes()
         output_parent = workspace / "safe-output-parent"
         output_parent.mkdir()
         output_path = output_parent / manifest_path.name
@@ -851,18 +853,26 @@ def test_finalizer_output_anchor_survives_parent_symlink_swap(
             "write_json_atomic_to_target",
             _swap_parent_then_write,
         )
-        report, _ = finalize_to_path(manifest_path, output_path)
+
+        with pytest.raises(
+            C2AdmissionError,
+            match="Final report output verification failed",
+        ):
+            finalize_to_path(manifest_path, output_path)
 
         assert manifest_path.read_bytes() == manifest_bytes
-        assert _read_json(parked_parent / manifest_path.name) == report
+        assert chunk_path.read_bytes() == chunk_bytes
+        assert (parked_parent / manifest_path.name).is_file()
         assert (output_parent / manifest_path.name).samefile(manifest_path)
 
 
-def test_finalizer_output_anchor_keeps_chunk_safe_after_parent_swap(
+def test_cli_does_not_report_success_after_chunk_parent_swap(
     monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     with _workspace("output-parent-chunk-swap") as workspace:
         manifest_path, _, report_paths = _build_admission(workspace)
+        manifest_bytes = manifest_path.read_bytes()
         chunk_path = report_paths["013"]
         chunk_bytes = chunk_path.read_bytes()
         output_parent = workspace / "safe-output-parent"
@@ -884,11 +894,65 @@ def test_finalizer_output_anchor_keeps_chunk_safe_after_parent_swap(
             "write_json_atomic_to_target",
             _swap_parent_then_write,
         )
-        report, _ = finalize_to_path(manifest_path, output_path)
 
+        assert (
+            cli_main(
+                [
+                    "c2-terminal-finalize",
+                    str(manifest_path),
+                    "--out",
+                    str(output_path),
+                ]
+            )
+            == 2
+        )
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert "Final report output verification failed" in captured.err
+
+        assert manifest_path.read_bytes() == manifest_bytes
         assert chunk_path.read_bytes() == chunk_bytes
-        assert _read_json(parked_parent / chunk_path.name) == report
+        assert (parked_parent / chunk_path.name).is_file()
         assert (output_parent / chunk_path.name).samefile(chunk_path)
+
+
+def test_library_rejects_leaf_replacement_after_publication(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _workspace("output-leaf-replacement") as workspace:
+        manifest_path, _, report_paths = _build_admission(workspace)
+        manifest_bytes = manifest_path.read_bytes()
+        chunk_path = report_paths["013"]
+        chunk_bytes = chunk_path.read_bytes()
+        output_path = workspace / "final-report.json"
+        original_writer = c2_terminal_finalizer.write_json_atomic_to_target
+
+        def _write_then_replace_leaf(
+            target: experiment_models.SecureOutputTarget,
+            payload: dict[str, Any],
+        ) -> None:
+            original_writer(target, payload)
+            os.unlink(target.leaf_name, dir_fd=target.parent_fd)
+            os.link(
+                manifest_path,
+                target.leaf_name,
+                dst_dir_fd=target.parent_fd,
+            )
+
+        monkeypatch.setattr(
+            c2_terminal_finalizer,
+            "write_json_atomic_to_target",
+            _write_then_replace_leaf,
+        )
+        with pytest.raises(
+            C2AdmissionError,
+            match="Final report output verification failed",
+        ):
+            finalize_to_path(manifest_path, output_path)
+
+        assert manifest_path.read_bytes() == manifest_bytes
+        assert chunk_path.read_bytes() == chunk_bytes
+        assert output_path.samefile(manifest_path)
 
 
 def test_p5plus_deficiency_is_explicitly_blocked_without_analysis() -> None:
