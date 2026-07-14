@@ -1,0 +1,67 @@
+{
+  "schema_version": "1.0",
+  "status": "SEVEN_CHUNKS_SEALED_NO_PROPOSALS",
+  "universe_sha256": "51848466c6bf6bf400b58faf539953830349abab21438e527eaefd74103450df",
+  "code_commit": "ca98442b9e805110089b03083cb240e19b58d4a2",
+  "chunks": {
+    "003": {
+      "terminal_counts": {"no-figures": 53, "no-source-data": 147},
+      "source_data_dois": 0,
+      "proposals": 0,
+      "report_hash": "def3ba1c0dc8eb2d669eeb5f5fb13ae9458fd9a1f454cc951b8d6fa9bafb7f77",
+      "report_file_sha256": "7e4b03a97127ae4fe03c518c6fee5581e89a19162b51de9d8b5aa0e19cc8036c"
+    },
+    "004": {
+      "terminal_counts": {"no-figures": 74, "no-source-data": 126},
+      "source_data_dois": 0,
+      "proposals": 0,
+      "report_hash": "d7b75bef3460feb6052085a19d63ea271348d6472b809c08ed28805d453f1b85",
+      "report_file_sha256": "91418323cb0f5e6e43f49ab9acb258d5056068621b1ec46dec71c656702a733c"
+    },
+    "009": {
+      "terminal_counts": {"no-figures": 21, "no-source-data": 179},
+      "source_data_dois": 0,
+      "proposals": 0,
+      "report_hash": "a5ef8ce125be06418b042fb692aae94333fdbb1a5f81e7ed9af592f92b368773",
+      "report_file_sha256": "36ccbfb8102c0fb3e3e0f178f42fe24ab706e02739601eff5923b16a039a0491"
+    },
+    "010": {
+      "terminal_counts": {"no-figures": 48, "no-source-data": 152},
+      "source_data_dois": 0,
+      "proposals": 0,
+      "report_hash": "336ea0992eea8492597f31c0fa1a1806c6324f03658b1912e51cdc2815329a08",
+      "report_file_sha256": "09b6262dcd7c85a90d9b62f23b8421c180ad99cf2c3b3f77c20e23234c7dc8c2"
+    },
+    "011": {
+      "terminal_counts": {"no-figures": 30, "no-source-data": 170},
+      "source_data_dois": 0,
+      "proposals": 0,
+      "report_hash": "665b24755260bb50fe4f9bd63865933d4db7cfbf4c1ab815cb9db77b69b4b992",
+      "report_file_sha256": "13795cbca1a708f8df8874a16707d45a27280b363014d601cf7eb78e4000b5c3"
+    },
+    "012": {
+      "terminal_counts": {"no-figures": 16, "no-source-data": 184},
+      "source_data_dois": 0,
+      "proposals": 0,
+      "report_hash": "12678c152b3446358539601f15382c601832e9c76f8f01aa3738ec1e8b8cb451",
+      "report_file_sha256": "c36dcea80ae456d36a19703a162b78b28b9ed984a2f988ad08cb98b176b0361c"
+    },
+    "013": {
+      "terminal_counts": {"no-figures": 5, "no-source-data": 58},
+      "source_data_dois": 0,
+      "proposals": 0,
+      "report_hash": "1cb0258a962e7b2bfb594dbd6b742c8f4452cced851ca84385a0dde140c1f043",
+      "report_file_sha256": "c93d456d5f62a601c4a030f167983b44f78b0cf4a73e44bc13e12e30d8ff7ec6"
+    }
+  },
+  "c2_readiness": {
+    "cumulative_counts": {"P=2": 2, "P=3-4": 3, "P=5+": 1},
+    "ready": false,
+    "pending_chunks": ["005", "006", "007", "008"]
+  },
+  "policy": {
+    "all_records_processed_without_early_stop": true,
+    "dual_review_skipped_only_when_no_proposals": true,
+    "secret_scan_clean": true
+  }
+}
