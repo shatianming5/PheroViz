@@ -585,20 +585,23 @@ def test_library_passes_one_normalized_tilde_output_path_to_writer(
         manifest_path, _, _ = _build_admission(workspace)
         expected_output = workspace / "final-report.json"
         writes: list[tuple[Path, bool]] = []
-        original_writer = c2_terminal_finalizer.write_json_atomic
+        original_open_target = c2_terminal_finalizer.open_secure_output_target
         monkeypatch.setenv("HOME", str(workspace))
         monkeypatch.chdir(workspace)
 
-        def _record_writer(
+        def _record_open_target(
             path: Path,
-            payload: dict[str, Any],
             *,
             normalized_path: bool = False,
-        ) -> None:
+        ) -> experiment_models.SecureOutputTarget:
             writes.append((path, normalized_path))
-            original_writer(path, payload, normalized_path=normalized_path)
+            return original_open_target(path, normalized_path=normalized_path)
 
-        monkeypatch.setattr(c2_terminal_finalizer, "write_json_atomic", _record_writer)
+        monkeypatch.setattr(
+            c2_terminal_finalizer,
+            "open_secure_output_target",
+            _record_open_target,
+        )
         report, written_path = finalize_to_path(
             manifest_path,
             Path("~/final-report.json"),
@@ -618,6 +621,21 @@ def test_library_rejects_symlink_alias_to_chunk_report() -> None:
         report_bytes = report_path.read_bytes()
         output_alias = workspace / "chunk-report-output.json"
         output_alias.symlink_to(report_path)
+
+        with pytest.raises(C2AdmissionError, match="Cannot resolve final report output"):
+            write_final_report(finalized, output_alias)
+
+        assert report_path.read_bytes() == report_bytes
+
+
+def test_library_rejects_hardlink_alias_to_chunk_report() -> None:
+    with _workspace("chunk-hardlink-output-collision") as workspace:
+        manifest_path, _, report_paths = _build_admission(workspace)
+        finalized = prepare_finalization(manifest_path)
+        report_path = report_paths["013"]
+        report_bytes = report_path.read_bytes()
+        output_alias = workspace / "chunk-report-hardlink-output.json"
+        os.link(report_path, output_alias)
 
         with pytest.raises(C2AdmissionError, match="aliases an admitted input path"):
             write_final_report(finalized, output_alias)
@@ -667,21 +685,136 @@ def test_atomic_writer_ignores_old_predictable_staging_hardlink_to_chunk() -> No
         assert _read_json(output_path) == {"kind": "safe-output"}
 
 
+def test_atomic_writer_rejects_leaf_symlink_without_mutating_target() -> None:
+    with _workspace("leaf-output-symlink") as workspace:
+        target_path = workspace / "unguarded-target.json"
+        target_bytes = b'{"sealed":"target"}\n'
+        target_path.write_bytes(target_bytes)
+        output_alias = workspace / "unguarded-output.json"
+        output_alias.symlink_to(target_path)
+
+        with pytest.raises(
+            experiment_models.ProvenanceError,
+            match="Leaf output symlinks are forbidden",
+        ):
+            write_json_atomic(output_alias, {"kind": "unsafe-output"})
+
+        assert target_path.read_bytes() == target_bytes
+        assert output_alias.is_symlink()
+
+
+def test_atomic_writer_fails_closed_without_descriptor_primitives(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _workspace("descriptor-fallback") as workspace:
+        output_path = workspace / "final-report.json"
+        monkeypatch.setattr(
+            experiment_models,
+            "_SECURE_OUTPUT_DIR_FD_SUPPORTED",
+            False,
+        )
+
+        with pytest.raises(
+            experiment_models.ProvenanceError,
+            match="descriptor-relative output writes are unsupported",
+        ):
+            write_json_atomic(output_path, {"kind": "unsafe-fallback"})
+
+        assert not output_path.exists()
+
+
 def test_atomic_writer_cleans_random_staging_after_replace_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     with _workspace("staging-cleanup") as workspace:
         output_path = workspace / "final-report.json"
 
-        def _fail_replace(source: str | Path, destination: str | Path) -> None:
-            raise OSError("synthetic replace failure")
+        def _fail_rename(
+            source: str | Path,
+            destination: str | Path,
+            *,
+            src_dir_fd: int | None = None,
+            dst_dir_fd: int | None = None,
+        ) -> None:
+            raise OSError("synthetic rename failure")
 
-        monkeypatch.setattr(experiment_models.os, "replace", _fail_replace)
-        with pytest.raises(OSError, match="synthetic replace failure"):
+        monkeypatch.setattr(experiment_models.os, "rename", _fail_rename)
+        with pytest.raises(OSError, match="synthetic rename failure"):
             write_json_atomic(output_path, {"kind": "failed-output"})
 
         assert not list(workspace.glob(".final-report.json.*.tmp"))
         assert not output_path.exists()
+
+
+def test_atomic_writer_preserves_reused_staging_name_after_rename(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _workspace("staging-name-reuse") as workspace:
+        output_path = workspace / "final-report.json"
+        original_rename = experiment_models.os.rename
+        reused_names: list[str] = []
+
+        def _rename_then_reuse(
+            source: str,
+            destination: str,
+            *,
+            src_dir_fd: int | None = None,
+            dst_dir_fd: int | None = None,
+        ) -> None:
+            original_rename(
+                source,
+                destination,
+                src_dir_fd=src_dir_fd,
+                dst_dir_fd=dst_dir_fd,
+            )
+            descriptor = os.open(
+                source,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                0o600,
+                dir_fd=src_dir_fd,
+            )
+            with os.fdopen(descriptor, "wb") as handle:
+                handle.write(b"unrelated")
+            reused_names.append(source)
+
+        monkeypatch.setattr(experiment_models.os, "rename", _rename_then_reuse)
+        write_json_atomic(output_path, {"kind": "safe-output"})
+
+        assert reused_names
+        assert (workspace / reused_names[0]).read_bytes() == b"unrelated"
+        assert _read_json(output_path) == {"kind": "safe-output"}
+
+
+def test_finalizer_output_anchor_survives_parent_symlink_swap(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _workspace("output-parent-swap") as workspace:
+        manifest_path, _, _ = _build_admission(workspace)
+        manifest_bytes = manifest_path.read_bytes()
+        output_parent = workspace / "safe-output-parent"
+        output_parent.mkdir()
+        output_path = output_parent / manifest_path.name
+        parked_parent = workspace / "parked-output-parent"
+        original_writer = c2_terminal_finalizer.write_json_atomic_to_target
+
+        def _swap_parent_then_write(
+            target: experiment_models.SecureOutputTarget,
+            payload: dict[str, Any],
+        ) -> None:
+            output_parent.rename(parked_parent)
+            output_parent.symlink_to(workspace, target_is_directory=True)
+            original_writer(target, payload)
+
+        monkeypatch.setattr(
+            c2_terminal_finalizer,
+            "write_json_atomic_to_target",
+            _swap_parent_then_write,
+        )
+        report, _ = finalize_to_path(manifest_path, output_path)
+
+        assert manifest_path.read_bytes() == manifest_bytes
+        assert _read_json(parked_parent / manifest_path.name) == report
+        assert (output_parent / manifest_path.name).samefile(manifest_path)
 
 
 def test_p5plus_deficiency_is_explicitly_blocked_without_analysis() -> None:

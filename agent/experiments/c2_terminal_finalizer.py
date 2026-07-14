@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import sys
 from collections import defaultdict
@@ -18,9 +19,11 @@ from jsonschema.exceptions import SchemaError
 
 from .models import (
     ProvenanceError,
+    SecureOutputTarget,
     normalize_output_path,
     sha256_json,
-    write_json_atomic,
+    open_secure_output_target,
+    write_json_atomic_to_target,
 )
 
 
@@ -681,9 +684,22 @@ def _normalize_final_output_path(path: Path) -> Path:
 
 
 def _reject_output_input_collision(
-    normalized_output_path: Path,
+    output_target: SecureOutputTarget,
     admitted_input_paths: Sequence[Path],
 ) -> None:
+    try:
+        output_identity = os.stat(
+            output_target.leaf_name,
+            dir_fd=output_target.parent_fd,
+            follow_symlinks=False,
+        )
+    except FileNotFoundError:
+        output_identity = None
+    except OSError as exc:
+        raise C2AdmissionError(
+            f"Cannot inspect final report output path: {output_target.final_path}"
+        ) from exc
+
     for input_path in admitted_input_paths:
         try:
             resolved_input = input_path.resolve(strict=True)
@@ -692,13 +708,15 @@ def _reject_output_input_collision(
                 f"Admitted input path became unavailable: {input_path}"
             ) from exc
         try:
-            aliases_input = normalized_output_path == resolved_input or (
-                normalized_output_path.exists()
-                and normalized_output_path.samefile(resolved_input)
+            input_identity = resolved_input.stat()
+            aliases_input = output_target.final_path == resolved_input or (
+                output_identity is not None
+                and output_identity.st_dev == input_identity.st_dev
+                and output_identity.st_ino == input_identity.st_ino
             )
         except OSError as exc:
             raise C2AdmissionError(
-                f"Cannot compare final report output path: {normalized_output_path}"
+                f"Cannot compare final report output path: {output_target.final_path}"
             ) from exc
         if aliases_input:
             raise C2AdmissionError(
@@ -718,16 +736,19 @@ def write_final_report(
         )
     _validate_final_report(finalized.report)
     normalized_output_path = _normalize_final_output_path(output_path)
-    _reject_output_input_collision(
+    output_target = open_secure_output_target(
         normalized_output_path,
-        finalized.admitted_input_paths,
-    )
-    write_json_atomic(
-        normalized_output_path,
-        finalized.report,
         normalized_path=True,
     )
-    return normalized_output_path
+    try:
+        _reject_output_input_collision(
+            output_target,
+            finalized.admitted_input_paths,
+        )
+        write_json_atomic_to_target(output_target, finalized.report)
+        return output_target.final_path
+    finally:
+        output_target.close()
 
 
 def finalize_to_path(

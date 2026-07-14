@@ -5,7 +5,8 @@ import json
 import math
 import os
 import re
-import tempfile
+import secrets
+import stat
 from dataclasses import asdict, dataclass, field, fields
 from datetime import datetime, timezone
 from pathlib import Path
@@ -18,6 +19,10 @@ _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _GIT_COMMIT_RE = re.compile(r"^[0-9a-f]{7,64}$")
 _STATUSES = {"running", "completed", "failed"}
 _BUDGET_TYPES = {"renders", "wall_clock_seconds"}
+_SECURE_OUTPUT_DIR_FD_SUPPORTED = all(
+    operation in os.supports_dir_fd
+    for operation in (os.open, os.mkdir, os.rename, os.stat, os.unlink)
+)
 
 
 class ProvenanceError(ValueError):
@@ -54,9 +59,116 @@ def sha256_json(data: Any) -> str:
 
 def normalize_output_path(path: Path) -> Path:
     try:
-        return path.expanduser().resolve(strict=False)
+        expanded = path.expanduser()
+        normalized = Path(os.path.abspath(os.fspath(expanded)))
     except (OSError, RuntimeError) as exc:
         raise ProvenanceError(f"Cannot resolve output path: {path}") from exc
+    if normalized.name in {"", ".", ".."}:
+        raise ProvenanceError(f"Output path must name a file: {path}")
+    if normalized.is_symlink():
+        raise ProvenanceError(f"Leaf output symlinks are forbidden: {path}")
+    return normalized
+
+
+@dataclass
+class SecureOutputTarget:
+    """Descriptor-anchored output location that never reopens its parent path."""
+
+    final_path: Path
+    leaf_name: str
+    parent_fd: int
+
+    def close(self) -> None:
+        if self.parent_fd != -1:
+            try:
+                os.close(self.parent_fd)
+            finally:
+                self.parent_fd = -1
+
+
+def _require_secure_output_primitives() -> None:
+    if (
+        not _SECURE_OUTPUT_DIR_FD_SUPPORTED
+        or not hasattr(os, "O_DIRECTORY")
+        or not hasattr(os, "O_NOFOLLOW")
+    ):
+        raise ProvenanceError(
+            "Secure descriptor-relative output writes are unsupported on this platform"
+        )
+
+
+def _directory_open_flags() -> int:
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    if hasattr(os, "O_CLOEXEC"):
+        flags |= os.O_CLOEXEC
+    return flags
+
+
+def _open_secure_parent(parent_path: Path) -> int:
+    _require_secure_output_primitives()
+    if not parent_path.is_absolute():
+        raise ProvenanceError("Secure output parent must be absolute")
+
+    descriptor = os.open("/", _directory_open_flags())
+    try:
+        for component in parent_path.parts[1:]:
+            try:
+                next_descriptor = os.open(
+                    component,
+                    _directory_open_flags(),
+                    dir_fd=descriptor,
+                )
+            except FileNotFoundError:
+                try:
+                    os.mkdir(component, mode=0o755, dir_fd=descriptor)
+                except FileExistsError:
+                    pass
+                next_descriptor = os.open(
+                    component,
+                    _directory_open_flags(),
+                    dir_fd=descriptor,
+                )
+            previous_descriptor = descriptor
+            descriptor = next_descriptor
+            os.close(previous_descriptor)
+        return descriptor
+    except Exception:
+        os.close(descriptor)
+        raise
+
+
+def open_secure_output_target(
+    path: Path,
+    *,
+    normalized_path: bool = False,
+) -> SecureOutputTarget:
+    """Open the output parent without following any directory or leaf symlink."""
+
+    final_path = path if normalized_path else normalize_output_path(path)
+    if not final_path.is_absolute():
+        raise ProvenanceError("Normalized output path must be absolute")
+    parent_fd = _open_secure_parent(final_path.parent)
+    try:
+        try:
+            leaf = os.stat(
+                final_path.name,
+                dir_fd=parent_fd,
+                follow_symlinks=False,
+            )
+        except FileNotFoundError:
+            leaf = None
+        if leaf is not None and stat.S_ISLNK(leaf.st_mode):
+            raise ProvenanceError(
+                f"Leaf output symlinks are forbidden: {final_path}"
+            )
+        return SecureOutputTarget(
+            final_path=final_path,
+            leaf_name=final_path.name,
+            parent_fd=parent_fd,
+        )
+    except Exception:
+        os.close(parent_fd)
+        raise
 
 
 def slug_identifier(value: str) -> str:
@@ -128,8 +240,19 @@ def write_json_atomic(
     *,
     normalized_path: bool = False,
 ) -> None:
-    final_path = path if normalized_path else normalize_output_path(path)
-    final_path.parent.mkdir(parents=True, exist_ok=True)
+    target = open_secure_output_target(path, normalized_path=normalized_path)
+    try:
+        write_json_atomic_to_target(target, payload)
+    finally:
+        target.close()
+
+
+def write_json_atomic_to_target(
+    target: SecureOutputTarget,
+    payload: Mapping[str, Any],
+) -> None:
+    if target.parent_fd == -1:
+        raise ProvenanceError("Secure output target is already closed")
     encoded = json.dumps(
         payload,
         ensure_ascii=False,
@@ -137,14 +260,31 @@ def write_json_atomic(
         sort_keys=True,
         allow_nan=False,
     )
-    descriptor, temporary_name = tempfile.mkstemp(
-        prefix=f".{final_path.name}.",
-        suffix=".tmp",
-        dir=final_path.parent,
-        text=True,
-    )
-    temporary = Path(temporary_name)
+    descriptor = -1
+    temporary_name = ""
+    staging_owned = False
     try:
+        for _ in range(128):
+            temporary_name = (
+                f".{target.leaf_name}.{secrets.token_hex(16)}.tmp"
+            )
+            try:
+                descriptor = os.open(
+                    temporary_name,
+                    os.O_WRONLY
+                    | os.O_CREAT
+                    | os.O_EXCL
+                    | os.O_NOFOLLOW,
+                    0o600,
+                    dir_fd=target.parent_fd,
+                )
+                staging_owned = True
+                break
+            except FileExistsError:
+                continue
+        else:
+            raise ProvenanceError("Cannot allocate secure output staging file")
+
         handle = os.fdopen(descriptor, "w", encoding="utf-8")
         descriptor = -1
         with handle:
@@ -152,17 +292,28 @@ def write_json_atomic(
             handle.write("\n")
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(temporary, final_path)
+        os.rename(
+            temporary_name,
+            target.leaf_name,
+            src_dir_fd=target.parent_fd,
+            dst_dir_fd=target.parent_fd,
+        )
+        staging_owned = False
+        try:
+            os.fsync(target.parent_fd)
+        except OSError:
+            pass
     finally:
         if descriptor != -1:
             try:
                 os.close(descriptor)
             except OSError:
                 pass
-        try:
-            temporary.unlink()
-        except OSError:
-            pass
+        if staging_owned:
+            try:
+                os.unlink(temporary_name, dir_fd=target.parent_fd)
+            except OSError:
+                pass
 
 
 def read_json(path: Path) -> Dict[str, Any]:

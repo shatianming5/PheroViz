@@ -18,6 +18,8 @@ The output path must not resolve to the manifest or any sealed chunk report;
 relative paths and symlink aliases are rejected before writing.
 Writes use a fresh exclusive staging file in the normalized output directory,
 so legacy predictable staging names cannot alias sealed evidence.
+Leaf output symlinks and platforms without descriptor-relative atomic writes
+fail closed.
 
 Chunks `009`–`012` must be replacement roots and must explicitly exclude their
 superseded root IDs. Every DOI needs three terminal attempts and complete,
