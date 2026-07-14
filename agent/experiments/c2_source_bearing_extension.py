@@ -27,11 +27,12 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping, Protocol, Sequence
 from urllib.parse import unquote, urlsplit
 
+from . import c2_m1_trust_boundary as _m1_trust_boundary
+from .c2_m1_trust_boundary import require_external_m1_trust_lock
 from .c2_stageb_source_extension_code_attestation import (
     C2StageBCodeAttestationError,
     load_compile_pinned_source_extension_code_attestation,
 )
-from .c2_m1_trust_boundary import require_external_m1_trust_lock
 
 
 class SourceBearingExtensionError(ValueError):
@@ -1055,8 +1056,7 @@ def _attested_runtime_paths(
 
 def _loaded_m1_trust_boundary_path() -> Path:
     require_external_m1_trust_lock()
-    module = sys.modules.get(require_external_m1_trust_lock.__module__)
-    module_path = getattr(module, "__file__", None)
+    module_path = getattr(_m1_trust_boundary, "__file__", None)
     _require(
         isinstance(module_path, str),
         "loaded M1 trust-boundary runtime module is unavailable",

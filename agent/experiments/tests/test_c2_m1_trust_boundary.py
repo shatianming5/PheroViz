@@ -13,6 +13,7 @@ import pytest
 import experiments.c2_full_replacement_evidence as full_replacement_evidence
 import experiments.c2_full_replacement_finalizer as full_replacement
 import experiments.c2_full_replacement_policy as full_replacement_policy
+import experiments.c2_m1_trust_boundary as m1_trust_boundary
 import experiments.c2_remediation_root_finalizer as remediation
 import experiments.c2_remediation_preflight as preflight
 import experiments.c2_source_bearing_extension as source_extension
@@ -230,6 +231,36 @@ def test_full_replacement_evidence_and_source_extension_paths_deny_before_inputs
             partition_records=1,
             source_chunk_sha256="0" * 64,
         )
+    )
+
+
+def test_source_attestation_m1_runtime_path_ignores_patched_local_guard(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    patched_guard = lambda: None
+    monkeypatch.setattr(
+        source_extension,
+        "require_external_m1_trust_lock",
+        patched_guard,
+    )
+    assert patched_guard.__module__ != m1_trust_boundary.__name__
+    assert isinstance(m1_trust_boundary.__file__, str)
+
+    worktree = Path(source_extension.__file__).resolve().parents[2]
+    expected_m1_path = Path(m1_trust_boundary.__file__).resolve()
+    runtime_paths = source_extension._attested_runtime_paths(
+        worktree=worktree,
+        loaded_extension_path=Path(source_extension.__file__),
+        loaded_finalizer_path=Path(remediation.__file__),
+        loaded_m1_trust_boundary_path=None,
+    )
+
+    assert expected_m1_path == (
+        worktree / source_extension._M1_TRUST_BOUNDARY_RELATIVE_PATH
+    )
+    assert (
+        runtime_paths[source_extension._M1_TRUST_BOUNDARY_RELATIVE_PATH].resolve()
+        == expected_m1_path
     )
 
 
