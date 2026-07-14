@@ -3,8 +3,10 @@ from __future__ import annotations
 import hashlib
 import inspect
 import json
+import subprocess
 from copy import deepcopy
 from importlib import resources
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -388,7 +390,55 @@ def test_compile_pinned_resource_and_runtime_manifest_are_active() -> None:
     entry = code_attestation.load_compile_pinned_source_extension_code_attestation()
     runtime = code_attestation.load_verified_source_extension_runtime_attestation()
     assert entry.registry_id == (
-        "76ccba377dd33864e64548537867ba2b715730d45e77b748c26f270523c56afc"
+        "c99d59137970cea7679a8c7ec353cad53f01bfd5b8e16327d9e15598cf8158e6"
     )
     assert runtime.code_blob_set_sha256 == entry.canonical_attested_blob_set_sha256
     assert len(runtime.code_blobs) == 13
+
+
+def test_declared_manifest_attestation_commit_contains_only_exact_manifest() -> None:
+    repository = Path(__file__).resolve().parents[3]
+    entry = code_attestation.load_compile_pinned_source_extension_code_attestation()
+    relative = (
+        "agent/experiments/resources/"
+        "c2_source_extension_runtime_manifest_v1.json"
+    )
+    committed = subprocess.check_output(
+        [
+            "git",
+            "-C",
+            str(repository),
+            "show",
+            f"{entry.manifest_only_attestation_commit_full}:{relative}",
+        ]
+    )
+    bundled = (repository / relative).read_bytes()
+
+    assert committed == bundled
+    assert hashlib.sha256(committed).hexdigest() == entry.manifest_sha256
+    changed_paths = subprocess.check_output(
+        [
+            "git",
+            "-C",
+            str(repository),
+            "diff-tree",
+            "--no-commit-id",
+            "--name-only",
+            "-r",
+            entry.manifest_only_attestation_commit_full,
+        ],
+        text=True,
+    ).splitlines()
+    assert changed_paths == [relative]
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repository),
+            "merge-base",
+            "--is-ancestor",
+            entry.extension_implementation_commit_full,
+            entry.manifest_only_attestation_commit_full,
+        ],
+        check=True,
+    )
