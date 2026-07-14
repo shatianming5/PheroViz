@@ -1,0 +1,63 @@
+{
+  "canonical_attested_blob_set_sha256": "f07bf201314a3f7d5fbc34e7f586ad0fa7a50dc1bd8835eea25abff63a7552a5",
+  "covered_runtime_paths": [
+    {
+      "role": "M1_TRUST_BOUNDARY_RUNTIME",
+      "runtime_path": "agent/experiments/c2_m1_trust_boundary.py"
+    },
+    {
+      "role": "REMEDIATION_FINALIZER_RUNTIME",
+      "runtime_path": "agent/experiments/c2_remediation_root_finalizer.py"
+    },
+    {
+      "role": "SOURCE_EXTENSION_RUNTIME",
+      "runtime_path": "agent/experiments/c2_source_bearing_extension.py"
+    },
+    {
+      "role": "CODE_ATTESTATION_LOADER_RUNTIME",
+      "runtime_path": "agent/experiments/c2_stageb_source_extension_code_attestation.py"
+    },
+    {
+      "role": "EXPERIMENTS_CLI_RUNTIME",
+      "runtime_path": "agent/experiments/cli.py"
+    },
+    {
+      "role": "EXPERIMENTS_MODELS_RUNTIME",
+      "runtime_path": "agent/experiments/models.py"
+    },
+    {
+      "role": "SOURCE_EXTENSION_SCHEMA",
+      "runtime_path": "agent/experiments/schemas/c2_v2_candidate_set_input_v1.schema.json"
+    },
+    {
+      "role": "SOURCE_EXTENSION_SCHEMA",
+      "runtime_path": "agent/experiments/schemas/c2_v2_consumable_source_unit_v1.schema.json"
+    },
+    {
+      "role": "SOURCE_EXTENSION_SCHEMA",
+      "runtime_path": "agent/experiments/schemas/c2_v2_consumption_bijection_validation_v1.schema.json"
+    },
+    {
+      "role": "SOURCE_EXTENSION_SCHEMA",
+      "runtime_path": "agent/experiments/schemas/c2_v2_container_accounting_index_v1.schema.json"
+    },
+    {
+      "role": "SOURCE_EXTENSION_SCHEMA",
+      "runtime_path": "agent/experiments/schemas/c2_v2_detected_format_v1.schema.json"
+    },
+    {
+      "role": "SOURCE_EXTENSION_SCHEMA",
+      "runtime_path": "agent/experiments/schemas/c2_v2_downstream_consumption_v1.schema.json"
+    },
+    {
+      "role": "SOURCE_EXTENSION_SCHEMA",
+      "runtime_path": "agent/experiments/schemas/c2_v2_fd_format_classifier_config_v1.schema.json"
+    }
+  ],
+  "extension_implementation_commit_full": "cb92c12d40a9224e08aca9dd0a72ff4b83c991a3",
+  "manifest_only_attestation_commit_full": "a4826e6d1367b8fea8423bc45f1764197e100f8a",
+  "manifest_sha256": "322d1a8df0dfa676d6627c921a8292cccc7d5bb9dc566190bbba926e6d846091",
+  "registry_entry_type": "C2_STAGEB_SOURCE_EXTENSION_CODE_ATTESTATION",
+  "registry_id_sha256": "a20badcba3df39d876a29868f921e22cc8b917c2a5be718e995a250833822f14",
+  "schema_version": "c2-stageb-source-extension-code-attestation-v1"
+}

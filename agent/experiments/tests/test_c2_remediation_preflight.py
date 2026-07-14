@@ -17,17 +17,6 @@ from experiments.c2_remediation_preflight import run_preflight as imported_run_p
 from tests.test_experiment_support import experiment_workspace
 
 
-@pytest.fixture(autouse=True)
-def _exercise_guarded_preflight_paths(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(
-        preflight,
-        "require_external_m1_trust_lock",
-        lambda: None,
-    )
-
-
 @dataclass
 class SyntheticPreflightFixture:
     plan: dict[str, Any]
@@ -182,12 +171,14 @@ def test_inventories_exact_frozen_partition_and_blocks_until_integrated_gates() 
         len(chunk["root"]["inventory"]["inventory_sha256"]) == 64
         for chunk in report["chunks"]
     )
-    assert report["gates_before_real_execution"]["source_extension"][
-        "status"
-    ] == "BLOCKED"
-    assert report["gates_before_real_execution"]["stage_b_policy_resource"][
-        "status"
-    ] == "BLOCKED"
+    assert all(
+        gate["status"] == "PASS"
+        for gate in report["gates_before_real_execution"].values()
+    )
+    assert report["trust_provenance"]["authorization_mode"] == (
+        "OWNER_AUTHORIZED_NON_INDEPENDENT"
+    )
+    assert report["admission_authorized"] is False
 
 
 def test_public_alias_captures_canonical_code_and_binding(

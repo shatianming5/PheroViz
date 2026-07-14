@@ -18,6 +18,7 @@ import hashlib
 import hmac
 import json
 import re
+import sys
 from dataclasses import dataclass
 from functools import lru_cache
 from importlib import resources
@@ -29,6 +30,12 @@ from jsonschema.exceptions import SchemaError
 
 from .c2_full_replacement_policy import C2FullReplacementPolicyError
 from .models import sha256_json
+from .c2_stageb_source_extension_code_attestation_pin import (
+    SOURCE_EXTENSION_CODE_ATTESTATION_RESOURCE_SHA256 as _SOURCE_EXTENSION_CODE_ATTESTATION_RESOURCE_SHA256,
+)
+from .c2_stageb_source_extension_code_attestation_pin import (
+    SOURCE_EXTENSION_CODE_ATTESTATION_ROUTE_APPROVED as _SOURCE_EXTENSION_CODE_ATTESTATION_ROUTE_APPROVED,
+)
 
 
 class C2StageBCodeAttestationError(C2FullReplacementPolicyError):
@@ -47,7 +54,7 @@ _SOURCE_EXTENSION_CODE_ATTESTATION_SCHEMA_PATH = (
     / SOURCE_EXTENSION_CODE_ATTESTATION_SCHEMA_ID
 )
 SOURCE_EXTENSION_CODE_ATTESTATION_SCHEMA_SHA256 = (
-    "9102dd22011746143f9d5c36b809d55066143cfe1e5ac4513c9e5b141f39ef0c"
+    "ea6d12f16ee0a8f18ea14f93764b75b897f6f5b6af8e055a4c485cb1de244504"
 )
 
 _SOURCE_EXTENSION_CODE_ATTESTATION_RESOURCE_PACKAGE = "experiments"
@@ -58,9 +65,10 @@ _SOURCE_EXTENSION_CODE_ATTESTATION_RESOURCE_PARTS = (
 _SOURCE_EXTENSION_CODE_ATTESTATION_RESOURCE_NAME = "/".join(
     _SOURCE_EXTENSION_CODE_ATTESTATION_RESOURCE_PARTS
 )
-# No reviewed source-extension anchor, policy resource, or resource digest exists.
-_SOURCE_EXTENSION_CODE_ATTESTATION_RESOURCE_SHA256: str | None = None
-_SOURCE_EXTENSION_CODE_ATTESTATION_ROUTE_APPROVED = False
+_SOURCE_EXTENSION_RUNTIME_MANIFEST_RESOURCE_PARTS = (
+    "resources",
+    "c2_source_extension_runtime_manifest_v1.json",
+)
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
@@ -79,6 +87,10 @@ SOURCE_EXTENSION_RUNTIME_PATH_ROLES = (
     (
         "agent/experiments/c2_source_bearing_extension.py",
         "SOURCE_EXTENSION_RUNTIME",
+    ),
+    (
+        "agent/experiments/c2_stageb_source_extension_code_attestation.py",
+        "CODE_ATTESTATION_LOADER_RUNTIME",
     ),
     ("agent/experiments/cli.py", "EXPERIMENTS_CLI_RUNTIME"),
     ("agent/experiments/models.py", "EXPERIMENTS_MODELS_RUNTIME"),
@@ -224,6 +236,90 @@ class SourceExtensionCodeAttestationRegistryEntry:
                 binding.to_dict() for binding in self.covered_runtime_paths
             ],
         }
+
+
+@dataclass(frozen=True, slots=True)
+class ProductionAttestedCodeBlob:
+    """One exact package runtime blob bound by the production manifest."""
+
+    relative_path: str
+    git_blob_object_id: str
+    sha256: str
+
+
+@dataclass(frozen=True, slots=True)
+class ProductionSourceExtensionCodeAttestation:
+    """Owner-authorized, non-independent runtime-byte attestation."""
+
+    approved_implementation_commit_full: str
+    attestation_commit_full: str
+    manifest_sha256: str
+    code_blobs: tuple[ProductionAttestedCodeBlob, ...]
+
+    @property
+    def code_blob_set_sha256(self) -> str:
+        return sha256_json(
+            [
+                {
+                    "relative_path": blob.relative_path,
+                    "git_blob_object_id": blob.git_blob_object_id,
+                    "sha256": blob.sha256,
+                }
+                for blob in self.code_blobs
+            ]
+        )
+
+    def sha256_for(self, relative_path: str) -> str:
+        for blob in self.code_blobs:
+            if blob.relative_path == relative_path:
+                return blob.sha256
+        raise C2StageBCodeAttestationError(
+            f"Production code attestation has no binding for {relative_path}"
+        )
+
+    def verify_runtime(self, **_unused_paths: Path | None) -> None:
+        """Recheck every fixed package path and any corresponding loaded module."""
+
+        repository_root = Path(__file__).resolve().parents[2]
+        loaded_modules = {
+            "agent/experiments/c2_m1_trust_boundary.py": (
+                "experiments.c2_m1_trust_boundary"
+            ),
+            "agent/experiments/c2_remediation_root_finalizer.py": (
+                "experiments.c2_remediation_root_finalizer"
+            ),
+            "agent/experiments/c2_source_bearing_extension.py": (
+                "experiments.c2_source_bearing_extension"
+            ),
+            "agent/experiments/c2_stageb_source_extension_code_attestation.py": (
+                __name__
+            ),
+            "agent/experiments/cli.py": "experiments.cli",
+            "agent/experiments/models.py": "experiments.models",
+        }
+        for blob in self.code_blobs:
+            path = repository_root / blob.relative_path
+            if (
+                not path.is_file()
+                or path.is_symlink()
+                or not hmac.compare_digest(
+                    hashlib.sha256(path.read_bytes()).hexdigest(),
+                    blob.sha256,
+                )
+            ):
+                raise C2StageBCodeAttestationError(
+                    f"Production runtime bytes differ at {blob.relative_path}"
+                )
+            module_name = loaded_modules.get(blob.relative_path)
+            module = None if module_name is None else sys.modules.get(module_name)
+            loaded_path = getattr(module, "__file__", None)
+            if module is not None and (
+                not isinstance(loaded_path, str)
+                or Path(loaded_path).resolve() != path.resolve()
+            ):
+                raise C2StageBCodeAttestationError(
+                    f"Loaded runtime path differs at {blob.relative_path}"
+                )
 
 
 def _reject_json_constant(value: str) -> None:
@@ -507,6 +603,140 @@ def _read_compile_pinned_resource_bytes() -> bytes:
         ) from exc
 
 
+def _read_runtime_manifest_bytes() -> bytes:
+    try:
+        resource = resources.files(
+            _SOURCE_EXTENSION_CODE_ATTESTATION_RESOURCE_PACKAGE
+        ).joinpath(*_SOURCE_EXTENSION_RUNTIME_MANIFEST_RESOURCE_PARTS)
+        if not resource.is_file():
+            raise FileNotFoundError(resource)
+        return resource.read_bytes()
+    except (FileNotFoundError, ModuleNotFoundError, OSError) as exc:
+        raise C2StageBCodeAttestationError(
+            "The fixed source-extension runtime manifest is unavailable"
+        ) from exc
+
+
+def _compile_runtime_manifest(
+    payload: bytes,
+    registry: SourceExtensionCodeAttestationRegistryEntry,
+) -> ProductionSourceExtensionCodeAttestation:
+    if not hmac.compare_digest(
+        hashlib.sha256(payload).hexdigest(),
+        registry.manifest_sha256,
+    ):
+        raise C2StageBCodeAttestationError(
+            "Source-extension runtime manifest differs from its registry digest"
+        )
+    try:
+        manifest = json.loads(
+            payload.decode("utf-8"),
+            parse_constant=_reject_json_constant,
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise C2StageBCodeAttestationError(
+            "Source-extension runtime manifest is not valid UTF-8 JSON"
+        ) from exc
+    if (
+        not isinstance(manifest, Mapping)
+        or set(manifest)
+        != {
+            "schema_version",
+            "approved_implementation_commit_full",
+            "attested_paths",
+        }
+        or manifest.get("schema_version")
+        != "c2_source_extension_runtime_manifest_v1"
+        or manifest.get("approved_implementation_commit_full")
+        != registry.extension_implementation_commit_full
+        or payload
+        != (
+            json.dumps(
+                manifest,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+                allow_nan=False,
+            ).encode("utf-8")
+            + b"\n"
+        )
+    ):
+        raise C2StageBCodeAttestationError(
+            "Source-extension runtime manifest shape or canonical bytes are invalid"
+        )
+    raw_blobs = manifest["attested_paths"]
+    if not isinstance(raw_blobs, list):
+        raise C2StageBCodeAttestationError(
+            "Source-extension runtime manifest has no blob roster"
+        )
+    blobs: list[ProductionAttestedCodeBlob] = []
+    seen: set[str] = set()
+    for raw in raw_blobs:
+        if (
+            not isinstance(raw, Mapping)
+            or set(raw) != {"relative_path", "git_blob_object_id", "sha256"}
+        ):
+            raise C2StageBCodeAttestationError(
+                "Source-extension runtime manifest blob fields are invalid"
+            )
+        relative_path = _require_safe_runtime_path(
+            raw["relative_path"],
+            "runtime manifest relative_path",
+        )
+        blob_object_id = raw["git_blob_object_id"]
+        digest = raw["sha256"]
+        if (
+            relative_path not in _EXPECTED_PATH_ROLE_BY_PATH
+            or relative_path in seen
+            or not isinstance(blob_object_id, str)
+            or re.fullmatch(r"[0-9a-f]{40,64}", blob_object_id) is None
+            or not isinstance(digest, str)
+            or _SHA256_RE.fullmatch(digest) is None
+        ):
+            raise C2StageBCodeAttestationError(
+                "Source-extension runtime manifest blob is invalid"
+            )
+        seen.add(relative_path)
+        blobs.append(
+            ProductionAttestedCodeBlob(
+                relative_path=relative_path,
+                git_blob_object_id=blob_object_id,
+                sha256=digest,
+            )
+        )
+    if (
+        seen != set(_EXPECTED_PATH_ROLE_BY_PATH)
+        or [blob.relative_path for blob in blobs]
+        != sorted(blob.relative_path for blob in blobs)
+        or not hmac.compare_digest(
+            sha256_json(
+                [
+                    {
+                        "relative_path": blob.relative_path,
+                        "git_blob_object_id": blob.git_blob_object_id,
+                        "sha256": blob.sha256,
+                    }
+                    for blob in blobs
+                ]
+            ),
+            registry.canonical_attested_blob_set_sha256,
+        )
+    ):
+        raise C2StageBCodeAttestationError(
+            "Source-extension runtime manifest coverage or blob-set digest is invalid"
+        )
+    attestation = ProductionSourceExtensionCodeAttestation(
+        approved_implementation_commit_full=(
+            registry.extension_implementation_commit_full
+        ),
+        attestation_commit_full=registry.manifest_only_attestation_commit_full,
+        manifest_sha256=registry.manifest_sha256,
+        code_blobs=tuple(blobs),
+    )
+    attestation.verify_runtime()
+    return attestation
+
+
 def load_compile_pinned_source_extension_code_attestation() -> (
     SourceExtensionCodeAttestationRegistryEntry
 ):
@@ -528,3 +758,15 @@ def load_compile_pinned_source_extension_code_attestation() -> (
             "intentionally non-admissive pending independent review"
         )
     return entry
+
+
+def load_verified_source_extension_runtime_attestation() -> (
+    ProductionSourceExtensionCodeAttestation
+):
+    """Load the fixed registry and recheck all owner-authorized runtime bytes."""
+
+    registry = load_compile_pinned_source_extension_code_attestation()
+    return _compile_runtime_manifest(
+        _read_runtime_manifest_bytes(),
+        registry,
+    )

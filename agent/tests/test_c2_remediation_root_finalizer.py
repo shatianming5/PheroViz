@@ -5,6 +5,7 @@ import json
 import os
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -23,6 +24,15 @@ def _exercise_guarded_remediation_paths(
         finalizer,
         "require_external_m1_trust_lock",
         lambda: None,
+    )
+    monkeypatch.setattr(
+        finalizer,
+        "_require_owner_remediation_policy_for_chunk",
+        lambda _chunk_id, _partition: (
+            SimpleNamespace(authorization_id_sha256="test-authorization"),
+            SimpleNamespace(policy_id_sha256="test-policy"),
+            SimpleNamespace(required_action="FRESH_REMEDIATION_REQUIRED"),
+        ),
     )
 
 
@@ -541,6 +551,15 @@ def test_finalizes_exact_200_and_63_roots(
         assert validation["gates"]["canonical_target_identity"] is True
         assert validation["gates"]["private_trusted_staging_parent"] is True
         report_payload = json.loads(report.read_text(encoding="utf-8"))
+        assert report_payload["execution_authorization"] == {
+            "authorization_mode": "OWNER_AUTHORIZED_NON_INDEPENDENT",
+            "authorization_id_sha256": "test-authorization",
+            "policy_id_sha256": "test-policy",
+            "required_action": "FRESH_REMEDIATION_REQUIRED",
+            "non_admissive_evidence_root_sealing_authorized": True,
+            "admission_authorized": False,
+            "scientific_publication_authorized": False,
+        }
         assert report_payload["publication"]["staging_parent"] == (
             "pre-existing descriptor-validated owner/ACL-safe parent"
         )

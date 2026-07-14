@@ -17,7 +17,10 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
 
 from . import models as _models
-from .c2_m1_trust_boundary import require_external_m1_trust_lock
+from .c2_m1_trust_boundary import (
+    require_external_m1_trust_lock as require_test_only_full_replacement_evidence_gate,
+    require_owner_authorized_c2_execution as require_external_m1_trust_lock,
+)
 from .c2_full_replacement_policy import (
     ATTEMPT_IDS,
     CHUNK_IDS,
@@ -1613,6 +1616,7 @@ def load_and_validate_raw_evidence(
 ) -> ValidatedRawEvidence:
     """Read every dynamic artifact once and derive V2.1 source classifications."""
 
+    require_test_only_full_replacement_evidence_gate()
     require_external_m1_trust_lock()
     if not policy.is_test_only:
         raise C2FullReplacementEvidenceError(

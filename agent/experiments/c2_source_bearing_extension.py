@@ -28,10 +28,14 @@ from typing import Any, Iterable, Mapping, Protocol, Sequence
 from urllib.parse import unquote, urlsplit
 
 from . import c2_m1_trust_boundary as _m1_trust_boundary
-from .c2_m1_trust_boundary import require_external_m1_trust_lock
+from .c2_m1_trust_boundary import (
+    require_external_m1_trust_lock as require_test_only_source_extension_gate,
+    require_owner_authorized_c2_execution as require_external_m1_trust_lock,
+)
 from .c2_stageb_source_extension_code_attestation import (
     C2StageBCodeAttestationError,
-    load_compile_pinned_source_extension_code_attestation,
+    ProductionSourceExtensionCodeAttestation,
+    load_verified_source_extension_runtime_attestation,
 )
 
 
@@ -45,6 +49,19 @@ class _TargetRoot(Protocol):
     def write_bytes(self, relative: str, payload: bytes) -> str: ...
 
     def read_bytes(self, relative: str) -> bytes: ...
+
+
+class _SourceExtensionCodeAttestation(Protocol):
+    approved_implementation_commit_full: str
+    attestation_commit_full: str
+    manifest_sha256: str
+
+    @property
+    def code_blob_set_sha256(self) -> str: ...
+
+    def sha256_for(self, relative_path: str) -> str: ...
+
+    def verify_runtime(self, **paths: Path | None) -> None: ...
 
     def sha256(self, relative: str) -> str: ...
 
@@ -68,6 +85,9 @@ MAX_ARCHIVE_RUN_UNCOMPRESSED_BYTES = 1024 * 1024 * 1024
 _M1_TRUST_BOUNDARY_RELATIVE_PATH = "agent/experiments/c2_m1_trust_boundary.py"
 _EXTENSION_RELATIVE_PATH = "agent/experiments/c2_source_bearing_extension.py"
 _FINALIZER_RELATIVE_PATH = "agent/experiments/c2_remediation_root_finalizer.py"
+_CODE_ATTESTATION_LOADER_RELATIVE_PATH = (
+    "agent/experiments/c2_stageb_source_extension_code_attestation.py"
+)
 _CLI_RELATIVE_PATH = "agent/experiments/cli.py"
 _MODELS_RELATIVE_PATH = "agent/experiments/models.py"
 _TEST_ONLY_CODE_ATTESTATION_RELATIVE_PATH = (
@@ -87,6 +107,7 @@ _REQUIRED_ATTESTED_CODE_PATHS = frozenset(
         _M1_TRUST_BOUNDARY_RELATIVE_PATH,
         _EXTENSION_RELATIVE_PATH,
         _FINALIZER_RELATIVE_PATH,
+        _CODE_ATTESTATION_LOADER_RELATIVE_PATH,
         _CLI_RELATIVE_PATH,
         _MODELS_RELATIVE_PATH,
         *(
@@ -1083,7 +1104,7 @@ def verify_source_extension_code_attestation_for_testing(
 ) -> TestOnlySourceExtensionCodeAttestation:
     """Verify a synthetic Git/blob anchor for tests only, never production."""
 
-    require_external_m1_trust_lock()
+    require_test_only_source_extension_gate()
     candidate = _module_worktree() if worktree is None else Path(worktree)
     _require(
         candidate.is_absolute()
@@ -1105,15 +1126,39 @@ def verify_source_extension_code_attestation_for_testing(
         "worktree status",
     )
     _require(not status, "source extension worktree is dirty")
+    head_commit = _git_text(
+        resolved_worktree, ("rev-parse", "HEAD"), "worktree HEAD"
+    )
     attestation_commit = _git_text(
-        resolved_worktree, ("rev-parse", "HEAD"), "attestation commit"
+        resolved_worktree,
+        (
+            "log",
+            "-1",
+            "--format=%H",
+            "--",
+            _TEST_ONLY_CODE_ATTESTATION_RELATIVE_PATH,
+        ),
+        "attestation commit",
     )
     _require(
-        _GIT_OBJECT_RE.fullmatch(attestation_commit) is not None,
+        _GIT_OBJECT_RE.fullmatch(head_commit) is not None
+        and _GIT_OBJECT_RE.fullmatch(attestation_commit) is not None,
         "source extension attestation commit is invalid",
     )
+    try:
+        _git_text(
+            resolved_worktree,
+            ("merge-base", "--is-ancestor", attestation_commit, head_commit),
+            "attestation ancestry",
+        )
+    except SourceBearingExtensionError as exc:
+        raise SourceBearingExtensionError(
+            "source extension attestation is not an ancestor of HEAD"
+        ) from exc
     implementation_commit = _git_text(
-        resolved_worktree, ("rev-parse", "HEAD^"), "implementation parent commit"
+        resolved_worktree,
+        ("rev-parse", f"{attestation_commit}^"),
+        "implementation parent commit",
     )
     _require(
         _GIT_OBJECT_RE.fullmatch(implementation_commit) is not None,
@@ -1205,12 +1250,18 @@ def verify_source_extension_code_attestation_for_testing(
             ("show", f"{attestation_commit}:{relative_path}"),
             f"attestation bytes {relative_path}",
         )
+        head_payload = _git_bytes(
+            resolved_worktree,
+            ("show", f"{head_commit}:{relative_path}"),
+            f"HEAD bytes {relative_path}",
+        )
         runtime_path = resolved_worktree / relative_path
         _require(
             runtime_path.is_file()
             and not runtime_path.is_symlink()
             and implementation_blob_object_id == blob_object_id
             and attestation_payload == implementation_payload
+            and head_payload == implementation_payload
             and runtime_path.read_bytes() == implementation_payload
             and _sha256(implementation_payload) == digest,
             f"source extension attested blob mismatch: {relative_path}",
@@ -1240,7 +1291,7 @@ def verify_source_extension_code_attestation_for_testing(
     )
 
 
-def _schema_hashes(attestation: TestOnlySourceExtensionCodeAttestation) -> dict[str, str]:
+def _schema_hashes(attestation: _SourceExtensionCodeAttestation) -> dict[str, str]:
     attestation.verify_runtime()
     return {
         name: attestation.sha256_for(f"agent/experiments/schemas/{name}")
@@ -1257,7 +1308,7 @@ def _closed_schema_registry_hash() -> str:
     )
 
 
-def _format_config(attestation: TestOnlySourceExtensionCodeAttestation) -> dict[str, Any]:
+def _format_config(attestation: _SourceExtensionCodeAttestation) -> dict[str, Any]:
     attestation.verify_runtime()
     source_sha = attestation.sha256_for(_EXTENSION_RELATIVE_PATH)
     value: dict[str, Any] = {
@@ -2232,7 +2283,7 @@ def _applicable_case_set_doi_ids(
     terminal_rows: Sequence[Mapping[str, Any]],
     source_by_article: Mapping[str, Mapping[str, Any]],
 ) -> tuple[str, ...]:
-    """Return frozen-order downloaded DOI with complete verified source inventory."""
+    """Return frozen-order DOI with complete verified source from any attempt."""
 
     doi_ids: list[str] = []
     for terminal in sorted(
@@ -2244,8 +2295,6 @@ def _applicable_case_set_doi_ids(
             and terminal_status_raw in _TERMINAL_STATUS_ADAPTER,
             "terminal status is not in the closed adapter",
         )
-        if _TERMINAL_STATUS_ADAPTER[terminal_status_raw] != "DOWNLOADED":
-            continue
         article_id = _require_identifier(
             terminal.get("article_id"), "terminal article ID is invalid"
         )
@@ -2345,7 +2394,7 @@ class _Builder:
         source_by_article: Mapping[str, Mapping[str, Any]],
         partition_records: int,
         source_chunk_sha256: str,
-        test_code_attestation: TestOnlySourceExtensionCodeAttestation,
+        test_code_attestation: _SourceExtensionCodeAttestation,
     ) -> None:
         require_external_m1_trust_lock()
         self.root = root
@@ -3270,8 +3319,6 @@ class _Builder:
         for doi_id in sorted(cases_by_doi):
             terminal = terminal_by_doi.get(doi_id)
             _require(terminal is not None, "canonical case has no terminal DOI record")
-            if _TERMINAL_STATUS_ADAPTER[terminal["terminal_status"]] != "DOWNLOADED":
-                continue
             doi_cases = sorted(
                 cases_by_doi[doi_id],
                 key=lambda item: str(item["case_id"]),
@@ -3341,12 +3388,20 @@ class _Builder:
             doi_cases = sorted(
                 cases_by_doi.get(doi_id, ()), key=lambda item: str(item["case_id"])
             )
-            if terminal_status == "DOWNLOADED" and doi_id in case_stratum:
+            if source_present and doi_id in case_stratum:
                 disposition = "STRATIFIED_SOURCE_CANONICAL"
-                reason = "VERIFIED_SOURCE_CANONICAL_ALL_CASES"
-            elif terminal_status == "DOWNLOADED" and source_present:
+                reason = (
+                    "VERIFIED_SOURCE_CANONICAL_ALL_CASES"
+                    if terminal_status == "DOWNLOADED"
+                    else "VERIFIED_PRIOR_ATTEMPT_SOURCE_CANONICAL_ALL_CASES"
+                )
+            elif source_present:
                 disposition = "NON_STRATIFIED_SOURCE_NO_CANONICAL_CASE"
-                reason = "DOWNLOADED_SOURCE_NO_QUALIFYING_CASE"
+                reason = (
+                    "DOWNLOADED_SOURCE_NO_QUALIFYING_CASE"
+                    if terminal_status == "DOWNLOADED"
+                    else "PRIOR_ATTEMPT_SOURCE_NO_QUALIFYING_CASE"
+                )
             elif terminal_status == "DOWNLOADED":
                 disposition = "NON_STRATIFIED_DOWNLOADED_NO_VERIFIED_SOURCE"
                 reason = "DOWNLOADED_WITHOUT_VERIFIED_SOURCE"
@@ -3366,7 +3421,7 @@ class _Builder:
                 "terminal attempt evidence is incomplete",
             )
             source_inventory_binding: dict[str, Any] | None = None
-            if source_present and terminal_status == "DOWNLOADED":
+            if source_present:
                 evidence = self.source_by_article[article_id]["source_evidence"]
                 source_inventory_binding = {
                     "source_inventory_collection_hash": source_inventory_hash,
@@ -3389,7 +3444,7 @@ class _Builder:
                     ],
                 }
             canonical_builder_binding: dict[str, Any] | None = None
-            if terminal_status == "DOWNLOADED" and source_present:
+            if source_present:
                 canonical_builder_binding = {
                     "canonical_builder_rule_id": CANONICAL_RULE_ID,
                     "canonical_builder_rule_version": "1",
@@ -3416,7 +3471,7 @@ class _Builder:
                 "canonical_builder_binding_or_null": canonical_builder_binding,
                 "all_eligible_case_ids": (
                     [item["case_id"] for item in doi_cases]
-                    if terminal_status == "DOWNLOADED"
+                    if source_present
                     else []
                 ),
                 "classification_reason": reason,
@@ -3728,11 +3783,11 @@ class _Builder:
             self.root, "p_evidence_v2/acquisition_dispositions.jsonl", dispositions
         )
         p_summary_path = _write_json(self.root, "p_evidence_v2/p_summary.json", p_summary)
-        validation = validate_source_bearing_extension_for_testing(
+        validation = _validate_source_bearing_extension_with_attestation(
             self.root,
             partition_records=self.partition_records,
             source_chunk_sha256=self.source_chunk_sha256,
-            test_code_attestation=self.test_code_attestation,
+            code_attestation=self.test_code_attestation,
         )
         validation_path = _write_json(
             self.root, "control/v2/source_bearing_extension_validation.json", validation
@@ -4065,23 +4120,19 @@ def _validate_archive_accounts(
     return result
 
 
-def _require_stage_b_production_source_extension_trust() -> None:
-    """Fail before any candidate worktree or attestation can influence production."""
+def _require_stage_b_production_source_extension_trust() -> (
+    ProductionSourceExtensionCodeAttestation
+):
+    """Resolve the fixed owner-authorized runtime manifest before caller input."""
 
     require_external_m1_trust_lock()
     try:
-        registry = load_compile_pinned_source_extension_code_attestation()
+        return load_verified_source_extension_runtime_attestation()
     except C2StageBCodeAttestationError as exc:
         raise SourceBearingExtensionError(
-            "NOT_SEALABLE_SOURCE_EXTENSION_STAGEB_POLICY_REQUIRED: no compile-pinned "
-            "package-internal Stage-B production policy/code-registry commitment exists"
+            "NOT_SEALABLE_SOURCE_EXTENSION_RUNTIME_ATTESTATION_REQUIRED: no valid "
+            "compile-pinned package runtime registry/manifest exists"
         ) from exc
-    del registry
-    raise SourceBearingExtensionError(
-        "NOT_SEALABLE_SOURCE_EXTENSION_STAGEB_RUNTIME_VERIFIER_REQUIRED: the "
-        "reviewed Stage-B registry is available, but no production runtime verifier "
-        "has been authorized to consume it"
-    )
 
 
 def validate_source_bearing_extension_for_testing(
@@ -4089,16 +4140,34 @@ def validate_source_bearing_extension_for_testing(
     *,
     partition_records: int,
     source_chunk_sha256: str,
-    test_code_attestation: TestOnlySourceExtensionCodeAttestation | None = None,
+    test_code_attestation: _SourceExtensionCodeAttestation | None = None,
 ) -> dict[str, Any]:
     """Test-only replay of V2 bytes -> account -> consumption -> canonical/P."""
 
-    require_external_m1_trust_lock()
+    require_test_only_source_extension_gate()
     attestation = (
         verify_source_extension_code_attestation_for_testing()
         if test_code_attestation is None
         else test_code_attestation
     )
+    return _validate_source_bearing_extension_with_attestation(
+        root,
+        partition_records=partition_records,
+        source_chunk_sha256=source_chunk_sha256,
+        code_attestation=attestation,
+    )
+
+
+def _validate_source_bearing_extension_with_attestation(
+    root: _TargetRoot,
+    *,
+    partition_records: int,
+    source_chunk_sha256: str,
+    code_attestation: _SourceExtensionCodeAttestation,
+) -> dict[str, Any]:
+    """Replay V2 artifacts with an attestation selected by a guarded caller."""
+
+    attestation = code_attestation
     attestation.verify_runtime()
     config = _json_object(
         root.read_bytes("source_inventory_v2/fd_format_classifier_config.json"),
@@ -5096,12 +5165,7 @@ def validate_source_bearing_extension_for_testing(
             "P stratum recomputation mismatch",
         )
         classifications_by_doi[doi_id] = item
-    expected_classification_dois = {
-        doi_id
-        for doi_id in cases_by_doi
-        if _TERMINAL_STATUS_ADAPTER[terminal_by_doi[doi_id]["terminal_status"]]
-        == "DOWNLOADED"
-    }
+    expected_classification_dois = set(cases_by_doi)
     _require(
         set(classifications_by_doi) == expected_classification_dois,
         "source classification canonical coverage mismatch",
@@ -5149,12 +5213,21 @@ def validate_source_bearing_extension_for_testing(
         doi_cases = sorted(
             cases_by_doi.get(doi_id, ()), key=lambda item: str(item["case_id"])
         )
-        if terminal_status == "DOWNLOADED" and doi_id in classifications_by_doi:
+        source_present = source_inventory_binding is not None
+        if source_present and doi_id in classifications_by_doi:
             final_disposition = "STRATIFIED_SOURCE_CANONICAL"
-            reason = "VERIFIED_SOURCE_CANONICAL_ALL_CASES"
-        elif terminal_status == "DOWNLOADED" and source_inventory_binding is not None:
+            reason = (
+                "VERIFIED_SOURCE_CANONICAL_ALL_CASES"
+                if terminal_status == "DOWNLOADED"
+                else "VERIFIED_PRIOR_ATTEMPT_SOURCE_CANONICAL_ALL_CASES"
+            )
+        elif source_present:
             final_disposition = "NON_STRATIFIED_SOURCE_NO_CANONICAL_CASE"
-            reason = "DOWNLOADED_SOURCE_NO_QUALIFYING_CASE"
+            reason = (
+                "DOWNLOADED_SOURCE_NO_QUALIFYING_CASE"
+                if terminal_status == "DOWNLOADED"
+                else "PRIOR_ATTEMPT_SOURCE_NO_QUALIFYING_CASE"
+            )
         elif terminal_status == "DOWNLOADED":
             final_disposition = "NON_STRATIFIED_DOWNLOADED_NO_VERIFIED_SOURCE"
             reason = "DOWNLOADED_WITHOUT_VERIFIED_SOURCE"
@@ -5191,8 +5264,7 @@ def validate_source_bearing_extension_for_testing(
                 ),
                 "consumption_bijection_hash": bijection["consumption_bijection_hash"],
             }
-            if terminal_status == "DOWNLOADED"
-            and source_inventory_binding is not None
+            if source_present
             else None
         )
         _require(
@@ -5210,7 +5282,7 @@ def validate_source_bearing_extension_for_testing(
             and disposition.get("all_eligible_case_ids")
             == (
                 [item["case_id"] for item in doi_cases]
-                if terminal_status == "DOWNLOADED"
+                if source_present
                 else []
             )
             and disposition.get("classification_reason") == reason,
@@ -5323,12 +5395,16 @@ def validate_source_bearing_extension(
     partition_records: int,
     source_chunk_sha256: str,
 ) -> dict[str, Any]:
-    """Production replay gate; unavailable until Stage-B pins a trust commitment."""
+    """Replay source evidence under the fixed non-independent runtime manifest."""
 
     require_external_m1_trust_lock()
-    del root, partition_records, source_chunk_sha256
-    _require_stage_b_production_source_extension_trust()
-    raise AssertionError("unreachable")
+    attestation = _require_stage_b_production_source_extension_trust()
+    return _validate_source_bearing_extension_with_attestation(
+        root,
+        partition_records=partition_records,
+        source_chunk_sha256=source_chunk_sha256,
+        code_attestation=attestation,
+    )
 
 
 def build_source_bearing_extension_for_testing(
@@ -5340,7 +5416,7 @@ def build_source_bearing_extension_for_testing(
     terminal_rows: Sequence[Mapping[str, Any]],
     partition_records: int,
     source_chunk_sha256: str,
-    test_code_attestation: TestOnlySourceExtensionCodeAttestation | None = None,
+    test_code_attestation: _SourceExtensionCodeAttestation | None = None,
 ) -> SourceBearingExtensionResult:
     """Build source-bearing artifacts through the explicit test-only route.
 
@@ -5349,12 +5425,38 @@ def build_source_bearing_extension_for_testing(
     would violate the raw-attempt single-read contract.
     """
 
-    require_external_m1_trust_lock()
+    require_test_only_source_extension_gate()
     attestation = (
         verify_source_extension_code_attestation_for_testing()
         if test_code_attestation is None
         else test_code_attestation
     )
+    return _build_source_bearing_extension_with_attestation(
+        root=root,
+        raw_reader=raw_reader,
+        records=records,
+        provenance=provenance,
+        terminal_rows=terminal_rows,
+        partition_records=partition_records,
+        source_chunk_sha256=source_chunk_sha256,
+        code_attestation=attestation,
+    )
+
+
+def _build_source_bearing_extension_with_attestation(
+    *,
+    root: _TargetRoot,
+    raw_reader: Any,
+    records: Sequence[Mapping[str, Any]],
+    provenance: Mapping[str, Mapping[str, Any]],
+    terminal_rows: Sequence[Mapping[str, Any]],
+    partition_records: int,
+    source_chunk_sha256: str,
+    code_attestation: _SourceExtensionCodeAttestation,
+) -> SourceBearingExtensionResult:
+    """Build V2 artifacts with an attestation selected by a guarded caller."""
+
+    attestation = code_attestation
     attestation.verify_runtime()
     _require(len(records) == partition_records, "source extension partition count mismatch")
     assets: list[_RawAsset] = []
@@ -5400,11 +5502,6 @@ def build_source_bearing_extension_for_testing(
             article_id in terminal_status_by_article,
             "source evidence has no terminal article record",
         )
-        if (
-            _TERMINAL_STATUS_ADAPTER[terminal_status_by_article[article_id]]
-            != "DOWNLOADED"
-        ):
-            continue
         for asset in validated:
             relative = str(asset["relative_path"])
             snapshot = raw_reader.reads.get(relative)
@@ -5461,17 +5558,17 @@ def build_source_bearing_extension(
     partition_records: int,
     source_chunk_sha256: str,
 ) -> SourceBearingExtensionResult:
-    """Production builder gate; no caller can provide an alternate trust anchor."""
+    """Build source artifacts under the fixed non-independent runtime manifest."""
 
     require_external_m1_trust_lock()
-    del (
-        root,
-        raw_reader,
-        records,
-        provenance,
-        terminal_rows,
-        partition_records,
-        source_chunk_sha256,
+    attestation = _require_stage_b_production_source_extension_trust()
+    return _build_source_bearing_extension_with_attestation(
+        root=root,
+        raw_reader=raw_reader,
+        records=records,
+        provenance=provenance,
+        terminal_rows=terminal_rows,
+        partition_records=partition_records,
+        source_chunk_sha256=source_chunk_sha256,
+        code_attestation=attestation,
     )
-    _require_stage_b_production_source_extension_trust()
-    raise AssertionError("unreachable")

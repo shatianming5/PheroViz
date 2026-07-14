@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "c2_owner_execution_authorization_v1.schema.json",
+  "title": "C2 owner execution authorization",
+  "description": "A closed owner authorization for non-independent C2 execution and atomic sealing of non-admissive evidence roots. It is not an external trust lock, independent attestation, admission, scientific-publication approval, or scientific result.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "authorization_type",
+    "authorization_id_sha256",
+    "authority",
+    "trust",
+    "target",
+    "capabilities",
+    "execution_authorized",
+    "non_admissive_evidence_root_sealing_authorized",
+    "admission_authorized",
+    "publication_authorized",
+    "scientific_outcome_preapproved",
+    "threat_model"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "c2-owner-execution-authorization-v1"
+    },
+    "authorization_type": {
+      "const": "C2_OWNER_AUTHORIZED_NON_INDEPENDENT"
+    },
+    "authorization_id_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "authority": {
+      "type": "object",
+      "required": [
+        "repository_owner",
+        "repository",
+        "record_url",
+        "record_body_sha256",
+        "recorded_at"
+      ],
+      "properties": {
+        "repository_owner": {
+          "const": "shatianming5"
+        },
+        "repository": {
+          "const": "shatianming5/PheroViz"
+        },
+        "record_url": {
+          "const": "https://github.com/shatianming5/PheroViz/issues/1#issuecomment-4974450311"
+        },
+        "record_body_sha256": {
+          "const": "e2b35af386c965109f415458e3fa9dc7defae82d3fb285332946b75dce93cb69"
+        },
+        "recorded_at": {
+          "const": "2026-07-14T22:09:08Z"
+        }
+      },
+      "additionalProperties": false
+    },
+    "trust": {
+      "type": "object",
+      "required": [
+        "independent_external_verification",
+        "external_signature_present",
+        "same_authority_as_candidate_repository",
+        "external_m1_trust_lock_satisfied"
+      ],
+      "properties": {
+        "independent_external_verification": {
+          "const": false
+        },
+        "external_signature_present": {
+          "const": false
+        },
+        "same_authority_as_candidate_repository": {
+          "const": true
+        },
+        "external_m1_trust_lock_satisfied": {
+          "const": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "target": {
+      "type": "object",
+      "required": [
+        "base_implementation_commit_full",
+        "base_attestation_commit_full",
+        "frozen_universe_sha256",
+        "m1_request_sha256"
+      ],
+      "properties": {
+        "base_implementation_commit_full": {
+          "const": "d31edc1c97aa463ec69ab67f62f0196207a18162"
+        },
+        "base_attestation_commit_full": {
+          "const": "2739b5bff23fddfb1126d0506e358cf91792df37"
+        },
+        "frozen_universe_sha256": {
+          "const": "51848466c6bf6bf400b58faf539953830349abab21438e527eaefd74103450df"
+        },
+        "m1_request_sha256": {
+          "const": "79ab51973e1034e1f498ffaaca7a1a025793d03449446692db00c0ac9a695362"
+        }
+      },
+      "additionalProperties": false
+    },
+    "capabilities": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "M2_RUNTIME_VERIFICATION"
+        },
+        {
+          "const": "M3_READ_ONLY_PREFLIGHT"
+        },
+        {
+          "const": "C2_REMEDIATION_EXECUTION"
+        },
+        {
+          "const": "C2_SOURCE_EXTENSION_BUILD_REPLAY"
+        },
+        {
+          "const": "C2_CANDIDATE_VALIDATION"
+        }
+      ],
+      "items": false,
+      "minItems": 5,
+      "maxItems": 5
+    },
+    "execution_authorized": {
+      "const": true
+    },
+    "admission_authorized": {
+      "const": false
+    },
+    "non_admissive_evidence_root_sealing_authorized": {
+      "description": "Allows atomic sealing of non-admissive remediation evidence roots only; it grants no admission or scientific-publication authority.",
+      "const": true
+    },
+    "publication_authorized": {
+      "description": "Scientific, manuscript, or public-result publication authority; local non-admissive evidence-root sealing is governed separately.",
+      "const": false
+    },
+    "scientific_outcome_preapproved": {
+      "const": false
+    },
+    "threat_model": {
+      "const": "TRUSTED_SAME_EUID_OPERATOR_NO_HOSTILE_IN_PROCESS_CODE"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}
