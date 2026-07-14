@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import inspect
 import json
 import os
 from contextlib import contextmanager
@@ -177,8 +178,13 @@ def test_inventories_exact_frozen_partition_and_blocks_until_integrated_gates() 
     ] == "BLOCKED"
 
 
-def test_public_api_rejects_sha_count_and_slice_binding_overrides() -> None:
+def test_public_api_captures_compiled_binding_despite_global_reassignment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     with _synthetic_fixture() as fixture:
+        assert tuple(inspect.signature(preflight.run_preflight).parameters) == (
+            "plan",
+        )
         first = fixture.bindings.chunks[0]
         overrides = preflight.TestOnlyPreflightBindings(
             frozen_universe_sha256="f" * 64,
@@ -202,7 +208,16 @@ def test_public_api_rejects_sha_count_and_slice_binding_overrides() -> None:
         ):
             preflight.run_preflight(fixture.plan, test_bindings=overrides)
 
+        monkeypatch.setattr(
+            preflight,
+            "DEFAULT_BINDINGS",
+            overrides._to_internal_bindings(),
+        )
         production_report = preflight.run_preflight(fixture.plan)
+        test_only_report = preflight.run_preflight_for_testing(
+            fixture.plan,
+            test_bindings=fixture.bindings,
+        )
 
     assert production_report["overall_status"] == "BLOCKED"
     assert production_report["frozen_universe"]["expected_sha256"] == (
@@ -214,6 +229,7 @@ def test_public_api_rejects_sha_count_and_slice_binding_overrides() -> None:
         overrides.chunks[0].sha256
     )
     assert _chunk(production_report, "013")["expected_input_total"] == 63
+    assert test_only_report["frozen_universe"]["status"] == "PASS"
 
 
 def test_rejects_padded_accepted_input_without_repartitioning_it() -> None:
