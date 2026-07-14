@@ -20,7 +20,7 @@ from jsonschema.exceptions import SchemaError
 from .models import (
     ProvenanceError,
     SecureOutputTarget,
-    normalize_output_path,
+    normalize_trusted_output_path,
     sha256_json,
     open_secure_output_target,
     verify_secure_output_target,
@@ -679,7 +679,7 @@ def finalize_manifest(manifest_path: Path) -> dict[str, Any]:
 
 def _normalize_final_output_path(path: Path) -> Path:
     try:
-        return normalize_output_path(path)
+        return normalize_trusted_output_path(path)
     except ProvenanceError as exc:
         raise C2AdmissionError(f"Cannot resolve final report output path: {path}") from exc
 
@@ -741,6 +741,7 @@ def write_final_report(
         output_target = open_secure_output_target(
             normalized_output_path,
             normalized_path=True,
+            require_trusted_parent=True,
         )
     except ProvenanceError as exc:
         raise C2AdmissionError(

@@ -584,7 +584,7 @@ def test_library_passes_one_normalized_tilde_output_path_to_writer(
     with _workspace("tilde-normalized-output") as workspace:
         manifest_path, _, _ = _build_admission(workspace)
         expected_output = workspace / "final-report.json"
-        writes: list[tuple[Path, bool]] = []
+        writes: list[tuple[Path, bool, bool]] = []
         original_open_target = c2_terminal_finalizer.open_secure_output_target
         monkeypatch.setenv("HOME", str(workspace))
         monkeypatch.chdir(workspace)
@@ -593,9 +593,14 @@ def test_library_passes_one_normalized_tilde_output_path_to_writer(
             path: Path,
             *,
             normalized_path: bool = False,
+            require_trusted_parent: bool = False,
         ) -> experiment_models.SecureOutputTarget:
-            writes.append((path, normalized_path))
-            return original_open_target(path, normalized_path=normalized_path)
+            writes.append((path, normalized_path, require_trusted_parent))
+            return original_open_target(
+                path,
+                normalized_path=normalized_path,
+                require_trusted_parent=require_trusted_parent,
+            )
 
         monkeypatch.setattr(
             c2_terminal_finalizer,
@@ -608,7 +613,7 @@ def test_library_passes_one_normalized_tilde_output_path_to_writer(
         )
 
         assert written_path == expected_output
-        assert writes == [(expected_output, True)]
+        assert writes == [(expected_output, True, True)]
         assert _read_json(expected_output) == report
         assert not (workspace / "~" / "final-report.json").exists()
 
@@ -647,11 +652,61 @@ def test_library_writes_a_noncolliding_output_path() -> None:
     with _workspace("noncolliding-output") as workspace:
         manifest_path, _, _ = _build_admission(workspace)
         output_path = workspace / "final" / "final-report.json"
+        output_path.parent.mkdir()
 
         report, written_path = finalize_to_path(manifest_path, output_path)
 
         assert written_path == output_path
         assert _read_json(output_path) == report
+
+
+@pytest.mark.parametrize("mode", (0o775, 0o777))
+def test_library_rejects_group_or_world_writable_output_parent(mode: int) -> None:
+    with _workspace(f"untrusted-parent-{mode:o}") as workspace:
+        manifest_path, _, report_paths = _build_admission(workspace)
+        manifest_bytes = manifest_path.read_bytes()
+        chunk_bytes = report_paths["013"].read_bytes()
+        output_parent = workspace / "untrusted-output"
+        output_parent.mkdir()
+        output_parent.chmod(mode)
+        output_path = output_parent / "final-report.json"
+
+        with pytest.raises(C2AdmissionError, match="Cannot secure final report output"):
+            finalize_to_path(manifest_path, output_path)
+
+        assert not output_path.exists()
+        assert manifest_path.read_bytes() == manifest_bytes
+        assert report_paths["013"].read_bytes() == chunk_bytes
+
+
+def test_library_rejects_symlinked_output_parent() -> None:
+    with _workspace("symlinked-output-parent") as workspace:
+        manifest_path, _, report_paths = _build_admission(workspace)
+        manifest_bytes = manifest_path.read_bytes()
+        chunk_bytes = report_paths["013"].read_bytes()
+        actual_parent = workspace / "actual-output"
+        actual_parent.mkdir()
+        output_parent = workspace / "symlinked-output"
+        output_parent.symlink_to(actual_parent, target_is_directory=True)
+        output_path = output_parent / "final-report.json"
+
+        with pytest.raises(C2AdmissionError, match="Cannot secure final report output"):
+            finalize_to_path(manifest_path, output_path)
+
+        assert not (actual_parent / output_path.name).exists()
+        assert manifest_path.read_bytes() == manifest_bytes
+        assert report_paths["013"].read_bytes() == chunk_bytes
+
+
+def test_library_rejects_missing_trusted_output_parent() -> None:
+    with _workspace("missing-output-parent") as workspace:
+        manifest_path, _, _ = _build_admission(workspace)
+        output_parent = workspace / "missing-output"
+
+        with pytest.raises(C2AdmissionError, match="Cannot secure final report output"):
+            finalize_to_path(manifest_path, output_parent / "final-report.json")
+
+        assert not output_parent.exists()
 
 
 def test_atomic_writer_ignores_old_predictable_staging_symlink_to_manifest() -> None:
@@ -914,6 +969,51 @@ def test_cli_does_not_report_success_after_chunk_parent_swap(
         assert chunk_path.read_bytes() == chunk_bytes
         assert (parked_parent / chunk_path.name).is_file()
         assert (output_parent / chunk_path.name).samefile(chunk_path)
+
+
+def test_cli_rejects_untrusted_parent_swap_without_success_output(
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _workspace("untrusted-parent-swap") as workspace:
+        manifest_path, _, report_paths = _build_admission(workspace)
+        manifest_bytes = manifest_path.read_bytes()
+        chunk_path = report_paths["013"]
+        chunk_bytes = chunk_path.read_bytes()
+        output_parent = workspace / "untrusted-output"
+        output_parent.mkdir()
+        output_parent.chmod(0o777)
+        parked_parent = workspace / "parked-untrusted-output"
+        output_path = output_parent / manifest_path.name
+
+        output_parent.rename(parked_parent)
+        output_parent.symlink_to(workspace, target_is_directory=True)
+
+        def fail_if_writer_runs(*args: Any, **kwargs: Any) -> None:
+            pytest.fail("untrusted output parent reached the writer")
+
+        monkeypatch.setattr(
+            c2_terminal_finalizer,
+            "write_json_atomic_to_target",
+            fail_if_writer_runs,
+        )
+        assert (
+            cli_main(
+                [
+                    "c2-terminal-finalize",
+                    str(manifest_path),
+                    "--out",
+                    str(output_path),
+                ]
+            )
+            == 2
+        )
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert "Cannot secure final report output" in captured.err
+        assert manifest_path.read_bytes() == manifest_bytes
+        assert chunk_path.read_bytes() == chunk_bytes
+        assert (output_parent / manifest_path.name).samefile(manifest_path)
 
 
 def test_library_rejects_leaf_replacement_after_publication(

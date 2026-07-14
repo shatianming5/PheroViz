@@ -73,6 +73,21 @@ def normalize_output_path(path: Path) -> Path:
         raise ProvenanceError(f"Cannot resolve output parent: {path}") from exc
 
 
+def normalize_trusted_output_path(path: Path) -> Path:
+    """Normalize lexically without following a parent symlink."""
+
+    try:
+        expanded = path.expanduser()
+        normalized = Path(os.path.abspath(os.fspath(expanded)))
+    except (OSError, RuntimeError) as exc:
+        raise ProvenanceError(f"Cannot resolve output path: {path}") from exc
+    if normalized.name in {"", ".", ".."}:
+        raise ProvenanceError(f"Output path must name a file: {path}")
+    if normalized.is_symlink():
+        raise ProvenanceError(f"Leaf output symlinks are forbidden: {path}")
+    return normalized
+
+
 @dataclass
 class SecureOutputTarget:
     """Descriptor-anchored output location that never reopens its parent path."""
@@ -82,6 +97,7 @@ class SecureOutputTarget:
     parent_fd: int
     published_device: Optional[int] = None
     published_inode: Optional[int] = None
+    trusted_parent: bool = False
 
     def close(self) -> None:
         if self.parent_fd != -1:
@@ -109,13 +125,35 @@ def _directory_open_flags() -> int:
     return flags
 
 
-def _open_secure_parent(parent_path: Path, *, create: bool = True) -> int:
+def _validate_trusted_directory(descriptor: int, path: Path) -> None:
+    if not hasattr(os, "geteuid"):
+        raise ProvenanceError("Trusted output parents require an effective uid")
+    metadata = os.fstat(descriptor)
+    if not stat.S_ISDIR(metadata.st_mode):
+        raise ProvenanceError(f"Trusted output parent is not a directory: {path}")
+    if metadata.st_uid not in {0, os.geteuid()}:
+        raise ProvenanceError(f"Trusted output parent has an unsafe owner: {path}")
+    if metadata.st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+        raise ProvenanceError(
+            f"Trusted output parent is group/world writable: {path}"
+        )
+
+
+def _open_secure_parent(
+    parent_path: Path,
+    *,
+    create: bool = True,
+    require_trusted_chain: bool = False,
+) -> int:
     _require_secure_output_primitives()
     if not parent_path.is_absolute():
         raise ProvenanceError("Secure output parent must be absolute")
 
     descriptor = os.open("/", _directory_open_flags())
+    current_path = Path("/")
     try:
+        if require_trusted_chain:
+            _validate_trusted_directory(descriptor, current_path)
         for component in parent_path.parts[1:]:
             try:
                 next_descriptor = os.open(
@@ -125,7 +163,9 @@ def _open_secure_parent(parent_path: Path, *, create: bool = True) -> int:
                 )
             except FileNotFoundError:
                 if not create:
-                    raise
+                    raise ProvenanceError(
+                        f"Trusted output parent is missing: {parent_path}"
+                    )
                 try:
                     os.mkdir(component, mode=0o755, dir_fd=descriptor)
                 except FileExistsError:
@@ -138,6 +178,9 @@ def _open_secure_parent(parent_path: Path, *, create: bool = True) -> int:
             previous_descriptor = descriptor
             descriptor = next_descriptor
             os.close(previous_descriptor)
+            current_path = current_path / component
+            if require_trusted_chain:
+                _validate_trusted_directory(descriptor, current_path)
         return descriptor
     except Exception:
         os.close(descriptor)
@@ -148,13 +191,23 @@ def open_secure_output_target(
     path: Path,
     *,
     normalized_path: bool = False,
+    require_trusted_parent: bool = False,
 ) -> SecureOutputTarget:
     """Open the output parent without following any directory or leaf symlink."""
 
     final_path = path if normalized_path else normalize_output_path(path)
     if not final_path.is_absolute():
         raise ProvenanceError("Normalized output path must be absolute")
-    parent_fd = _open_secure_parent(final_path.parent)
+    try:
+        parent_fd = _open_secure_parent(
+            final_path.parent,
+            create=not require_trusted_parent,
+            require_trusted_chain=require_trusted_parent,
+        )
+    except OSError as exc:
+        raise ProvenanceError(
+            f"Cannot securely open output parent: {final_path.parent}"
+        ) from exc
     try:
         try:
             leaf = os.stat(
@@ -172,6 +225,7 @@ def open_secure_output_target(
             final_path=final_path,
             leaf_name=final_path.name,
             parent_fd=parent_fd,
+            trusted_parent=require_trusted_parent,
         )
     except Exception:
         os.close(parent_fd)
@@ -208,6 +262,7 @@ def verify_secure_output_target(target: SecureOutputTarget) -> None:
         visible_parent_fd = _open_secure_parent(
             target.final_path.parent,
             create=False,
+            require_trusted_chain=target.trusted_parent,
         )
     except OSError as exc:
         raise ProvenanceError(
