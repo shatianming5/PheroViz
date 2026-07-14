@@ -325,6 +325,54 @@ def test_validation_entrypoints_deny_before_caller_controlled_data(
         )
 
 
+def test_empty_or_malformed_c2_validation_inputs_deny_at_m1() -> None:
+    empty_report: dict[str, object] = {}
+    malformed_report = {"unexpected": "caller-controlled"}
+
+    for report in (empty_report, malformed_report):
+        _assert_unavailable(lambda report=report: terminal.validate_final_report(report))
+        _assert_unavailable(
+            lambda report=report: terminal._validate_final_report(report)
+        )
+        _assert_unavailable(
+            lambda report=report: terminal._validate_schema(
+                report,
+                "c2_terminal_final_report.schema.json",
+                "sentinel",
+            )
+        )
+        _assert_unavailable(
+            lambda report=report: (
+                full_replacement.validate_synthetic_final_report_for_testing(
+                    report,
+                    object(),  # type: ignore[arg-type]
+                )
+            )
+        )
+        _assert_unavailable(
+            lambda report=report: full_replacement_evidence._validate_schema(
+                report,
+                "c2_full_replacement_final_report_v2.schema.json",
+                "sentinel",
+            )
+        )
+        _assert_unavailable(
+            lambda report=report: (
+                source_extension.validate_source_evidence_descriptor_v2(
+                    report,
+                    article_id="",
+                    doi_id="",
+                    provenance_relative_path="",
+                )
+            )
+        )
+    _assert_unavailable(
+        lambda: full_replacement_policy.compile_synthetic_policy_for_testing(
+            empty_report
+        )
+    )
+
+
 def test_cached_schema_validation_denies_after_m1_loss(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -347,8 +395,18 @@ def test_cached_schema_validation_denies_after_m1_loss(
 
     caller_path = _ExplodingCallerPath()
     caller_report = _ExplodingCallerReport()
+    empty_report: dict[str, object] = {}
     _assert_unavailable(
         lambda: terminal._schema_validator(caller_path)  # type: ignore[arg-type]
+    )
+    _assert_unavailable(lambda: terminal.validate_final_report(empty_report))
+    _assert_unavailable(lambda: terminal._validate_final_report(empty_report))
+    _assert_unavailable(
+        lambda: terminal._validate_schema(
+            empty_report,
+            "c2_terminal_final_report.schema.json",
+            "sentinel",
+        )
     )
     _assert_unavailable(lambda: terminal.validate_final_report(caller_report))
     _assert_unavailable(lambda: terminal._validate_final_report(caller_report))
@@ -362,6 +420,13 @@ def test_cached_schema_validation_denies_after_m1_loss(
     _assert_unavailable(
         lambda: full_replacement_evidence._schema_validator(
             caller_path  # type: ignore[arg-type]
+        )
+    )
+    _assert_unavailable(
+        lambda: full_replacement_evidence._validate_schema(
+            empty_report,
+            "c2_full_replacement_final_report_v2.schema.json",
+            "sentinel",
         )
     )
     _assert_unavailable(
