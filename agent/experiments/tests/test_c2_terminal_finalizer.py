@@ -817,6 +817,39 @@ def test_finalizer_output_anchor_survives_parent_symlink_swap(
         assert (output_parent / manifest_path.name).samefile(manifest_path)
 
 
+def test_finalizer_output_anchor_keeps_chunk_safe_after_parent_swap(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _workspace("output-parent-chunk-swap") as workspace:
+        manifest_path, _, report_paths = _build_admission(workspace)
+        chunk_path = report_paths["013"]
+        chunk_bytes = chunk_path.read_bytes()
+        output_parent = workspace / "safe-output-parent"
+        output_parent.mkdir()
+        output_path = output_parent / chunk_path.name
+        parked_parent = workspace / "parked-output-parent"
+        original_writer = c2_terminal_finalizer.write_json_atomic_to_target
+
+        def _swap_parent_then_write(
+            target: experiment_models.SecureOutputTarget,
+            payload: dict[str, Any],
+        ) -> None:
+            output_parent.rename(parked_parent)
+            output_parent.symlink_to(chunk_path.parent, target_is_directory=True)
+            original_writer(target, payload)
+
+        monkeypatch.setattr(
+            c2_terminal_finalizer,
+            "write_json_atomic_to_target",
+            _swap_parent_then_write,
+        )
+        report, _ = finalize_to_path(manifest_path, output_path)
+
+        assert chunk_path.read_bytes() == chunk_bytes
+        assert _read_json(parked_parent / chunk_path.name) == report
+        assert (output_parent / chunk_path.name).samefile(chunk_path)
+
+
 def test_p5plus_deficiency_is_explicitly_blocked_without_analysis() -> None:
     with _workspace("p5plus-blocked") as workspace:
         manifest_path, _, _ = _build_admission(

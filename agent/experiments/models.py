@@ -60,14 +60,17 @@ def sha256_json(data: Any) -> str:
 def normalize_output_path(path: Path) -> Path:
     try:
         expanded = path.expanduser()
-        normalized = Path(os.path.abspath(os.fspath(expanded)))
+        absolute = Path(os.path.abspath(os.fspath(expanded)))
     except (OSError, RuntimeError) as exc:
         raise ProvenanceError(f"Cannot resolve output path: {path}") from exc
-    if normalized.name in {"", ".", ".."}:
+    if absolute.name in {"", ".", ".."}:
         raise ProvenanceError(f"Output path must name a file: {path}")
-    if normalized.is_symlink():
+    if absolute.is_symlink():
         raise ProvenanceError(f"Leaf output symlinks are forbidden: {path}")
-    return normalized
+    try:
+        return absolute.parent.resolve(strict=False) / absolute.name
+    except (OSError, RuntimeError) as exc:
+        raise ProvenanceError(f"Cannot resolve output parent: {path}") from exc
 
 
 @dataclass
