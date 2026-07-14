@@ -667,6 +667,149 @@ def test_test_only_code_attestation_rejects_wrong_commit_blob_and_runtime_path()
         )
 
 
+
+def test_test_only_code_attestation_rejects_invalid_child_topologies_and_manifest() -> None:
+    repository = Path(__file__).resolve().parents[2]
+    attestation = verify_source_extension_code_attestation_for_testing(repository)
+    implementation = attestation.approved_implementation_commit_full
+    manifest_relative = (
+        "agent/tests/fixtures/c2_source_bearing_extension_test_attestation.json"
+    )
+    source_manifest = json.loads(
+        (repository / manifest_relative).read_text(encoding="utf-8")
+    )
+
+    with experiment_workspace("c2-source-extension-attestation-topology") as workspace:
+        clone = workspace / "topology-clone"
+        subprocess.run(
+            ["git", "clone", "--no-local", "--no-checkout", str(repository), str(clone)],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+
+        def git(*arguments: str) -> None:
+            subprocess.run(
+                ["git", "-C", str(clone), *arguments],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+
+        for key, value in (
+            ("user.email", "attestation-topology-test@example.test"),
+            ("user.name", "Attestation Topology Test"),
+        ):
+            git("config", key, value)
+
+        manifest_path = clone / manifest_relative
+        extension_path = clone / "agent/experiments/c2_source_bearing_extension.py"
+        finalizer_path = clone / "agent/experiments/c2_remediation_root_finalizer.py"
+        unexpected_child = clone / "unexpected-test-only-child.txt"
+
+        def checkout_implementation() -> None:
+            git("checkout", "--detach", implementation)
+            if unexpected_child.exists():
+                unexpected_child.unlink()
+
+        def clone_manifest() -> dict[str, Any]:
+            return json.loads(_canonical(source_manifest).decode("utf-8"))
+
+        def commit_manifest(
+            payload: bytes,
+            message: str,
+            *,
+            with_unexpected_child: bool = False,
+        ) -> None:
+            manifest_path.parent.mkdir(parents=True, exist_ok=True)
+            manifest_path.write_bytes(payload)
+            paths = [manifest_relative]
+            if with_unexpected_child:
+                unexpected_child.write_text("unexpected child diff\n", encoding="utf-8")
+                paths.append(unexpected_child.relative_to(clone).as_posix())
+            git("add", *paths)
+            git("commit", "-m", message)
+
+        checkout_implementation()
+        with pytest.raises(
+            SourceBearingExtensionError,
+            match="must add only its manifest",
+        ):
+            verify_source_extension_code_attestation_for_testing(
+                clone,
+                loaded_extension_path=extension_path,
+                loaded_finalizer_path=finalizer_path,
+            )
+
+        checkout_implementation()
+        commit_manifest(
+            _test_only_attestation_payload(clone, implementation),
+            "test non-manifest attestation child",
+            with_unexpected_child=True,
+        )
+        with pytest.raises(
+            SourceBearingExtensionError,
+            match="must add only its manifest",
+        ):
+            verify_source_extension_code_attestation_for_testing(
+                clone,
+                loaded_extension_path=extension_path,
+                loaded_finalizer_path=finalizer_path,
+            )
+
+        wrong_blob = clone_manifest()
+        wrong_blob["attested_paths"][0]["git_blob_object_id"] = "0" * 40
+        checkout_implementation()
+        commit_manifest(
+            _canonical(wrong_blob) + b"\n",
+            "test wrong attestation blob",
+        )
+        with pytest.raises(SourceBearingExtensionError, match="attested blob mismatch"):
+            verify_source_extension_code_attestation_for_testing(
+                clone,
+                loaded_extension_path=extension_path,
+                loaded_finalizer_path=finalizer_path,
+            )
+
+        wrong_path = clone_manifest()
+        wrong_path["attested_paths"][0]["relative_path"] = (
+            "agent/experiments/not_attested.py"
+        )
+        checkout_implementation()
+        commit_manifest(
+            _canonical(wrong_path) + b"\n",
+            "test wrong attestation path",
+        )
+        with pytest.raises(
+            SourceBearingExtensionError,
+            match="code attestation blob is invalid",
+        ):
+            verify_source_extension_code_attestation_for_testing(
+                clone,
+                loaded_extension_path=extension_path,
+                loaded_finalizer_path=finalizer_path,
+            )
+
+        wrong_manifest = clone_manifest()
+        wrong_manifest["approved_implementation_commit_full"] = "0" * 40
+        checkout_implementation()
+        commit_manifest(
+            _canonical(wrong_manifest) + b"\n",
+            "test wrong attestation manifest",
+        )
+        with pytest.raises(
+            SourceBearingExtensionError,
+            match="code attestation manifest is invalid",
+        ):
+            verify_source_extension_code_attestation_for_testing(
+                clone,
+                loaded_extension_path=extension_path,
+                loaded_finalizer_path=finalizer_path,
+            )
+
+
 def test_production_extension_routes_fail_before_candidate_attestation() -> None:
     root = _MemoryRoot()
     with pytest.raises(
