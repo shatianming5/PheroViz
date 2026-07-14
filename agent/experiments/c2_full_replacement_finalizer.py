@@ -7,7 +7,7 @@ import os
 import secrets
 import stat
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -16,7 +16,9 @@ from .c2_full_replacement_evidence import (
     EvidenceArtifact,
     ValidatedRawEvidence,
     _validate_schema,
+    freeze_evidence_value,
     load_and_validate_raw_evidence,
+    thaw_evidence_value,
 )
 from .c2_full_replacement_policy import (
     ATTEMPT_IDS,
@@ -41,13 +43,20 @@ class C2FullReplacementError(ProvenanceError):
     """Raised when V2.1 full-replacement evidence cannot finalize safely."""
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ValidatedFullReplacementAdmission:
-    """A structural guard carrying source-derived evidence and its report."""
+    """A structural guard carrying immutable source-derived evidence only."""
 
-    report: Mapping[str, Any]
     policy: CompiledFullReplacementPolicy
     evidence: ValidatedRawEvidence
+
+    @property
+    def report(self) -> Mapping[str, Any]:
+        """Expose a read-only diagnostic projection that publication never uses."""
+
+        return freeze_evidence_value(
+            _build_validated_test_report(self.policy, self.evidence)
+        )
 
 
 def _without(value: Mapping[str, Any], *keys: str) -> dict[str, Any]:
@@ -92,7 +101,9 @@ def _build_test_report(
     aggregation = aggregate_stratified_source_classifications(
         evidence.stratified_source_classifications
     )
-    dispositions = [dict(item) for item in evidence.acquisition_dispositions]
+    dispositions = [
+        thaw_evidence_value(item) for item in evidence.acquisition_dispositions
+    ]
     source_classifications = [
         item.to_dict() for item in evidence.stratified_source_classifications
     ]
@@ -128,8 +139,8 @@ def _build_test_report(
             "manifest_hash": evidence.manifest["manifest_hash"],
         },
         "frozen_universe": policy.frozen_universe.to_dict(),
-        "frozen_bindings": dict(policy.frozen_bindings),
-        "code": dict(evidence.manifest["code"]),
+        "frozen_bindings": thaw_evidence_value(policy.frozen_bindings),
+        "code": thaw_evidence_value(evidence.manifest["code"]),
         "chunks": _report_chunks(policy, evidence),
         "canonical_attempt_ledger": [
             attempt.to_report_dict() for attempt in evidence.attempt_ledger
@@ -160,6 +171,24 @@ def _build_test_report(
     }
     report["final_report_hash"] = sha256_json(report)
     return report
+
+
+def _build_validated_test_report(
+    policy: CompiledFullReplacementPolicy,
+    evidence: ValidatedRawEvidence,
+) -> dict[str, Any]:
+    report = _build_test_report(policy, evidence)
+    validate_synthetic_final_report_for_testing(report, policy)
+    return report
+
+
+def _immutable_policy_snapshot(
+    policy: CompiledFullReplacementPolicy,
+) -> CompiledFullReplacementPolicy:
+    return replace(
+        policy,
+        frozen_bindings=freeze_evidence_value(policy.frozen_bindings),
+    )
 
 
 def _validate_ledger_structure(
@@ -226,7 +255,7 @@ def validate_synthetic_final_report_for_testing(
         raise C2FullReplacementError("V2.1 final report policy binding is inconsistent")
     if (
         report["frozen_universe"] != policy.frozen_universe.to_dict()
-        or report["frozen_bindings"] != dict(policy.frozen_bindings)
+        or report["frozen_bindings"] != thaw_evidence_value(policy.frozen_bindings)
     ):
         raise C2FullReplacementError(
             "V2.1 final report frozen bindings are inconsistent"
@@ -353,11 +382,10 @@ def prepare_full_replacement_finalization_for_testing(
     evidence: ValidatedRawEvidence | None = None
     try:
         evidence = load_and_validate_raw_evidence(manifest_path, policy)
-        report = _build_test_report(policy, evidence)
-        validate_synthetic_final_report_for_testing(report, policy)
+        immutable_policy = _immutable_policy_snapshot(policy)
+        _build_validated_test_report(immutable_policy, evidence)
         return ValidatedFullReplacementAdmission(
-            report=report,
-            policy=policy,
+            policy=immutable_policy,
             evidence=evidence,
         )
     except (C2FullReplacementEvidenceError, C2FullReplacementPolicyError) as exc:
@@ -403,7 +431,7 @@ def _reject_output_evidence_collision(
 ) -> None:
     output_parent_path = target.final_path.parent
     try:
-        target.final_path.relative_to(evidence.root.path)
+        target.final_path.relative_to(evidence.root_path)
     except ValueError:
         pass
     else:
@@ -411,7 +439,7 @@ def _reject_output_evidence_collision(
             "V2.1 final report output must be outside the evidence root"
         )
     try:
-        evidence.root.path.relative_to(output_parent_path)
+        evidence.root_path.relative_to(output_parent_path)
     except ValueError:
         pass
     else:
@@ -600,12 +628,11 @@ def write_full_replacement_report(
         raise C2FullReplacementError(
             "V2.1 output requires a validated full-replacement admission"
         )
-    validate_synthetic_final_report_for_testing(finalized.report, finalized.policy)
     try:
-        finalized.evidence.verify_root()
+        finalized.evidence.verify_artifacts()
     except ProvenanceError as exc:
         raise C2FullReplacementError(
-            "V2.1 evidence root changed before output publication"
+            f"V2.1 evidence changed before output publication: {exc}"
         ) from exc
     normalized = _normalized_v2_output_path(output_path)
     try:
@@ -620,13 +647,24 @@ def write_full_replacement_report(
         ) from exc
     try:
         _reject_output_evidence_collision(target, finalized.evidence)
+        try:
+            finalized.evidence.verify_artifacts()
+        except ProvenanceError as exc:
+            raise C2FullReplacementError(
+                "V2.1 evidence changed immediately before output publication: "
+                f"{exc}"
+            ) from exc
+        report = _build_validated_test_report(
+            finalized.policy,
+            finalized.evidence,
+        )
         _publish_json_no_replace(
             target,
-            finalized.report,
+            report,
             finalized.evidence.input_artifacts,
         )
         verify_secure_output_target(target)
-        finalized.evidence.verify_root()
+        finalized.evidence.verify_artifacts()
         return target.final_path
     except ProvenanceError as exc:
         if isinstance(exc, C2FullReplacementError):
@@ -648,7 +686,7 @@ def finalize_synthetic_to_path_for_testing(
     finalized = prepare_full_replacement_finalization_for_testing(manifest_path, policy)
     try:
         output = write_full_replacement_report(finalized, output_path)
-        return dict(finalized.report), output
+        return thaw_evidence_value(finalized.report), output
     finally:
         finalized.evidence.close()
 

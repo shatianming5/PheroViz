@@ -45,7 +45,12 @@ manifest-relative paths; symlink traversal, hard-link aliases, dot traversal,
 duplicate input paths, stale hashes, and parent replacement are rejected.
 Every artifact is opened once with descriptor-relative `O_NOFOLLOW`, hashed
 while its exact bytes are read, parsed from those captured bytes, and retained
-by device/inode identity.
+by device/inode identity. The root ancestry, every artifact intermediate
+directory, and every leaf are descriptor-validated for root/current-EUID
+ownership, non-group/world-writable modes, inspectable non-mutating ACL state,
+and (for leaves) regular-file/single-hard-link identity. Before and after
+publication, every retained artifact and traversed directory is re-opened from
+the root descriptor and must retain its identity, trust metadata, and bytes.
 
 For every chunk, V2.1 verifies initial/retry1/retry2 raw streams,
 processed-success, skipped-status, a terminal-outcome ledger, and a sealed
@@ -110,6 +115,12 @@ no rename/overwrite/copy fallback. Unsupported primitives, output races,
 symlinks, cleanup uncertainty, or parent/leaf replacement return no success.
 A failed link leaves a restrictive staging file rather than deleting a
 potentially reused pathname.
+
+The validated admission retains immutable evidence snapshots, not a mutable
+authoritative report. Any diagnostic report projection is read-only. The writer
+revalidates the complete evidence snapshot and rebuilds/validates the report
+from it immediately before publication; it accepts no caller-supplied report
+object or self-hash as a publication authority.
 
 ## Stage B gate
 

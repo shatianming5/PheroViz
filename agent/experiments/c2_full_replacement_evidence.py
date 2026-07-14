@@ -10,11 +10,13 @@ import stat
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any, Mapping, Sequence
 
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
 
+from . import models as _models
 from .c2_full_replacement_policy import (
     ATTEMPT_IDS,
     CHUNK_IDS,
@@ -46,6 +48,108 @@ class C2FullReplacementEvidenceError(ProvenanceError):
     """Raised when V2.1 raw/source evidence cannot be safely attested."""
 
 
+def _validate_trusted_evidence_metadata(
+    descriptor: int,
+    metadata: os.stat_result,
+    path: Path,
+    label: str,
+) -> None:
+    if not hasattr(os, "geteuid"):
+        raise ProvenanceError(f"{label} requires an effective uid")
+    if metadata.st_uid not in {0, os.geteuid()}:
+        raise ProvenanceError(f"{label} has an unsafe owner: {path}")
+    if metadata.st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+        raise ProvenanceError(f"{label} is group/world writable: {path}")
+    if _models._trusted_acl_allows_foreign_mutation(descriptor):
+        raise ProvenanceError(f"{label} has a mutating ACL: {path}")
+
+
+def validate_trusted_directory_descriptor(
+    descriptor: int,
+    path: Path,
+    *,
+    label: str = "Trusted evidence directory",
+) -> os.stat_result:
+    """Validate an opened evidence directory's immutable trust boundary."""
+
+    metadata = os.fstat(descriptor)
+    if not stat.S_ISDIR(metadata.st_mode):
+        raise ProvenanceError(f"{label} is not a directory: {path}")
+    _validate_trusted_evidence_metadata(descriptor, metadata, path, label)
+    return metadata
+
+
+def validate_trusted_regular_file_descriptor(
+    descriptor: int,
+    path: Path,
+    *,
+    label: str = "Trusted evidence artifact",
+) -> os.stat_result:
+    """Validate an opened evidence leaf without following its pathname."""
+
+    metadata = os.fstat(descriptor)
+    if not stat.S_ISREG(metadata.st_mode):
+        raise ProvenanceError(f"{label} is not a regular file: {path}")
+    _validate_trusted_evidence_metadata(descriptor, metadata, path, label)
+    if metadata.st_nlink != 1:
+        raise ProvenanceError(f"{label} has an unsafe hard-link count: {path}")
+    return metadata
+
+
+def freeze_evidence_value(value: Any) -> Any:
+    """Recursively freeze parsed evidence so callers cannot alter its snapshot."""
+
+    if isinstance(value, Mapping):
+        return MappingProxyType(
+            {
+                key: freeze_evidence_value(item)
+                for key, item in value.items()
+            }
+        )
+    if isinstance(value, (list, tuple)):
+        return tuple(freeze_evidence_value(item) for item in value)
+    if isinstance(value, set):
+        return frozenset(freeze_evidence_value(item) for item in value)
+    return value
+
+
+def thaw_evidence_value(value: Any) -> Any:
+    """Return a mutable JSON-compatible copy of an immutable evidence snapshot."""
+
+    if isinstance(value, Mapping):
+        return {key: thaw_evidence_value(item) for key, item in value.items()}
+    if isinstance(value, tuple):
+        return [thaw_evidence_value(item) for item in value]
+    if isinstance(value, frozenset):
+        return [thaw_evidence_value(item) for item in sorted(value)]
+    return value
+
+
+@dataclass(frozen=True)
+class EvidencePathIdentity:
+    relative_path: str
+    device: int
+    inode: int
+    mode: int
+    owner_uid: int
+    link_count: int
+    mtime_ns: int
+    ctime_ns: int
+
+
+def _path_identity(relative_path: str, metadata: os.stat_result) -> EvidencePathIdentity:
+    return EvidencePathIdentity(
+        relative_path=relative_path,
+        device=metadata.st_dev,
+        inode=metadata.st_ino,
+        mode=stat.S_IMODE(metadata.st_mode),
+        owner_uid=metadata.st_uid,
+        link_count=metadata.st_nlink,
+        mtime_ns=metadata.st_mtime_ns,
+        ctime_ns=metadata.st_ctime_ns,
+    )
+
+
 @dataclass(frozen=True)
 class EvidenceArtifact:
     relative_path: str
@@ -54,6 +158,12 @@ class EvidenceArtifact:
     byte_count: int
     device: int
     inode: int
+    mode: int
+    owner_uid: int
+    link_count: int
+    mtime_ns: int
+    ctime_ns: int
+    traversed_directories: tuple[EvidencePathIdentity, ...]
     payload: bytes
 
     def to_report_dict(self) -> dict[str, Any]:
@@ -161,9 +271,11 @@ class SourceCanonicalEvidence:
     classification: StratifiedSourceClassification | None
 
 
-@dataclass
+@dataclass(frozen=True)
 class ValidatedRawEvidence:
     root: TrustedDirectory
+    root_path: Path
+    root_identity: EvidencePathIdentity
     manifest: Mapping[str, Any]
     manifest_artifact: EvidenceArtifact
     chunks: tuple[ChunkEvidence, ...]
@@ -179,6 +291,52 @@ class ValidatedRawEvidence:
 
     def verify_root(self) -> None:
         verify_trusted_directory(self.root)
+
+    def verify_artifacts(self) -> None:
+        """Reopen and compare every validated artifact before/after publication."""
+
+        try:
+            self.verify_root()
+            root_metadata = validate_trusted_directory_descriptor(
+                self.root.descriptor,
+                self.root_path,
+                label="V2.1 evidence root",
+            )
+        except ProvenanceError as exc:
+            raise C2FullReplacementEvidenceError(
+                "V2.1 evidence root changed before publication"
+            ) from exc
+        if _path_identity("", root_metadata) != self.root_identity:
+            raise C2FullReplacementEvidenceError(
+                "V2.1 evidence root metadata changed before publication"
+            )
+        for artifact in self.input_artifacts:
+            current = _read_no_follow_artifact(
+                self.root,
+                artifact.relative_path,
+                f"V2.1 revalidation of {artifact.relative_path}",
+                root_path=self.root_path,
+            )
+            if current != artifact:
+                raise C2FullReplacementEvidenceError(
+                    "V2.1 validated evidence artifact changed before publication: "
+                    f"{artifact.relative_path}"
+                )
+        try:
+            self.verify_root()
+            root_metadata = validate_trusted_directory_descriptor(
+                self.root.descriptor,
+                self.root_path,
+                label="V2.1 evidence root",
+            )
+        except ProvenanceError as exc:
+            raise C2FullReplacementEvidenceError(
+                "V2.1 evidence root changed before publication"
+            ) from exc
+        if _path_identity("", root_metadata) != self.root_identity:
+            raise C2FullReplacementEvidenceError(
+                "V2.1 evidence root metadata changed before publication"
+            )
 
     @property
     def attempt_ledger(self) -> tuple[AttemptLedger, ...]:
@@ -257,24 +415,56 @@ def _read_no_follow_artifact(
     root: TrustedDirectory,
     relative_path: str,
     label: str,
+    *,
+    root_path: Path | None = None,
 ) -> EvidenceArtifact:
     if root.descriptor == -1:
         raise C2FullReplacementEvidenceError("Evidence root is already closed")
     safe_path, components = _safe_relative_path(relative_path, label)
+    immutable_root_path = root.path if root_path is None else root_path
     directory_descriptor = os.dup(root.descriptor)
     file_descriptor = -1
     try:
         directory_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
         file_flags = os.O_RDONLY | os.O_NOFOLLOW
+        if hasattr(os, "O_NONBLOCK"):
+            file_flags |= os.O_NONBLOCK
         if hasattr(os, "O_CLOEXEC"):
             directory_flags |= os.O_CLOEXEC
             file_flags |= os.O_CLOEXEC
+        try:
+            validate_trusted_directory_descriptor(
+                directory_descriptor,
+                immutable_root_path,
+                label=f"{label} evidence root",
+            )
+        except ProvenanceError as exc:
+            raise C2FullReplacementEvidenceError(
+                f"{label} evidence root is not trusted: {exc}"
+            ) from exc
+        traversed_directories: list[EvidencePathIdentity] = []
+        directory_components: list[str] = []
         for component in components[:-1]:
             next_descriptor = os.open(
                 component,
                 directory_flags,
                 dir_fd=directory_descriptor,
             )
+            directory_components.append(component)
+            relative_directory = "/".join(directory_components)
+            try:
+                metadata = validate_trusted_directory_descriptor(
+                    next_descriptor,
+                    immutable_root_path.joinpath(*directory_components),
+                    label=f"{label} evidence directory",
+                )
+            except ProvenanceError as exc:
+                os.close(next_descriptor)
+                raise C2FullReplacementEvidenceError(
+                    f"{label} evidence directory is not trusted: {relative_directory}: "
+                    f"{exc}"
+                ) from exc
+            traversed_directories.append(_path_identity(relative_directory, metadata))
             os.close(directory_descriptor)
             directory_descriptor = next_descriptor
         file_descriptor = os.open(
@@ -282,9 +472,16 @@ def _read_no_follow_artifact(
             file_flags,
             dir_fd=directory_descriptor,
         )
-        before = os.fstat(file_descriptor)
-        if not stat.S_ISREG(before.st_mode):
-            raise C2FullReplacementEvidenceError(f"{label} is not a regular file")
+        try:
+            before = validate_trusted_regular_file_descriptor(
+                file_descriptor,
+                immutable_root_path.joinpath(*components),
+                label=f"{label} evidence artifact",
+            )
+        except ProvenanceError as exc:
+            raise C2FullReplacementEvidenceError(
+                f"{label} evidence artifact is not trusted: {exc}"
+            ) from exc
         digest = hashlib.sha256()
         blocks: list[bytes] = []
         while True:
@@ -294,23 +491,42 @@ def _read_no_follow_artifact(
             digest.update(block)
             blocks.append(block)
         payload = b"".join(blocks)
-        after = os.fstat(file_descriptor)
+        try:
+            after = validate_trusted_regular_file_descriptor(
+                file_descriptor,
+                immutable_root_path.joinpath(*components),
+                label=f"{label} evidence artifact",
+            )
+        except ProvenanceError as exc:
+            raise C2FullReplacementEvidenceError(
+                f"{label} evidence artifact is not trusted after reading: {exc}"
+            ) from exc
         if (
             before.st_dev != after.st_dev
             or before.st_ino != after.st_ino
             or before.st_size != after.st_size
             or before.st_mtime_ns != after.st_mtime_ns
+            or before.st_ctime_ns != after.st_ctime_ns
+            or before.st_uid != after.st_uid
+            or stat.S_IMODE(before.st_mode) != stat.S_IMODE(after.st_mode)
+            or before.st_nlink != after.st_nlink
         ):
             raise C2FullReplacementEvidenceError(
                 f"{label} changed while it was read"
             )
         return EvidenceArtifact(
             relative_path=safe_path,
-            absolute_path=root.path.joinpath(*components),
+            absolute_path=immutable_root_path.joinpath(*components),
             sha256=digest.hexdigest(),
             byte_count=len(payload),
             device=before.st_dev,
             inode=before.st_ino,
+            mode=stat.S_IMODE(before.st_mode),
+            owner_uid=before.st_uid,
+            link_count=before.st_nlink,
+            mtime_ns=before.st_mtime_ns,
+            ctime_ns=before.st_ctime_ns,
+            traversed_directories=tuple(traversed_directories),
             payload=payload,
         )
     except OSError as exc:
@@ -1270,15 +1486,17 @@ def _validate_source_canonical(
             qualified_panel_counts=counts,
             derived_public_stratum=disposition,
             derived_code_label=P_CODE_LABELS[disposition],
-            source_binding_hashes={
-                "source_inventory_sha256": source_inventory.sha256,
-                "raw_source_evidence_sha256": raw_source_evidence.sha256,
-                "candidate_manifest_sha256": candidate_manifest.sha256,
-                "proposal_manifest_sha256": proposal_manifest.sha256,
-                "review_manifest_sha256": review_manifest.sha256,
-                "canonical_manifest_sha256": canonical_manifest.sha256,
-                "canonical_builder_sha256": builder_artifact.sha256,
-            },
+            source_binding_hashes=freeze_evidence_value(
+                {
+                    "source_inventory_sha256": source_inventory.sha256,
+                    "raw_source_evidence_sha256": raw_source_evidence.sha256,
+                    "candidate_manifest_sha256": candidate_manifest.sha256,
+                    "proposal_manifest_sha256": proposal_manifest.sha256,
+                    "review_manifest_sha256": review_manifest.sha256,
+                    "canonical_manifest_sha256": canonical_manifest.sha256,
+                    "canonical_builder_sha256": builder_artifact.sha256,
+                }
+            ),
         )
         final_disposition = STRATIFIED_DISPOSITION
         reason = "VERIFIED_SOURCE_CANONICAL_CASES"
@@ -1289,7 +1507,7 @@ def _validate_source_canonical(
         canonical_builder=builder_artifact,
         eligible_case_ids=case_ids,
         canonical_case_set_hash=case_set_hash,
-        case_descriptor={"doi_id": doi_id, "cases": descriptors},
+        case_descriptor=freeze_evidence_value({"doi_id": doi_id, "cases": descriptors}),
         final_disposition=final_disposition,
         classification_reason=reason,
         classification=classification,
@@ -1463,7 +1681,7 @@ def load_and_validate_raw_evidence(
             {
                 "doi_id": doi_id,
                 "cases": (
-                    source_by_doi[doi_id].case_descriptor["cases"]
+                    thaw_evidence_value(source_by_doi[doi_id].case_descriptor)["cases"]
                     if doi_id in source_by_doi
                     else []
                 ),
@@ -1473,13 +1691,27 @@ def load_and_validate_raw_evidence(
         per_doi_case_hashes = [
             sha256_json(item) for item in case_manifest
         ]
+        try:
+            root_metadata = validate_trusted_directory_descriptor(
+                root.descriptor,
+                root.path,
+                label="V2.1 evidence root",
+            )
+        except ProvenanceError as exc:
+            raise C2FullReplacementEvidenceError(
+                "V2.1 evidence root is not trusted after validation"
+            ) from exc
         return ValidatedRawEvidence(
             root=root,
-            manifest=manifest,
+            root_path=root.path,
+            root_identity=_path_identity("", root_metadata),
+            manifest=freeze_evidence_value(manifest),
             manifest_artifact=manifest_artifact,
             chunks=tuple(chunks),
             source_canonical=tuple(source_records),
-            acquisition_dispositions=expected_dispositions,
+            acquisition_dispositions=tuple(
+                freeze_evidence_value(item) for item in expected_dispositions
+            ),
             stratified_source_classifications=classifications,
             canonical_case_set_manifest_sha256=sha256_json(case_manifest),
             per_doi_case_set_hashes_sha256=sha256_json(per_doi_case_hashes),
