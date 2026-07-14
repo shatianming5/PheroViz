@@ -429,7 +429,7 @@ def test_indirect_dynamic_alias_call_targets_fail_closed(
 
     with pytest.raises(
         C2FullReplacementPolicyError,
-        match="dynamic imports|unbound|namespace",
+        match="dynamic imports|unbound|namespace|implicit runtime",
     ):
         _compile_runtime_closure(indirect_alias_files)
 
@@ -507,6 +507,75 @@ def test_deny_by_default_rejects_dynamic_reflection_and_unknown_calls(
 
     with pytest.raises(C2FullReplacementPolicyError, match=match):
         _compile_runtime_closure(prohibited_files)
+
+
+@pytest.mark.parametrize(
+    ("source", "match"),
+    [
+        (
+            (
+                b"import pydoc\n"
+                b"class Meta(type):\n"
+                b"    def __fspath__(cls):\n"
+                b"        return 'agent/experiments/aggregate.py'\n"
+                b"@pydoc.importfile\n"
+                b"class C(metaclass=Meta):\n"
+                b"    pass\n"
+            ),
+            "decorators|class base or metaclass",
+        ),
+        (
+            b"import pydoc\n@pydoc.importfile\nclass C:\n    pass\n",
+            "decorators",
+        ),
+        (
+            b"import pydoc\n@pydoc.importfile\ndef decorated():\n    pass\n",
+            "decorators",
+        ),
+        (
+            (
+                b"import pydoc\n"
+                b"decorator = pydoc.importfile\n"
+                b"@decorator\n"
+                b"def decorated():\n"
+                b"    pass\n"
+            ),
+            "decorators",
+        ),
+        (
+            b"import json\n@json.dumps\ndef decorated():\n    pass\n",
+            "decorators",
+        ),
+        (b"class C(metaclass=type):\n    pass\n", "class base or metaclass"),
+        (b"def f(value=runtime_value):\n    pass\n", "candidate definition"),
+        (b"def f(value: str):\n    pass\n", "candidate definition"),
+        (b"callback = lambda: None\n", "implicit runtime"),
+        (b"values = [value for value in source]\n", "implicit runtime"),
+        (b"with context:\n    pass\n", "implicit runtime"),
+        (b"async def f():\n    pass\n", "async runtime semantics"),
+        (b"value[0]\n", "implicit runtime"),
+        (b"result = left + right\n", "implicit runtime"),
+        (b"message = f'{value}'\n", "implicit runtime"),
+        (b"print(*values)\n", "implicit runtime"),
+        (b"print(**mapping)\n", "implicit runtime"),
+        (b"values = {value}\n", "implicit runtime"),
+        (b"values = {'key': value}\n", "implicit runtime"),
+        (b"left, right = values\n", "implicit runtime"),
+    ],
+)
+def test_implicit_runtime_evaluation_routes_fail_closed(
+    source: bytes,
+    match: str,
+) -> None:
+    fixture = _fixture()
+    implicit_files = _replace_runtime_bytes(
+        fixture.runtime_files,
+        "agent/experiments/cli.py",
+        source,
+    )
+
+    with pytest.raises(C2FullReplacementPolicyError, match=match):
+        _compile_runtime_closure(implicit_files)
 
 
 @pytest.mark.parametrize(
@@ -966,5 +1035,6 @@ def test_required_test_matrix_is_explicit_and_closed() -> None:
         "dynamic-import-aliases-and-unknown-targets-are-rejected",
         "deny-by-default-static-call-targets-are-required",
         "closed-module-attribute-call-allowlist-is-enforced",
+        "implicit-runtime-evaluation-routes-are-rejected",
         "test-only-fixture-is-not-a-production-input",
     )

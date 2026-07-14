@@ -165,3 +165,7 @@ exceptions to be admitted later.
 External module attribute calls use a closed verifier-owned allowlist of
 reviewed `module.attribute` identities; no module-level or wildcard permission
 exists, so unlisted loader APIs fail closed.
+Decorators, dynamic class bases/metaclasses, comprehensions/generators,
+candidate defaults/annotations, lambdas, and context/async execution forms are
+also blocked because they can execute candidate-provided runtime semantics
+without an explicit call target.

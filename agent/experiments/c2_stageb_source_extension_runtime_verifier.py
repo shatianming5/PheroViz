@@ -220,6 +220,7 @@ SOURCE_EXTENSION_RUNTIME_VERIFIER_TEST_MATRIX = (
     "dynamic-import-aliases-and-unknown-targets-are-rejected",
     "deny-by-default-static-call-targets-are-required",
     "closed-module-attribute-call-allowlist-is-enforced",
+    "implicit-runtime-evaluation-routes-are-rejected",
     "test-only-fixture-is-not-a-production-input",
 )
 
@@ -1013,14 +1014,169 @@ def _reject_dynamic_or_reflective_alias_references(
             )
 
 
+def _function_has_unsafe_definition_semantics(
+    node: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> bool:
+    arguments = node.args
+    defaults = (
+        *arguments.defaults,
+        *(default for default in arguments.kw_defaults if default is not None),
+    )
+    if any(not isinstance(default, ast.Constant) for default in defaults):
+        return True
+    if node.returns is not None:
+        return True
+    return any(
+        argument.annotation is not None
+        for argument in (
+            *arguments.posonlyargs,
+            *arguments.args,
+            *arguments.kwonlyargs,
+            *((arguments.vararg,) if arguments.vararg is not None else ()),
+            *((arguments.kwarg,) if arguments.kwarg is not None else ()),
+        )
+    )
+
+
+def _has_unpacking_target(target: ast.expr | ast.expr_context) -> bool:
+    if isinstance(target, (ast.Tuple, ast.List)):
+        return True
+    if isinstance(target, ast.Starred):
+        return True
+    return False
+
+
+def _reject_implicit_runtime_execution(tree: ast.AST, runtime_path: str) -> None:
+    implicit_nodes = (
+        ast.ListComp,
+        ast.SetComp,
+        ast.DictComp,
+        ast.GeneratorExp,
+        ast.With,
+        ast.AsyncWith,
+        ast.For,
+        ast.AsyncFor,
+        ast.Yield,
+        ast.YieldFrom,
+        ast.Await,
+        ast.Lambda,
+        ast.Match,
+        ast.Assert,
+        ast.BinOp,
+        ast.BoolOp,
+        ast.Compare,
+        ast.FormattedValue,
+        ast.If,
+        ast.IfExp,
+        ast.JoinedStr,
+        ast.Subscript,
+        ast.UnaryOp,
+        ast.While,
+        ast.Starred,
+    )
+    for node in ast.walk(tree):
+        if isinstance(node, implicit_nodes):
+            raise C2StageBSourceExtensionRuntimeVerifierError(
+                "runtime fixture closure forbids implicit runtime execution: "
+                f"{runtime_path}"
+            )
+        if isinstance(node, ast.Set) or (
+            isinstance(node, ast.Dict) and bool(node.keys)
+        ):
+            raise C2StageBSourceExtensionRuntimeVerifierError(
+                "runtime fixture closure forbids implicit runtime execution: "
+                f"{runtime_path}"
+            )
+        if isinstance(node, ast.Assign):
+            targets = node.targets
+        elif isinstance(node, (ast.AnnAssign, ast.AugAssign)):
+            targets = (node.target,)
+        else:
+            targets = ()
+        if any(_has_unpacking_target(target) for target in targets):
+            raise C2StageBSourceExtensionRuntimeVerifierError(
+                "runtime fixture closure forbids implicit runtime execution: "
+                f"{runtime_path}"
+            )
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            if node.decorator_list:
+                raise C2StageBSourceExtensionRuntimeVerifierError(
+                    "runtime fixture closure forbids decorators: "
+                    f"{runtime_path}"
+                )
+            if isinstance(node, ast.AsyncFunctionDef):
+                raise C2StageBSourceExtensionRuntimeVerifierError(
+                    "runtime fixture closure forbids async runtime semantics: "
+                    f"{runtime_path}"
+                )
+            if _function_has_unsafe_definition_semantics(node):
+                raise C2StageBSourceExtensionRuntimeVerifierError(
+                    "runtime fixture closure forbids candidate definition semantics: "
+                    f"{runtime_path}"
+                )
+        if isinstance(node, ast.ClassDef):
+            if node.decorator_list:
+                raise C2StageBSourceExtensionRuntimeVerifierError(
+                    "runtime fixture closure forbids decorators: "
+                    f"{runtime_path}"
+                )
+            if node.bases or node.keywords:
+                raise C2StageBSourceExtensionRuntimeVerifierError(
+                    "runtime fixture closure forbids class base or metaclass "
+                    f"semantics: {runtime_path}"
+                )
+        if isinstance(node, ast.AnnAssign):
+            raise C2StageBSourceExtensionRuntimeVerifierError(
+                "runtime fixture closure forbids candidate definition semantics: "
+                f"{runtime_path}"
+            )
+        if isinstance(node, ast.Call) and any(
+            keyword.arg is None for keyword in node.keywords
+        ):
+            raise C2StageBSourceExtensionRuntimeVerifierError(
+                "runtime fixture closure forbids implicit runtime execution: "
+                f"{runtime_path}"
+            )
+
+
+def _reject_unsafe_attribute_evaluation(
+    tree: ast.AST,
+    aliases: dict[tuple[str, ...], str],
+    runtime_path: str,
+) -> None:
+    call_target_ids = {
+        id(node.func)
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+    }
+    for node in ast.walk(tree):
+        if (
+            not isinstance(node, ast.Attribute)
+            or not isinstance(node.ctx, ast.Load)
+            or id(node) in call_target_ids
+        ):
+            continue
+        path = _alias_path(node)
+        if path is None:
+            continue
+        kind = _alias_kind_for_path(path, aliases)
+        if kind not in {_ALIAS_STATIC_CALLABLE, _ALIAS_STATIC_VALUE}:
+            raise C2StageBSourceExtensionRuntimeVerifierError(
+                "runtime fixture closure forbids implicit attribute evaluation: "
+                f"{runtime_path}"
+            )
+
+
 def _reject_nonstatic_call_targets(tree: ast.AST, runtime_path: str) -> None:
     _reject_reflective_namespace_syntax(tree, runtime_path)
+    _reject_implicit_runtime_execution(tree, runtime_path)
     aliases = _collect_static_alias_kinds(tree)
     _reject_dynamic_or_reflective_alias_references(
         tree,
         aliases,
         runtime_path,
     )
+    _reject_unsafe_attribute_evaluation(tree, aliases, runtime_path)
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
             continue
