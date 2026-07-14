@@ -17,6 +17,7 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
 
 from . import models as _models
+from .c2_m1_trust_boundary import require_external_m1_trust_lock
 from .c2_full_replacement_policy import (
     ATTEMPT_IDS,
     CHUNK_IDS,
@@ -290,11 +291,13 @@ class ValidatedRawEvidence:
         self.root.close()
 
     def verify_root(self) -> None:
+        require_external_m1_trust_lock()
         verify_trusted_directory(self.root)
 
     def verify_artifacts(self) -> None:
         """Reopen and compare every validated artifact before/after publication."""
 
+        require_external_m1_trust_lock()
         try:
             self.verify_root()
             root_metadata = validate_trusted_directory_descriptor(
@@ -418,6 +421,7 @@ def _read_no_follow_artifact(
     *,
     root_path: Path | None = None,
 ) -> EvidenceArtifact:
+    require_external_m1_trust_lock()
     if root.descriptor == -1:
         raise C2FullReplacementEvidenceError("Evidence root is already closed")
     safe_path, components = _safe_relative_path(relative_path, label)
@@ -624,6 +628,7 @@ class _ArtifactCollector:
         *,
         allow_reuse: bool = False,
     ) -> EvidenceArtifact:
+        require_external_m1_trust_lock()
         safe_path, _ = _safe_relative_path(relative_path, label)
         existing = self._by_path.get(safe_path)
         if existing is not None:
@@ -653,6 +658,7 @@ class _ArtifactCollector:
 
 
 def _open_manifest_root(manifest_path: Path) -> tuple[TrustedDirectory, str]:
+    require_external_m1_trust_lock()
     raw_path = Path(os.fspath(manifest_path))
     if raw_path.name in {"", ".", ".."} or raw_path.suffix != ".json":
         raise C2FullReplacementEvidenceError(
@@ -1593,6 +1599,7 @@ def load_and_validate_raw_evidence(
 ) -> ValidatedRawEvidence:
     """Read every dynamic artifact once and derive V2.1 source classifications."""
 
+    require_external_m1_trust_lock()
     if not policy.is_test_only:
         raise C2FullReplacementEvidenceError(
             "Stage-A evidence validation accepts only a synthetic policy"

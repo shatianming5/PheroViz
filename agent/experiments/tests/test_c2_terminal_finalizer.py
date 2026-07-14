@@ -20,11 +20,11 @@ from experiments.c2_terminal_finalizer import (
     REPLACEMENT_CHUNK_IDS,
     TERMINAL_OUTCOME_STATUSES,
     C2AdmissionError,
-    _finalize_manifest_for_testing as finalize_manifest,
-    _finalize_to_path_for_testing as finalize_to_path,
-    _prepare_finalization_for_testing as prepare_finalization,
-    _write_final_report_for_testing as write_final_report,
+    finalize_manifest,
+    finalize_to_path,
+    prepare_finalization,
     validate_final_report,
+    write_final_report,
 )
 import experiments.cli as cli
 from experiments.cli import main as cli_main
@@ -76,15 +76,15 @@ STRATA_BY_CHUNK = {
 
 
 @pytest.fixture(autouse=True)
-def _enable_private_terminal_finalizer_coverage(
+def _exercise_guarded_terminal_finalizer_coverage(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(cli, "require_external_m1_trust_lock", lambda: None)
     monkeypatch.setattr(
-        cli,
-        "finalize_c2_to_path",
-        c2_terminal_finalizer._finalize_to_path_for_testing,
+        c2_terminal_finalizer,
+        "require_external_m1_trust_lock",
+        lambda: None,
     )
+    monkeypatch.setattr(cli, "require_external_m1_trust_lock", lambda: None)
 
 
 class _FakeNativeFunction:
@@ -382,7 +382,7 @@ def test_literal_roster_oracle_detects_an_altered_production_roster(
         )
 
         with pytest.raises(C2AdmissionError, match="complete ordered roster"):
-            c2_terminal_finalizer._finalize_manifest_for_testing(manifest_path)
+            c2_terminal_finalizer.finalize_manifest(manifest_path)
 
 
 def test_terminal_status_allowlist_is_closed_in_schema_and_validator() -> None:
@@ -472,9 +472,7 @@ def test_final_report_hashes_the_exact_manifest_and_report_bytes_read(
             "_read_json_object",
             _read_then_substitute,
         )
-        final_report = c2_terminal_finalizer._finalize_manifest_for_testing(
-            manifest_path
-        )
+        final_report = c2_terminal_finalizer.finalize_manifest(manifest_path)
 
         report_binding = next(
             item for item in final_report["chunks"] if item["chunk_id"] == "013"
@@ -542,9 +540,7 @@ def test_chunk_digest_and_validation_use_one_buffer_after_digest_capture(
             _legacy_digest_then_swap,
             raising=False,
         )
-        final_report = c2_terminal_finalizer._finalize_manifest_for_testing(
-            manifest_path
-        )
+        final_report = c2_terminal_finalizer.finalize_manifest(manifest_path)
 
         report_binding = next(
             item for item in final_report["chunks"] if item["chunk_id"] == "013"

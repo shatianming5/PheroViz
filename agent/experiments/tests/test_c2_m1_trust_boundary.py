@@ -8,8 +8,10 @@ from typing import Callable, Iterator
 
 import pytest
 
+import experiments.c2_full_replacement_evidence as full_replacement_evidence
 import experiments.c2_full_replacement_finalizer as full_replacement
 import experiments.c2_remediation_root_finalizer as remediation
+import experiments.c2_source_bearing_extension as source_extension
 import experiments.c2_terminal_finalizer as terminal
 import experiments.cli as cli
 from experiments.c2_m1_trust_boundary import (
@@ -48,26 +50,26 @@ def _assert_unavailable(call: Callable[[], object]) -> None:
     assert str(raised.value) == M1_EXTERNAL_TRUST_LOCK_UNAVAILABLE
 
 
-def test_terminal_public_apis_deny_before_caller_path_access_or_output_creation(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_terminal_public_apis_deny_before_caller_path_access_or_output_creation() -> None:
     with _workspace("terminal-library") as workspace:
         caller_path = _ExplodingCallerPath()
         output_path = workspace / "must-not-exist" / "final-report.json"
 
-        monkeypatch.setattr(
-            terminal,
-            "_prepare_finalization_for_testing",
-            lambda _manifest: pytest.fail("terminal core was reached"),
-        )
-        monkeypatch.setattr(
-            terminal,
-            "_write_final_report_for_testing",
-            lambda _finalized, _output: pytest.fail("terminal writer was reached"),
+        assert not any(
+            hasattr(terminal, name)
+            for name in (
+                "_prepare_finalization_for_testing",
+                "_finalize_manifest_for_testing",
+                "_write_final_report_for_testing",
+                "_finalize_to_path_for_testing",
+            )
         )
 
         _assert_unavailable(lambda: terminal.prepare_finalization(caller_path))  # type: ignore[arg-type]
         _assert_unavailable(lambda: terminal.finalize_manifest(caller_path))  # type: ignore[arg-type]
+        _assert_unavailable(
+            lambda: terminal._read_json_object(caller_path, "sentinel")  # type: ignore[arg-type]
+        )
         _assert_unavailable(
             lambda: terminal.write_final_report(caller_path, output_path)  # type: ignore[arg-type]
         )
@@ -78,17 +80,14 @@ def test_terminal_public_apis_deny_before_caller_path_access_or_output_creation(
         assert not output_path.parent.exists()
 
 
-def test_remediation_public_api_denies_before_paths_or_source_bearing_selector(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_remediation_public_api_denies_before_paths_or_source_bearing_selector() -> None:
     with _workspace("remediation-library") as workspace:
         caller_path = _ExplodingCallerPath()
         target_root = workspace / "must-not-exist" / "remediation-root"
 
-        monkeypatch.setattr(
+        assert not hasattr(
             remediation,
             "_finalize_remediation_root_for_testing",
-            lambda **_kwargs: pytest.fail("remediation core was reached"),
         )
 
         _assert_unavailable(
@@ -102,6 +101,9 @@ def test_remediation_public_api_denies_before_paths_or_source_bearing_selector(
                 worktree=caller_path,  # type: ignore[arg-type]
                 source_bearing_v2=False,
             )
+        )
+        _assert_unavailable(
+            lambda: remediation._RawRootReader(caller_path)  # type: ignore[arg-type]
         )
 
         assert not target_root.parent.exists()
@@ -123,10 +125,19 @@ def test_full_replacement_public_apis_deny_before_paths_or_output_creation(
             full_replacement,
             "finalize_synthetic_to_path_for_testing",
         )
+        assert not any(
+            hasattr(full_replacement, name)
+            for name in (
+                "prepare_full_replacement_finalization_for_testing",
+                "write_full_replacement_report_for_testing",
+            )
+        )
         with pytest.raises(ImportError):
             from experiments.c2_full_replacement_finalizer import (
                 finalize_synthetic_to_path_for_testing,
             )
+        with pytest.raises(ModuleNotFoundError):
+            import tests._c2_full_replacement_test_support  # type: ignore[import-not-found]
 
         _assert_unavailable(
             lambda: full_replacement.prepare_full_replacement_finalization(
@@ -147,6 +158,58 @@ def test_full_replacement_public_apis_deny_before_paths_or_output_creation(
         )
 
         assert not output_path.parent.exists()
+
+
+def test_full_replacement_evidence_and_source_extension_paths_deny_before_inputs() -> None:
+    caller_path = _ExplodingCallerPath()
+
+    _assert_unavailable(
+        lambda: full_replacement_evidence.load_and_validate_raw_evidence(
+            caller_path,  # type: ignore[arg-type]
+            object(),  # type: ignore[arg-type]
+        )
+    )
+    _assert_unavailable(
+        lambda: source_extension.verify_source_extension_code_attestation_for_testing(
+            caller_path  # type: ignore[arg-type]
+        )
+    )
+    _assert_unavailable(
+        lambda: source_extension.validate_source_bearing_extension(
+            caller_path,  # type: ignore[arg-type]
+            partition_records=1,
+            source_chunk_sha256="0" * 64,
+        )
+    )
+    _assert_unavailable(
+        lambda: source_extension.build_source_bearing_extension(
+            root=caller_path,  # type: ignore[arg-type]
+            raw_reader=caller_path,
+            records=caller_path,
+            provenance=caller_path,
+            terminal_rows=caller_path,
+            partition_records=1,
+            source_chunk_sha256="0" * 64,
+        )
+    )
+    _assert_unavailable(
+        lambda: source_extension.validate_source_bearing_extension_for_testing(
+            caller_path,  # type: ignore[arg-type]
+            partition_records=1,
+            source_chunk_sha256="0" * 64,
+        )
+    )
+    _assert_unavailable(
+        lambda: source_extension.build_source_bearing_extension_for_testing(
+            root=caller_path,  # type: ignore[arg-type]
+            raw_reader=caller_path,
+            records=caller_path,
+            provenance=caller_path,
+            terminal_rows=caller_path,
+            partition_records=1,
+            source_chunk_sha256="0" * 64,
+        )
+    )
 
 
 def test_terminal_cli_denies_before_parsing_or_dispatching_paths(

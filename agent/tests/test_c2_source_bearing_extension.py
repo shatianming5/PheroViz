@@ -13,6 +13,7 @@ import pytest
 from jsonschema import Draft202012Validator
 
 from experiments import c2_remediation_root_finalizer as finalizer
+from experiments import c2_source_bearing_extension as source_extension
 from experiments.c2_source_bearing_extension import (
     SourceBearingExtensionError,
     build_source_bearing_extension,
@@ -26,6 +27,18 @@ from tests.test_c2_remediation_root_finalizer import (
     _private_staging_root,
 )
 from tests.test_experiment_support import experiment_workspace
+
+
+@pytest.fixture(autouse=True)
+def _exercise_guarded_remediation_calls(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for module in (finalizer, source_extension):
+        monkeypatch.setattr(
+            module,
+            "require_external_m1_trust_lock",
+            lambda: None,
+        )
 
 
 def _canonical(value: Any) -> bytes:
@@ -1281,7 +1294,7 @@ def test_v2_opt_in_keeps_a_zero_source_root_on_the_empty_chain(
 ) -> None:
     with experiment_workspace("c2-source-bearing-zero-source") as workspace:
         paths = _make_fixture(workspace, monkeypatch, chunk_id="001")
-        result = finalizer._finalize_remediation_root_for_testing(
+        result = finalizer.finalize_remediation_root(
             chunk_id="001",
             source_bearing_v2=True,
             **paths,
@@ -1307,7 +1320,7 @@ def test_v2_opt_in_blocks_prior_attempt_source_without_stage_b_policy(
             finalizer.C2RemediationError,
             match="STAGEB_POLICY_REQUIRED",
         ):
-            finalizer._finalize_remediation_root_for_testing(
+            finalizer.finalize_remediation_root(
                 chunk_id="001",
                 source_bearing_v2=True,
                 **paths,
@@ -1348,7 +1361,7 @@ def test_stage_b_block_keeps_raw_acquisition_binding_separate(
             finalizer.C2RemediationError,
             match="STAGEB_POLICY_REQUIRED",
         ):
-            finalizer._finalize_remediation_root_for_testing(
+            finalizer.finalize_remediation_root(
                 chunk_id="001",
                 source_bearing_v2=True,
                 **paths,
@@ -1460,7 +1473,7 @@ def test_finalizer_blocks_source_bearing_roots_without_stage_b_policy(
             finalizer.C2RemediationError,
             match="STAGEB_POLICY_REQUIRED",
         ):
-            finalizer._finalize_remediation_root_for_testing(
+            finalizer.finalize_remediation_root(
                 chunk_id=chunk_id,
                 source_bearing_v2=True,
                 **paths,
