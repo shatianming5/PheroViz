@@ -410,7 +410,12 @@ def test_test_only_code_attestation_rejects_wrong_commit_blob_and_runtime_path()
             ).read_text(encoding="utf-8")
         )
         source_manifest["attested_paths"][0]["sha256"] = "0" * 64
-        (clone / "agent/tests/fixtures/c2_source_bearing_extension_test_attestation.json").write_bytes(
+        forged_manifest = (
+            clone
+            / "agent/tests/fixtures/c2_source_bearing_extension_test_attestation.json"
+        )
+        forged_manifest.parent.mkdir(parents=True, exist_ok=True)
+        forged_manifest.write_bytes(
             _canonical(source_manifest) + b"\n"
         )
         subprocess.run(
