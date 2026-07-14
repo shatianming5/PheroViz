@@ -15,6 +15,17 @@ from experiments.models import sha256_file
 from tests.test_experiment_support import experiment_workspace
 
 
+@pytest.fixture(autouse=True)
+def _exercise_guarded_remediation_paths(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        finalizer,
+        "require_external_m1_trust_lock",
+        lambda: None,
+    )
+
+
 def _canonical_json(value: Any) -> bytes:
     return json.dumps(
         value,
@@ -415,7 +426,10 @@ def _make_fixture(
 
 
 def _finalize(paths: dict[str, Path], chunk_id: str) -> dict[str, Any]:
-    return finalizer.finalize_remediation_root(chunk_id=chunk_id, **paths)
+    return finalizer.finalize_remediation_root(
+        chunk_id=chunk_id,
+        **paths,
+    )
 
 
 def _private_staging_root(paths: dict[str, Path]) -> Path:
@@ -1094,6 +1108,7 @@ def test_cli_wires_the_dedicated_remediation_finalizer(
         return {"status": "SEALED_COMPLETE_ATTEMPT_EVIDENCE_NO_CASES"}
 
     monkeypatch.setattr(cli, "finalize_remediation_root", fake_finalizer)
+    monkeypatch.setattr(cli, "require_external_m1_trust_lock", lambda: None)
     assert (
         cli.main(
             [

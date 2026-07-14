@@ -1,5 +1,14 @@
 # C2 terminal-admission finalizer
 
+## M1 production trust boundary
+
+Every production library and CLI entry point first fails with
+`M1_EXTERNAL_TRUST_LOCK_UNAVAILABLE`. This repository intentionally contains no
+independently signed, deployment-pinned external M1 artifact or adapter, so no
+manifest, output path, environment value, flag, or local resource can authorize
+finalization. The denial occurs before caller-path resolution or evidence/output
+access. Private `*_for_testing` helpers are not CLI-selectable production routes.
+
 Run only against an explicit `c2_terminal_admission_manifest.schema.json`
 manifest:
 

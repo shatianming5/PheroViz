@@ -22,6 +22,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
+from .c2_m1_trust_boundary import require_external_m1_trust_lock
 from .models import (
     ProvenanceError,
     SecureOutputTarget,
@@ -332,6 +333,7 @@ def _ensure_relative(relative: str | Path, label: str) -> Path:
 
 
 def _verify_trusted_existing_root(root: Path, label: str) -> Path:
+    require_external_m1_trust_lock()
     _require(root.is_absolute(), f"{label} must be absolute")
     normalized = normalize_trusted_output_path(root)
     _require(normalized.is_dir() and not normalized.is_symlink(), f"{label} is unsafe")
@@ -367,6 +369,8 @@ class _RawRootReader:
     """Single-read, descriptor-relative reader for immutable raw evidence."""
 
     def __init__(self, root: Path) -> None:
+        self._root_fd = -1
+        require_external_m1_trust_lock()
         self.root = _verify_trusted_existing_root(root, "raw root")
         probe = open_secure_output_target(
             self.root / ".c2_remediation_probe",
@@ -409,6 +413,7 @@ class _RawRootReader:
         }
 
     def read(self, relative: str | Path, label: str) -> bytes:
+        require_external_m1_trust_lock()
         path = _ensure_relative(relative, label)
         relative_text = path.as_posix()
         _require(relative_text not in self._seen, f"{label} was opened more than once")
@@ -466,6 +471,7 @@ class _RawRootReader:
     def files_under(self, relative: str | Path, label: str) -> tuple[str, ...]:
         """Return a no-follow, descriptor-relative recursive regular-file listing."""
 
+        require_external_m1_trust_lock()
         path = _ensure_relative(relative, label)
         current_fd = os.dup(self._root_fd)
         flags = (
@@ -528,6 +534,7 @@ def _publication_platform() -> str:
 def _open_private_staging_parent(target_root: Path) -> SecureOutputTarget:
     """Open the pre-existing, descriptor-validated parent used for staging."""
 
+    require_external_m1_trust_lock()
     normalized_target = normalize_trusted_output_path(target_root)
     target = open_secure_output_target(
         normalized_target,
@@ -565,6 +572,7 @@ def _publish_staging_directory(
 ) -> None:
     """Atomically publish a staging directory without replacing any target."""
 
+    require_external_m1_trust_lock()
     _require(
         staging_name
         and target_name
@@ -647,6 +655,7 @@ class _SecureTargetRoot:
         root_fd: int,
         staging_identity: tuple[int, int],
     ) -> None:
+        require_external_m1_trust_lock()
         self.path = canonical_path
         self._parent_fd = parent_fd
         self._target_name = target_name
@@ -688,6 +697,7 @@ class _SecureTargetRoot:
         *,
         create: bool,
     ) -> tuple[int, str]:
+        require_external_m1_trust_lock()
         if create:
             _require(
                 not self._published,
@@ -739,6 +749,7 @@ class _SecureTargetRoot:
 
     @staticmethod
     def _read_regular_at(parent_fd: int, name: str, label: str) -> bytes:
+        require_external_m1_trust_lock()
         descriptor = -1
         try:
             descriptor = os.open(
@@ -782,6 +793,7 @@ class _SecureTargetRoot:
                 os.close(descriptor)
 
     def write_bytes(self, relative: str, payload: bytes) -> str:
+        require_external_m1_trust_lock()
         _require(not self._published, "refusing to write artifacts after publication")
         parent_fd, leaf_name = self._open_parent(relative, create=True)
         descriptor = -1
@@ -819,6 +831,7 @@ class _SecureTargetRoot:
             os.close(parent_fd)
 
     def read_bytes(self, relative: str) -> bytes:
+        require_external_m1_trust_lock()
         parent_fd, leaf_name = self._open_parent(relative, create=False)
         try:
             return self._read_regular_at(parent_fd, leaf_name, f"target {relative}")
@@ -826,9 +839,11 @@ class _SecureTargetRoot:
             os.close(parent_fd)
 
     def sha256(self, relative: str) -> str:
+        require_external_m1_trust_lock()
         return _sha256_bytes(self.read_bytes(relative))
 
     def mkdir(self, relative: str) -> None:
+        require_external_m1_trust_lock()
         _require(not self._published, "refusing to create artifacts after publication")
         parent_fd, leaf_name = self._open_parent(relative, create=True)
         try:
@@ -865,6 +880,7 @@ class _SecureTargetRoot:
             os.close(parent_fd)
 
     def files(self, excludes: set[str] | None = None) -> Iterable[tuple[str, int, bytes]]:
+        require_external_m1_trust_lock()
         excluded = excludes or set()
 
         def is_excluded(relative: str) -> bool:
@@ -924,6 +940,7 @@ class _SecureTargetRoot:
             os.close(root_fd)
 
     def _verify_anchored_entry(self, name: str, label: str) -> None:
+        require_external_m1_trust_lock()
         _require(self._root_fd != -1 and self._parent_fd != -1, "target is closed")
         anchored_root = os.fstat(self._root_fd)
         try:
@@ -944,6 +961,7 @@ class _SecureTargetRoot:
         )
 
     def _verify_visible_parent(self) -> None:
+        require_external_m1_trust_lock()
         probe = open_secure_output_target(
             self.path,
             normalized_path=True,
@@ -960,11 +978,13 @@ class _SecureTargetRoot:
             probe.close()
 
     def verify_staging_identity(self) -> None:
+        require_external_m1_trust_lock()
         _require(not self._published, "private staging root is already published")
         self._verify_anchored_entry(self._staging_name, "private staging")
         self._verify_visible_parent()
 
     def verify_published_identity(self) -> None:
+        require_external_m1_trust_lock()
         _require(self._published, "private staging root has not been published")
         self._verify_anchored_entry(self._target_name, "canonical target")
         self._verify_visible_parent()
@@ -989,6 +1009,7 @@ class _SecureTargetRoot:
             probe.close()
 
     def publish(self) -> None:
+        require_external_m1_trust_lock()
         self.verify_staging_identity()
         _publish_staging_directory(
             parent_fd=self._parent_fd,
@@ -1000,6 +1021,7 @@ class _SecureTargetRoot:
 
 
 def _read_external_file_once(path: Path, label: str) -> bytes:
+    require_external_m1_trust_lock()
     _require(path.is_absolute(), f"{label} must be absolute")
     _require(path.is_file() and not path.is_symlink(), f"{label} is unsafe")
     with _RawRootReader(path.parent) as reader:
@@ -1089,6 +1111,7 @@ def _parse_skipped(
 
 
 def _verify_worktree(worktree: Path) -> dict[str, Any]:
+    require_external_m1_trust_lock()
     worktree = _verify_trusted_existing_root(worktree, "worktree")
     try:
         commit = subprocess.check_output(
@@ -1116,6 +1139,7 @@ def _verify_frozen_inputs(
     frozen_universe: Path,
     freeze_summary: Path,
 ) -> tuple[bytes, list[dict[str, Any]]]:
+    require_external_m1_trust_lock()
     for path, label in (
         (source_chunk, "source chunk"),
         (frozen_universe, "frozen universe"),
@@ -1524,6 +1548,7 @@ def _validate_raw_root_from_reader(
     dict[str, Any],
     _RawRootReader,
 ]:
+    require_external_m1_trust_lock()
     expected_ids = {_article_id(record) for record in records}
     expected_dois = {_normalized_doi(record) for record in records}
     input_line_hashes = [
@@ -1707,6 +1732,7 @@ def _validate_raw_root(
     dict[str, Any],
     _RawRootReader,
 ]:
+    require_external_m1_trust_lock()
     reader = _RawRootReader(raw_root)
     try:
         return _validate_raw_root_from_reader(
@@ -1729,6 +1755,7 @@ def _validate_download_source_evidence(
     provenance_path: str,
     provenance: Mapping[str, Any],
 ) -> _SourceEvidence:
+    require_external_m1_trust_lock()
     _require(
         provenance.get("download_status") == "downloaded",
         f"downloaded provenance status is invalid: {article_id}",
@@ -1862,6 +1889,7 @@ def _read_provenance(
     records: list[dict[str, Any]],
     statuses_by_attempt: Mapping[str, Mapping[str, str]],
 ) -> dict[str, dict[str, Any]]:
+    require_external_m1_trust_lock()
     provenance: dict[str, dict[str, Any]] = {}
     for record in records:
         article_id = _article_id(record)
@@ -1939,6 +1967,7 @@ def _validate_content_closure(
 ) -> tuple[str, ...]:
     """Reject raw content not bound to terminal provenance/source descriptors."""
 
+    require_external_m1_trust_lock()
     expected_paths = {
         str(entry["relative_path"])
         for entry in provenance.values()
@@ -1961,6 +1990,7 @@ def _validate_content_closure(
 
 
 def _write_bytes(root: _SecureTargetRoot, relative: str, payload: bytes) -> str:
+    require_external_m1_trust_lock()
     return root.write_bytes(relative, payload)
 
 
@@ -1969,6 +1999,7 @@ def _copy_raw_tree(
     destination_root: _SecureTargetRoot,
     content_files: Iterable[str],
 ) -> None:
+    require_external_m1_trust_lock()
     destination_root.mkdir("content")
     for source_relative in content_files:
         if source_relative in reader.reads:
@@ -2017,6 +2048,7 @@ def _seal(value: dict[str, Any], field: str) -> dict[str, Any]:
 
 
 def _artifact_entries(root: Path, excludes: set[str]) -> list[dict[str, Any]]:
+    require_external_m1_trust_lock()
     entries: list[dict[str, Any]] = []
     for path in sorted(root.rglob("*")):
         relative = path.relative_to(root).as_posix()
@@ -2041,6 +2073,7 @@ def _target_artifact_entries(
     root: _SecureTargetRoot,
     excludes: set[str],
 ) -> list[dict[str, Any]]:
+    require_external_m1_trust_lock()
     return [
         {
             "path": relative,
@@ -2052,6 +2085,7 @@ def _target_artifact_entries(
 
 
 def _write_secret_scan(root: _SecureTargetRoot) -> tuple[str, dict[str, Any]]:
+    require_external_m1_trust_lock()
     hits: list[dict[str, str]] = []
     files_scanned = 0
     for relative, _byte_count, payload in root.files():
@@ -2073,6 +2107,7 @@ def _write_secret_scan(root: _SecureTargetRoot) -> tuple[str, dict[str, Any]]:
 
 
 def _protected_root_inventory(root: Path) -> dict[str, Any]:
+    require_external_m1_trust_lock()
     _require(root.is_dir() and not root.is_symlink(), "protected old root is unsafe")
     entries = _artifact_entries(root, {".pipeline_worktree/"})
     tuples = [
@@ -2090,6 +2125,7 @@ def _verify_protected_old_root(
     target_parent: Path,
     contract: Mapping[str, Any],
 ) -> dict[str, Any]:
+    require_external_m1_trust_lock()
     root_name = contract.get("root_name")
     _require(isinstance(root_name, str) and root_name, "protected old root name invalid")
     old_root = target_parent / root_name
@@ -2116,6 +2152,7 @@ def _verify_protected_old_root(
 def _create_target_root(target_root: Path) -> _SecureTargetRoot:
     """Create private staging beneath an existing trusted parent, never the target."""
 
+    require_external_m1_trust_lock()
     _require(target_root.is_absolute(), "target root must be absolute")
     target = _open_private_staging_parent(target_root)
     staging_parent_fd = target.parent_fd
@@ -2274,6 +2311,7 @@ def finalize_remediation_root(
 ) -> dict[str, Any]:
     """Seal one fresh remediation root from independently acquired raw evidence."""
 
+    require_external_m1_trust_lock()
     _require(
         chunk_id in SUPPORTED_REMEDIATION_CHUNKS,
         "chunk is not authorized for fresh remediation",

@@ -1,5 +1,15 @@
 # C2 fresh-remediation root finalizer
 
+## M1 production trust boundary
+
+The public finalizer and CLI currently fail with
+`M1_EXTERNAL_TRUST_LOCK_UNAVAILABLE` before inspecting any caller-selected raw
+root, target, source evidence, frozen input, or worktree. This repository does
+not provide an independently signed, deployment-pinned external M1 artifact or
+adapter; no local file, environment value, flag, or `--source-bearing-v2`
+selection can authorize a production run. Private `*_for_testing` helpers are
+not CLI-selectable production routes.
+
 `c2-remediation-root-finalize` seals one new root from a separately acquired
 raw-evidence root. It does not acquire articles, invoke models, alter the raw
 root, or overwrite an existing target.

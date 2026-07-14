@@ -11,6 +11,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from .c2_m1_trust_boundary import require_external_m1_trust_lock
 from .c2_full_replacement_evidence import (
     C2FullReplacementEvidenceError,
     EvidenceArtifact,
@@ -54,6 +55,7 @@ class ValidatedFullReplacementAdmission:
     def report(self) -> Mapping[str, Any]:
         """Expose a read-only diagnostic projection that publication never uses."""
 
+        require_external_m1_trust_lock()
         return freeze_evidence_value(
             _build_validated_test_report(self.policy, self.evidence)
         )
@@ -98,6 +100,7 @@ def _build_test_report(
     policy: CompiledFullReplacementPolicy,
     evidence: ValidatedRawEvidence,
 ) -> dict[str, Any]:
+    require_external_m1_trust_lock()
     aggregation = aggregate_stratified_source_classifications(
         evidence.stratified_source_classifications
     )
@@ -177,6 +180,7 @@ def _build_validated_test_report(
     policy: CompiledFullReplacementPolicy,
     evidence: ValidatedRawEvidence,
 ) -> dict[str, Any]:
+    require_external_m1_trust_lock()
     report = _build_test_report(policy, evidence)
     validate_synthetic_final_report_for_testing(report, policy)
     return report
@@ -195,6 +199,7 @@ def _validate_ledger_structure(
     ledger: Sequence[Mapping[str, Any]],
     policy: CompiledFullReplacementPolicy,
 ) -> None:
+    require_external_m1_trust_lock()
     expected_keys = [
         (chunk_id, attempt_id)
         for chunk_id in CHUNK_IDS
@@ -234,6 +239,7 @@ def validate_synthetic_final_report_for_testing(
 ) -> None:
     """Validate test-only output without accepting report P labels as inputs."""
 
+    require_external_m1_trust_lock()
     if not policy.is_test_only:
         raise C2FullReplacementError(
             "Stage-A final report validation accepts only a synthetic policy"
@@ -369,12 +375,16 @@ def validate_synthetic_final_report_for_testing(
         raise C2FullReplacementError("V2.1 final report count summaries mismatch")
 
 
-def prepare_full_replacement_finalization_for_testing(
+def prepare_full_replacement_finalization(
     manifest_path: Path,
-    policy: CompiledFullReplacementPolicy,
 ) -> ValidatedFullReplacementAdmission:
-    """Build a source-derived report using the only Stage-A test injection."""
+    """Prepare a report only after the external M1 boundary permits it."""
 
+    require_external_m1_trust_lock()
+    try:
+        policy = load_production_policy()
+    except C2FullReplacementPolicyError as exc:
+        raise C2FullReplacementError(str(exc)) from exc
     if not policy.is_test_only:
         raise C2FullReplacementError(
             "Stage-A finalization accepts only a synthetic in-process policy"
@@ -398,20 +408,8 @@ def prepare_full_replacement_finalization_for_testing(
         raise
 
 
-def prepare_full_replacement_finalization(
-    manifest_path: Path,
-) -> ValidatedFullReplacementAdmission:
-    """Production resolver: intentionally unavailable until Stage B."""
-
-    del manifest_path
-    try:
-        load_production_policy()
-    except C2FullReplacementPolicyError as exc:
-        raise C2FullReplacementError(str(exc)) from exc
-    raise AssertionError("Stage-B production policy resolver must not return in Stage A")
-
-
 def _normalized_v2_output_path(path: Path) -> Path:
+    require_external_m1_trust_lock()
     raw = Path(os.fspath(path))
     if any(part in {".", ".."} for part in raw.parts):
         raise C2FullReplacementError(
@@ -429,6 +427,7 @@ def _reject_output_evidence_collision(
     target: SecureOutputTarget,
     evidence: ValidatedRawEvidence,
 ) -> None:
+    require_external_m1_trust_lock()
     output_parent_path = target.final_path.parent
     try:
         target.final_path.relative_to(evidence.root_path)
@@ -496,6 +495,7 @@ def _linkat_no_replace_supported() -> bool:
 
 
 def _write_all(descriptor: int, payload: bytes) -> None:
+    require_external_m1_trust_lock()
     remaining = memoryview(payload)
     while remaining:
         written = os.write(descriptor, remaining)
@@ -513,6 +513,7 @@ def _publish_json_no_replace(
     report: Mapping[str, Any],
     input_artifacts: Sequence[EvidenceArtifact],
 ) -> None:
+    require_external_m1_trust_lock()
     if not _linkat_no_replace_supported():
         raise C2FullReplacementError(
             "Descriptor-relative linkat-style no-replace publication is unsupported"
@@ -622,8 +623,9 @@ def write_full_replacement_report(
     finalized: ValidatedFullReplacementAdmission,
     output_path: Path,
 ) -> Path:
-    """Publish a source-derived Stage-A report with no-replace semantics."""
+    """Publish a source-derived report only after the external M1 boundary."""
 
+    require_external_m1_trust_lock()
     if not isinstance(finalized, ValidatedFullReplacementAdmission):
         raise C2FullReplacementError(
             "V2.1 output requires a validated full-replacement admission"
@@ -676,30 +678,16 @@ def write_full_replacement_report(
         target.close()
 
 
-def finalize_synthetic_to_path_for_testing(
-    manifest_path: Path,
-    output_path: Path,
-    policy: CompiledFullReplacementPolicy,
-) -> tuple[dict[str, Any], Path]:
-    """Complete the synthetic-only Stage-A path and close evidence FDs."""
-
-    finalized = prepare_full_replacement_finalization_for_testing(manifest_path, policy)
-    try:
-        output = write_full_replacement_report(finalized, output_path)
-        return thaw_evidence_value(finalized.report), output
-    finally:
-        finalized.evidence.close()
-
-
 def finalize_to_path(
     manifest_path: Path,
     output_path: Path,
 ) -> tuple[dict[str, Any], Path]:
-    """Production V2.1 route, deliberately blocked until Stage B policy pinning."""
+    """Prepare and publish only after the external M1 boundary permits it."""
 
-    del output_path
+    require_external_m1_trust_lock()
     finalized = prepare_full_replacement_finalization(manifest_path)
     try:
-        raise AssertionError("Stage-A production finalization cannot reach publication")
+        output = write_full_replacement_report(finalized, output_path)
+        return thaw_evidence_value(finalized.report), output
     finally:
         finalized.evidence.close()

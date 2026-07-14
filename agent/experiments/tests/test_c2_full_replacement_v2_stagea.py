@@ -16,11 +16,11 @@ import pytest
 
 import experiments.c2_full_replacement_evidence as v2_evidence
 import experiments.c2_full_replacement_finalizer as v2_finalizer
+import experiments.c2_full_replacement_policy as v2_policy
 from experiments.c2_full_replacement_evidence import thaw_evidence_value
 from experiments.c2_full_replacement_finalizer import (
     C2FullReplacementError,
-    finalize_synthetic_to_path_for_testing,
-    prepare_full_replacement_finalization_for_testing,
+    prepare_full_replacement_finalization,
     validate_synthetic_final_report_for_testing,
     write_full_replacement_report,
 )
@@ -74,6 +74,22 @@ EXPECTED_CHUNK_INPUT_TOTALS = (
 )
 EXPECTED_ATTEMPTS = ("initial", "retry1", "retry2")
 EXPECTED_P_DISPOSITIONS = ("P1", "P2", "P3_4", "P5PLUS")
+
+
+@pytest.fixture(autouse=True)
+def _exercise_guarded_full_replacement_paths(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _allow_m1_guard_for_test(monkeypatch)
+
+
+def _allow_m1_guard_for_test(monkeypatch: pytest.MonkeyPatch) -> None:
+    for module in (v2_evidence, v2_finalizer, v2_policy):
+        monkeypatch.setattr(
+            module,
+            "require_external_m1_trust_lock",
+            lambda: None,
+        )
 
 
 @dataclass
@@ -767,10 +783,27 @@ def _attempt(fixture: SyntheticFixture, chunk_id: str, attempt_id: str) -> dict[
 
 
 def _prepare(fixture: SyntheticFixture) -> Any:
-    return prepare_full_replacement_finalization_for_testing(
-        fixture.manifest_path,
-        fixture.policy,
-    )
+    with pytest.MonkeyPatch.context() as monkeypatch:
+        monkeypatch.setattr(
+            v2_finalizer,
+            "load_production_policy",
+            lambda: fixture.policy,
+        )
+        return prepare_full_replacement_finalization(fixture.manifest_path)
+
+
+def _finalize(
+    fixture: SyntheticFixture,
+    output_path: Path,
+) -> tuple[dict[str, Any], Path]:
+    finalized = _prepare(fixture)
+    try:
+        return thaw_evidence_value(finalized.report), write_full_replacement_report(
+            finalized,
+            output_path,
+        )
+    finally:
+        finalized.evidence.close()
 
 
 def test_literal_acquisition_roster_partition_and_enum_oracles() -> None:
@@ -810,17 +843,13 @@ def test_production_resolver_and_cli_remain_stage_b_blocked(
     captured = capsys.readouterr()
     assert exit_code == 2
     assert captured.out == ""
-    assert "Stage-A only" in captured.err
+    assert "M1_EXTERNAL_TRUST_LOCK_UNAVAILABLE" in captured.err
 
 
 def test_full_acquisition_coverage_and_stratified_subset_gate_publish() -> None:
     with _workspace("coverage") as workspace:
         fixture = _build_fixture(workspace)
-        report, output = finalize_synthetic_to_path_for_testing(
-            fixture.manifest_path,
-            fixture.output_root / "final.json",
-            fixture.policy,
-        )
+        report, output = _finalize(fixture, fixture.output_root / "final.json")
         assert output.exists()
         assert report["status"] == "BLOCKED_INSUFFICIENT_INDEPENDENT_P5PLUS"
         assert report["claim_scope"] == "STRATIFIED_SOURCE_TERMINAL_ADMISSION_ONLY"
@@ -1474,6 +1503,7 @@ def test_link_race_unsupported_and_staging_reuse_preserve_unrelated_files(
         finally:
             finalized.evidence.close()
     monkeypatch.undo()
+    _allow_m1_guard_for_test(monkeypatch)
     with _workspace("unsupported") as workspace:
         fixture = _build_fixture(workspace)
         finalized = _prepare(fixture)
@@ -1531,6 +1561,7 @@ def test_failed_link_and_output_parent_swap_do_not_report_success(
         finally:
             finalized.evidence.close()
     monkeypatch.undo()
+    _allow_m1_guard_for_test(monkeypatch)
     with _workspace("output-parent-swap") as workspace:
         fixture = _build_fixture(workspace)
         finalized = _prepare(fixture)

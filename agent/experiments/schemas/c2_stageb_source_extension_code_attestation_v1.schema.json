@@ -38,8 +38,8 @@
     },
     "covered_runtime_paths": {
       "type": "array",
-      "minItems": 11,
-      "maxItems": 11,
+      "minItems": 12,
+      "maxItems": 12,
       "items": {
         "$ref": "#/$defs/runtimePathRole"
       }
@@ -62,8 +62,9 @@
     },
     "runtimeRole": {
       "enum": [
-        "SOURCE_EXTENSION_RUNTIME",
+        "M1_TRUST_BOUNDARY_RUNTIME",
         "REMEDIATION_FINALIZER_RUNTIME",
+        "SOURCE_EXTENSION_RUNTIME",
         "EXPERIMENTS_CLI_RUNTIME",
         "EXPERIMENTS_MODELS_RUNTIME",
         "SOURCE_EXTENSION_SCHEMA"

@@ -12,11 +12,15 @@ from collections import defaultdict
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
 
+from .c2_m1_trust_boundary import (
+    M1ExternalTrustLockUnavailable,
+    require_external_m1_trust_lock,
+)
 from .models import (
     ProvenanceError,
     SecureOutputTarget,
@@ -76,6 +80,7 @@ def _sha256_bytes(payload: bytes) -> str:
 
 
 def _read_json_object(path: Path, label: str) -> tuple[dict[str, Any], str]:
+    require_external_m1_trust_lock()
     if path.is_symlink():
         raise C2AdmissionError(f"{label} must not be a symlink: {path}")
     try:
@@ -97,15 +102,27 @@ def _read_json_object(path: Path, label: str) -> tuple[dict[str, Any], str]:
     return value, payload_sha256
 
 
-@lru_cache(maxsize=None)
-def _schema_validator(schema_name: str) -> Draft202012Validator:
-    schema_path = Path(__file__).resolve().parent / "schemas" / schema_name
-    schema, _ = _read_json_object(schema_path, f"schema {schema_name}")
-    try:
-        Draft202012Validator.check_schema(schema)
-    except SchemaError as exc:
-        raise C2AdmissionError(f"Invalid bundled schema {schema_name}: {exc}") from exc
-    return Draft202012Validator(schema)
+def _make_schema_validator() -> Callable[[str], Draft202012Validator]:
+    @lru_cache(maxsize=None)
+    def _cached_schema_validator(schema_name: str) -> Draft202012Validator:
+        schema_path = Path(__file__).resolve().parent / "schemas" / schema_name
+        schema, _ = _read_json_object(schema_path, f"schema {schema_name}")
+        try:
+            Draft202012Validator.check_schema(schema)
+        except SchemaError as exc:
+            raise C2AdmissionError(
+                f"Invalid bundled schema {schema_name}: {exc}"
+            ) from exc
+        return Draft202012Validator(schema)
+
+    def _guarded_schema_validator(schema_name: str) -> Draft202012Validator:
+        require_external_m1_trust_lock()
+        return _cached_schema_validator(schema_name)
+
+    return _guarded_schema_validator
+
+
+_schema_validator = _make_schema_validator()
 
 
 def _validation_location(error_path: Sequence[Any]) -> str:
@@ -117,6 +134,7 @@ def _validate_schema(
     schema_name: str,
     label: str,
 ) -> None:
+    require_external_m1_trust_lock()
     errors = sorted(
         _schema_validator(schema_name).iter_errors(value),
         key=lambda error: _validation_location(tuple(error.absolute_path)),
@@ -288,6 +306,7 @@ def _validate_manifest_structure(manifest: Mapping[str, Any]) -> list[Mapping[st
 
 
 def _resolve_report_path(manifest_path: Path, raw_path: str, chunk_id: str) -> Path:
+    require_external_m1_trust_lock()
     if raw_path != raw_path.strip():
         raise C2AdmissionError(f"chunk {chunk_id} report_path has surrounding whitespace")
     relative = Path(raw_path)
@@ -470,6 +489,7 @@ def _blocked_status(deficient_strata: list[str]) -> str:
 
 
 def _validate_final_report(report: Mapping[str, Any]) -> None:
+    require_external_m1_trust_lock()
     _validate_schema(
         report,
         "c2_terminal_final_report.schema.json",
@@ -532,12 +552,14 @@ def _validate_final_report(report: Mapping[str, Any]) -> None:
 def validate_final_report(report: Mapping[str, Any]) -> None:
     """Validate a finalizer output without reading any live output root."""
 
+    require_external_m1_trust_lock()
     _validate_final_report(report)
 
 
 def prepare_finalization(manifest_path: Path) -> FinalizedAdmission:
     """Validate sealed inputs and retain their resolved paths for safe output."""
 
+    require_external_m1_trust_lock()
     if manifest_path.is_symlink():
         raise C2AdmissionError("Admission manifest must not be a symlink")
     try:
@@ -674,10 +696,12 @@ def prepare_finalization(manifest_path: Path) -> FinalizedAdmission:
 def finalize_manifest(manifest_path: Path) -> dict[str, Any]:
     """Build a terminal-only report without writing an output file."""
 
+    require_external_m1_trust_lock()
     return prepare_finalization(manifest_path).report
 
 
 def _normalize_final_output_path(path: Path) -> Path:
+    require_external_m1_trust_lock()
     try:
         return normalize_trusted_output_path(path)
     except ProvenanceError as exc:
@@ -688,6 +712,7 @@ def _reject_output_input_collision(
     output_target: SecureOutputTarget,
     admitted_input_paths: Sequence[Path],
 ) -> None:
+    require_external_m1_trust_lock()
     try:
         output_identity = os.stat(
             output_target.leaf_name,
@@ -731,6 +756,7 @@ def write_final_report(
 ) -> Path:
     """Write a validated report only when its output cannot overwrite evidence."""
 
+    require_external_m1_trust_lock()
     if not isinstance(finalized, FinalizedAdmission):
         raise C2AdmissionError(
             "write_final_report requires a FinalizedAdmission from prepare_finalization"
@@ -770,6 +796,7 @@ def finalize_to_path(
 ) -> tuple[dict[str, Any], Path]:
     """Finalize a manifest and safely write its report."""
 
+    require_external_m1_trust_lock()
     finalized = prepare_finalization(manifest_path)
     return finalized.report, write_final_report(finalized, output_path)
 
@@ -784,10 +811,12 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    args = _build_parser().parse_args(argv)
+    parser = _build_parser()
     try:
+        require_external_m1_trust_lock()
+        args = parser.parse_args(argv)
         report, output_path = finalize_to_path(args.manifest, args.out)
-    except C2AdmissionError as exc:
+    except (C2AdmissionError, M1ExternalTrustLockUnavailable) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     print(

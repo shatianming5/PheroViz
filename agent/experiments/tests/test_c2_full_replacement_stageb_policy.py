@@ -10,8 +10,8 @@ from typing import Any
 import pytest
 
 import experiments.c2_full_replacement_stageb_policy as stageb_policy
+from experiments.c2_m1_trust_boundary import M1ExternalTrustLockUnavailable
 from experiments.c2_full_replacement_finalizer import (
-    C2FullReplacementError,
     prepare_full_replacement_finalization,
 )
 from experiments.c2_full_replacement_policy import (
@@ -239,7 +239,10 @@ def test_production_resolver_and_cli_have_no_selector_surface(
     monkeypatch.setenv("C2_STAGEB_EVIDENCE", "/attacker-selected-evidence")
     with pytest.raises(C2FullReplacementPolicyError, match="Stage-A only"):
         load_production_policy()
-    with pytest.raises(C2FullReplacementError, match="Stage-A only"):
+    with pytest.raises(
+        M1ExternalTrustLockUnavailable,
+        match="M1_EXTERNAL_TRUST_LOCK_UNAVAILABLE",
+    ):
         prepare_full_replacement_finalization(Path("attacker-manifest.json"))
 
     parser = _build_parser()

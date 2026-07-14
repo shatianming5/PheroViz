@@ -9,12 +9,17 @@ evidence.
 `phero-experiments c2-full-replacement-finalize MANIFEST --out REPORT` accepts
 only the manifest and `--out`. It has no policy, map, digest, root, evidence
 skip, environment, or path selector. During Stage A the fixed production policy
-resolver fails before reading either path or creating output: no Git-reviewed
-package resource and compiled resource-byte SHA-256 exist.
+resolver is preceded by an M1 denial: this repository has no independently
+signed, deployment-pinned external M1 artifact or adapter, so every production
+library/CLI route fails with `M1_EXTERNAL_TRUST_LOCK_UNAVAILABLE` before reading
+either path or creating output. No local resource or selector can satisfy that
+condition. The Stage-A resolver remains independently fail-closed when a future
+external M1 integration is available.
 
-The explicitly test-named in-process APIs accept synthetic ordered acquisition
-policies only. They are structural APIs, not a hostile-process security
-boundary. No CLI path can select them.
+Synthetic finalization support is confined to
+`agent/tests/_c2_full_replacement_test_support.py`, outside the production
+`experiments` package. No production library import or CLI path exposes those
+fixture helpers.
 
 ## Two populations; no fabricated P labels
 

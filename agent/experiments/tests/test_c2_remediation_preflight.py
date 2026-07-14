@@ -17,6 +17,17 @@ from experiments.c2_remediation_preflight import run_preflight as imported_run_p
 from tests.test_experiment_support import experiment_workspace
 
 
+@pytest.fixture(autouse=True)
+def _exercise_guarded_preflight_paths(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        preflight,
+        "require_external_m1_trust_lock",
+        lambda: None,
+    )
+
+
 @dataclass
 class SyntheticPreflightFixture:
     plan: dict[str, Any]

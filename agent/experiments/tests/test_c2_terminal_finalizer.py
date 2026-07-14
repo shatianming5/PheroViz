@@ -26,6 +26,7 @@ from experiments.c2_terminal_finalizer import (
     validate_final_report,
     write_final_report,
 )
+import experiments.cli as cli
 from experiments.cli import main as cli_main
 from experiments.models import sha256_file, sha256_json, write_json_atomic
 
@@ -72,6 +73,18 @@ STRATA_BY_CHUNK = {
     "012": "P=5+",
     "013": "P=1",
 }
+
+
+@pytest.fixture(autouse=True)
+def _exercise_guarded_terminal_finalizer_coverage(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        c2_terminal_finalizer,
+        "require_external_m1_trust_lock",
+        lambda: None,
+    )
+    monkeypatch.setattr(cli, "require_external_m1_trust_lock", lambda: None)
 
 
 class _FakeNativeFunction:

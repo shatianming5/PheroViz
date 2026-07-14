@@ -27,6 +27,8 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping, Protocol, Sequence
 from urllib.parse import unquote, urlsplit
 
+from . import c2_m1_trust_boundary as _m1_trust_boundary
+from .c2_m1_trust_boundary import require_external_m1_trust_lock
 from .c2_stageb_source_extension_code_attestation import (
     C2StageBCodeAttestationError,
     load_compile_pinned_source_extension_code_attestation,
@@ -63,6 +65,7 @@ MAX_ARCHIVE_CONTAINER_UNCOMPRESSED_BYTES = 256 * 1024 * 1024
 MAX_ARCHIVE_RUN_COMPRESSED_BYTES = 512 * 1024 * 1024
 MAX_ARCHIVE_RUN_UNCOMPRESSED_BYTES = 1024 * 1024 * 1024
 
+_M1_TRUST_BOUNDARY_RELATIVE_PATH = "agent/experiments/c2_m1_trust_boundary.py"
 _EXTENSION_RELATIVE_PATH = "agent/experiments/c2_source_bearing_extension.py"
 _FINALIZER_RELATIVE_PATH = "agent/experiments/c2_remediation_root_finalizer.py"
 _CLI_RELATIVE_PATH = "agent/experiments/cli.py"
@@ -81,6 +84,7 @@ _REQUIRED_SCHEMA_NAMES = (
 )
 _REQUIRED_ATTESTED_CODE_PATHS = frozenset(
     {
+        _M1_TRUST_BOUNDARY_RELATIVE_PATH,
         _EXTENSION_RELATIVE_PATH,
         _FINALIZER_RELATIVE_PATH,
         _CLI_RELATIVE_PATH,
@@ -887,6 +891,7 @@ def _jsonl_objects(payload: bytes, label: str) -> list[dict[str, Any]]:
 
 
 def _write_json(root: _TargetRoot, relative: str, value: Mapping[str, Any]) -> str:
+    require_external_m1_trust_lock()
     _assert_no_legacy_fields(value)
     root.write_bytes(relative, _canonical_bytes(value) + b"\n")
     return relative
@@ -897,6 +902,7 @@ def _write_jsonl(
     relative: str,
     values: Iterable[Mapping[str, Any]],
 ) -> str:
+    require_external_m1_trust_lock()
     materialized = list(values)
     for value in materialized:
         _assert_no_legacy_fields(value)
@@ -908,6 +914,7 @@ def _write_jsonl(
 
 
 def _file_binding(root: _TargetRoot, relative: str) -> dict[str, Any]:
+    require_external_m1_trust_lock()
     payload = root.read_bytes(relative)
     return {
         "relative_path": relative,
@@ -958,10 +965,17 @@ class TestOnlySourceExtensionCodeAttestation:
             f"code attestation has no binding for {relative_path}"
         )
 
-    def verify_runtime(self, *, loaded_finalizer_path: Path | None = None) -> None:
+    def verify_runtime(
+        self,
+        *,
+        loaded_finalizer_path: Path | None = None,
+        loaded_m1_trust_boundary_path: Path | None = None,
+    ) -> None:
+        require_external_m1_trust_lock()
         observed = verify_source_extension_code_attestation_for_testing(
             self.worktree,
             loaded_finalizer_path=loaded_finalizer_path,
+            loaded_m1_trust_boundary_path=loaded_m1_trust_boundary_path,
         )
         _require(
             observed == self,
@@ -970,6 +984,7 @@ class TestOnlySourceExtensionCodeAttestation:
 
 
 def _git_text(worktree: Path, arguments: Sequence[str], label: str) -> str:
+    require_external_m1_trust_lock()
     try:
         completed = subprocess.run(
             ["git", "-C", str(worktree), *arguments],
@@ -986,6 +1001,7 @@ def _git_text(worktree: Path, arguments: Sequence[str], label: str) -> str:
 
 
 def _git_bytes(worktree: Path, arguments: Sequence[str], label: str) -> bytes:
+    require_external_m1_trust_lock()
     try:
         completed = subprocess.run(
             ["git", "-C", str(worktree), *arguments],
@@ -1005,11 +1021,18 @@ def _attested_runtime_paths(
     worktree: Path,
     loaded_extension_path: Path | None,
     loaded_finalizer_path: Path | None,
+    loaded_m1_trust_boundary_path: Path | None,
 ) -> dict[str, Path]:
+    require_external_m1_trust_lock()
     runtime_paths = {
         _EXTENSION_RELATIVE_PATH: (
             Path(__file__) if loaded_extension_path is None else loaded_extension_path
-        )
+        ),
+        _M1_TRUST_BOUNDARY_RELATIVE_PATH: (
+            _loaded_m1_trust_boundary_path()
+            if loaded_m1_trust_boundary_path is None
+            else loaded_m1_trust_boundary_path
+        ),
     }
     if loaded_finalizer_path is not None:
         runtime_paths[_FINALIZER_RELATIVE_PATH] = loaded_finalizer_path
@@ -1031,7 +1054,18 @@ def _attested_runtime_paths(
     return runtime_paths
 
 
+def _loaded_m1_trust_boundary_path() -> Path:
+    require_external_m1_trust_lock()
+    module_path = getattr(_m1_trust_boundary, "__file__", None)
+    _require(
+        isinstance(module_path, str),
+        "loaded M1 trust-boundary runtime module is unavailable",
+    )
+    return Path(module_path)
+
+
 def _module_worktree() -> Path:
+    require_external_m1_trust_lock()
     module_path = Path(__file__).resolve()
     _require(
         module_path.as_posix().endswith(_EXTENSION_RELATIVE_PATH),
@@ -1045,9 +1079,11 @@ def verify_source_extension_code_attestation_for_testing(
     *,
     loaded_extension_path: Path | None = None,
     loaded_finalizer_path: Path | None = None,
+    loaded_m1_trust_boundary_path: Path | None = None,
 ) -> TestOnlySourceExtensionCodeAttestation:
     """Verify a synthetic Git/blob anchor for tests only, never production."""
 
+    require_external_m1_trust_lock()
     candidate = _module_worktree() if worktree is None else Path(worktree)
     _require(
         candidate.is_absolute()
@@ -1193,6 +1229,7 @@ def verify_source_extension_code_attestation_for_testing(
         worktree=resolved_worktree,
         loaded_extension_path=loaded_extension_path,
         loaded_finalizer_path=loaded_finalizer_path,
+        loaded_m1_trust_boundary_path=loaded_m1_trust_boundary_path,
     )
     return TestOnlySourceExtensionCodeAttestation(
         worktree=resolved_worktree,
@@ -2023,6 +2060,7 @@ def validate_source_evidence_descriptor_v2(
 ) -> tuple[Mapping[str, Any], ...]:
     """Validate the typed V2 raw descriptor before the generic finalizer copies it."""
 
+    require_external_m1_trust_lock()
     canonical_doi = _require_doi(doi_id, "source evidence V2 parent DOI is invalid")
     _require(
         set(descriptor)
@@ -2309,6 +2347,7 @@ class _Builder:
         source_chunk_sha256: str,
         test_code_attestation: TestOnlySourceExtensionCodeAttestation,
     ) -> None:
+        require_external_m1_trust_lock()
         self.root = root
         self.raw_assets = tuple(raw_assets)
         self.terminal_rows = tuple(terminal_rows)
@@ -3464,6 +3503,7 @@ class _Builder:
         return classifications, dispositions, summary
 
     def build(self) -> SourceBearingExtensionResult:
+        require_external_m1_trust_lock()
         config_path = _write_json(
             self.root, "source_inventory_v2/fd_format_classifier_config.json", self.config
         )
@@ -4028,6 +4068,7 @@ def _validate_archive_accounts(
 def _require_stage_b_production_source_extension_trust() -> None:
     """Fail before any candidate worktree or attestation can influence production."""
 
+    require_external_m1_trust_lock()
     try:
         registry = load_compile_pinned_source_extension_code_attestation()
     except C2StageBCodeAttestationError as exc:
@@ -4052,6 +4093,7 @@ def validate_source_bearing_extension_for_testing(
 ) -> dict[str, Any]:
     """Test-only replay of V2 bytes -> account -> consumption -> canonical/P."""
 
+    require_external_m1_trust_lock()
     attestation = (
         verify_source_extension_code_attestation_for_testing()
         if test_code_attestation is None
@@ -5283,6 +5325,7 @@ def validate_source_bearing_extension(
 ) -> dict[str, Any]:
     """Production replay gate; unavailable until Stage-B pins a trust commitment."""
 
+    require_external_m1_trust_lock()
     del root, partition_records, source_chunk_sha256
     _require_stage_b_production_source_extension_trust()
     raise AssertionError("unreachable")
@@ -5306,6 +5349,7 @@ def build_source_bearing_extension_for_testing(
     would violate the raw-attempt single-read contract.
     """
 
+    require_external_m1_trust_lock()
     attestation = (
         verify_source_extension_code_attestation_for_testing()
         if test_code_attestation is None
@@ -5419,6 +5463,7 @@ def build_source_bearing_extension(
 ) -> SourceBearingExtensionResult:
     """Production builder gate; no caller can provide an alternate trust anchor."""
 
+    require_external_m1_trust_lock()
     del (
         root,
         raw_reader,

@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 
 import experiments.c2_stageb_source_extension_code_attestation as code_attestation
+import experiments.c2_source_bearing_extension as source_extension
 from experiments.c2_full_replacement_policy import C2FullReplacementPolicyError
 from experiments.cli import _build_parser
 from experiments.models import sha256_json
@@ -69,6 +70,77 @@ def _compile(
             expected_resource_sha256=hashlib.sha256(payload).hexdigest(),
         )
     )
+
+
+def test_runtime_path_contract_is_closed_ordered_and_nonclassification() -> None:
+    expected = (
+        (
+            "agent/experiments/c2_m1_trust_boundary.py",
+            "M1_TRUST_BOUNDARY_RUNTIME",
+        ),
+        (
+            "agent/experiments/c2_remediation_root_finalizer.py",
+            "REMEDIATION_FINALIZER_RUNTIME",
+        ),
+        (
+            "agent/experiments/c2_source_bearing_extension.py",
+            "SOURCE_EXTENSION_RUNTIME",
+        ),
+        ("agent/experiments/cli.py", "EXPERIMENTS_CLI_RUNTIME"),
+        ("agent/experiments/models.py", "EXPERIMENTS_MODELS_RUNTIME"),
+        (
+            "agent/experiments/schemas/c2_v2_candidate_set_input_v1.schema.json",
+            "SOURCE_EXTENSION_SCHEMA",
+        ),
+        (
+            "agent/experiments/schemas/c2_v2_consumable_source_unit_v1.schema.json",
+            "SOURCE_EXTENSION_SCHEMA",
+        ),
+        (
+            "agent/experiments/schemas/"
+            "c2_v2_consumption_bijection_validation_v1.schema.json",
+            "SOURCE_EXTENSION_SCHEMA",
+        ),
+        (
+            "agent/experiments/schemas/c2_v2_container_accounting_index_v1.schema.json",
+            "SOURCE_EXTENSION_SCHEMA",
+        ),
+        (
+            "agent/experiments/schemas/c2_v2_detected_format_v1.schema.json",
+            "SOURCE_EXTENSION_SCHEMA",
+        ),
+        (
+            "agent/experiments/schemas/c2_v2_downstream_consumption_v1.schema.json",
+            "SOURCE_EXTENSION_SCHEMA",
+        ),
+        (
+            "agent/experiments/schemas/"
+            "c2_v2_fd_format_classifier_config_v1.schema.json",
+            "SOURCE_EXTENSION_SCHEMA",
+        ),
+    )
+    assert code_attestation.SOURCE_EXTENSION_RUNTIME_PATH_ROLES == expected
+    assert frozenset(path for path, _role in expected) == (
+        source_extension._REQUIRED_ATTESTED_CODE_PATHS
+    )
+    assert tuple(path for path, _role in expected) == tuple(
+        sorted(path for path, _role in expected)
+    )
+    for path, role in expected:
+        marker = f"{path}:{role}".casefold()
+        assert not any(
+            token in marker
+            for token in (
+                "doi",
+                "p1",
+                "cluster",
+                "panel",
+                "strata",
+                "coverage",
+                "admission",
+                "outcome",
+            )
+        )
 
 
 def test_typed_fixture_compiles_but_production_loader_stays_non_admissive(
@@ -262,6 +334,17 @@ def test_runtime_path_contract_rejects_missing_duplicate_unbound_and_unordered_p
     with pytest.raises(C2FullReplacementPolicyError, match="unbound runtime path"):
         _compile(unbound)
 
+    extra = _synthetic_entry()
+    extra["covered_runtime_paths"].append(
+        {
+            "runtime_path": "agent/experiments/unbound_runtime.py",
+            "role": "M1_TRUST_BOUNDARY_RUNTIME",
+        }
+    )
+    _seal(extra)
+    with pytest.raises(C2FullReplacementPolicyError, match="schema validation failed"):
+        _compile(extra)
+
     unordered = _synthetic_entry()
     unordered["covered_runtime_paths"].reverse()
     _seal(unordered)
@@ -271,6 +354,10 @@ def test_runtime_path_contract_rejects_missing_duplicate_unbound_and_unordered_p
 
 def test_runtime_path_role_mismatch_is_rejected() -> None:
     entry = deepcopy(_synthetic_entry())
+    assert entry["covered_runtime_paths"][0] == {
+        "runtime_path": "agent/experiments/c2_m1_trust_boundary.py",
+        "role": "M1_TRUST_BOUNDARY_RUNTIME",
+    }
     entry["covered_runtime_paths"][0]["role"] = "EXPERIMENTS_CLI_RUNTIME"
     _seal(entry)
     with pytest.raises(C2FullReplacementPolicyError, match="role is inconsistent"):
@@ -279,6 +366,7 @@ def test_runtime_path_role_mismatch_is_rejected() -> None:
 
 def test_no_compile_pinned_resource_exists() -> None:
     assert code_attestation._SOURCE_EXTENSION_CODE_ATTESTATION_RESOURCE_SHA256 is None
+    assert not code_attestation._SOURCE_EXTENSION_CODE_ATTESTATION_ROUTE_APPROVED
     resource = resources.files(
         code_attestation._SOURCE_EXTENSION_CODE_ATTESTATION_RESOURCE_PACKAGE
     ).joinpath(*code_attestation._SOURCE_EXTENSION_CODE_ATTESTATION_RESOURCE_PARTS)
