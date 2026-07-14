@@ -3193,7 +3193,7 @@ class _Builder:
                 "terminal attempt evidence is incomplete",
             )
             source_inventory_binding: dict[str, Any] | None = None
-            if source_present:
+            if source_present and terminal_status == "DOWNLOADED":
                 evidence = self.source_by_article[article_id]["source_evidence"]
                 source_inventory_binding = {
                     "source_inventory_collection_hash": source_inventory_hash,
@@ -5156,6 +5156,19 @@ def build_source_bearing_extension(
     _require(len(records) == partition_records, "source extension partition count mismatch")
     assets: list[_RawAsset] = []
     source_by_article: dict[str, Mapping[str, Any]] = {}
+    terminal_status_by_article: dict[str, str] = {}
+    for terminal in terminal_rows:
+        article_id = _require_identifier(
+            terminal.get("article_id"), "terminal article ID is invalid"
+        )
+        terminal_status_raw = terminal.get("terminal_status")
+        _require(
+            isinstance(terminal_status_raw, str)
+            and terminal_status_raw in _TERMINAL_STATUS_ADAPTER
+            and article_id not in terminal_status_by_article,
+            "terminal status/article binding is invalid",
+        )
+        terminal_status_by_article[article_id] = terminal_status_raw
     by_article = {
         str(record["article_url"]).rstrip("/").rsplit("/", 1)[-1]: (ordinal, record)
         for ordinal, record in enumerate(records, start=1)
@@ -5180,6 +5193,15 @@ def build_source_bearing_extension(
             provenance_relative_path=str(entry["relative_path"]),
         )
         source_by_article[article_id] = entry
+        _require(
+            article_id in terminal_status_by_article,
+            "source evidence has no terminal article record",
+        )
+        if (
+            _TERMINAL_STATUS_ADAPTER[terminal_status_by_article[article_id]]
+            != "DOWNLOADED"
+        ):
+            continue
         for asset in validated:
             relative = str(asset["relative_path"])
             snapshot = raw_reader.reads.get(relative)
@@ -5215,7 +5237,6 @@ def build_source_bearing_extension(
                     payload=snapshot.payload,
                 )
             )
-    _require(assets, "source-bearing extension has no typed raw assets")
     return _Builder(
         root=root,
         raw_assets=assets,
