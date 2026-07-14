@@ -13,6 +13,7 @@ from typing import Any, Iterator
 import pytest
 
 from experiments import c2_remediation_preflight as preflight
+from experiments.c2_remediation_preflight import run_preflight as imported_run_preflight
 from tests.test_experiment_support import experiment_workspace
 
 
@@ -178,10 +179,11 @@ def test_inventories_exact_frozen_partition_and_blocks_until_integrated_gates() 
     ] == "BLOCKED"
 
 
-def test_public_api_captures_compiled_binding_despite_global_reassignment(
+def test_public_alias_captures_canonical_code_and_binding(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     with _synthetic_fixture() as fixture:
+        assert imported_run_preflight is preflight.run_preflight
         assert tuple(inspect.signature(preflight.run_preflight).parameters) == (
             "plan",
         )
@@ -208,16 +210,29 @@ def test_public_api_captures_compiled_binding_despite_global_reassignment(
         ):
             preflight.run_preflight(fixture.plan, test_bindings=overrides)
 
+        test_only_report = preflight.run_preflight_for_testing(
+            fixture.plan,
+            test_bindings=fixture.bindings,
+        )
+        public_alias = imported_run_preflight
+        canonical_runner = preflight._run_preflight
+        routed_to_synthetic = False
+
+        def synthetic_router(plan: Any, *, bindings: Any) -> dict[str, Any]:
+            nonlocal routed_to_synthetic
+            routed_to_synthetic = True
+            return canonical_runner(
+                plan,
+                bindings=fixture.bindings._to_internal_bindings(),
+            )
+
         monkeypatch.setattr(
             preflight,
             "DEFAULT_BINDINGS",
             overrides._to_internal_bindings(),
         )
-        production_report = preflight.run_preflight(fixture.plan)
-        test_only_report = preflight.run_preflight_for_testing(
-            fixture.plan,
-            test_bindings=fixture.bindings,
-        )
+        monkeypatch.setattr(preflight, "_run_preflight", synthetic_router)
+        production_report = public_alias(fixture.plan)
 
     assert production_report["overall_status"] == "BLOCKED"
     assert production_report["frozen_universe"]["expected_sha256"] == (
@@ -230,6 +245,7 @@ def test_public_api_captures_compiled_binding_despite_global_reassignment(
     )
     assert _chunk(production_report, "013")["expected_input_total"] == 63
     assert test_only_report["frozen_universe"]["status"] == "PASS"
+    assert routed_to_synthetic is False
 
 
 def test_rejects_padded_accepted_input_without_repartitioning_it() -> None:

@@ -918,9 +918,10 @@ def _run_preflight(
 
 
 def _build_production_runner(
+    canonical_runner: Callable[..., dict[str, Any]],
     compiled_bindings: _FrozenBindings,
 ) -> Callable[[Mapping[str, Any]], dict[str, Any]]:
-    """Capture immutable compiled bindings outside the mutable module namespace."""
+    """Capture canonical code and bindings outside the mutable module namespace."""
 
     def run_preflight(plan: Mapping[str, Any]) -> dict[str, Any]:
         """Run production preflight with only the compiled frozen C2 bindings.
@@ -930,12 +931,12 @@ def _build_production_runner(
         SHA-256.
         """
 
-        return _run_preflight(plan, bindings=compiled_bindings)
+        return canonical_runner(plan, bindings=compiled_bindings)
 
     return run_preflight
 
 
-run_preflight = _build_production_runner(DEFAULT_BINDINGS)
+run_preflight = _build_production_runner(_run_preflight, DEFAULT_BINDINGS)
 
 
 def run_preflight_for_testing(
