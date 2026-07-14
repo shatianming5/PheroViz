@@ -38,6 +38,11 @@ def _exercise_guarded_remediation_calls(
             "require_external_m1_trust_lock",
             lambda: None,
         )
+    monkeypatch.setattr(
+        source_extension,
+        "require_test_only_source_extension_gate",
+        lambda: None,
+    )
 
 
 def _canonical(value: Any) -> bytes:

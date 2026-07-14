@@ -29,6 +29,7 @@ from urllib.parse import unquote, urlsplit
 
 from . import c2_m1_trust_boundary as _m1_trust_boundary
 from .c2_m1_trust_boundary import (
+    require_external_m1_trust_lock as require_test_only_source_extension_gate,
     require_owner_authorized_c2_execution as require_external_m1_trust_lock,
 )
 from .c2_stageb_source_extension_code_attestation import (
@@ -1103,7 +1104,7 @@ def verify_source_extension_code_attestation_for_testing(
 ) -> TestOnlySourceExtensionCodeAttestation:
     """Verify a synthetic Git/blob anchor for tests only, never production."""
 
-    require_external_m1_trust_lock()
+    require_test_only_source_extension_gate()
     candidate = _module_worktree() if worktree is None else Path(worktree)
     _require(
         candidate.is_absolute()
@@ -3778,11 +3779,11 @@ class _Builder:
             self.root, "p_evidence_v2/acquisition_dispositions.jsonl", dispositions
         )
         p_summary_path = _write_json(self.root, "p_evidence_v2/p_summary.json", p_summary)
-        validation = validate_source_bearing_extension_for_testing(
+        validation = _validate_source_bearing_extension_with_attestation(
             self.root,
             partition_records=self.partition_records,
             source_chunk_sha256=self.source_chunk_sha256,
-            test_code_attestation=self.test_code_attestation,
+            code_attestation=self.test_code_attestation,
         )
         validation_path = _write_json(
             self.root, "control/v2/source_bearing_extension_validation.json", validation
@@ -4139,12 +4140,30 @@ def validate_source_bearing_extension_for_testing(
 ) -> dict[str, Any]:
     """Test-only replay of V2 bytes -> account -> consumption -> canonical/P."""
 
-    require_external_m1_trust_lock()
+    require_test_only_source_extension_gate()
     attestation = (
         verify_source_extension_code_attestation_for_testing()
         if test_code_attestation is None
         else test_code_attestation
     )
+    return _validate_source_bearing_extension_with_attestation(
+        root,
+        partition_records=partition_records,
+        source_chunk_sha256=source_chunk_sha256,
+        code_attestation=attestation,
+    )
+
+
+def _validate_source_bearing_extension_with_attestation(
+    root: _TargetRoot,
+    *,
+    partition_records: int,
+    source_chunk_sha256: str,
+    code_attestation: _SourceExtensionCodeAttestation,
+) -> dict[str, Any]:
+    """Replay V2 artifacts with an attestation selected by a guarded caller."""
+
+    attestation = code_attestation
     attestation.verify_runtime()
     config = _json_object(
         root.read_bytes("source_inventory_v2/fd_format_classifier_config.json"),
@@ -5373,11 +5392,11 @@ def validate_source_bearing_extension(
 
     require_external_m1_trust_lock()
     attestation = _require_stage_b_production_source_extension_trust()
-    return validate_source_bearing_extension_for_testing(
+    return _validate_source_bearing_extension_with_attestation(
         root,
         partition_records=partition_records,
         source_chunk_sha256=source_chunk_sha256,
-        test_code_attestation=attestation,
+        code_attestation=attestation,
     )
 
 
@@ -5399,12 +5418,38 @@ def build_source_bearing_extension_for_testing(
     would violate the raw-attempt single-read contract.
     """
 
-    require_external_m1_trust_lock()
+    require_test_only_source_extension_gate()
     attestation = (
         verify_source_extension_code_attestation_for_testing()
         if test_code_attestation is None
         else test_code_attestation
     )
+    return _build_source_bearing_extension_with_attestation(
+        root=root,
+        raw_reader=raw_reader,
+        records=records,
+        provenance=provenance,
+        terminal_rows=terminal_rows,
+        partition_records=partition_records,
+        source_chunk_sha256=source_chunk_sha256,
+        code_attestation=attestation,
+    )
+
+
+def _build_source_bearing_extension_with_attestation(
+    *,
+    root: _TargetRoot,
+    raw_reader: Any,
+    records: Sequence[Mapping[str, Any]],
+    provenance: Mapping[str, Mapping[str, Any]],
+    terminal_rows: Sequence[Mapping[str, Any]],
+    partition_records: int,
+    source_chunk_sha256: str,
+    code_attestation: _SourceExtensionCodeAttestation,
+) -> SourceBearingExtensionResult:
+    """Build V2 artifacts with an attestation selected by a guarded caller."""
+
+    attestation = code_attestation
     attestation.verify_runtime()
     _require(len(records) == partition_records, "source extension partition count mismatch")
     assets: list[_RawAsset] = []
@@ -5515,7 +5560,7 @@ def build_source_bearing_extension(
 
     require_external_m1_trust_lock()
     attestation = _require_stage_b_production_source_extension_trust()
-    return build_source_bearing_extension_for_testing(
+    return _build_source_bearing_extension_with_attestation(
         root=root,
         raw_reader=raw_reader,
         records=records,
@@ -5523,5 +5568,5 @@ def build_source_bearing_extension(
         terminal_rows=terminal_rows,
         partition_records=partition_records,
         source_chunk_sha256=source_chunk_sha256,
-        test_code_attestation=attestation,
+        code_attestation=attestation,
     )

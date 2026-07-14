@@ -254,6 +254,7 @@ def test_full_replacement_evidence_and_source_extension_paths_deny_before_inputs
             caller_path,  # type: ignore[arg-type]
             partition_records=1,
             source_chunk_sha256="0" * 64,
+            test_code_attestation=caller_path,  # type: ignore[arg-type]
         )
     )
     _assert_unavailable(
@@ -265,6 +266,7 @@ def test_full_replacement_evidence_and_source_extension_paths_deny_before_inputs
             terminal_rows=caller_path,
             partition_records=1,
             source_chunk_sha256="0" * 64,
+            test_code_attestation=caller_path,  # type: ignore[arg-type]
         )
     )
 
