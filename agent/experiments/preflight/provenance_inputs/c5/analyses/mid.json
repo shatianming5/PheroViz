@@ -1,0 +1,497 @@
+{
+  "analysis_config": {
+    "aggregation_order": [
+      "seed_mean",
+      "task_mean",
+      "doi_cluster"
+    ],
+    "bootstrap_resamples": 10000,
+    "c5_frozen_decision": {
+      "ci_lower_comparison": ">",
+      "ci_lower_threshold": 0.0,
+      "point_comparison": ">=",
+      "point_threshold": 0.5,
+      "programmatic_correctness_privileged": true,
+      "required_scope": "every_backbone_slice"
+    },
+    "exact_max_n": 16,
+    "kendall_uncertainty": {
+      "method": "doi_cluster_bootstrap",
+      "resamples": 10000
+    },
+    "methods": [
+      "best_of_n",
+      "pheroviz_full"
+    ],
+    "metric": "metric.visual_form.claude-sonnet-4.6",
+    "monte_carlo_permutations": 100000,
+    "multiple_comparisons": {
+      "adjustment": "holm",
+      "families": [
+        "overall",
+        "panel_trend"
+      ],
+      "scope": "within_slice"
+    },
+    "panel_scope": "all",
+    "panel_strata": [
+      "P=1",
+      "P=2",
+      "P=3-4",
+      "P=5+"
+    ],
+    "panel_trend": {
+      "alternative": "increasing",
+      "missing_strata": "blocked",
+      "permutation": "doi_cluster_sign_flip",
+      "statistic": "ordinal_stratum_slope"
+    },
+    "reference": "flat_iterative",
+    "sampling_unit": "doi",
+    "second_judge_metric": "metric.visual_form.gemini-3.5-flash",
+    "seed": 17029
+  },
+  "analysis_config_hash": "275126b10679b5502cec257c65bc824ab8e02a495167d12c611e394e4c9e2eaf",
+  "analysis_hash": "69de8a812867642239a91d4df4c856c178f7f3c1df59430a96067d3fda9b3585",
+  "analysis_version": "3.3",
+  "c5_decision": {
+    "concordance_claim_permitted": false,
+    "failure_behavior": "Report judge rankings separately; do not make a concordance or correctness claim from visual judges.",
+    "programmatic_correctness_privileged": true,
+    "required_scope": "every_backbone_slice",
+    "slice_decisions": [
+      {
+        "backbone": "gpt-4o-mini",
+        "ci95": [
+          -0.3333333333333333,
+          1.0
+        ],
+        "ci_lower_comparison": ">",
+        "ci_lower_threshold": 0.0,
+        "concordance_claim_permitted": false,
+        "estimate": 0.3333333333333333,
+        "point_comparison": ">=",
+        "point_threshold": 0.5,
+        "programmatic_correctness_privileged": true,
+        "status": "fail"
+      }
+    ],
+    "status": "fail"
+  },
+  "c5_provenance": {
+    "batch_hashes": {
+      "visual-form-primary-v1": "3f4e092518be892d9ba6a31e848378794070a0668cb43c6016594f5f8f8c9278",
+      "visual-form-secondary-v1": "756f1700cdd418a1c96144004731728c32953b1e8d5227610abc7cbb0f13ba7f"
+    },
+    "input_manifest_hash": "99d6f8a96384abbcbeca1877500b518c075abcb6b51e154822cc0eaf599a5008",
+    "input_summary_hash": "8fd91ba8ab6f0254229fa071607ebe19334f79ed128ef15ddc0d664460531e22",
+    "model_registry_sha256": "7a27d4a8e2557b01803a0feac18ca010c24e5eb6270868a7c5eb5a4892a97532",
+    "original_summary_hash": "28eece235821b3a8b49dad25daae326e192b4e5e5ef4b190eefe091ace0739ac",
+    "programmatic_correctness_privileged": true,
+    "rejudge_code_git_commit": "6f884b91bab08a7c35b4dbe5b1235db868e296c5",
+    "scope": "Visual-form agreement is supporting evidence only; programmatic fidelity and cohesion remain authoritative for correctness.",
+    "status": "verified"
+  },
+  "code_git_commit": "100522961e3615cc2726eda57f70510552094bbd",
+  "code_git_dirty": false,
+  "generated_at": "2026-07-13T21:16:45.485833Z",
+  "input_summary_hash": "8fd91ba8ab6f0254229fa071607ebe19334f79ed128ef15ddc0d664460531e22",
+  "input_summary_path": "/mnt/SSD1_8TB/zechuan/PheroViz-c5-analysis-1005229/agent/experiments/runs/c5_merge/mid/final.json",
+  "right_censored_rmst": {
+    "reason": "Run summaries do not contain per-render threshold-crossing events and censoring times required for provenance-safe RMST.",
+    "required_schema": [
+      "threshold",
+      "event_observed",
+      "event_render_or_time",
+      "censor_render_or_time"
+    ],
+    "status": "not_implemented"
+  },
+  "slices": [
+    {
+      "backbone": "gpt-4o-mini",
+      "budget_type": "renders",
+      "budget_value": 6.0,
+      "case_count": 19,
+      "case_ids": [
+        "case-s41467-021-25210-5-figure2-paneld-bfbeb909b0a2",
+        "case-s41467-021-25210-5-figure2-panele-40ed0f36fcb1",
+        "case-s41467-021-25210-5-figure2-panelf-61e8e08ae424",
+        "case-s41467-021-25210-5-figure2-panelj-e3cae44c267a",
+        "case-s41467-021-25210-5-figure2-panelk-bc7896822a15",
+        "case-s41467-021-25210-5-figure2-panell-67238825b9a0",
+        "case-s41467-022-30582-3-figure2-paneld-ff845a0a901a",
+        "case-s41467-022-30582-3-figure5-paneld-a54aba949d21",
+        "case-s41467-023-38847-1-figure1-panelg-263d16873f98",
+        "case-s41467-023-38847-1-figure3-panelc-006bf9b00122",
+        "case-s41467-023-38847-1-figure3-paneld-b45f8bba270c",
+        "case-s41467-023-42692-7-figure1-panelb-5ac7fb84108f",
+        "case-s41467-023-42692-7-figure1-panelg-9bbb48c5e7fd",
+        "case-s41467-023-42692-7-figure1-panelh-53463702bfd3",
+        "case-s41467-024-47988-w-figure3-panelh-685adf502ff4",
+        "case-s41467-024-48317-x-figure5-panelh-proteomics-pathways-e101deb98b92",
+        "multi-s41467-021-25210-5-figure2-63db04e10c86",
+        "multi-s41467-023-38847-1-figure3-d1bf6bf37a26",
+        "multi-s41467-023-42692-7-figure1-a9a94a3008e4"
+      ],
+      "comparison_families": {
+        "overall": {
+          "adjusted_p_values": {
+            "best_of_n": 0.25,
+            "pheroviz_full": 0.75
+          },
+          "adjustment": "holm",
+          "estimand": "overall_method_minus_reference",
+          "members": [
+            "best_of_n",
+            "pheroviz_full"
+          ],
+          "raw_p_values": {
+            "best_of_n": 0.125,
+            "pheroviz_full": 0.75
+          },
+          "scope": "within_slice",
+          "status": "ok"
+        },
+        "panel_trend": {
+          "adjusted_p_values": {
+            "best_of_n": 0.5,
+            "pheroviz_full": 0.5
+          },
+          "adjustment": "holm",
+          "estimand": "ordinal_panel_stratum_trend",
+          "members": [
+            "best_of_n",
+            "pheroviz_full"
+          ],
+          "raw_p_values": {
+            "best_of_n": 0.375,
+            "pheroviz_full": 0.25
+          },
+          "scope": "within_slice",
+          "status": "ok"
+        }
+      },
+      "comparisons": [
+        {
+          "gap_definition": "best_of_n - flat_iterative",
+          "method": "best_of_n",
+          "overall": {
+            "ci95": [
+              0.003769841269841267,
+              0.014880952380952377
+            ],
+            "mean_gap": 0.009325396825396822,
+            "n": 6,
+            "resamples": 10000,
+            "sampling_unit": "doi",
+            "seed": 17029
+          },
+          "panel_strata": {
+            "P=1": {
+              "ci95": [
+                0.0,
+                0.010185185185185184
+              ],
+              "mean_gap": 0.004629629629629629,
+              "n": 6,
+              "resamples": 10000,
+              "sampling_unit": "doi",
+              "seed": 17029,
+              "status": "ok"
+            },
+            "P=2": {
+              "ci95": [
+                0.03333333333333327,
+                0.03333333333333327
+              ],
+              "mean_gap": 0.03333333333333327,
+              "n": 1,
+              "resamples": 10000,
+              "sampling_unit": "doi",
+              "seed": 17029,
+              "status": "ok"
+            },
+            "P=3-4": {
+              "ci95": [
+                0.03333333333333333,
+                0.03333333333333333
+              ],
+              "mean_gap": 0.03333333333333333,
+              "n": 1,
+              "resamples": 10000,
+              "sampling_unit": "doi",
+              "seed": 17029,
+              "status": "ok"
+            },
+            "P=5+": {
+              "ci95": [
+                0.09999999999999998,
+                0.09999999999999998
+              ],
+              "mean_gap": 0.09999999999999998,
+              "n": 1,
+              "resamples": 10000,
+              "sampling_unit": "doi",
+              "seed": 17029,
+              "status": "ok"
+            }
+          },
+          "panel_trend": {
+            "alternative": "increasing",
+            "doi_count": 6,
+            "holm_family": "panel_trend",
+            "missing_strata": [],
+            "mode": "exact",
+            "ordinal_scores": {
+              "P=1": 1.0,
+              "P=2": 2.0,
+              "P=3-4": 3.0,
+              "P=5+": 4.0
+            },
+            "p_value": 0.375,
+            "p_value_holm": 0.5,
+            "permutations": 64,
+            "reason": null,
+            "sampling_unit": "doi",
+            "seed": 17029,
+            "statistic": 0.028611111111111108,
+            "status": "ok",
+            "stratum_doi_counts": {
+              "P=1": 6,
+              "P=2": 1,
+              "P=3-4": 1,
+              "P=5+": 1
+            },
+            "stratum_means": {
+              "P=1": 0.004629629629629629,
+              "P=2": 0.03333333333333327,
+              "P=3-4": 0.03333333333333333,
+              "P=5+": 0.09999999999999998
+            },
+            "task_count": 19
+          },
+          "permutation": {
+            "alternative": "two-sided",
+            "holm_family": "overall",
+            "mode": "exact",
+            "n": 6,
+            "p_value": 0.125,
+            "p_value_holm": 0.25,
+            "permutations": 64,
+            "sampling_unit": "doi",
+            "seed": 17029,
+            "statistic": 0.009325396825396822
+          }
+        },
+        {
+          "gap_definition": "pheroviz_full - flat_iterative",
+          "method": "pheroviz_full",
+          "overall": {
+            "ci95": [
+              -0.016865079365079364,
+              0.05099206349206351
+            ],
+            "mean_gap": 0.013690476190476197,
+            "n": 6,
+            "resamples": 10000,
+            "sampling_unit": "doi",
+            "seed": 17029
+          },
+          "panel_strata": {
+            "P=1": {
+              "ci95": [
+                -0.011111111111111106,
+                0.05000000000000003
+              ],
+              "mean_gap": 0.012962962962962973,
+              "n": 6,
+              "resamples": 10000,
+              "sampling_unit": "doi",
+              "seed": 17029,
+              "status": "ok"
+            },
+            "P=2": {
+              "ci95": [
+                -0.10000000000000003,
+                -0.10000000000000003
+              ],
+              "mean_gap": -0.10000000000000003,
+              "n": 1,
+              "resamples": 10000,
+              "sampling_unit": "doi",
+              "seed": 17029,
+              "status": "ok"
+            },
+            "P=3-4": {
+              "ci95": [
+                0.0,
+                0.0
+              ],
+              "mean_gap": 0.0,
+              "n": 1,
+              "resamples": 10000,
+              "sampling_unit": "doi",
+              "seed": 17029,
+              "status": "ok"
+            },
+            "P=5+": {
+              "ci95": [
+                0.16666666666666666,
+                0.16666666666666666
+              ],
+              "mean_gap": 0.16666666666666666,
+              "n": 1,
+              "resamples": 10000,
+              "sampling_unit": "doi",
+              "seed": 17029,
+              "status": "ok"
+            }
+          },
+          "panel_trend": {
+            "alternative": "increasing",
+            "doi_count": 6,
+            "holm_family": "panel_trend",
+            "missing_strata": [],
+            "mode": "exact",
+            "ordinal_scores": {
+              "P=1": 1.0,
+              "P=2": 2.0,
+              "P=3-4": 3.0,
+              "P=5+": 4.0
+            },
+            "p_value": 0.25,
+            "p_value_holm": 0.5,
+            "permutations": 64,
+            "reason": null,
+            "sampling_unit": "doi",
+            "seed": 17029,
+            "statistic": 0.05611111111111111,
+            "status": "ok",
+            "stratum_doi_counts": {
+              "P=1": 6,
+              "P=2": 1,
+              "P=3-4": 1,
+              "P=5+": 1
+            },
+            "stratum_means": {
+              "P=1": 0.012962962962962973,
+              "P=2": -0.10000000000000003,
+              "P=3-4": 0.0,
+              "P=5+": 0.16666666666666666
+            },
+            "task_count": 19
+          },
+          "permutation": {
+            "alternative": "two-sided",
+            "holm_family": "overall",
+            "mode": "exact",
+            "n": 6,
+            "p_value": 0.75,
+            "p_value_holm": 0.75,
+            "permutations": 64,
+            "sampling_unit": "doi",
+            "seed": 17029,
+            "statistic": 0.013690476190476197
+          }
+        }
+      ],
+      "dataset_manifest_hash": "6c6c5cb50603d899a9be0f41c9e562517c92ae15477610e9111f6504cd1757b3",
+      "doi_count": 6,
+      "dois": [
+        "10.1038/s41467-021-25210-5",
+        "10.1038/s41467-022-30582-3",
+        "10.1038/s41467-023-38847-1",
+        "10.1038/s41467-023-42692-7",
+        "10.1038/s41467-024-47988-w",
+        "10.1038/s41467-024-48317-x"
+      ],
+      "experiment_git_commit": "d90d655b96bfb3b95bfdc37665692957969d8968",
+      "metric_config_hash": "78757dbaff8ffbbd1a97cc1cd777ea566fb8e0c280ba5214e85c58a326105224",
+      "metric_version": "programmatic-v2",
+      "rankings": {
+        "aggregation_order": [
+          "seed_mean",
+          "task_mean",
+          "doi_mean"
+        ],
+        "c5_decision": {
+          "ci95": [
+            -0.3333333333333333,
+            1.0
+          ],
+          "ci_lower_comparison": ">",
+          "ci_lower_threshold": 0.0,
+          "concordance_claim_permitted": false,
+          "estimate": 0.3333333333333333,
+          "point_comparison": ">=",
+          "point_threshold": 0.5,
+          "programmatic_correctness_privileged": true,
+          "status": "fail"
+        },
+        "kendall_tau_b": 0.3333333333333333,
+        "kendall_tau_b_uncertainty": {
+          "ci95": [
+            -0.3333333333333333,
+            1.0
+          ],
+          "doi_count": 6,
+          "estimate": 0.3333333333333333,
+          "reason": null,
+          "resamples": 10000,
+          "sampling_unit": "doi",
+          "seed": 17029,
+          "status": "ok",
+          "undefined_resamples": 0,
+          "valid_resamples": 10000
+        },
+        "primary_metric": "metric.visual_form.claude-sonnet-4.6",
+        "primary_ranking": [
+          {
+            "mean": 0.16686507936507936,
+            "method": "pheroviz_full",
+            "rank": 1.0
+          },
+          {
+            "mean": 0.16249999999999998,
+            "method": "best_of_n",
+            "rank": 2.0
+          },
+          {
+            "mean": 0.15317460317460319,
+            "method": "flat_iterative",
+            "rank": 3.0
+          }
+        ],
+        "ranking_direction": "higher_is_better",
+        "second_judge_metric": "metric.visual_form.gemini-3.5-flash",
+        "second_judge_ranking": [
+          {
+            "mean": 0.2787698412698412,
+            "method": "best_of_n",
+            "rank": 1.0
+          },
+          {
+            "mean": 0.24583333333333332,
+            "method": "pheroviz_full",
+            "rank": 2.0
+          },
+          {
+            "mean": 0.18611111111111112,
+            "method": "flat_iterative",
+            "rank": 3.0
+          }
+        ],
+        "status": "ok"
+      },
+      "reference": "flat_iterative",
+      "seed_count": 3,
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "split": "test"
+    }
+  ]
+}

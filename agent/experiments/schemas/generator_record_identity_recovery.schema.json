@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "generator_record_identity_recovery.schema.json",
+  "title": "Recovered compact generator record identity rows",
+  "type": "object",
+  "required": ["schema_version", "tier", "experiment_commit", "source_summary_hash", "record_count", "rows", "record_index_hash"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "tier": {"enum": ["frontier", "mid", "open"]},
+    "experiment_commit": {"const": "d90d655b96bfb3b95bfdc37665692957969d8968"},
+    "source_summary_hash": {"$ref": "#/$defs/sha256"},
+    "record_count": {"const": 171},
+    "rows": {
+      "type": "array",
+      "minItems": 171,
+      "maxItems": 171,
+      "items": {"$ref": "#/$defs/identityRow"}
+    },
+    "record_index_hash": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "nullableString": {"type": ["string", "null"]},
+    "identityRow": {
+      "type": "object",
+      "required": [
+        "tier", "run_name", "method", "seed", "case_id", "record_path",
+        "record_file_sha256", "record_hash", "spec_hash", "request_alias",
+        "served_model", "snapshot_or_revision", "endpoint_class",
+        "hosting_engine", "precision", "access_timestamp",
+        "execution_started_at", "execution_finished_at", "missing_fields"
+      ],
+      "properties": {
+        "tier": {"enum": ["frontier", "mid", "open"]},
+        "run_name": {"type": "string", "minLength": 1},
+        "method": {"enum": ["best_of_n", "flat_iterative", "pheroviz_full"]},
+        "seed": {"type": "integer"},
+        "case_id": {"type": "string", "minLength": 1},
+        "record_path": {"type": "string", "minLength": 1},
+        "record_file_sha256": {"$ref": "#/$defs/sha256"},
+        "record_hash": {"$ref": "#/$defs/sha256"},
+        "spec_hash": {"$ref": "#/$defs/sha256"},
+        "request_alias": {"type": "string", "minLength": 1},
+        "served_model": {"type": "string", "minLength": 1},
+        "snapshot_or_revision": {"$ref": "#/$defs/nullableString"},
+        "endpoint_class": {"$ref": "#/$defs/nullableString"},
+        "hosting_engine": {"$ref": "#/$defs/nullableString"},
+        "precision": {"$ref": "#/$defs/nullableString"},
+        "access_timestamp": {"$ref": "#/$defs/nullableString"},
+        "execution_started_at": {"type": "string", "minLength": 1},
+        "execution_finished_at": {"type": "string", "minLength": 1},
+        "missing_fields": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "served_model", "snapshot_or_revision", "endpoint_class",
+              "hosting_engine", "precision", "access_timestamp"
+            ]
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

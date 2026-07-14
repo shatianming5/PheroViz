@@ -7,7 +7,7 @@
   "properties": {
     "schema_version": {"const": "1.0"},
     "stage": {"const": "generator_identity_provenance"},
-    "status": {"enum": ["COMPLETE", "INCOMPLETE_SOURCE_ARTIFACTS"]},
+    "status": {"enum": ["COMPLETE", "PARTIAL_DISCLOSURE", "INCOMPLETE_SOURCE_ARTIFACTS"]},
     "experiment_commit": {"const": "d90d655b96bfb3b95bfdc37665692957969d8968"},
     "experiment_source_clean": {"const": true},
     "expected_coverage": {"const": 513},

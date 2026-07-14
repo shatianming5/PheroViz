@@ -26,7 +26,11 @@
     "frozen_judge_expectations": {
       "type": "object",
       "required": ["primary", "secondary"],
-      "additionalProperties": {"type": "object"}
+      "properties": {
+        "primary": {"$ref": "#/$defs/judgeExpectation"},
+        "secondary": {"$ref": "#/$defs/judgeExpectation"}
+      },
+      "additionalProperties": false
     },
     "batches": {
       "type": "object",
@@ -55,7 +59,26 @@
     "index_hash": {"$ref": "#/$defs/sha256"}
   },
   "$defs": {
-    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "judgeExpectation": {
+      "type": "object",
+      "required": [
+        "judge_id", "requested_judge_id", "expected_served_judge_id",
+        "endpoint_class", "max_tokens", "validation_attempts",
+        "rubric_hash", "prompt_hash"
+      ],
+      "properties": {
+        "judge_id": {"type": "string", "minLength": 1},
+        "requested_judge_id": {"type": "string", "minLength": 1},
+        "expected_served_judge_id": {"type": "string", "minLength": 1},
+        "endpoint_class": {"type": "string", "minLength": 1},
+        "max_tokens": {"const": 1024},
+        "validation_attempts": {"const": 3},
+        "rubric_hash": {"$ref": "#/$defs/sha256"},
+        "prompt_hash": {"$ref": "#/$defs/sha256"}
+      },
+      "additionalProperties": false
+    }
   },
   "additionalProperties": false
 }

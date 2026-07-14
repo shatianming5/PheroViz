@@ -374,7 +374,24 @@ def _provenance_stage_command(args: argparse.Namespace) -> int:
             tier: Path(path)
             for tier, path in manifest.get("completion_reports", {}).items()
         }
-        payload = build_generator_identity_index(reports)
+        summary_paths = {
+            tier: Path(path)
+            for tier, path in manifest.get("summary_paths", {}).items()
+        }
+        record_roots = {
+            tier: Path(path)
+            for tier, path in manifest.get("record_roots", {}).items()
+        }
+        record_indexes = {
+            tier: Path(path)
+            for tier, path in manifest.get("record_indexes", {}).items()
+        }
+        payload = build_generator_identity_index(
+            reports,
+            summary_paths=summary_paths or None,
+            record_roots=record_roots or None,
+            record_indexes=record_indexes or None,
+        )
         validate_generator_identity_index(payload)
     elif kind == "c5":
         batch_paths = {

@@ -2,16 +2,25 @@
   "kind": "c5",
   "final_report": "experiments/preflight/c5_final_analysis_1005229.json",
   "batch_paths": {
-    "frontier.primary": null,
-    "frontier.secondary": null,
-    "mid.primary": null,
-    "mid.secondary": null,
-    "open.primary": null,
-    "open.secondary": null
+    "frontier.primary": "experiments/preflight/provenance_inputs/c5/batches/frontier.primary.json",
+    "frontier.secondary": "experiments/preflight/provenance_inputs/c5/batches/frontier.secondary.json",
+    "mid.primary": "experiments/preflight/provenance_inputs/c5/batches/mid.primary.json",
+    "mid.secondary": "experiments/preflight/provenance_inputs/c5/batches/mid.secondary.json",
+    "open.primary": "experiments/preflight/provenance_inputs/c5/batches/open.primary.json",
+    "open.secondary": "experiments/preflight/provenance_inputs/c5/batches/open.secondary.json"
   },
   "tier_artifacts": {
-    "frontier": {"merged_summary": null, "analysis": null},
-    "mid": {"merged_summary": null, "analysis": null},
-    "open": {"merged_summary": null, "analysis": null}
+    "frontier": {
+      "merged_summary": "experiments/preflight/provenance_inputs/c5/merged/frontier.json",
+      "analysis": "experiments/preflight/provenance_inputs/c5/analyses/frontier.json"
+    },
+    "mid": {
+      "merged_summary": "experiments/preflight/provenance_inputs/c5/merged/mid.json",
+      "analysis": "experiments/preflight/provenance_inputs/c5/analyses/mid.json"
+    },
+    "open": {
+      "merged_summary": "experiments/preflight/provenance_inputs/c5/merged/open.json",
+      "analysis": "experiments/preflight/provenance_inputs/c5/analyses/open.json"
+    }
   }
 }

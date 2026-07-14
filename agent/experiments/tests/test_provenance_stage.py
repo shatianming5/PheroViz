@@ -7,7 +7,7 @@ import pytest
 from jsonschema import validate
 
 from experiments.cli import main
-from experiments.models import sha256_json
+from experiments.models import sha256_file, sha256_json
 from experiments.provenance_stage import (
     D90_COMMIT,
     ProvenanceStageError,
@@ -174,3 +174,89 @@ def test_generator_validator_rejects_duplicate_complete_rows() -> None:
     payload["index_hash"] = sha256_json(payload)
     with pytest.raises(ProvenanceStageError, match="duplicate"):
         validate_generator_identity_index(payload)
+
+
+def test_recovered_generator_index_has_exact_partial_disclosure() -> None:
+    payload = json.loads(
+        (PREFLIGHT / "c1_c4_generator_identity_provenance_7ea079d.json").read_text()
+    )
+    assert payload["status"] == "PARTIAL_DISCLOSURE"
+    assert payload["observed_coverage"] == 513
+    assert len(payload["rows"]) == 513
+    validate_generator_identity_index(payload)
+    schema = json.loads(
+        (SCHEMAS / "generator_identity_provenance_index.schema.json").read_text()
+    )
+    validate(payload, schema)
+
+
+def test_recovered_generator_compact_sources_rebuild_exact_index() -> None:
+    base = PREFLIGHT / "provenance_inputs" / "c1_c4"
+    rebuilt = build_generator_identity_index(
+        _generator_reports(),
+        summary_paths={
+            tier: base / tier / "summary.json"
+            for tier in ("frontier", "mid", "open")
+        },
+        record_indexes={
+            tier: base / tier / "record_identities.json"
+            for tier in ("frontier", "mid", "open")
+        },
+    )
+    committed = json.loads(
+        (PREFLIGHT / "c1_c4_generator_identity_provenance_7ea079d.json").read_text()
+    )
+    assert rebuilt == committed
+
+
+def test_recovered_c5_index_and_sources_are_complete() -> None:
+    base = PREFLIGHT / "provenance_inputs" / "c5"
+    batches = {
+        f"{tier}.{judge}": base / "batches" / f"{tier}.{judge}.json"
+        for tier in ("frontier", "mid", "open")
+        for judge in ("primary", "secondary")
+    }
+    artifacts = {
+        tier: {
+            "merged_summary": base / "merged" / f"{tier}.json",
+            "analysis": base / "analyses" / f"{tier}.json",
+        }
+        for tier in ("frontier", "mid", "open")
+    }
+    rebuilt = build_c5_provenance_index(
+        PREFLIGHT / "c5_final_analysis_1005229.json",
+        batch_paths=batches,
+        tier_artifacts=artifacts,
+    )
+    assert rebuilt["status"] == "COMPLETE"
+    assert rebuilt["observed_total_attempts"] == 1065
+    validate_c5_provenance_index(rebuilt)
+    committed = json.loads(
+        (PREFLIGHT / "c5_provenance_index_7ea079d.json").read_text()
+    )
+    assert committed == rebuilt
+    schema = json.loads((SCHEMAS / "c5_provenance_index.schema.json").read_text())
+    validate(committed, schema)
+
+
+def test_recovery_manifest_verifies_every_archived_file() -> None:
+    path = PREFLIGHT / "provenance_inputs" / "recovery_manifest.json"
+    manifest = json.loads(path.read_text())
+    manifest_hash = manifest.pop("manifest_hash")
+    assert manifest_hash == sha256_json(manifest)
+    bindings = list(manifest["generator"]["summaries"].values())
+    bindings.extend(manifest["generator"]["record_identity_archives"].values())
+    for group in ("batches", "merged", "analyses"):
+        bindings.extend(manifest["c5"][group].values())
+    for binding in bindings:
+        archive_path = ROOT.parent / (binding.get("archive_path") or binding["path"])
+        assert archive_path.is_file()
+        assert sha256_file(archive_path) == binding["file_sha256"]
+    recovery_schema = json.loads(
+        (SCHEMAS / "generator_record_identity_recovery.schema.json").read_text()
+    )
+    for binding in manifest["generator"]["record_identity_archives"].values():
+        validate(json.loads((ROOT.parent / binding["path"]).read_text()), recovery_schema)
+    assert manifest["transport"]["services_started"] is False
+    assert manifest["transport"]["tunnels_started"] is False
+    assert manifest["transport"]["gpu_tasks_started"] is False
