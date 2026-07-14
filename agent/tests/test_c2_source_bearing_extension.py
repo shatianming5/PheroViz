@@ -715,6 +715,23 @@ def test_archive_directory_data_and_aggregate_limits_fail_closed(
             ]
         )
 
+    monkeypatch.setattr(extension, "MAX_ARCHIVE_CONTAINER_UNCOMPRESSED_BYTES", 1024)
+    monkeypatch.setattr(extension, "MAX_ARCHIVE_RUN_UNCOMPRESSED_BYTES", 20)
+    with pytest.raises(SourceBearingExtensionError, match="RUN_UNCOMPRESSED_LIMIT"):
+        _build(
+            [
+                _asset(
+                    article_id="article-1",
+                    doi_id="10.9999/source-1",
+                    asset_id="archive",
+                    payload=aggregate_limited_archive,
+                    kind="source_archive",
+                    detected=["ZIP_V1", "GENERIC_ZIP_V1"],
+                ),
+                *_bound_assets()[1:],
+            ]
+        )
+
 
 def test_archive_traversal_rejects_and_unmapped_valid_table_stays_accounted() -> None:
     traversal = _zip({"../escape.csv": b"panel,value\na,1\n"})

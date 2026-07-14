@@ -210,6 +210,11 @@ _CLOSED_FIELDS: dict[str, frozenset[str]] = {
             "format_error_enum_version",
             "format_error_enum_hash",
             "maximum_container_depth",
+            "maximum_archive_member_bytes",
+            "maximum_archive_container_compressed_bytes",
+            "maximum_archive_container_uncompressed_bytes",
+            "maximum_archive_run_compressed_bytes",
+            "maximum_archive_run_uncompressed_bytes",
             "schema_hashes",
             "closed_schema_registry_hash",
             "approved_implementation_commit_full",
@@ -1239,6 +1244,17 @@ def _format_config(attestation: SourceExtensionCodeAttestation) -> dict[str, Any
         "format_error_enum_version": "1",
         "format_error_enum_hash": _rule_hash("c2_v2_format_error_enum", "1"),
         "maximum_container_depth": MAX_CONTAINER_DEPTH,
+        "maximum_archive_member_bytes": MAX_ARCHIVE_MEMBER_BYTES,
+        "maximum_archive_container_compressed_bytes": (
+            MAX_ARCHIVE_CONTAINER_COMPRESSED_BYTES
+        ),
+        "maximum_archive_container_uncompressed_bytes": (
+            MAX_ARCHIVE_CONTAINER_UNCOMPRESSED_BYTES
+        ),
+        "maximum_archive_run_compressed_bytes": MAX_ARCHIVE_RUN_COMPRESSED_BYTES,
+        "maximum_archive_run_uncompressed_bytes": (
+            MAX_ARCHIVE_RUN_UNCOMPRESSED_BYTES
+        ),
         "schema_hashes": _schema_hashes(attestation),
         "closed_schema_registry_hash": _closed_schema_registry_hash(),
         "approved_implementation_commit_full": (
@@ -1761,15 +1777,21 @@ def _xlsx_profile(payload: bytes, archive: _ZipInfo) -> bool:
         worksheet_selectors.add(selector)
     if not worksheet_selectors:
         return False
-    worksheet_relationship_targets = {
-        f"xl/{target}"
-        for relationship_type, target in workbook_relationships.values()
-        if relationship_type == _OOXML_WORKSHEET_RELATIONSHIP
-        and not target.startswith("/")
-        and "\\" not in target
-        and target.startswith("worksheets/")
-        and all(part not in {"", ".", ".."} for part in target.split("/"))
-    }
+    worksheet_relationship_targets: set[str] = set()
+    for relationship_type, target in workbook_relationships.values():
+        if relationship_type != _OOXML_WORKSHEET_RELATIONSHIP:
+            continue
+        if (
+            target.startswith("/")
+            or "\\" in target
+            or not target.startswith("worksheets/")
+            or any(part in {"", ".", ".."} for part in target.split("/"))
+        ):
+            return False
+        selector = f"xl/{target}"
+        if selector in worksheet_relationship_targets:
+            return False
+        worksheet_relationship_targets.add(selector)
     if worksheet_relationship_targets != worksheet_selectors:
         return False
     try:
