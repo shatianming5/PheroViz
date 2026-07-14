@@ -1,6 +1,7 @@
-"""Read-only, fail-closed C2 remediation evidence preflight.
+"""M1-gated, read-only C2 remediation evidence preflight.
 
-This module inventories explicitly named inputs only.  It neither runs
+This module denies before inspecting caller-provided plans or paths. It inventories
+explicitly named inputs only. It neither runs
 acquisition nor invokes either C2 finalizer, and it never treats a legacy or
 candidate root as a final C2 result.
 """
@@ -18,6 +19,10 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
 from . import models as _models
+from .c2_m1_trust_boundary import (
+    M1ExternalTrustLockUnavailable,
+    require_external_m1_trust_lock,
+)
 from .c2_full_replacement_policy import (
     C2FullReplacementPolicyError,
     load_production_policy,
@@ -313,6 +318,7 @@ def _read_regular_file_at(
     *,
     label: str,
 ) -> tuple[bytes, _ArtifactSnapshot]:
+    require_external_m1_trust_lock()
     try:
         before = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
         if stat.S_ISLNK(before.st_mode):
@@ -348,6 +354,7 @@ def _read_regular_file_at(
 
 
 def _read_external_regular_file(path: Path, *, label: str) -> tuple[bytes, _ArtifactSnapshot]:
+    require_external_m1_trust_lock()
     if not path.is_absolute():
         raise C2RemediationPreflightError(f"{label} must be an absolute path")
     if path.name in {"", ".", ".."}:
@@ -380,6 +387,7 @@ def _inventory_root(
 ) -> tuple[_RootInventory, bytes]:
     """Inventory an evidence root twice while retaining its trusted root FD."""
 
+    require_external_m1_trust_lock()
     if not root_path.is_absolute():
         raise C2RemediationPreflightError("Evidence root must be an absolute path")
     try:
@@ -578,6 +586,8 @@ def _require_exact_keys(value: Mapping[str, Any], expected: frozenset[str], *, l
 
 
 def _parse_plan(plan: Mapping[str, Any]) -> tuple[Path, dict[str, Mapping[str, Any]]]:
+    """Validate an already-materialized plan without opening any caller path."""
+
     if not isinstance(plan, Mapping):
         raise C2RemediationPreflightError("Preflight plan must be an object")
     _require_exact_keys(
@@ -653,6 +663,7 @@ def _parse_plan(plan: Mapping[str, Any]) -> tuple[Path, dict[str, Mapping[str, A
 def _stage_gates() -> dict[str, dict[str, str]]:
     """Check only integrated code gates; caller input cannot mark either gate passed."""
 
+    require_external_m1_trust_lock()
     source_extension = {
         "status": "BLOCKED",
         "reason": (
@@ -690,6 +701,7 @@ def _universe_result(
     *,
     bindings: _FrozenBindings,
 ) -> tuple[dict[str, Any], bytes | None, list[dict[str, Any]] | None, str | None]:
+    require_external_m1_trust_lock()
     expected = bindings.frozen_universe_sha256
     result: dict[str, Any] = {
         "path": str(frozen_universe_path),
@@ -726,6 +738,7 @@ def _inspect_chunk(
     binding: _FrozenChunkBinding,
     universe_records: Sequence[Mapping[str, Any]] | None,
 ) -> dict[str, Any]:
+    require_external_m1_trust_lock()
     chunk_id = binding.chunk_id
     root = item["root"]
     root_path = _absolute_path(root["path"], label=f"Plan chunk {chunk_id} root.path")
@@ -873,6 +886,7 @@ def _run_preflight(
 ) -> dict[str, Any]:
     """Build a deterministic report from an internal frozen binding."""
 
+    require_external_m1_trust_lock()
     frozen_universe_path, chunks = _parse_plan(plan)
     universe, _, universe_records, _ = _universe_result(
         frozen_universe_path,
@@ -931,6 +945,7 @@ def _build_production_runner(
         SHA-256.
         """
 
+        require_external_m1_trust_lock()
         return canonical_runner(plan, bindings=compiled_bindings)
 
     return run_preflight
@@ -946,6 +961,7 @@ def run_preflight_for_testing(
 ) -> dict[str, Any]:
     """Exercise synthetic fixtures; this test-only helper is not a production API."""
 
+    require_external_m1_trust_lock()
     return _run_preflight(
         plan,
         bindings=test_bindings._to_internal_bindings(),
@@ -953,6 +969,7 @@ def run_preflight_for_testing(
 
 
 def _load_plan_from_path(path: Path) -> Mapping[str, Any]:
+    require_external_m1_trust_lock()
     try:
         payload = path.read_text(encoding="utf-8")
         value = json.loads(payload)
@@ -983,8 +1000,9 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    args = _build_parser().parse_args(argv)
+    require_external_m1_trust_lock()
     try:
+        args = _build_parser().parse_args(argv)
         report = run_preflight(_load_plan_from_path(args.plan))
     except C2RemediationPreflightError as exc:
         print(f"error: {exc}", file=sys.stderr)
@@ -994,4 +1012,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except M1ExternalTrustLockUnavailable as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc

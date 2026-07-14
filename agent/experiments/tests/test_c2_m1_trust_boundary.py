@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import shutil
+import subprocess
+import sys
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
@@ -11,6 +13,7 @@ import pytest
 import experiments.c2_full_replacement_evidence as full_replacement_evidence
 import experiments.c2_full_replacement_finalizer as full_replacement
 import experiments.c2_remediation_root_finalizer as remediation
+import experiments.c2_remediation_preflight as preflight
 import experiments.c2_source_bearing_extension as source_extension
 import experiments.c2_terminal_finalizer as terminal
 import experiments.cli as cli
@@ -210,6 +213,79 @@ def test_full_replacement_evidence_and_source_extension_paths_deny_before_inputs
             source_chunk_sha256="0" * 64,
         )
     )
+
+
+def test_preflight_library_paths_deny_before_plan_or_evidence_access(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    caller_value = _ExplodingCallerPath()
+
+    def _unexpected_access(*_args: object, **_kwargs: object) -> object:
+        pytest.fail("preflight accessed a caller-controlled plan or filesystem path")
+
+    with monkeypatch.context() as patched:
+        patched.setattr(preflight, "_parse_plan", _unexpected_access)
+        patched.setattr(preflight, "open_trusted_directory", _unexpected_access)
+        patched.setattr(preflight.os, "open", _unexpected_access)
+        patched.setattr(preflight.Path, "read_text", _unexpected_access)
+
+        _assert_unavailable(
+            lambda: preflight.run_preflight(caller_value)  # type: ignore[arg-type]
+        )
+        _assert_unavailable(
+            lambda: preflight.run_preflight_for_testing(
+                caller_value,  # type: ignore[arg-type]
+                test_bindings=caller_value,  # type: ignore[arg-type]
+            )
+        )
+        _assert_unavailable(
+            lambda: preflight._load_plan_from_path(caller_value)  # type: ignore[arg-type]
+        )
+
+
+def test_preflight_module_main_and_cli_deny_before_parsing_or_opening_paths(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _workspace("preflight-cli") as workspace:
+        plan_path = workspace / "must-not-exist" / "plan.json"
+
+        def _unexpected_access(*_args: object, **_kwargs: object) -> object:
+            pytest.fail(
+                "preflight CLI accessed a caller-controlled plan or filesystem path"
+            )
+
+        with monkeypatch.context() as patched:
+            patched.setattr(preflight, "_build_parser", _unexpected_access)
+            patched.setattr(preflight, "_parse_plan", _unexpected_access)
+            patched.setattr(
+                preflight,
+                "open_trusted_directory",
+                _unexpected_access,
+            )
+            patched.setattr(preflight.os, "open", _unexpected_access)
+            patched.setattr(preflight.Path, "read_text", _unexpected_access)
+
+            _assert_unavailable(
+                lambda: preflight.main(_ExplodingCallerPath())  # type: ignore[arg-type]
+            )
+            assert not plan_path.parent.exists()
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "experiments.c2_remediation_preflight",
+                str(plan_path),
+            ],
+            cwd=Path(__file__).resolve().parents[2],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 2
+        assert result.stdout == ""
+        assert M1_EXTERNAL_TRUST_LOCK_UNAVAILABLE in result.stderr
+        assert not plan_path.parent.exists()
 
 
 def test_terminal_cli_denies_before_parsing_or_dispatching_paths(
