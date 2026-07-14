@@ -1,29 +1,35 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "c2_full_replacement_admission_manifest_v2.schema.json",
-  "title": "C2 full-replacement V2 admission manifest",
-  "description": "Stage-A manifest with only manifest-relative, sealed raw-evidence paths and no policy selector.",
+  "title": "C2 V2.1 source-classification admission manifest",
+  "description": "An exhaustive acquisition disposition attestation with source/canonical evidence, never a frozen DOI-to-P map.",
   "type": "object",
   "required": [
     "schema_version",
     "manifest_type",
     "manifest_hash",
     "frozen_universe",
+    "frozen_bindings",
     "code",
-    "chunks"
+    "chunks",
+    "source_canonical",
+    "acquisition_dispositions"
   ],
   "properties": {
     "schema_version": {
-      "const": "2.0-stagea"
+      "const": "2.1-stagea"
     },
     "manifest_type": {
-      "const": "c2_full_replacement_admission"
+      "const": "c2_full_replacement_source_classification"
     },
     "manifest_hash": {
       "$ref": "#/$defs/sha256"
     },
     "frozen_universe": {
       "$ref": "#/$defs/frozenUniverse"
+    },
+    "frozen_bindings": {
+      "$ref": "#/$defs/frozenBindings"
     },
     "code": {
       "$ref": "#/$defs/cleanCode"
@@ -34,6 +40,20 @@
       "maxItems": 13,
       "items": {
         "$ref": "#/$defs/chunk"
+      }
+    },
+    "source_canonical": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/sourceCanonical"
+      }
+    },
+    "acquisition_dispositions": {
+      "type": "array",
+      "minItems": 2463,
+      "maxItems": 2463,
+      "items": {
+        "$ref": "#/$defs/acquisitionDisposition"
       }
     }
   },
@@ -47,18 +67,38 @@
       "type": "string",
       "pattern": "^[0-9a-f]{40}$"
     },
+    "doi": {
+      "type": "string",
+      "pattern": "^10\\.[0-9]{4,9}/\\S+$"
+    },
     "chunkId": {
       "type": "string",
       "pattern": "^[0-9]{3}$"
     },
     "identifier": {
       "type": "string",
-      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+      "minLength": 1
     },
     "relativePath": {
       "type": "string",
       "minLength": 1,
-      "pattern": "^(?!/)(?!.*(^|/)\\.\\.?(/|$))(?!.*\\\\).+$"
+      "pattern": "^(?!/)(?!.*\\\\).+$"
+    },
+    "artifact": {
+      "type": "object",
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/relativePath"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "additionalProperties": false
     },
     "frozenUniverse": {
       "type": "object",
@@ -76,6 +116,89 @@
         },
         "input_total": {
           "const": 2463
+        }
+      },
+      "additionalProperties": false
+    },
+    "frozenBindings": {
+      "type": "object",
+      "required": [
+        "universe_file_sha256",
+        "universe_ordered_doi_ids_sha256",
+        "universe_input_total",
+        "universe_chunk_count",
+        "universe_chunk_file_sha256_by_id",
+        "universe_chunk_concat_sha256",
+        "normalizer_code_commit_full",
+        "normalizer_code_sha256",
+        "canonical_builder_code_commit_full",
+        "canonical_builder_code_sha256",
+        "canonical_builder_rule_version",
+        "canonical_builder_rule_sha256",
+        "panel_recomputation_rule_version",
+        "panel_recomputation_rule_sha256",
+        "doi_case_aggregation_rule_version",
+        "doi_case_aggregation_rule_sha256",
+        "v2_schema_file_sha256"
+      ],
+      "properties": {
+        "universe_file_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "universe_ordered_doi_ids_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "universe_input_total": {
+          "const": 2463
+        },
+        "universe_chunk_count": {
+          "const": 13
+        },
+        "universe_chunk_file_sha256_by_id": {
+          "type": "object",
+          "minProperties": 13,
+          "maxProperties": 13,
+          "additionalProperties": {
+            "$ref": "#/$defs/sha256"
+          }
+        },
+        "universe_chunk_concat_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "normalizer_code_commit_full": {
+          "$ref": "#/$defs/commit"
+        },
+        "normalizer_code_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "canonical_builder_code_commit_full": {
+          "$ref": "#/$defs/commit"
+        },
+        "canonical_builder_code_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "canonical_builder_rule_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "canonical_builder_rule_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "panel_recomputation_rule_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "panel_recomputation_rule_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "doi_case_aggregation_rule_version": {
+          "const": "DOI_CASE_AGGREGATION_V1"
+        },
+        "doi_case_aggregation_rule_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "v2_schema_file_sha256": {
+          "$ref": "#/$defs/sha256"
         }
       },
       "additionalProperties": false
@@ -121,22 +244,6 @@
       },
       "additionalProperties": false
     },
-    "artifact": {
-      "type": "object",
-      "required": [
-        "path",
-        "sha256"
-      ],
-      "properties": {
-        "path": {
-          "$ref": "#/$defs/relativePath"
-        },
-        "sha256": {
-          "$ref": "#/$defs/sha256"
-        }
-      },
-      "additionalProperties": false
-    },
     "attempt": {
       "type": "object",
       "required": [
@@ -172,7 +279,8 @@
         "root",
         "input_total",
         "input_doi_ids_sha256",
-        "canonical_mapping",
+        "terminal_outcomes",
+        "sealed_terminal_report",
         "attempts"
       ],
       "properties": {
@@ -189,7 +297,10 @@
         "input_doi_ids_sha256": {
           "$ref": "#/$defs/sha256"
         },
-        "canonical_mapping": {
+        "terminal_outcomes": {
+          "$ref": "#/$defs/artifact"
+        },
+        "sealed_terminal_report": {
           "$ref": "#/$defs/artifact"
         },
         "attempts": {
@@ -199,6 +310,179 @@
           "items": {
             "$ref": "#/$defs/attempt"
           }
+        }
+      },
+      "additionalProperties": false
+    },
+    "sourceCanonical": {
+      "type": "object",
+      "required": [
+        "doi_id",
+        "source_inventory",
+        "canonical_builder"
+      ],
+      "properties": {
+        "doi_id": {
+          "$ref": "#/$defs/doi"
+        },
+        "source_inventory": {
+          "$ref": "#/$defs/artifact"
+        },
+        "canonical_builder": {
+          "$ref": "#/$defs/artifact"
+        }
+      },
+      "additionalProperties": false
+    },
+    "terminalEvidence": {
+      "type": "object",
+      "required": [
+        "chunk_id",
+        "input_doi_ids_sha256",
+        "terminal_outcome_file_sha256",
+        "sealed_report_file_sha256",
+        "sealed_report_hash",
+        "attempt_count",
+        "terminal"
+      ],
+      "properties": {
+        "chunk_id": {
+          "$ref": "#/$defs/chunkId"
+        },
+        "input_doi_ids_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "terminal_outcome_file_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sealed_report_file_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sealed_report_hash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "attempt_count": {
+          "const": 3
+        },
+        "terminal": {
+          "const": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "acquisitionDisposition": {
+      "type": "object",
+      "required": [
+        "doi_id",
+        "terminal_status_raw",
+        "terminal_status",
+        "terminal_evidence_binding",
+        "final_disposition",
+        "source_inventory_binding_or_null",
+        "canonical_builder_binding_or_null",
+        "all_eligible_case_ids",
+        "classification_reason"
+      ],
+      "properties": {
+        "doi_id": {
+          "$ref": "#/$defs/doi"
+        },
+        "terminal_status_raw": {
+          "enum": [
+            "downloaded",
+            "no-source-data",
+            "no-figures",
+            "no-usable-content",
+            "policy-rejected",
+            "fetch-error",
+            "download-failed",
+            "retry-exhausted"
+          ]
+        },
+        "terminal_status": {
+          "enum": [
+            "DOWNLOADED",
+            "NO_SOURCE_DATA",
+            "NO_FIGURES",
+            "NO_USABLE_CONTENT",
+            "POLICY_REJECTED",
+            "DOWNLOAD_FAILED",
+            "RETRY_EXHAUSTED"
+          ]
+        },
+        "terminal_evidence_binding": {
+          "$ref": "#/$defs/terminalEvidence"
+        },
+        "final_disposition": {
+          "enum": [
+            "NON_STRATIFIED_NO_SOURCE_DATA",
+            "NON_STRATIFIED_NO_FIGURES",
+            "NON_STRATIFIED_NO_USABLE_CONTENT",
+            "NON_STRATIFIED_POLICY_REJECTED",
+            "NON_STRATIFIED_DOWNLOAD_FAILED",
+            "NON_STRATIFIED_RETRY_EXHAUSTED",
+            "NON_STRATIFIED_DOWNLOADED_NO_VERIFIED_SOURCE",
+            "NON_STRATIFIED_SOURCE_NO_CANONICAL_CASE",
+            "STRATIFIED_SOURCE_CANONICAL"
+          ]
+        },
+        "source_inventory_binding_or_null": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "path": {
+              "$ref": "#/$defs/relativePath"
+            },
+            "sha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          },
+          "required": [
+            "path",
+            "sha256"
+          ],
+          "additionalProperties": false
+        },
+        "canonical_builder_binding_or_null": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "path": {
+              "$ref": "#/$defs/relativePath"
+            },
+            "sha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          },
+          "required": [
+            "path",
+            "sha256"
+          ],
+          "additionalProperties": false
+        },
+        "all_eligible_case_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "classification_reason": {
+          "enum": [
+            "TERMINAL_NO_SOURCE_DATA",
+            "TERMINAL_NO_FIGURES",
+            "TERMINAL_NO_USABLE_CONTENT",
+            "TERMINAL_POLICY_REJECTED",
+            "TERMINAL_DOWNLOAD_FAILED",
+            "TERMINAL_RETRY_EXHAUSTED",
+            "DOWNLOADED_EMPTY_VERIFIED_SOURCE_INVENTORY",
+            "DOWNLOADED_NO_QUALIFYING_CANONICAL_CASE",
+            "VERIFIED_SOURCE_CANONICAL_CASES"
+          ]
         }
       },
       "additionalProperties": false

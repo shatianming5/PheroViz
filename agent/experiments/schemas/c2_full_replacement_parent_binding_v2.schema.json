@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "c2_full_replacement_parent_binding_v2.schema.json",
+  "title": "C2 V2.1 parent DOI canonicalization binding",
+  "type": "object",
+  "required": [
+    "artifact_type",
+    "parent_doi_id",
+    "complete",
+    "model_result_selected"
+  ],
+  "properties": {
+    "artifact_type": {
+      "enum": [
+        "c2_v21_candidate_manifest",
+        "c2_v21_proposal_manifest",
+        "c2_v21_review_manifest",
+        "c2_v21_canonical_manifest"
+      ]
+    },
+    "parent_doi_id": {
+      "type": "string",
+      "pattern": "^10\\.[0-9]{4,9}/\\S+$"
+    },
+    "complete": {
+      "const": true
+    },
+    "model_result_selected": {
+      "const": false
+    }
+  },
+  "additionalProperties": false
+}

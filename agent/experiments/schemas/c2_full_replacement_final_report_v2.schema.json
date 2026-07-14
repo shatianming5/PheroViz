@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "c2_full_replacement_final_report_v2.schema.json",
-  "title": "C2 full-replacement V2 final report",
-  "description": "A Stage-A synthetic-policy report. Production policy admission remains unavailable until Stage B.",
+  "title": "C2 V2.1 source-classification final report",
+  "description": "A Stage-A synthetic report whose P strata derive only from verified source/canonical cases.",
   "type": "object",
   "required": [
     "schema_version",
@@ -10,32 +10,41 @@
     "status",
     "claim_status",
     "claim_scope",
+    "decision",
     "trend_status",
     "equivalence_status",
     "policy_binding",
-    "p1_model",
     "admission_manifest",
     "frozen_universe",
+    "frozen_bindings",
     "code",
     "chunks",
     "canonical_attempt_ledger",
-    "source_doi_ids_sha256",
-    "source_doi_count",
+    "acquisition_dispositions",
+    "acquisition_dispositions_sha256",
+    "acquisition_disposition_doi_ids_sha256",
+    "stratified_source_classifications",
+    "stratified_source_doi_ids_sha256",
+    "stratified_source_classifications_sha256",
+    "non_stratified_doi_ids_sha256",
+    "canonical_case_set_manifest_sha256",
+    "per_doi_case_set_hashes_sha256",
+    "terminal_status_counts",
+    "disposition_counts",
     "strata",
     "deficient_strata",
     "final_report_hash"
   ],
   "properties": {
     "schema_version": {
-      "const": "2.0-stagea"
+      "const": "2.1-stagea"
     },
     "finalizer": {
-      "const": "c2_full_replacement_admission"
+      "const": "c2_full_replacement_source_classification"
     },
     "status": {
       "enum": [
         "ADMITTED",
-        "BLOCKED_INSUFFICIENT_INDEPENDENT_P1",
         "BLOCKED_INSUFFICIENT_INDEPENDENT_P2",
         "BLOCKED_INSUFFICIENT_INDEPENDENT_P3_4",
         "BLOCKED_INSUFFICIENT_INDEPENDENT_P5PLUS"
@@ -48,7 +57,13 @@
       ]
     },
     "claim_scope": {
-      "const": "TERMINAL_ADMISSION_ONLY"
+      "const": "STRATIFIED_SOURCE_TERMINAL_ADMISSION_ONLY"
+    },
+    "decision": {
+      "enum": [
+        "NOT_RUN_COVERAGE_GATE",
+        "NOT_RUN_NO_ANALYSIS_AUTHORIZED"
+      ]
     },
     "trend_status": {
       "const": "NOT_RUN"
@@ -59,14 +74,14 @@
     "policy_binding": {
       "$ref": "#/$defs/policyBinding"
     },
-    "p1_model": {
-      "$ref": "#/$defs/p1Model"
-    },
     "admission_manifest": {
       "$ref": "#/$defs/manifestBinding"
     },
     "frozen_universe": {
       "$ref": "#/$defs/frozenUniverse"
+    },
+    "frozen_bindings": {
+      "type": "object"
     },
     "code": {
       "$ref": "#/$defs/cleanCode"
@@ -87,11 +102,46 @@
         "$ref": "#/$defs/attemptLedger"
       }
     },
-    "source_doi_ids_sha256": {
+    "acquisition_dispositions": {
+      "type": "array",
+      "minItems": 2463,
+      "maxItems": 2463,
+      "items": {
+        "$ref": "#/$defs/acquisitionDisposition"
+      }
+    },
+    "acquisition_dispositions_sha256": {
       "$ref": "#/$defs/sha256"
     },
-    "source_doi_count": {
-      "const": 2463
+    "acquisition_disposition_doi_ids_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "stratified_source_classifications": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/sourceClassification"
+      }
+    },
+    "stratified_source_doi_ids_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "stratified_source_classifications_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "non_stratified_doi_ids_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "canonical_case_set_manifest_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "per_doi_case_set_hashes_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "terminal_status_counts": {
+      "$ref": "#/$defs/counts"
+    },
+    "disposition_counts": {
+      "$ref": "#/$defs/counts"
     },
     "strata": {
       "type": "array",
@@ -106,7 +156,6 @@
       "uniqueItems": true,
       "items": {
         "enum": [
-          "P1",
           "P2",
           "P3_4",
           "P5PLUS"
@@ -123,21 +172,35 @@
       "type": "string",
       "pattern": "^[0-9a-f]{64}$"
     },
-    "commit": {
+    "doi": {
       "type": "string",
-      "pattern": "^[0-9a-f]{40}$"
+      "pattern": "^10\\.[0-9]{4,9}/\\S+$"
     },
     "chunkId": {
       "type": "string",
       "pattern": "^[0-9]{3}$"
     },
-    "identifier": {
-      "type": "string",
-      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
-    },
-    "relativePath": {
-      "type": "string",
-      "minLength": 1
+    "artifact": {
+      "type": "object",
+      "required": [
+        "path",
+        "sha256",
+        "byte_count"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "byte_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
     },
     "frozenUniverse": {
       "type": "object",
@@ -167,31 +230,11 @@
       ],
       "properties": {
         "commit": {
-          "$ref": "#/$defs/commit"
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
         },
         "dirty": {
           "const": false
-        }
-      },
-      "additionalProperties": false
-    },
-    "artifact": {
-      "type": "object",
-      "required": [
-        "path",
-        "sha256",
-        "byte_count"
-      ],
-      "properties": {
-        "path": {
-          "$ref": "#/$defs/relativePath"
-        },
-        "sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "byte_count": {
-          "type": "integer",
-          "minimum": 0
         }
       },
       "additionalProperties": false
@@ -209,37 +252,15 @@
           "const": "SYNTHETIC_TEST_ONLY"
         },
         "policy_id": {
-          "$ref": "#/$defs/identifier"
+          "type": "string",
+          "minLength": 1
         },
         "policy_version": {
-          "$ref": "#/$defs/identifier"
+          "type": "string",
+          "minLength": 1
         },
         "test_policy_sha256": {
           "$ref": "#/$defs/sha256"
-        }
-      },
-      "additionalProperties": false
-    },
-    "p1Model": {
-      "type": "object",
-      "required": [
-        "p_disposition",
-        "independent_cluster_literal",
-        "countable_independent_cluster_count",
-        "inference_eligible"
-      ],
-      "properties": {
-        "p_disposition": {
-          "const": "P1"
-        },
-        "independent_cluster_literal": {
-          "const": "P1_NONINFERENTIAL"
-        },
-        "countable_independent_cluster_count": {
-          "const": 0
-        },
-        "inference_eligible": {
-          "const": false
         }
       },
       "additionalProperties": false
@@ -268,21 +289,25 @@
         "retired_root_ids",
         "input_total",
         "input_doi_ids_sha256",
-        "canonical_mapping"
+        "terminal_outcomes",
+        "sealed_terminal_report",
+        "sealed_report_hash"
       ],
       "properties": {
         "chunk_id": {
           "$ref": "#/$defs/chunkId"
         },
         "replacement_root_id": {
-          "$ref": "#/$defs/identifier"
+          "type": "string",
+          "minLength": 1
         },
         "retired_root_ids": {
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
           "items": {
-            "$ref": "#/$defs/identifier"
+            "type": "string",
+            "minLength": 1
           }
         },
         "input_total": {
@@ -292,8 +317,14 @@
         "input_doi_ids_sha256": {
           "$ref": "#/$defs/sha256"
         },
-        "canonical_mapping": {
+        "terminal_outcomes": {
           "$ref": "#/$defs/artifact"
+        },
+        "sealed_terminal_report": {
+          "$ref": "#/$defs/artifact"
+        },
+        "sealed_report_hash": {
+          "$ref": "#/$defs/sha256"
         }
       },
       "additionalProperties": false
@@ -344,6 +375,7 @@
         "global_ordinal",
         "local_ordinal",
         "doi_id",
+        "terminal_status_raw",
         "terminal_status"
       ],
       "properties": {
@@ -356,29 +388,211 @@
           "minimum": 1
         },
         "doi_id": {
+          "$ref": "#/$defs/doi"
+        },
+        "terminal_status_raw": {
           "type": "string",
-          "pattern": "^10\\.[0-9]{4,9}/\\S+$"
+          "minLength": 1
         },
         "terminal_status": {
-          "enum": [
-            "DOWNLOADED",
-            "NO_SOURCE_DATA",
-            "NO_FIGURES",
-            "NO_USABLE_CONTENT",
-            "POLICY_REJECTED",
-            "DOWNLOAD_FAILED",
-            "RETRY_EXHAUSTED"
-          ]
+          "type": "string",
+          "minLength": 1
         }
       },
       "additionalProperties": false
+    },
+    "terminalEvidence": {
+      "type": "object",
+      "required": [
+        "chunk_id",
+        "input_doi_ids_sha256",
+        "terminal_outcome_file_sha256",
+        "sealed_report_file_sha256",
+        "sealed_report_hash",
+        "attempt_count",
+        "terminal"
+      ],
+      "properties": {
+        "chunk_id": {
+          "$ref": "#/$defs/chunkId"
+        },
+        "input_doi_ids_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "terminal_outcome_file_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sealed_report_file_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sealed_report_hash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "attempt_count": {
+          "const": 3
+        },
+        "terminal": {
+          "const": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "bindingOrNull": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "additionalProperties": false
+    },
+    "acquisitionDisposition": {
+      "type": "object",
+      "required": [
+        "doi_id",
+        "terminal_status_raw",
+        "terminal_status",
+        "terminal_evidence_binding",
+        "final_disposition",
+        "source_inventory_binding_or_null",
+        "canonical_builder_binding_or_null",
+        "all_eligible_case_ids",
+        "classification_reason"
+      ],
+      "properties": {
+        "doi_id": {
+          "$ref": "#/$defs/doi"
+        },
+        "terminal_status_raw": {
+          "type": "string",
+          "minLength": 1
+        },
+        "terminal_status": {
+          "type": "string",
+          "minLength": 1
+        },
+        "terminal_evidence_binding": {
+          "$ref": "#/$defs/terminalEvidence"
+        },
+        "final_disposition": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_inventory_binding_or_null": {
+          "$ref": "#/$defs/bindingOrNull"
+        },
+        "canonical_builder_binding_or_null": {
+          "$ref": "#/$defs/bindingOrNull"
+        },
+        "all_eligible_case_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "classification_reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "sourceClassification": {
+      "type": "object",
+      "required": [
+        "doi_id",
+        "cluster_id",
+        "canonical_case_set_hash",
+        "canonical_case_ids",
+        "verified_panel_descriptors_sha256",
+        "qualified_panel_counts",
+        "derived_public_stratum",
+        "derived_code_label",
+        "source_binding_hashes"
+      ],
+      "properties": {
+        "doi_id": {
+          "$ref": "#/$defs/doi"
+        },
+        "cluster_id": {
+          "$ref": "#/$defs/doi"
+        },
+        "canonical_case_set_hash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "canonical_case_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "verified_panel_descriptors_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "qualified_panel_counts": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "derived_public_stratum": {
+          "enum": [
+            "P1",
+            "P2",
+            "P3_4",
+            "P5PLUS"
+          ]
+        },
+        "derived_code_label": {
+          "enum": [
+            "P=1",
+            "P=2",
+            "P=3-4",
+            "P=5+"
+          ]
+        },
+        "source_binding_hashes": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/sha256"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
     },
     "stratum": {
       "type": "object",
       "required": [
         "p_disposition",
-        "doi_count",
+        "source_doi_count",
         "independent_cluster_count",
+        "coverage_required",
+        "coverage_met",
         "inference_eligible",
         "deficient"
       ],
@@ -391,7 +605,7 @@
             "P5PLUS"
           ]
         },
-        "doi_count": {
+        "source_doi_count": {
           "type": "integer",
           "minimum": 0
         },
@@ -399,8 +613,14 @@
           "type": "integer",
           "minimum": 0
         },
-        "inference_eligible": {
+        "coverage_required": {
           "type": "boolean"
+        },
+        "coverage_met": {
+          "type": "boolean"
+        },
+        "inference_eligible": {
+          "const": false
         },
         "deficient": {
           "type": "boolean"

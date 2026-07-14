@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "c2_full_replacement_source_table_v2.schema.json",
+  "title": "C2 V2.1 panel source table binding",
+  "type": "object",
+  "required": [
+    "artifact_type",
+    "parent_doi_id",
+    "source_candidate_id",
+    "raw_source_sha256",
+    "candidate_binding_sha256",
+    "proposal_binding_sha256",
+    "canonical_case_binding_sha256",
+    "verification_evidence_sha256"
+  ],
+  "properties": {
+    "artifact_type": {
+      "const": "c2_v21_source_table"
+    },
+    "parent_doi_id": {
+      "type": "string",
+      "pattern": "^10\\.[0-9]{4,9}/\\S+$"
+    },
+    "source_candidate_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "raw_source_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "candidate_binding_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "proposal_binding_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "canonical_case_binding_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "verification_evidence_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "additionalProperties": false
+}

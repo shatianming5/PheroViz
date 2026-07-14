@@ -1,4 +1,4 @@
-"""Descriptor-rooted raw-evidence validation for C2 full-replacement V2."""
+"""Descriptor-rooted V2.1 acquisition and source/canonical attestation."""
 
 from __future__ import annotations
 
@@ -18,10 +18,16 @@ from jsonschema.exceptions import SchemaError
 from .c2_full_replacement_policy import (
     ATTEMPT_IDS,
     CHUNK_IDS,
+    P_CODE_LABELS,
+    STRATIFIED_DISPOSITION,
     TERMINAL_OUTCOME_STATUSES,
     ChunkPartition,
     CompiledFullReplacementPolicy,
-    PolicyRow,
+    StratifiedSourceClassification,
+    adapt_terminal_status,
+    derive_public_stratum,
+    expected_non_stratified_disposition,
+    normalize_doi,
 )
 from .models import (
     ProvenanceError,
@@ -37,7 +43,7 @@ _COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 
 
 class C2FullReplacementEvidenceError(ProvenanceError):
-    """Raised when V2 raw evidence cannot be safely attested."""
+    """Raised when V2.1 raw/source evidence cannot be safely attested."""
 
 
 @dataclass(frozen=True)
@@ -57,19 +63,33 @@ class EvidenceArtifact:
             "byte_count": self.byte_count,
         }
 
+    def to_binding(self) -> dict[str, str]:
+        return {"path": self.relative_path, "sha256": self.sha256}
+
 
 @dataclass(frozen=True)
 class CanonicalOutcome:
     global_ordinal: int
     local_ordinal: int
     doi_id: str
+    terminal_status_raw: str
     terminal_status: str
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_attempt_dict(self) -> dict[str, Any]:
         return {
             "global_ordinal": self.global_ordinal,
             "local_ordinal": self.local_ordinal,
             "doi_id": self.doi_id,
+            "terminal_status_raw": self.terminal_status_raw,
+            "terminal_status": self.terminal_status,
+        }
+
+    def to_terminal_dict(self) -> dict[str, Any]:
+        return {
+            "doi_id": self.doi_id,
+            "attempt_count": 3,
+            "terminal": True,
+            "terminal_status_raw": self.terminal_status_raw,
             "terminal_status": self.terminal_status,
         }
 
@@ -90,22 +110,55 @@ class AttemptLedger:
             "raw_stream": self.raw_stream.to_report_dict(),
             "processed_success": self.processed_success.to_report_dict(),
             "skipped_status": self.skipped_status.to_report_dict(),
-            "outcomes": [outcome.to_dict() for outcome in self.outcomes],
+            "outcomes": [outcome.to_attempt_dict() for outcome in self.outcomes],
         }
 
 
 @dataclass(frozen=True)
 class ChunkEvidence:
     chunk_id: str
-    canonical_mapping: EvidenceArtifact
+    terminal_outcomes: EvidenceArtifact
+    sealed_terminal_report: EvidenceArtifact
+    sealed_report_hash: str
     attempts: tuple[AttemptLedger, ...]
+    final_outcomes: tuple[CanonicalOutcome, ...]
+
+    def terminal_evidence_binding(
+        self,
+        input_doi_ids_sha256: str,
+    ) -> dict[str, Any]:
+        return {
+            "chunk_id": self.chunk_id,
+            "input_doi_ids_sha256": input_doi_ids_sha256,
+            "terminal_outcome_file_sha256": self.terminal_outcomes.sha256,
+            "sealed_report_file_sha256": self.sealed_terminal_report.sha256,
+            "sealed_report_hash": self.sealed_report_hash,
+            "attempt_count": 3,
+            "terminal": True,
+        }
 
     def to_report_dict(self) -> dict[str, Any]:
         return {
             "chunk_id": self.chunk_id,
-            "canonical_mapping": self.canonical_mapping.to_report_dict(),
+            "terminal_outcomes": self.terminal_outcomes.to_report_dict(),
+            "sealed_terminal_report": self.sealed_terminal_report.to_report_dict(),
+            "sealed_report_hash": self.sealed_report_hash,
             "attempts": [attempt.to_report_dict() for attempt in self.attempts],
         }
+
+
+@dataclass(frozen=True)
+class SourceCanonicalEvidence:
+    doi_id: str
+    source_inventory: EvidenceArtifact
+    raw_source_evidence: EvidenceArtifact
+    canonical_builder: EvidenceArtifact
+    eligible_case_ids: tuple[str, ...]
+    canonical_case_set_hash: str
+    case_descriptor: Mapping[str, Any]
+    final_disposition: str
+    classification_reason: str
+    classification: StratifiedSourceClassification | None
 
 
 @dataclass
@@ -114,6 +167,11 @@ class ValidatedRawEvidence:
     manifest: Mapping[str, Any]
     manifest_artifact: EvidenceArtifact
     chunks: tuple[ChunkEvidence, ...]
+    source_canonical: tuple[SourceCanonicalEvidence, ...]
+    acquisition_dispositions: tuple[Mapping[str, Any], ...]
+    stratified_source_classifications: tuple[StratifiedSourceClassification, ...]
+    canonical_case_set_manifest_sha256: str
+    per_doi_case_set_hashes_sha256: str
     input_artifacts: tuple[EvidenceArtifact, ...]
 
     def close(self) -> None:
@@ -147,13 +205,13 @@ def _schema_validator(schema_name: str) -> Draft202012Validator:
         )
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise C2FullReplacementEvidenceError(
-            f"Cannot read bundled V2 schema {schema_name}"
+            f"Cannot read bundled V2.1 schema {schema_name}"
         ) from exc
     try:
         Draft202012Validator.check_schema(schema)
     except SchemaError as exc:
         raise C2FullReplacementEvidenceError(
-            f"Bundled V2 schema is invalid: {schema_name}"
+            f"Bundled V2.1 schema is invalid: {schema_name}"
         ) from exc
     return Draft202012Validator(schema)
 
@@ -316,6 +374,16 @@ def _require_sha256(value: Any, label: str) -> str:
     return value
 
 
+def _require_normalized_doi(value: Any, label: str) -> str:
+    try:
+        normalized = normalize_doi(value)
+    except ProvenanceError as exc:
+        raise C2FullReplacementEvidenceError(f"{label} is not a valid DOI") from exc
+    if value != normalized:
+        raise C2FullReplacementEvidenceError(f"{label} must already be normalized")
+    return normalized
+
+
 def _without(value: Mapping[str, Any], *keys: str) -> dict[str, Any]:
     omitted = set(keys)
     return {key: item for key, item in value.items() if key not in omitted}
@@ -324,7 +392,7 @@ def _without(value: Mapping[str, Any], *keys: str) -> dict[str, Any]:
 class _ArtifactCollector:
     def __init__(self, root: TrustedDirectory) -> None:
         self.root = root
-        self._paths: set[str] = set()
+        self._by_path: dict[str, EvidenceArtifact] = {}
         self._identities: set[tuple[int, int]] = set()
         self._artifacts: list[EvidenceArtifact] = []
 
@@ -337,12 +405,21 @@ class _ArtifactCollector:
         relative_path: str,
         expected_sha256: str | None,
         label: str,
+        *,
+        allow_reuse: bool = False,
     ) -> EvidenceArtifact:
         safe_path, _ = _safe_relative_path(relative_path, label)
-        if safe_path in self._paths:
-            raise C2FullReplacementEvidenceError(
-                f"V2 evidence reuses an artifact path: {safe_path}"
-            )
+        existing = self._by_path.get(safe_path)
+        if existing is not None:
+            if not allow_reuse:
+                raise C2FullReplacementEvidenceError(
+                    f"V2.1 evidence reuses an artifact path: {safe_path}"
+                )
+            if expected_sha256 is not None and existing.sha256 != expected_sha256:
+                raise C2FullReplacementEvidenceError(
+                    f"{label} reuses an artifact with a mismatched SHA-256"
+                )
+            return existing
         artifact = _read_no_follow_artifact(self.root, safe_path, label)
         if expected_sha256 is not None and artifact.sha256 != expected_sha256:
             raise C2FullReplacementEvidenceError(
@@ -351,9 +428,9 @@ class _ArtifactCollector:
         identity = (artifact.device, artifact.inode)
         if identity in self._identities:
             raise C2FullReplacementEvidenceError(
-                f"V2 evidence reuses an artifact inode: {safe_path}"
+                f"V2.1 evidence reuses an artifact inode: {safe_path}"
             )
-        self._paths.add(safe_path)
+        self._by_path[safe_path] = artifact
         self._identities.add(identity)
         self._artifacts.append(artifact)
         return artifact
@@ -363,23 +440,23 @@ def _open_manifest_root(manifest_path: Path) -> tuple[TrustedDirectory, str]:
     raw_path = Path(os.fspath(manifest_path))
     if raw_path.name in {"", ".", ".."} or raw_path.suffix != ".json":
         raise C2FullReplacementEvidenceError(
-            "V2 admission manifest must name a JSON file"
+            "V2.1 admission manifest must name a JSON file"
         )
     if any(part in {".", ".."} for part in raw_path.parts):
         raise C2FullReplacementEvidenceError(
-            "V2 admission manifest path must not contain dot traversal"
+            "V2.1 admission manifest path must not contain dot traversal"
         )
     try:
         absolute = Path(os.path.abspath(os.fspath(raw_path.expanduser())))
     except (OSError, RuntimeError) as exc:
         raise C2FullReplacementEvidenceError(
-            f"Cannot normalize V2 admission manifest path: {manifest_path}"
+            f"Cannot normalize V2.1 admission manifest path: {manifest_path}"
         ) from exc
     try:
         root = open_trusted_directory(absolute.parent)
     except ProvenanceError as exc:
         raise C2FullReplacementEvidenceError(
-            f"Cannot open trusted V2 evidence root: {absolute.parent}"
+            f"Cannot open trusted V2.1 evidence root: {absolute.parent}"
         ) from exc
     return root, absolute.name
 
@@ -391,16 +468,19 @@ def _validate_manifest(
     _validate_schema(
         manifest,
         "c2_full_replacement_admission_manifest_v2.schema.json",
-        "V2 admission manifest",
+        "V2.1 admission manifest",
     )
-    declared_hash = _require_sha256(manifest["manifest_hash"], "manifest_hash")
-    if sha256_json(_without(manifest, "manifest_hash")) != declared_hash:
+    if sha256_json(_without(manifest, "manifest_hash")) != manifest["manifest_hash"]:
         raise C2FullReplacementEvidenceError(
-            "V2 admission manifest failed its semantic hash"
+            "V2.1 admission manifest failed its semantic hash"
         )
     if dict(manifest["frozen_universe"]) != policy.frozen_universe.to_dict():
         raise C2FullReplacementEvidenceError(
-            "V2 manifest frozen universe differs from the compiled policy"
+            "V2.1 manifest frozen universe differs from the compiled policy"
+        )
+    if dict(manifest["frozen_bindings"]) != dict(policy.frozen_bindings):
+        raise C2FullReplacementEvidenceError(
+            "V2.1 manifest frozen bindings differ from the compiled policy"
         )
     code = manifest["code"]
     if (
@@ -409,28 +489,22 @@ def _validate_manifest(
         or code["dirty"] is not False
     ):
         raise C2FullReplacementEvidenceError(
-            "V2 admission manifest requires a full clean code commit"
+            "V2.1 admission manifest requires a full clean code commit"
         )
     chunks = manifest["chunks"]
-    if not isinstance(chunks, list) or len(chunks) != len(CHUNK_IDS):
+    if [chunk["chunk_id"] for chunk in chunks] != list(CHUNK_IDS):
         raise C2FullReplacementEvidenceError(
-            "V2 admission manifest must contain all 13 chunks"
+            "V2.1 admission manifest must use ordered chunks 001..013"
         )
-    chunk_mappings: list[Mapping[str, Any]] = []
     for chunk_id, chunk in zip(CHUNK_IDS, chunks, strict=True):
-        if not isinstance(chunk, Mapping) or chunk["chunk_id"] != chunk_id:
-            raise C2FullReplacementEvidenceError(
-                "V2 admission manifest must use ordered chunks 001..013"
-            )
         partition = policy.partition_for_chunk(chunk_id)
         root_plan = policy.root_plan_for_chunk(chunk_id)
-        if chunk["input_total"] != partition.input_total:
+        if (
+            chunk["input_total"] != partition.input_total
+            or chunk["input_doi_ids_sha256"] != partition.doi_ids_sha256
+        ):
             raise C2FullReplacementEvidenceError(
-                f"V2 chunk {chunk_id} has an invalid pinned input total"
-            )
-        if chunk["input_doi_ids_sha256"] != partition.doi_ids_sha256:
-            raise C2FullReplacementEvidenceError(
-                f"V2 chunk {chunk_id} DOI hash differs from compiled partition"
+                f"V2.1 chunk {chunk_id} has an invalid pinned partition"
             )
         root = chunk["root"]
         if (
@@ -439,58 +513,30 @@ def _validate_manifest(
             or root["partial_root"] is not False
         ):
             raise C2FullReplacementEvidenceError(
-                f"V2 chunk {chunk_id} root plan differs from compiled policy"
+                f"V2.1 chunk {chunk_id} root plan differs from compiled policy"
             )
-        attempts = chunk["attempts"]
-        if [attempt["attempt_id"] for attempt in attempts] != list(ATTEMPT_IDS):
+        if [attempt["attempt_id"] for attempt in chunk["attempts"]] != list(
+            ATTEMPT_IDS
+        ):
             raise C2FullReplacementEvidenceError(
-                f"V2 chunk {chunk_id} must contain initial, retry1, retry2 in order"
+                f"V2.1 chunk {chunk_id} must contain initial, retry1, retry2"
             )
-        chunk_mappings.append(chunk)
-    return tuple(chunk_mappings)
+    return tuple(chunks)
 
 
 def _read_bound_artifact(
     collector: _ArtifactCollector,
     binding: Mapping[str, Any],
     label: str,
+    *,
+    allow_reuse: bool = False,
 ) -> EvidenceArtifact:
-    expected_sha256 = _require_sha256(binding["sha256"], f"{label}.sha256")
-    return collector.read(binding["path"], expected_sha256, label)
-
-
-def _validate_mapping_artifact(
-    artifact: EvidenceArtifact,
-    chunk_id: str,
-    partition: ChunkPartition,
-    policy_rows: Sequence[PolicyRow],
-) -> None:
-    rows = _parse_jsonl_objects(artifact, f"chunk {chunk_id} canonical mapping")
-    if len(rows) != partition.input_total:
-        raise C2FullReplacementEvidenceError(
-            f"chunk {chunk_id} canonical mapping has an invalid row count"
-        )
-    for local_ordinal, (record, policy_row) in enumerate(
-        zip(rows, policy_rows, strict=True),
-        start=1,
-    ):
-        _validate_schema(
-            record,
-            "c2_full_replacement_mapping_row_v2.schema.json",
-            f"chunk {chunk_id} canonical mapping row {local_ordinal}",
-        )
-        expected = {
-            "global_ordinal": policy_row.global_ordinal,
-            "local_ordinal": local_ordinal,
-            "doi_id": policy_row.doi_id,
-            "p_disposition": policy_row.p_disposition,
-            "independent_cluster_id": policy_row.independent_cluster_id,
-        }
-        if dict(record) != expected:
-            raise C2FullReplacementEvidenceError(
-                f"chunk {chunk_id} canonical mapping differs from compiled policy "
-                f"at local ordinal {local_ordinal}"
-            )
+    return collector.read(
+        binding["path"],
+        _require_sha256(binding["sha256"], f"{label}.sha256"),
+        label,
+        allow_reuse=allow_reuse,
+    )
 
 
 def _record_key(record: Mapping[str, Any]) -> tuple[int, int, str]:
@@ -507,7 +553,7 @@ def _validate_attempt(
     binding: Mapping[str, Any],
     chunk_id: str,
     partition: ChunkPartition,
-    policy_rows: Sequence[PolicyRow],
+    expected_dois: Sequence[str],
 ) -> AttemptLedger:
     attempt_id = binding["attempt_id"]
     raw_artifact = _read_bound_artifact(
@@ -533,8 +579,8 @@ def _validate_attempt(
         raise C2FullReplacementEvidenceError(
             f"chunk {chunk_id} {attempt_id} raw stream has an invalid row count"
         )
-    for local_ordinal, (record, policy_row) in enumerate(
-        zip(raw_rows, policy_rows, strict=True),
+    for local_ordinal, (record, doi_id) in enumerate(
+        zip(raw_rows, expected_dois, strict=True),
         start=1,
     ):
         _validate_schema(
@@ -544,15 +590,14 @@ def _validate_attempt(
         )
         if (
             record["attempt_id"] != attempt_id
-            or record["global_ordinal"] != policy_row.global_ordinal
+            or record["global_ordinal"]
+            != partition.first_global_ordinal + local_ordinal - 1
             or record["local_ordinal"] != local_ordinal
-            or record["doi_id"] != policy_row.doi_id
+            or record["doi_id"] != doi_id
         ):
             raise C2FullReplacementEvidenceError(
-                f"chunk {chunk_id} {attempt_id} raw stream order differs from "
-                f"compiled DOI/ordinal policy"
+                f"chunk {chunk_id} {attempt_id} raw stream differs from frozen DOI order"
             )
-
     processed = _parse_json_object(
         processed_artifact,
         f"chunk {chunk_id} {attempt_id} processed-success",
@@ -580,7 +625,6 @@ def _validate_attempt(
         raise C2FullReplacementEvidenceError(
             f"chunk {chunk_id} {attempt_id} ledger metadata is mismatched"
         )
-
     expected_processed = [
         {
             "global_ordinal": row["global_ordinal"],
@@ -597,131 +641,848 @@ def _validate_attempt(
     ]
     if processed["records"] != expected_processed:
         raise C2FullReplacementEvidenceError(
-            f"chunk {chunk_id} {attempt_id} processed-success does not exactly "
-            "match the raw processed partition"
+            f"chunk {chunk_id} {attempt_id} processed-success is not the exact "
+            "raw processed partition"
         )
-    skipped_keys = [_record_key(row) for row in skipped["records"]]
-    if skipped_keys != expected_skipped_keys:
+    if [_record_key(row) for row in skipped["records"]] != expected_skipped_keys:
         raise C2FullReplacementEvidenceError(
-            f"chunk {chunk_id} {attempt_id} skipped-status does not exactly match "
-            "the raw skipped partition"
+            f"chunk {chunk_id} {attempt_id} skipped-status is not the exact raw "
+            "skipped partition"
         )
-    statuses_by_key: dict[tuple[int, int, str], str] = {}
+    statuses_by_key: dict[tuple[int, int, str], tuple[str, str]] = {}
     for row in skipped["records"]:
-        status = row["terminal_status"]
-        if status == "DOWNLOADED" or status not in TERMINAL_OUTCOME_STATUSES:
+        raw_status = row["terminal_status_raw"]
+        try:
+            terminal_status = adapt_terminal_status(raw_status)
+        except ProvenanceError as exc:
             raise C2FullReplacementEvidenceError(
-                f"chunk {chunk_id} {attempt_id} skipped-status illegally encodes "
-                "DOWNLOADED or a nonterminal status"
+                f"chunk {chunk_id} {attempt_id} has an unapproved raw status"
+            ) from exc
+        if terminal_status == "DOWNLOADED":
+            raise C2FullReplacementEvidenceError(
+                f"chunk {chunk_id} {attempt_id} skipped-status encodes DOWNLOADED"
             )
         key = _record_key(row)
         if key in statuses_by_key:
             raise C2FullReplacementEvidenceError(
-                f"chunk {chunk_id} {attempt_id} skipped-status has a duplicate DOI"
+                f"chunk {chunk_id} {attempt_id} skipped-status repeats a DOI"
             )
-        statuses_by_key[key] = status
-    outcomes = tuple(
-        CanonicalOutcome(
-            global_ordinal=row["global_ordinal"],
-            local_ordinal=row["local_ordinal"],
-            doi_id=row["doi_id"],
-            terminal_status=(
-                "DOWNLOADED"
-                if row["raw_disposition"] == "PROCESSED"
-                else statuses_by_key[_record_key(row)]
-            ),
+        statuses_by_key[key] = (raw_status, terminal_status)
+    outcomes: list[CanonicalOutcome] = []
+    for row in raw_rows:
+        if row["raw_disposition"] == "PROCESSED":
+            raw_status = "downloaded"
+            terminal_status = adapt_terminal_status(raw_status)
+        else:
+            raw_status, terminal_status = statuses_by_key[_record_key(row)]
+        if terminal_status not in TERMINAL_OUTCOME_STATUSES:
+            raise C2FullReplacementEvidenceError(
+                f"chunk {chunk_id} {attempt_id} has a nonterminal status"
+            )
+        outcomes.append(
+            CanonicalOutcome(
+                global_ordinal=row["global_ordinal"],
+                local_ordinal=row["local_ordinal"],
+                doi_id=row["doi_id"],
+                terminal_status_raw=raw_status,
+                terminal_status=terminal_status,
+            )
         )
-        for row in raw_rows
-    )
     return AttemptLedger(
         chunk_id=chunk_id,
         attempt_id=attempt_id,
         raw_stream=raw_artifact,
         processed_success=processed_artifact,
         skipped_status=skipped_artifact,
-        outcomes=outcomes,
+        outcomes=tuple(outcomes),
     )
+
+
+def _validate_terminal_chunk(
+    *,
+    collector: _ArtifactCollector,
+    chunk: Mapping[str, Any],
+    chunk_id: str,
+    partition: ChunkPartition,
+    attempts: tuple[AttemptLedger, ...],
+) -> ChunkEvidence:
+    terminal_outcomes = _read_bound_artifact(
+        collector,
+        chunk["terminal_outcomes"],
+        f"chunk {chunk_id} terminal outcomes",
+    )
+    terminal = _parse_json_object(terminal_outcomes, f"chunk {chunk_id} terminal outcomes")
+    _validate_schema(
+        terminal,
+        "c2_full_replacement_terminal_outcomes_v2.schema.json",
+        f"chunk {chunk_id} terminal outcomes",
+    )
+    expected_outcomes = [item.to_terminal_dict() for item in attempts[-1].outcomes]
+    if (
+        terminal["chunk_id"] != chunk_id
+        or terminal["input_doi_ids_sha256"] != partition.doi_ids_sha256
+        or terminal["outcomes"] != expected_outcomes
+    ):
+        raise C2FullReplacementEvidenceError(
+            f"chunk {chunk_id} terminal outcome ledger differs from retry2 evidence"
+        )
+    sealed_artifact = _read_bound_artifact(
+        collector,
+        chunk["sealed_terminal_report"],
+        f"chunk {chunk_id} sealed terminal report",
+    )
+    sealed = _parse_json_object(
+        sealed_artifact,
+        f"chunk {chunk_id} sealed terminal report",
+    )
+    _validate_schema(
+        sealed,
+        "c2_full_replacement_sealed_terminal_report_v2.schema.json",
+        f"chunk {chunk_id} sealed terminal report",
+    )
+    report_hash = sealed["report_hash"]
+    if sha256_json(_without(sealed, "report_hash", "seal")) != report_hash:
+        raise C2FullReplacementEvidenceError(
+            f"chunk {chunk_id} sealed terminal report hash mismatch"
+        )
+    seal = sealed["seal"]
+    if (
+        seal["status"] != "TERMINAL"
+        or seal["sealed_report_hash"] != report_hash
+        or sha256_json(_without(seal, "seal_hash")) != seal["seal_hash"]
+    ):
+        raise C2FullReplacementEvidenceError(
+            f"chunk {chunk_id} terminal seal is invalid"
+        )
+    if (
+        sealed["chunk_id"] != chunk_id
+        or sealed["input_doi_ids_sha256"] != partition.doi_ids_sha256
+        or sealed["terminal_outcomes_file_sha256"] != terminal_outcomes.sha256
+    ):
+        raise C2FullReplacementEvidenceError(
+            f"chunk {chunk_id} sealed terminal report binding is invalid"
+        )
+    return ChunkEvidence(
+        chunk_id=chunk_id,
+        terminal_outcomes=terminal_outcomes,
+        sealed_terminal_report=sealed_artifact,
+        sealed_report_hash=report_hash,
+        attempts=attempts,
+        final_outcomes=attempts[-1].outcomes,
+    )
+
+
+def _require_sha_fields(value: Mapping[str, Any], names: Sequence[str], label: str) -> None:
+    for name in names:
+        _require_sha256(value[name], f"{label}.{name}")
+
+
+def _validate_source_table(
+    *,
+    collector: _ArtifactCollector,
+    panel: Mapping[str, Any],
+    parent_doi_id: str,
+    candidate_raw_sources: Mapping[str, EvidenceArtifact],
+    case_bindings: Mapping[str, Any],
+    label: str,
+) -> Mapping[str, Any]:
+    if panel["source_table_path"] in {
+        artifact.relative_path for artifact in candidate_raw_sources.values()
+    }:
+        raise C2FullReplacementEvidenceError(
+            f"{label} source table aliases a verified raw source artifact"
+        )
+    source_artifact = collector.read(
+        panel["source_table_path"],
+        panel["source_table_sha256"],
+        f"{label} source table",
+        allow_reuse=True,
+    )
+    table = _parse_json_object(source_artifact, f"{label} source table")
+    _validate_schema(
+        table,
+        "c2_full_replacement_source_table_v2.schema.json",
+        f"{label} source table",
+    )
+    if (
+        _require_normalized_doi(table["parent_doi_id"], f"{label} table parent")
+        != parent_doi_id
+        or table["source_candidate_id"] != panel["source_candidate_id"]
+    ):
+        raise C2FullReplacementEvidenceError(
+            f"{label} source table has a cross-DOI or candidate mismatch"
+        )
+    raw_source = candidate_raw_sources.get(panel["source_candidate_id"])
+    if (
+        raw_source is None
+        or panel["raw_source_sha256"] != raw_source.sha256
+        or table["raw_source_sha256"] != raw_source.sha256
+    ):
+        raise C2FullReplacementEvidenceError(
+            f"{label} source table does not bind its verified raw source bytes"
+        )
+    for name in (
+        "candidate_binding_sha256",
+        "proposal_binding_sha256",
+        "canonical_case_binding_sha256",
+        "verification_evidence_sha256",
+    ):
+        if table[name] != panel[name]:
+            raise C2FullReplacementEvidenceError(
+                f"{label} source table binding differs from panel evidence"
+            )
+    if (
+        panel["candidate_binding_sha256"]
+        != case_bindings["candidate_binding_sha256"]
+        or panel["proposal_binding_sha256"]
+        != case_bindings["proposal_binding_sha256"]
+        or panel["canonical_case_binding_sha256"]
+        != case_bindings["canonical_case_binding_sha256"]
+    ):
+        raise C2FullReplacementEvidenceError(
+            f"{label} panel binding differs from canonical case binding"
+        )
+    return table
+
+
+def _case_descriptor(
+    *,
+    case: Mapping[str, Any],
+    parent_doi_id: str,
+    source_candidates: set[str],
+    candidate_raw_sources: Mapping[str, EvidenceArtifact],
+    collector: _ArtifactCollector,
+    label: str,
+    validate_case_bindings: Mapping[str, str],
+) -> tuple[Mapping[str, Any], bool]:
+    case_id = case["case_id"]
+    if not isinstance(case_id, str) or not case_id:
+        raise C2FullReplacementEvidenceError(f"{label}.case_id is required")
+    if _require_normalized_doi(case["doi_id"], f"{label}.doi_id") != parent_doi_id:
+        raise C2FullReplacementEvidenceError(f"{label} has an asserted cross-DOI case")
+    bindings = case["bindings"]
+    _require_sha_fields(
+        bindings,
+        (
+            "raw_source_evidence_sha256",
+            "candidate_binding_sha256",
+            "proposal_binding_sha256",
+            "review_binding_sha256",
+            "canonical_case_binding_sha256",
+        ),
+        f"{label}.bindings",
+    )
+    for name, expected in validate_case_bindings.items():
+        if bindings[name] != expected:
+            raise C2FullReplacementEvidenceError(
+                f"{label} binding differs from canonical builder evidence"
+            )
+    canonical_case_binding_input = {
+        name: case[name]
+        for name in (
+            "case_id",
+            "doi_id",
+            "case_kind",
+            "curation_status",
+            "eligible_for_experiment",
+            "asserted_panel_ids",
+            "expected_evaluation_panel_ids",
+            "asserted_panel_count",
+            "asserted_public_stratum",
+            "asserted_code_label",
+        )
+    }
+    if bindings["canonical_case_binding_sha256"] != sha256_json(
+        canonical_case_binding_input
+    ):
+        raise C2FullReplacementEvidenceError(
+            f"{label} canonical-case binding is not derived from the case record"
+        )
+    panels = case["verified_panels"]
+    seen_panel_ids: set[str] = set()
+    seen_candidates: set[str] = set()
+    seen_fingerprints: set[str] = set()
+    normalized_panels: list[Mapping[str, Any]] = []
+    for panel_index, panel in enumerate(panels):
+        panel_label = f"{label}.verified_panels[{panel_index}]"
+        if not isinstance(panel["panel_id"], str) or not panel["panel_id"]:
+            raise C2FullReplacementEvidenceError(f"{panel_label}.panel_id is required")
+        if (
+            not isinstance(panel["source_candidate_id"], str)
+            or not panel["source_candidate_id"]
+        ):
+            raise C2FullReplacementEvidenceError(
+                f"{panel_label}.source_candidate_id is required"
+            )
+        if (
+            _require_normalized_doi(panel["parent_doi_id"], f"{panel_label}.parent")
+            != parent_doi_id
+        ):
+            raise C2FullReplacementEvidenceError(
+                f"{panel_label} has a cross-DOI parent binding"
+            )
+        if panel["panel_id"] in seen_panel_ids:
+            raise C2FullReplacementEvidenceError(f"{label} repeats a panel_id")
+        if panel["source_candidate_id"] in seen_candidates:
+            raise C2FullReplacementEvidenceError(
+                f"{label} repeats a source_candidate_id"
+            )
+        fingerprint = sha256_json(dict(panel))
+        if fingerprint in seen_fingerprints:
+            raise C2FullReplacementEvidenceError(f"{label} repeats a panel fingerprint")
+        seen_panel_ids.add(panel["panel_id"])
+        seen_candidates.add(panel["source_candidate_id"])
+        seen_fingerprints.add(fingerprint)
+        if panel["source_candidate_id"] not in source_candidates:
+            raise C2FullReplacementEvidenceError(
+                f"{panel_label} does not resolve to a verified same-DOI source case"
+            )
+        _validate_source_table(
+            collector=collector,
+            panel=panel,
+            parent_doi_id=parent_doi_id,
+            candidate_raw_sources=candidate_raw_sources,
+            case_bindings=bindings,
+            label=panel_label,
+        )
+        normalized_panels.append(dict(panel))
+    ordered_panels = tuple(
+        sorted(
+            normalized_panels,
+            key=lambda item: (item["panel_id"], item["source_candidate_id"]),
+        )
+    )
+    panel_ids = [panel["panel_id"] for panel in ordered_panels]
+    if (
+        case["asserted_panel_ids"] != panel_ids
+        or case["expected_evaluation_panel_ids"] != panel_ids
+        or case["asserted_panel_count"] != len(panel_ids)
+    ):
+        raise C2FullReplacementEvidenceError(
+            f"{label} asserted panel membership/count does not match recomputation"
+        )
+    if case["case_kind"] == "single" and len(panel_ids) != 1:
+        raise C2FullReplacementEvidenceError(
+            f"{label} single case must have exactly one verified panel"
+        )
+    if case["case_kind"] == "multi" and len(panel_ids) < 2:
+        raise C2FullReplacementEvidenceError(
+            f"{label} multi case must have at least two verified panels"
+        )
+    derived_stratum = derive_public_stratum(len(panel_ids))
+    if (
+        case["asserted_public_stratum"] != derived_stratum
+        or case["asserted_code_label"] != P_CODE_LABELS[derived_stratum]
+    ):
+        raise C2FullReplacementEvidenceError(
+            f"{label} asserted P label differs from recomputed panels"
+        )
+    descriptor = {
+        "case_id": case_id,
+        "parent_doi_id": parent_doi_id,
+        "verified_panels": list(ordered_panels),
+        "qualified_panel_count": len(panel_ids),
+        "derived_public_stratum": derived_stratum,
+        "derived_code_label": P_CODE_LABELS[derived_stratum],
+        "bindings": dict(bindings),
+    }
+    eligible = (
+        case["curation_status"] == "verified"
+        and case["eligible_for_experiment"] is True
+    )
+    return descriptor, eligible
+
+
+def _read_parent_binding(
+    *,
+    collector: _ArtifactCollector,
+    binding: Mapping[str, Any],
+    expected_artifact_type: str,
+    parent_doi_id: str,
+    label: str,
+) -> EvidenceArtifact:
+    artifact = _read_bound_artifact(collector, binding, label)
+    value = _parse_json_object(artifact, label)
+    _validate_schema(
+        value,
+        "c2_full_replacement_parent_binding_v2.schema.json",
+        label,
+    )
+    if (
+        value["artifact_type"] != expected_artifact_type
+        or _require_normalized_doi(value["parent_doi_id"], f"{label}.parent_doi_id")
+        != parent_doi_id
+        or value["complete"] is not True
+        or value["model_result_selected"] is not False
+    ):
+        raise C2FullReplacementEvidenceError(
+            f"{label} has an invalid parent DOI/provenance binding"
+        )
+    return artifact
+
+
+def _read_raw_source_evidence(
+    *,
+    collector: _ArtifactCollector,
+    inventory: Mapping[str, Any],
+    parent_doi_id: str,
+    candidate_ids: tuple[str, ...],
+    label: str,
+) -> tuple[EvidenceArtifact, dict[str, EvidenceArtifact]]:
+    artifact = _read_bound_artifact(
+        collector,
+        inventory["raw_source_evidence"],
+        f"{label} raw source evidence",
+    )
+    value = _parse_json_object(artifact, f"{label} raw source evidence")
+    _validate_schema(
+        value,
+        "c2_full_replacement_raw_source_evidence_v2.schema.json",
+        f"{label} raw source evidence",
+    )
+    if (
+        _require_normalized_doi(
+            value["parent_doi_id"],
+            f"{label} raw source evidence parent",
+        )
+        != parent_doi_id
+        or value["complete"] is not True
+        or value["model_result_selected"] is not False
+    ):
+        raise C2FullReplacementEvidenceError(
+            f"{label} raw source evidence has an invalid parent/provenance binding"
+        )
+    records = value["source_candidates"]
+    raw_candidate_ids = tuple(record["source_candidate_id"] for record in records)
+    if (
+        raw_candidate_ids != candidate_ids
+        or raw_candidate_ids != tuple(sorted(raw_candidate_ids))
+        or len(raw_candidate_ids) != len(set(raw_candidate_ids))
+    ):
+        raise C2FullReplacementEvidenceError(
+            f"{label} raw source evidence candidate coverage is incomplete"
+        )
+    raw_sources: dict[str, EvidenceArtifact] = {}
+    for record in records:
+        candidate_id = record["source_candidate_id"]
+        if (
+            _require_normalized_doi(
+                record["parent_doi_id"],
+                f"{label} raw source candidate {candidate_id}",
+            )
+            != parent_doi_id
+        ):
+            raise C2FullReplacementEvidenceError(
+                f"{label} raw source candidate has a cross-DOI parent binding"
+            )
+        raw_sources[candidate_id] = collector.read(
+            record["raw_source_path"],
+            _require_sha256(
+                record["raw_source_sha256"],
+                f"{label} raw source candidate {candidate_id}.sha256",
+            ),
+            f"{label} raw source candidate {candidate_id}",
+        )
+    return artifact, raw_sources
+
+
+def _validate_source_canonical(
+    *,
+    collector: _ArtifactCollector,
+    binding: Mapping[str, Any],
+    policy: CompiledFullReplacementPolicy,
+    global_case_ids: set[str],
+) -> SourceCanonicalEvidence:
+    doi_id = _require_normalized_doi(binding["doi_id"], "source_canonical.doi_id")
+    source_inventory = _read_bound_artifact(
+        collector,
+        binding["source_inventory"],
+        f"DOI {doi_id} source inventory",
+    )
+    inventory = _parse_json_object(source_inventory, f"DOI {doi_id} source inventory")
+    _validate_schema(
+        inventory,
+        "c2_full_replacement_source_inventory_v2.schema.json",
+        f"DOI {doi_id} source inventory",
+    )
+    if _require_normalized_doi(inventory["parent_doi_id"], "source inventory parent") != doi_id:
+        raise C2FullReplacementEvidenceError(
+            "Source inventory has a cross-DOI parent binding"
+        )
+    candidate_ids = tuple(inventory["source_candidate_ids"])
+    if candidate_ids != tuple(sorted(candidate_ids)) or len(candidate_ids) != len(
+        set(candidate_ids)
+    ):
+        raise C2FullReplacementEvidenceError(
+            f"DOI {doi_id} source inventory candidate IDs must be unique and ordered"
+        )
+    raw_source_evidence, candidate_raw_sources = _read_raw_source_evidence(
+        collector=collector,
+        inventory=inventory,
+        parent_doi_id=doi_id,
+        candidate_ids=candidate_ids,
+        label=f"DOI {doi_id}",
+    )
+    builder_artifact = _read_bound_artifact(
+        collector,
+        binding["canonical_builder"],
+        f"DOI {doi_id} canonical builder",
+    )
+    builder = _parse_json_object(builder_artifact, f"DOI {doi_id} canonical builder")
+    _validate_schema(
+        builder,
+        "c2_full_replacement_canonical_builder_v2.schema.json",
+        f"DOI {doi_id} canonical builder",
+    )
+    if (
+        _require_normalized_doi(builder["parent_doi_id"], "canonical builder parent")
+        != doi_id
+        or builder["source_inventory_sha256"] != source_inventory.sha256
+        or builder["raw_source_evidence_sha256"] != raw_source_evidence.sha256
+        or builder["parent_doi_ids_sha256"] != policy.frozen_universe.doi_ids_sha256
+    ):
+        raise C2FullReplacementEvidenceError(
+            f"DOI {doi_id} canonical builder has an invalid source/parent binding"
+        )
+    builder_code = builder["code"]
+    frozen = policy.frozen_bindings
+    if (
+        builder_code["commit"] != frozen["canonical_builder_code_commit_full"]
+        or builder_code["sha256"] != frozen["canonical_builder_code_sha256"]
+        or builder_code["dirty"] is not False
+        or builder["builder_rule"]["version"]
+        != frozen["canonical_builder_rule_version"]
+        or builder["builder_rule"]["sha256"]
+        != frozen["canonical_builder_rule_sha256"]
+    ):
+        raise C2FullReplacementEvidenceError(
+            f"DOI {doi_id} canonical builder code/rule is not frozen"
+        )
+    candidate_manifest = _read_parent_binding(
+        collector=collector,
+        binding=builder["candidate_manifest"],
+        expected_artifact_type="c2_v21_candidate_manifest",
+        parent_doi_id=doi_id,
+        label=f"DOI {doi_id} candidate manifest",
+    )
+    proposal_manifest = _read_parent_binding(
+        collector=collector,
+        binding=builder["proposal_manifest"],
+        expected_artifact_type="c2_v21_proposal_manifest",
+        parent_doi_id=doi_id,
+        label=f"DOI {doi_id} proposal manifest",
+    )
+    review_manifest = _read_parent_binding(
+        collector=collector,
+        binding=builder["review_manifest"],
+        expected_artifact_type="c2_v21_review_manifest",
+        parent_doi_id=doi_id,
+        label=f"DOI {doi_id} review manifest",
+    )
+    canonical_manifest = _read_parent_binding(
+        collector=collector,
+        binding=builder["canonical_manifest"],
+        expected_artifact_type="c2_v21_canonical_manifest",
+        parent_doi_id=doi_id,
+        label=f"DOI {doi_id} canonical manifest",
+    )
+    source_cases = builder["source_cases"]
+    source_case_ids = tuple(item["source_candidate_id"] for item in source_cases)
+    if (
+        source_case_ids != candidate_ids
+        or len(source_case_ids) != len(set(source_case_ids))
+    ):
+        raise C2FullReplacementEvidenceError(
+            f"DOI {doi_id} canonical builder source-case coverage is incomplete"
+        )
+    for source_case in source_cases:
+        if (
+            _require_normalized_doi(
+                source_case["parent_doi_id"],
+                "source case parent",
+            )
+            != doi_id
+            or source_case["verified"] is not True
+            or source_case["eligible_single_source"] is not True
+            or source_case["raw_source_sha256"]
+            != candidate_raw_sources[source_case["source_candidate_id"]].sha256
+        ):
+            raise C2FullReplacementEvidenceError(
+                f"DOI {doi_id} source candidate is not a verified same-DOI source case"
+            )
+    if not candidate_ids and (builder["source_cases"] or builder["cases"]):
+        raise C2FullReplacementEvidenceError(
+            f"DOI {doi_id} empty source inventory cannot emit canonical cases"
+        )
+    case_bindings = {
+        "raw_source_evidence_sha256": raw_source_evidence.sha256,
+        "candidate_binding_sha256": candidate_manifest.sha256,
+        "proposal_binding_sha256": proposal_manifest.sha256,
+        "review_binding_sha256": review_manifest.sha256,
+    }
+    descriptors: list[Mapping[str, Any]] = []
+    for case_index, case in enumerate(builder["cases"]):
+        descriptor, eligible = _case_descriptor(
+            case=case,
+            parent_doi_id=doi_id,
+            source_candidates=set(candidate_ids),
+            candidate_raw_sources=candidate_raw_sources,
+            collector=collector,
+            label=f"DOI {doi_id} canonical case {case_index}",
+            validate_case_bindings=case_bindings,
+        )
+        if descriptor["case_id"] in global_case_ids:
+            raise C2FullReplacementEvidenceError(
+                "Canonical builder output repeats a globally unique case_id"
+            )
+        global_case_ids.add(descriptor["case_id"])
+        if eligible:
+            descriptors.append(descriptor)
+    descriptors.sort(key=lambda item: item["case_id"])
+    case_ids = tuple(item["case_id"] for item in descriptors)
+    case_set_hash = sha256_json({"doi_id": doi_id, "cases": descriptors})
+    empty_inventory = not candidate_ids
+    if empty_inventory:
+        final_disposition = "NON_STRATIFIED_DOWNLOADED_NO_VERIFIED_SOURCE"
+        reason = "DOWNLOADED_EMPTY_VERIFIED_SOURCE_INVENTORY"
+        classification = None
+    elif not descriptors:
+        final_disposition = "NON_STRATIFIED_SOURCE_NO_CANONICAL_CASE"
+        reason = "DOWNLOADED_NO_QUALIFYING_CANONICAL_CASE"
+        classification = None
+    else:
+        strata = {item["derived_public_stratum"] for item in descriptors}
+        if len(strata) != 1:
+            raise C2FullReplacementEvidenceError(
+                f"DOI {doi_id} is MULTI_STRATUM_CANONICAL_DOI"
+            )
+        disposition = next(iter(strata))
+        counts = tuple(item["qualified_panel_count"] for item in descriptors)
+        panel_descriptors = [
+            item["verified_panels"]
+            for item in descriptors
+        ]
+        classification = StratifiedSourceClassification(
+            doi_id=doi_id,
+            canonical_case_set_hash=case_set_hash,
+            canonical_case_ids=case_ids,
+            verified_panel_descriptors_sha256=sha256_json(panel_descriptors),
+            qualified_panel_counts=counts,
+            derived_public_stratum=disposition,
+            derived_code_label=P_CODE_LABELS[disposition],
+            source_binding_hashes={
+                "source_inventory_sha256": source_inventory.sha256,
+                "raw_source_evidence_sha256": raw_source_evidence.sha256,
+                "candidate_manifest_sha256": candidate_manifest.sha256,
+                "proposal_manifest_sha256": proposal_manifest.sha256,
+                "review_manifest_sha256": review_manifest.sha256,
+                "canonical_manifest_sha256": canonical_manifest.sha256,
+                "canonical_builder_sha256": builder_artifact.sha256,
+            },
+        )
+        final_disposition = STRATIFIED_DISPOSITION
+        reason = "VERIFIED_SOURCE_CANONICAL_CASES"
+    return SourceCanonicalEvidence(
+        doi_id=doi_id,
+        source_inventory=source_inventory,
+        raw_source_evidence=raw_source_evidence,
+        canonical_builder=builder_artifact,
+        eligible_case_ids=case_ids,
+        canonical_case_set_hash=case_set_hash,
+        case_descriptor={"doi_id": doi_id, "cases": descriptors},
+        final_disposition=final_disposition,
+        classification_reason=reason,
+        classification=classification,
+    )
+
+
+def _expected_non_downloaded_disposition(
+    *,
+    outcome: CanonicalOutcome,
+    terminal_evidence: Mapping[str, Any],
+) -> dict[str, Any]:
+    final_disposition = expected_non_stratified_disposition(outcome.terminal_status)
+    reason = {
+        "NO_SOURCE_DATA": "TERMINAL_NO_SOURCE_DATA",
+        "NO_FIGURES": "TERMINAL_NO_FIGURES",
+        "NO_USABLE_CONTENT": "TERMINAL_NO_USABLE_CONTENT",
+        "POLICY_REJECTED": "TERMINAL_POLICY_REJECTED",
+        "DOWNLOAD_FAILED": "TERMINAL_DOWNLOAD_FAILED",
+        "RETRY_EXHAUSTED": "TERMINAL_RETRY_EXHAUSTED",
+    }[outcome.terminal_status]
+    return {
+        "doi_id": outcome.doi_id,
+        "terminal_status_raw": outcome.terminal_status_raw,
+        "terminal_status": outcome.terminal_status,
+        "terminal_evidence_binding": dict(terminal_evidence),
+        "final_disposition": final_disposition,
+        "source_inventory_binding_or_null": None,
+        "canonical_builder_binding_or_null": None,
+        "all_eligible_case_ids": [],
+        "classification_reason": reason,
+    }
+
+
+def _build_acquisition_dispositions(
+    *,
+    policy: CompiledFullReplacementPolicy,
+    chunks: Sequence[ChunkEvidence],
+    source_evidence: Mapping[str, SourceCanonicalEvidence],
+) -> tuple[Mapping[str, Any], ...]:
+    expected: list[Mapping[str, Any]] = []
+    by_chunk = {chunk.chunk_id: chunk for chunk in chunks}
+    for chunk_id in CHUNK_IDS:
+        partition = policy.partition_for_chunk(chunk_id)
+        chunk = by_chunk[chunk_id]
+        terminal_binding = chunk.terminal_evidence_binding(partition.doi_ids_sha256)
+        for outcome in chunk.final_outcomes:
+            if outcome.terminal_status != "DOWNLOADED":
+                expected.append(
+                    _expected_non_downloaded_disposition(
+                        outcome=outcome,
+                        terminal_evidence=terminal_binding,
+                    )
+                )
+                continue
+            source = source_evidence.get(outcome.doi_id)
+            if source is None:
+                raise C2FullReplacementEvidenceError(
+                    f"DOWNLOADED DOI {outcome.doi_id} lacks source/canonical coverage"
+                )
+            expected.append(
+                {
+                    "doi_id": outcome.doi_id,
+                    "terminal_status_raw": outcome.terminal_status_raw,
+                    "terminal_status": outcome.terminal_status,
+                    "terminal_evidence_binding": dict(terminal_binding),
+                    "final_disposition": source.final_disposition,
+                    "source_inventory_binding_or_null": source.source_inventory.to_binding(),
+                    "canonical_builder_binding_or_null": source.canonical_builder.to_binding(),
+                    "all_eligible_case_ids": list(source.eligible_case_ids),
+                    "classification_reason": source.classification_reason,
+                }
+            )
+    if tuple(item["doi_id"] for item in expected) != policy.ordered_doi_ids:
+        raise C2FullReplacementEvidenceError(
+            "V2.1 acquisition dispositions do not cover ordered frozen DOI inputs"
+        )
+    return tuple(expected)
 
 
 def load_and_validate_raw_evidence(
     manifest_path: Path,
     policy: CompiledFullReplacementPolicy,
 ) -> ValidatedRawEvidence:
-    """Hash, parse, and validate every raw artifact from one descriptor root."""
+    """Read every dynamic artifact once and derive V2.1 source classifications."""
 
     if not policy.is_test_only:
         raise C2FullReplacementEvidenceError(
-            "Stage-A raw validation accepts only an in-process synthetic policy"
+            "Stage-A evidence validation accepts only a synthetic policy"
         )
     root: TrustedDirectory | None = None
     try:
         root, manifest_name = _open_manifest_root(manifest_path)
         collector = _ArtifactCollector(root)
-        manifest_artifact = collector.read(
-            manifest_name,
-            None,
-            "V2 admission manifest",
-        )
-        manifest = _parse_json_object(manifest_artifact, "V2 admission manifest")
-        chunks = _validate_manifest(manifest, policy)
-        chunk_evidence: list[ChunkEvidence] = []
-        for chunk_id, chunk in zip(CHUNK_IDS, chunks, strict=True):
+        manifest_artifact = collector.read(manifest_name, None, "V2.1 admission manifest")
+        manifest = _parse_json_object(manifest_artifact, "V2.1 admission manifest")
+        manifest_chunks = _validate_manifest(manifest, policy)
+        chunks: list[ChunkEvidence] = []
+        for chunk_id, chunk in zip(CHUNK_IDS, manifest_chunks, strict=True):
             partition = policy.partition_for_chunk(chunk_id)
-            policy_rows = policy.rows_for_chunk(chunk_id)
-            mapping = _read_bound_artifact(
-                collector,
-                chunk["canonical_mapping"],
-                f"chunk {chunk_id} canonical mapping",
-            )
-            _validate_mapping_artifact(
-                mapping,
-                chunk_id,
-                partition,
-                policy_rows,
-            )
             attempts = tuple(
                 _validate_attempt(
                     collector=collector,
                     binding=attempt,
                     chunk_id=chunk_id,
                     partition=partition,
-                    policy_rows=policy_rows,
+                    expected_dois=policy.dois_for_chunk(chunk_id),
                 )
                 for attempt in chunk["attempts"]
             )
-            if len(attempts) != len(ATTEMPT_IDS):
-                raise C2FullReplacementEvidenceError(
-                    f"chunk {chunk_id} does not have exactly three raw attempts"
-                )
             if chunk_id == "013":
-                expected_ordinals = tuple(range(2401, 2464))
+                expected_global = tuple(range(2401, 2464))
                 for attempt in attempts:
                     if (
-                        tuple(
-                            outcome.global_ordinal for outcome in attempt.outcomes
-                        )
-                        != expected_ordinals
-                        or tuple(
-                            outcome.local_ordinal for outcome in attempt.outcomes
-                        )
+                        tuple(item.global_ordinal for item in attempt.outcomes)
+                        != expected_global
+                        or tuple(item.local_ordinal for item in attempt.outcomes)
                         != tuple(range(1, 64))
                     ):
                         raise C2FullReplacementEvidenceError(
-                            "chunk 013 must contain exactly local ordinals 1..63 "
-                            "and global ordinals 2401..2463 for every attempt"
+                            "chunk 013 must contain exactly ordinals 2401..2463 "
+                            "and local positions 1..63 for every attempt"
                         )
-            chunk_evidence.append(
-                ChunkEvidence(
+            chunks.append(
+                _validate_terminal_chunk(
+                    collector=collector,
+                    chunk=chunk,
                     chunk_id=chunk_id,
-                    canonical_mapping=mapping,
+                    partition=partition,
                     attempts=attempts,
                 )
             )
+        downloaded_dois = tuple(
+            outcome.doi_id
+            for chunk in chunks
+            for outcome in chunk.final_outcomes
+            if outcome.terminal_status == "DOWNLOADED"
+        )
+        source_bindings = manifest["source_canonical"]
+        if tuple(item["doi_id"] for item in source_bindings) != downloaded_dois:
+            raise C2FullReplacementEvidenceError(
+                "V2.1 source/canonical entries must exactly cover ordered DOWNLOADED DOI"
+            )
+        source_records: list[SourceCanonicalEvidence] = []
+        global_case_ids: set[str] = set()
+        for source_binding in source_bindings:
+            source_records.append(
+                _validate_source_canonical(
+                    collector=collector,
+                    binding=source_binding,
+                    policy=policy,
+                    global_case_ids=global_case_ids,
+                )
+            )
+        source_by_doi = {item.doi_id: item for item in source_records}
+        expected_dispositions = _build_acquisition_dispositions(
+            policy=policy,
+            chunks=chunks,
+            source_evidence=source_by_doi,
+        )
+        if tuple(manifest["acquisition_dispositions"]) != expected_dispositions:
+            raise C2FullReplacementEvidenceError(
+                "V2.1 acquisition dispositions are incomplete, selective, or not "
+                "derived from terminal/source/canonical evidence"
+            )
+        classifications = tuple(
+            item.classification
+            for item in source_records
+            if item.classification is not None
+        )
+        case_manifest = [
+            {
+                "doi_id": doi_id,
+                "cases": (
+                    source_by_doi[doi_id].case_descriptor["cases"]
+                    if doi_id in source_by_doi
+                    else []
+                ),
+            }
+            for doi_id in policy.ordered_doi_ids
+        ]
+        per_doi_case_hashes = [
+            sha256_json(item) for item in case_manifest
+        ]
         return ValidatedRawEvidence(
             root=root,
             manifest=manifest,
             manifest_artifact=manifest_artifact,
-            chunks=tuple(chunk_evidence),
+            chunks=tuple(chunks),
+            source_canonical=tuple(source_records),
+            acquisition_dispositions=expected_dispositions,
+            stratified_source_classifications=classifications,
+            canonical_case_set_manifest_sha256=sha256_json(case_manifest),
+            per_doi_case_set_hashes_sha256=sha256_json(per_doi_case_hashes),
             input_artifacts=collector.artifacts,
         )
     except Exception:

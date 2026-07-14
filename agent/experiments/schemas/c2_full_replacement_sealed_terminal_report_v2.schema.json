@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "c2_full_replacement_sealed_terminal_report_v2.schema.json",
+  "title": "C2 V2.1 sealed terminal report binding",
+  "type": "object",
+  "required": [
+    "report_type",
+    "chunk_id",
+    "input_doi_ids_sha256",
+    "terminal_outcomes_file_sha256",
+    "report_hash",
+    "seal"
+  ],
+  "properties": {
+    "report_type": {
+      "const": "c2_v21_sealed_terminal_report"
+    },
+    "chunk_id": {
+      "type": "string",
+      "pattern": "^[0-9]{3}$"
+    },
+    "input_doi_ids_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "terminal_outcomes_file_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "report_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "seal": {
+      "$ref": "#/$defs/seal"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "seal": {
+      "type": "object",
+      "required": [
+        "status",
+        "sealed_report_hash",
+        "seal_hash"
+      ],
+      "properties": {
+        "status": {
+          "const": "TERMINAL"
+        },
+        "sealed_report_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "seal_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

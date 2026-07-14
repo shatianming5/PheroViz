@@ -176,8 +176,8 @@ def _build_parser() -> argparse.ArgumentParser:
     c2_full_replacement_parser = subparsers.add_parser(
         "c2-full-replacement-finalize",
         help=(
-            "Finalize C2 full-replacement V2 evidence using the fixed internal "
-            "policy (unavailable until Stage B)"
+            "Finalize source-derived C2 full-replacement V2.1 evidence using "
+            "the fixed internal policy (unavailable until Stage B)"
         ),
     )
     c2_full_replacement_parser.add_argument("manifest", type=Path)

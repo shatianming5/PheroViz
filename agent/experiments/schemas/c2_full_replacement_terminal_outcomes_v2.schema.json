@@ -1,61 +1,59 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "c2_full_replacement_skipped_status_v2.schema.json",
-  "title": "C2 V2 skipped-status artifact",
+  "$id": "c2_full_replacement_terminal_outcomes_v2.schema.json",
+  "title": "C2 V2.1 terminal outcome ledger",
   "type": "object",
   "required": [
     "artifact_type",
     "chunk_id",
-    "attempt_id",
-    "records"
+    "input_doi_ids_sha256",
+    "outcomes"
   ],
   "properties": {
     "artifact_type": {
-      "const": "c2_v2_skipped_status"
+      "const": "c2_v21_terminal_outcomes"
     },
     "chunk_id": {
       "type": "string",
       "pattern": "^[0-9]{3}$"
     },
-    "attempt_id": {
-      "enum": [
-        "initial",
-        "retry1",
-        "retry2"
-      ]
+    "input_doi_ids_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
     },
-    "records": {
+    "outcomes": {
       "type": "array",
+      "minItems": 1,
       "items": {
-        "$ref": "#/$defs/record"
+        "$ref": "#/$defs/outcome"
       }
     }
   },
   "additionalProperties": false,
   "$defs": {
-    "record": {
+    "outcome": {
       "type": "object",
       "required": [
-        "global_ordinal",
-        "local_ordinal",
         "doi_id",
-        "terminal_status_raw"
+        "attempt_count",
+        "terminal",
+        "terminal_status_raw",
+        "terminal_status"
       ],
       "properties": {
-        "global_ordinal": {
-          "type": "integer",
-          "minimum": 1
-        },
-        "local_ordinal": {
-          "type": "integer",
-          "minimum": 1
-        },
         "doi_id": {
           "type": "string",
           "pattern": "^10\\.[0-9]{4,9}/\\S+$"
         },
+        "attempt_count": {
+          "const": 3
+        },
+        "terminal": {
+          "const": true
+        },
         "terminal_status_raw": {
           "enum": [
+            "downloaded",
             "no-source-data",
             "no-figures",
             "no-usable-content",
@@ -63,6 +61,17 @@
             "fetch-error",
             "download-failed",
             "retry-exhausted"
+          ]
+        },
+        "terminal_status": {
+          "enum": [
+            "DOWNLOADED",
+            "NO_SOURCE_DATA",
+            "NO_FIGURES",
+            "NO_USABLE_CONTENT",
+            "POLICY_REJECTED",
+            "DOWNLOAD_FAILED",
+            "RETRY_EXHAUSTED"
           ]
         }
       },
