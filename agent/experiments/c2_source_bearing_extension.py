@@ -1481,27 +1481,37 @@ def _parse_zip_v1(payload: bytes) -> _ZipInfo:
         local_ranges.append((local_offset, data_end))
         creator_host = (made_by >> 8) & 0xFF
         mode = (external_attributes >> 16) & 0xFFFF
-        is_directory = selector.endswith("/")
+        name_designates_directory = selector.endswith("/")
+        unix_directory = False
         if creator_host in _UNIX_ZIP_CREATOR_HOSTS and mode:
             kind = stat.S_IFMT(mode)
             _require(
                 kind in {0, stat.S_IFREG, stat.S_IFDIR},
                 "REJECT_ZIP_LINK_OR_SPECIAL",
             )
-            if stat.S_ISDIR(mode):
-                is_directory = True
-        if creator_host in _DOS_FAT_ZIP_CREATOR_HOSTS and (
+            unix_directory = stat.S_ISDIR(mode)
+        dos_directory = creator_host in _DOS_FAT_ZIP_CREATOR_HOSTS and (
             external_attributes & _DOS_DIRECTORY_ATTRIBUTE
-        ):
-            is_directory = True
+        ) != 0
+        is_directory = name_designates_directory or unix_directory or dos_directory
         if is_directory:
             _require(
-                selector.endswith("/")
+                name_designates_directory
                 and compressed_size == 0
                 and uncompressed_size == 0
                 and crc32 == 0,
                 "REJECT_ZIP_DIRECTORY_ENTRY",
             )
+            if creator_host in _UNIX_ZIP_CREATOR_HOSTS and mode:
+                _require(
+                    unix_directory,
+                    "REJECT_ZIP_DIRECTORY_METADATA",
+                )
+            if creator_host in _DOS_FAT_ZIP_CREATOR_HOSTS:
+                _require(
+                    dos_directory,
+                    "REJECT_ZIP_DIRECTORY_METADATA",
+                )
         info = infos[index]
         _require(
             info.flag_bits == flags
@@ -1777,7 +1787,16 @@ def _xlsx_profile(payload: bytes, archive: _ZipInfo) -> bool:
         ):
             return False
         overrides[part_name] = content_type
-    if any("/_rels/" in selector and not selector.endswith(".rels") for selector in selectors):
+    if any(
+        (
+            "/_rels/" in selector
+            and (
+                not selector.endswith(".rels")
+                or not selector.casefold().endswith(".rels")
+            )
+        )
+        for selector in selectors
+    ):
         return False
     relationship_parts: dict[str, tuple[str, dict[str, tuple[str, str]]]] = {}
     try:

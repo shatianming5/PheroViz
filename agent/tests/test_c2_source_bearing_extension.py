@@ -824,6 +824,25 @@ def test_raw_xlsx_is_a_zip_accounted_outer_self_unit() -> None:
             )
         )
 
+    xlsx_with_styles = _xlsx(
+        workbook_extra_relationship=(
+            b'<Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.'
+            b'org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
+        )
+    )
+    styled_root, styled_result = _build(
+        _bound_assets(
+            table_payload=xlsx_with_styles,
+            table_format=["ZIP_V1", "XLSX_V1"],
+        )
+    )
+    assert styled_result.canonical["case_count"] == 1
+    assert validate_source_bearing_extension_for_testing(
+        styled_root,
+        partition_records=1,
+        source_chunk_sha256="a" * 64,
+    )["status"] == "PASS"
+
 
 def test_declared_format_bypass_cross_doi_and_mixed_p_fail_closed() -> None:
     archive = _zip({"table.csv": b"panel,value\na,1\n"})
