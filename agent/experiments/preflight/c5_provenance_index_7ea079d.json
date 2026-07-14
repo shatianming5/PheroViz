@@ -1,0 +1,191 @@
+{
+  "batches": {
+    "frontier.primary": {
+      "available": false,
+      "expected_batch_hash": "16003c45fb31c5ae200eec8a97138cb6549220e4bd947f324c2f6bc1ec6e67f5",
+      "path": null
+    },
+    "frontier.secondary": {
+      "available": false,
+      "expected_batch_hash": "0a91e41ecbf485dfa530512f848cd7dc9cd21ae42697245e015c530932d141d0",
+      "path": null
+    },
+    "mid.primary": {
+      "available": false,
+      "expected_batch_hash": "3f4e092518be892d9ba6a31e848378794070a0668cb43c6016594f5f8f8c9278",
+      "path": null
+    },
+    "mid.secondary": {
+      "available": false,
+      "expected_batch_hash": "756f1700cdd418a1c96144004731728c32953b1e8d5227610abc7cbb0f13ba7f",
+      "path": null
+    },
+    "open.primary": {
+      "available": false,
+      "expected_batch_hash": "f85b51c6d28433d697a5acf605a6505b2ef6689e3bd5b64fbbfadfd657cbad72",
+      "path": null
+    },
+    "open.secondary": {
+      "available": false,
+      "expected_batch_hash": "e5f3936175990b44ce87e7b921f3b5ac0cd13db6fac7ec94e9c6788e086fc30d",
+      "path": null
+    }
+  },
+  "common_hashes": {
+    "prompt_hash": null,
+    "rubric_hash": null
+  },
+  "expected_selected_renders": 513,
+  "expected_total_attempts": 1065,
+  "final_report": {
+    "analysis_commit": "100522961e3615cc2726eda57f70510552094bbd",
+    "file_sha256": "5f92b97005fb5a7981a607f3c6f83468d8dc90ccf47f5240da2a16fec3436d6b",
+    "generation_commit": "6f884b91bab08a7c35b4dbe5b1235db868e296c5",
+    "path": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/preflight/c5_final_analysis_1005229.json",
+    "report_commit": "49369f3305d2af8901c1a9a4939c951d46bbd2cd"
+  },
+  "frozen_judge_expectations": {
+    "primary": {
+      "endpoint_class": "anthropic_compatibility_gateway",
+      "expected_served_judge_id": "claude-sonnet-4-6",
+      "judge_id": "visual-form-primary-v1",
+      "prompt_hash": "fa2c1f6199df16fe6d2e47e413f43f1637e464608e212b2a01f66305ab078de1",
+      "requested_judge_id": "claude-sonnet-4.6",
+      "rubric_hash": "259261257f56eacd8c700747e127ff71373c5d9f973b0ffb25e356be0c0ccc16"
+    },
+    "secondary": {
+      "endpoint_class": "anthropic_compatibility_gateway",
+      "expected_served_judge_id": "gemini-3.5-flash",
+      "judge_id": "visual-form-secondary-v1",
+      "prompt_hash": "fa2c1f6199df16fe6d2e47e413f43f1637e464608e212b2a01f66305ab078de1",
+      "requested_judge_id": "gemini-3.5-flash",
+      "rubric_hash": "259261257f56eacd8c700747e127ff71373c5d9f973b0ffb25e356be0c0ccc16"
+    }
+  },
+  "index_hash": "fee3ead3f13b13dce5d9795df7f0a7dc7a4f60df77d3207792dfc1f33ea31366",
+  "model_registry": {
+    "file_sha256": "7a27d4a8e2557b01803a0feac18ca010c24e5eb6270868a7c5eb5a4892a97532",
+    "path": "/Users/tommy/Downloads/mayi/PheroViz/agent/configs/model_registry.yml"
+  },
+  "needed": [
+    {
+      "artifact": "batch.frontier.primary",
+      "expected_hash": "16003c45fb31c5ae200eec8a97138cb6549220e4bd947f324c2f6bc1ec6e67f5",
+      "reason": "valid batch path is unavailable; observed requested/served identity, endpoint, rubric/prompt/input/render hashes, and attempt ledger cannot be verified"
+    },
+    {
+      "artifact": "batch.frontier.secondary",
+      "expected_hash": "0a91e41ecbf485dfa530512f848cd7dc9cd21ae42697245e015c530932d141d0",
+      "reason": "valid batch path is unavailable; observed requested/served identity, endpoint, rubric/prompt/input/render hashes, and attempt ledger cannot be verified"
+    },
+    {
+      "artifact": "batch.mid.primary",
+      "expected_hash": "3f4e092518be892d9ba6a31e848378794070a0668cb43c6016594f5f8f8c9278",
+      "reason": "valid batch path is unavailable; observed requested/served identity, endpoint, rubric/prompt/input/render hashes, and attempt ledger cannot be verified"
+    },
+    {
+      "artifact": "batch.mid.secondary",
+      "expected_hash": "756f1700cdd418a1c96144004731728c32953b1e8d5227610abc7cbb0f13ba7f",
+      "reason": "valid batch path is unavailable; observed requested/served identity, endpoint, rubric/prompt/input/render hashes, and attempt ledger cannot be verified"
+    },
+    {
+      "artifact": "batch.open.primary",
+      "expected_hash": "f85b51c6d28433d697a5acf605a6505b2ef6689e3bd5b64fbbfadfd657cbad72",
+      "reason": "valid batch path is unavailable; observed requested/served identity, endpoint, rubric/prompt/input/render hashes, and attempt ledger cannot be verified"
+    },
+    {
+      "artifact": "batch.open.secondary",
+      "expected_hash": "e5f3936175990b44ce87e7b921f3b5ac0cd13db6fac7ec94e9c6788e086fc30d",
+      "reason": "valid batch path is unavailable; observed requested/served identity, endpoint, rubric/prompt/input/render hashes, and attempt ledger cannot be verified"
+    },
+    {
+      "artifact": "frontier.merged_summary",
+      "expected_hash": "NOT_BOUND",
+      "reason": "final merged_summary path is unavailable"
+    },
+    {
+      "artifact": "frontier.analysis",
+      "expected_hash": "b3fe1ceebaaaf1f3459f76620f2fbbc9b90b12e42981d440aaf2012d2ef9ad8f",
+      "reason": "final analysis path is unavailable"
+    },
+    {
+      "artifact": "mid.merged_summary",
+      "expected_hash": "NOT_BOUND",
+      "reason": "final merged_summary path is unavailable"
+    },
+    {
+      "artifact": "mid.analysis",
+      "expected_hash": "84410f22f3828d66181842d78c2c86f67f44115918038ee192847c2b4f2f5447",
+      "reason": "final analysis path is unavailable"
+    },
+    {
+      "artifact": "open.merged_summary",
+      "expected_hash": "NOT_BOUND",
+      "reason": "final merged_summary path is unavailable"
+    },
+    {
+      "artifact": "open.analysis",
+      "expected_hash": "e2e42641746567ab00d47b040954758791a15295e665dd1f37eeb788d68c33b0",
+      "reason": "final analysis path is unavailable"
+    }
+  ],
+  "observed_total_attempts": 0,
+  "schema_version": "1.0",
+  "stage": "c5_provenance",
+  "status": "INCOMPLETE_SOURCE_ARTIFACTS",
+  "tier_artifacts": {
+    "frontier": {
+      "analysis": {
+        "available": false,
+        "expected_file_sha256": "b3fe1ceebaaaf1f3459f76620f2fbbc9b90b12e42981d440aaf2012d2ef9ad8f",
+        "path": null
+      },
+      "merged_summary": {
+        "available": false,
+        "expected_file_sha256": null,
+        "path": null
+      }
+    },
+    "mid": {
+      "analysis": {
+        "available": false,
+        "expected_file_sha256": "84410f22f3828d66181842d78c2c86f67f44115918038ee192847c2b4f2f5447",
+        "path": null
+      },
+      "merged_summary": {
+        "available": false,
+        "expected_file_sha256": null,
+        "path": null
+      }
+    },
+    "open": {
+      "analysis": {
+        "available": false,
+        "expected_file_sha256": "e2e42641746567ab00d47b040954758791a15295e665dd1f37eeb788d68c33b0",
+        "path": null
+      },
+      "merged_summary": {
+        "available": false,
+        "expected_file_sha256": null,
+        "path": null
+      }
+    }
+  },
+  "tier_input_hashes": {
+    "frontier": {
+      "input_manifest_hash": null,
+      "selected_render_hashes_hash": null,
+      "source_summary_hash": null
+    },
+    "mid": {
+      "input_manifest_hash": null,
+      "selected_render_hashes_hash": null,
+      "source_summary_hash": null
+    },
+    "open": {
+      "input_manifest_hash": null,
+      "selected_render_hashes_hash": null,
+      "source_summary_hash": null
+    }
+  }
+}

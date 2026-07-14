@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "c5_provenance_index.schema.json",
+  "title": "C5 path-resolvable provenance index",
+  "type": "object",
+  "required": ["schema_version", "stage", "status", "final_report", "expected_selected_renders", "expected_total_attempts", "observed_total_attempts", "model_registry", "frozen_judge_expectations", "batches", "tier_artifacts", "common_hashes", "tier_input_hashes", "needed", "index_hash"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "stage": {"const": "c5_provenance"},
+    "status": {"enum": ["COMPLETE", "INCOMPLETE_SOURCE_ARTIFACTS"]},
+    "final_report": {
+      "type": "object",
+      "required": ["path", "file_sha256", "report_commit", "generation_commit", "analysis_commit"],
+      "properties": {
+        "file_sha256": {"$ref": "#/$defs/sha256"},
+        "report_commit": {"type": "string"},
+        "generation_commit": {"type": "string"},
+        "analysis_commit": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "expected_selected_renders": {"const": 513},
+    "expected_total_attempts": {"const": 1065},
+    "observed_total_attempts": {"type": "integer", "minimum": 0},
+    "model_registry": {"type": "object", "required": ["path", "file_sha256"]},
+    "frozen_judge_expectations": {
+      "type": "object",
+      "required": ["primary", "secondary"],
+      "additionalProperties": {"type": "object"}
+    },
+    "batches": {
+      "type": "object",
+      "required": ["frontier.primary", "frontier.secondary", "mid.primary", "mid.secondary", "open.primary", "open.secondary"],
+      "additionalProperties": {"type": "object"}
+    },
+    "tier_artifacts": {
+      "type": "object",
+      "required": ["frontier", "mid", "open"],
+      "additionalProperties": {"type": "object", "required": ["merged_summary", "analysis"]}
+    },
+    "common_hashes": {
+      "type": "object",
+      "required": ["rubric_hash", "prompt_hash"],
+      "additionalProperties": {"type": ["string", "null"]}
+    },
+    "tier_input_hashes": {
+      "type": "object",
+      "required": ["frontier", "mid", "open"],
+      "additionalProperties": {
+        "type": "object",
+        "required": ["input_manifest_hash", "source_summary_hash", "selected_render_hashes_hash"]
+      }
+    },
+    "needed": {"type": "array", "items": {"type": "object"}},
+    "index_hash": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "additionalProperties": false
+}

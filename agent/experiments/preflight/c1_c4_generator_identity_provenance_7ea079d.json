@@ -1,0 +1,69 @@
+{
+  "expected_coverage": 513,
+  "experiment_commit": "d90d655b96bfb3b95bfdc37665692957969d8968",
+  "experiment_source_clean": true,
+  "index_hash": "a281e3f99135ff81116bd54e77633d3c6dd24c7d0a5e2bae850cad116a1ef493",
+  "needed": [
+    {
+      "artifact": "frontier.summary",
+      "path": "/mnt/SSD1_8TB/zechuan/PheroViz-mid-d90d655/agent/experiments/runs/production/_summaries/c1_c3_renderable_v1_seed0_br6_gpt56sol/summary.json",
+      "reason": "sealed summary is unavailable locally"
+    },
+    {
+      "artifact": "mid.summary",
+      "path": "/mnt/SSD1_8TB/zechuan/PheroViz-mid-d90d655/agent/experiments/runs/production/_summaries/c4_mid_renderable_v1_seed0_br6_gpt4omini/summary.json",
+      "reason": "sealed summary is unavailable locally"
+    },
+    {
+      "artifact": "open.summary",
+      "path": "/mnt/SSD1_8TB/zechuan/PheroViz-mid-d90d655/agent/experiments/runs/production/_summaries/c4_open_renderable_v1_seed0_br6_qwen2p5coder7b/summary.json",
+      "reason": "sealed summary is unavailable locally"
+    }
+  ],
+  "observed_coverage": 0,
+  "rows": [],
+  "schema_version": "1.0",
+  "sources": {
+    "frontier": {
+      "completion_report": {
+        "file_sha256": "ed24e83dca9aed6c1ab71079f242e867a15a7bd3e3d1a6268d2c83d56d987b5e",
+        "path": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/preflight/frontier_complete_d90d655.json"
+      },
+      "summary": {
+        "available": false,
+        "expected_file_sha256": "8eb4649a0a3a58ca3f53d93195723a62e18a148375d3b0ed321c97b0beb6510a",
+        "expected_record_bindings_hash": "baa78ad033993188ee29c56ff6be1bd28313f701be6774720d28e25309dc7821",
+        "expected_summary_hash": "3a27f7c8737060b3ed1d48dd072cbefaca9d4cffef587aa874ce34760e975ebb",
+        "path": "/mnt/SSD1_8TB/zechuan/PheroViz-mid-d90d655/agent/experiments/runs/production/_summaries/c1_c3_renderable_v1_seed0_br6_gpt56sol/summary.json"
+      }
+    },
+    "mid": {
+      "completion_report": {
+        "file_sha256": "8d2ce8775ad5b0003d5cd6f483dece03bff196273acf4ce28feed982dc4bdb5a",
+        "path": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/preflight/c4_mid_complete_d90d655.json"
+      },
+      "summary": {
+        "available": false,
+        "expected_file_sha256": "fb0895963dbe4cfab785d11a01dcb66b37309e98f64f367407f5cd4084687181",
+        "expected_record_bindings_hash": "d9467a3e4b46b6595bff641e2f7a9936b391257b26c7d3f5c124acd06aabd392",
+        "expected_summary_hash": "28eece235821b3a8b49dad25daae326e192b4e5e5ef4b190eefe091ace0739ac",
+        "path": "/mnt/SSD1_8TB/zechuan/PheroViz-mid-d90d655/agent/experiments/runs/production/_summaries/c4_mid_renderable_v1_seed0_br6_gpt4omini/summary.json"
+      }
+    },
+    "open": {
+      "completion_report": {
+        "file_sha256": "21cf4b8e300a7f80d9a30382c25a1fe2d2017c6d5600c9ce9324b355824bb7e9",
+        "path": "/Users/tommy/Downloads/mayi/PheroViz/agent/experiments/preflight/open_complete_teardown_d90d655.json"
+      },
+      "summary": {
+        "available": false,
+        "expected_file_sha256": "3f29307bf1dbb295490b51ae40c1fb1b61aa52463ee3121a7bbd0d24449f69fd",
+        "expected_record_bindings_hash": "efbb109e8db58653dbdba929333c3bd822188ff906a6db3849863656107db726",
+        "expected_summary_hash": "4ad39832d6740004d78739d7bcb622ae9acdbf4fa03a702b3162817956a4a3f1",
+        "path": "/mnt/SSD1_8TB/zechuan/PheroViz-mid-d90d655/agent/experiments/runs/production/_summaries/c4_open_renderable_v1_seed0_br6_qwen2p5coder7b/summary.json"
+      }
+    }
+  },
+  "stage": "generator_identity_provenance",
+  "status": "INCOMPLETE_SOURCE_ARTIFACTS"
+}

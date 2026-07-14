@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "generator_identity_provenance_index.schema.json",
+  "title": "C1/C4 generator identity provenance index",
+  "type": "object",
+  "required": ["schema_version", "stage", "status", "experiment_commit", "experiment_source_clean", "expected_coverage", "observed_coverage", "sources", "rows", "needed", "index_hash"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "stage": {"const": "generator_identity_provenance"},
+    "status": {"enum": ["COMPLETE", "INCOMPLETE_SOURCE_ARTIFACTS"]},
+    "experiment_commit": {"const": "d90d655b96bfb3b95bfdc37665692957969d8968"},
+    "experiment_source_clean": {"const": true},
+    "expected_coverage": {"const": 513},
+    "observed_coverage": {"type": "integer", "minimum": 0, "maximum": 513},
+    "sources": {"type": "object", "required": ["frontier", "mid", "open"]},
+    "rows": {"type": "array", "maxItems": 513, "items": {"$ref": "#/$defs/row"}},
+    "needed": {"type": "array", "items": {"type": "object"}},
+    "index_hash": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "row": {
+      "type": "object",
+      "required": ["tier", "run_name", "method", "seed", "case_id", "record_path", "record_file_sha256", "record_hash", "spec_hash", "request_alias", "served_model", "snapshot_or_revision", "endpoint_class", "hosting_engine", "precision", "access_timestamp", "execution_started_at", "execution_finished_at", "missing_fields"],
+      "properties": {
+        "tier": {"enum": ["frontier", "mid", "open"]},
+        "method": {"enum": ["best_of_n", "flat_iterative", "pheroviz_full"]},
+        "record_file_sha256": {"$ref": "#/$defs/sha256"},
+        "record_hash": {"$ref": "#/$defs/sha256"},
+        "spec_hash": {"$ref": "#/$defs/sha256"},
+        "served_model": {"type": ["string", "null"]},
+        "snapshot_or_revision": {"type": ["string", "null"]},
+        "endpoint_class": {"type": ["string", "null"]},
+        "hosting_engine": {"type": ["string", "null"]},
+        "precision": {"type": ["string", "null"]},
+        "access_timestamp": {"type": ["string", "null"]},
+        "missing_fields": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

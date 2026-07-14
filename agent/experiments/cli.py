@@ -24,6 +24,13 @@ from .production_statistics import (
     write_analysis_outputs,
     write_holm_family_output,
 )
+from .provenance_stage import (
+    build_c5_provenance_index,
+    build_generator_identity_index,
+    validate_c5_provenance_index,
+    validate_generator_identity_index,
+    write_provenance_index,
+)
 from .rejudge import merge_rejudged_summary, rejudge_batch
 
 
@@ -147,6 +154,13 @@ def _build_parser() -> argparse.ArgumentParser:
     merge_parser.add_argument("summary", type=Path)
     merge_parser.add_argument("sidecar_dir", type=Path)
     merge_parser.add_argument("--out", type=Path, default=None)
+
+    provenance_parser = subparsers.add_parser(
+        "provenance-stage",
+        help="Build a fail-closed final C1/C4 or C5 provenance index",
+    )
+    provenance_parser.add_argument("manifest", type=Path)
+    provenance_parser.add_argument("--out", type=Path, required=True)
     return parser
 
 
@@ -352,6 +366,52 @@ def _merge_rejudge_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def _provenance_stage_command(args: argparse.Namespace) -> int:
+    manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
+    kind = manifest.get("kind")
+    if kind == "generator":
+        reports = {
+            tier: Path(path)
+            for tier, path in manifest.get("completion_reports", {}).items()
+        }
+        payload = build_generator_identity_index(reports)
+        validate_generator_identity_index(payload)
+    elif kind == "c5":
+        batch_paths = {
+            key: None if path is None else Path(path)
+            for key, path in manifest.get("batch_paths", {}).items()
+        }
+        tier_artifacts = {
+            tier: {
+                name: None if path is None else Path(path)
+                for name, path in paths.items()
+            }
+            for tier, paths in manifest.get("tier_artifacts", {}).items()
+        }
+        payload = build_c5_provenance_index(
+            Path(manifest["final_report"]),
+            batch_paths=batch_paths,
+            tier_artifacts=tier_artifacts,
+        )
+        validate_c5_provenance_index(payload)
+    else:
+        raise ProvenanceError("Provenance manifest kind must be generator or c5")
+    path = write_provenance_index(payload, args.out)
+    print(
+        json.dumps(
+            {
+                "path": str(path),
+                "status": payload["status"],
+                "index_hash": payload["index_hash"],
+            },
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return 0 if payload["status"] == "COMPLETE" else 3
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
@@ -370,6 +430,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return _rejudge_command(args)
         if args.command == "merge-rejudge":
             return _merge_rejudge_command(args)
+        if args.command == "provenance-stage":
+            return _provenance_stage_command(args)
     except (AggregationError, MatrixError, ProvenanceError, StatisticsError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
