@@ -1,0 +1,201 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "c2_terminal_admission_manifest.schema.json",
+  "title": "C2 terminal-admission manifest",
+  "description": "An explicit, hash-bound roster of sealed chunk reports. It contains no live output-root path.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "manifest_hash",
+    "frozen_universe",
+    "code",
+    "replacement_policy",
+    "chunks"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "manifest_hash": {
+      "$ref": "#/$defs/sha256"
+    },
+    "frozen_universe": {
+      "$ref": "#/$defs/frozenUniverse"
+    },
+    "code": {
+      "$ref": "#/$defs/cleanCode"
+    },
+    "replacement_policy": {
+      "type": "object",
+      "required": [
+        "replacement_chunk_ids",
+        "excluded_superseded_roots"
+      ],
+      "properties": {
+        "replacement_chunk_ids": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/chunkId"
+          }
+        },
+        "excluded_superseded_roots": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "required": [
+              "chunk_id",
+              "root_id"
+            ],
+            "properties": {
+              "chunk_id": {
+                "$ref": "#/$defs/chunkId"
+              },
+              "root_id": {
+                "$ref": "#/$defs/rootId"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "chunks": {
+      "type": "array",
+      "minItems": 13,
+      "maxItems": 13,
+      "items": {
+        "$ref": "#/$defs/chunkBinding"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "chunkId": {
+      "type": "string",
+      "pattern": "^[0-9]{3}$"
+    },
+    "rootId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "cleanCode": {
+      "type": "object",
+      "required": [
+        "commit",
+        "dirty"
+      ],
+      "properties": {
+        "commit": {
+          "$ref": "#/$defs/commit"
+        },
+        "dirty": {
+          "const": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "frozenUniverse": {
+      "type": "object",
+      "required": [
+        "sha256",
+        "input_total",
+        "doi_ids_sha256"
+      ],
+      "properties": {
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "input_total": {
+          "type": "integer",
+          "minimum": 13
+        },
+        "doi_ids_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "additionalProperties": false
+    },
+    "rootBinding": {
+      "type": "object",
+      "required": [
+        "root_id",
+        "root_kind",
+        "supersedes_root_id",
+        "partial_root"
+      ],
+      "properties": {
+        "root_id": {
+          "$ref": "#/$defs/rootId"
+        },
+        "root_kind": {
+          "enum": [
+            "canonical",
+            "replacement"
+          ]
+        },
+        "supersedes_root_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "partial_root": {
+          "const": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "chunkBinding": {
+      "type": "object",
+      "required": [
+        "chunk_id",
+        "root",
+        "report_path",
+        "expected_report_file_sha256",
+        "expected_report_hash",
+        "input_total",
+        "input_doi_ids_sha256"
+      ],
+      "properties": {
+        "chunk_id": {
+          "$ref": "#/$defs/chunkId"
+        },
+        "root": {
+          "$ref": "#/$defs/rootBinding"
+        },
+        "report_path": {
+          "type": "string",
+          "minLength": 6
+        },
+        "expected_report_file_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "expected_report_hash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "input_total": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "input_doi_ids_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

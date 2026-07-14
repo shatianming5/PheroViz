@@ -1,0 +1,323 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "c2_terminal_chunk_report.schema.json",
+  "title": "Sealed C2 terminal chunk report",
+  "description": "A complete, outcome-independent terminal seal for one frozen C2 chunk.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "report_type",
+    "report_hash",
+    "chunk",
+    "code",
+    "frozen_universe",
+    "root",
+    "execution",
+    "evidence",
+    "seal"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "report_type": {
+      "const": "c2_terminal_chunk_report"
+    },
+    "report_hash": {
+      "$ref": "#/$defs/sha256"
+    },
+    "chunk": {
+      "$ref": "#/$defs/chunk"
+    },
+    "code": {
+      "$ref": "#/$defs/cleanCode"
+    },
+    "frozen_universe": {
+      "$ref": "#/$defs/frozenUniverse"
+    },
+    "root": {
+      "$ref": "#/$defs/rootBinding"
+    },
+    "execution": {
+      "$ref": "#/$defs/execution"
+    },
+    "evidence": {
+      "$ref": "#/$defs/evidence"
+    },
+    "seal": {
+      "$ref": "#/$defs/seal"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "chunkId": {
+      "type": "string",
+      "pattern": "^[0-9]{3}$"
+    },
+    "doi": {
+      "type": "string",
+      "pattern": "^10\\.[0-9]{4,9}/\\S+$"
+    },
+    "rootId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "cleanCode": {
+      "type": "object",
+      "required": [
+        "commit",
+        "dirty"
+      ],
+      "properties": {
+        "commit": {
+          "$ref": "#/$defs/commit"
+        },
+        "dirty": {
+          "const": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "frozenUniverse": {
+      "type": "object",
+      "required": [
+        "sha256",
+        "input_total",
+        "doi_ids_sha256"
+      ],
+      "properties": {
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "input_total": {
+          "type": "integer",
+          "minimum": 13
+        },
+        "doi_ids_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "additionalProperties": false
+    },
+    "rootBinding": {
+      "type": "object",
+      "required": [
+        "root_id",
+        "root_kind",
+        "supersedes_root_id",
+        "partial_root"
+      ],
+      "properties": {
+        "root_id": {
+          "$ref": "#/$defs/rootId"
+        },
+        "root_kind": {
+          "enum": [
+            "canonical",
+            "replacement"
+          ]
+        },
+        "supersedes_root_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "partial_root": {
+          "const": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "chunk": {
+      "type": "object",
+      "required": [
+        "chunk_id",
+        "input_total",
+        "input_doi_ids",
+        "input_doi_ids_sha256"
+      ],
+      "properties": {
+        "chunk_id": {
+          "$ref": "#/$defs/chunkId"
+        },
+        "input_total": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "input_doi_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/doi"
+          }
+        },
+        "input_doi_ids_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "additionalProperties": false
+    },
+    "terminalOutcome": {
+      "type": "object",
+      "required": [
+        "doi_id",
+        "attempt_count",
+        "terminal",
+        "terminal_status"
+      ],
+      "properties": {
+        "doi_id": {
+          "$ref": "#/$defs/doi"
+        },
+        "attempt_count": {
+          "const": 3
+        },
+        "terminal": {
+          "const": true
+        },
+        "terminal_status": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[A-Z][A-Z0-9_+-]*$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "execution": {
+      "type": "object",
+      "required": [
+        "attempts_per_input",
+        "all_inputs_terminal",
+        "outcomes"
+      ],
+      "properties": {
+        "attempts_per_input": {
+          "const": 3
+        },
+        "all_inputs_terminal": {
+          "const": true
+        },
+        "outcomes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/terminalOutcome"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "selection": {
+      "type": "object",
+      "required": [
+        "scope",
+        "partial",
+        "selective",
+        "model_result_selected"
+      ],
+      "properties": {
+        "scope": {
+          "const": "ALL_TERMINAL_INPUTS"
+        },
+        "partial": {
+          "const": false
+        },
+        "selective": {
+          "const": false
+        },
+        "model_result_selected": {
+          "const": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "stratumAssignment": {
+      "type": "object",
+      "required": [
+        "doi_id",
+        "stratum",
+        "independent_doi_cluster_id"
+      ],
+      "properties": {
+        "doi_id": {
+          "$ref": "#/$defs/doi"
+        },
+        "stratum": {
+          "enum": [
+            "P=1",
+            "P=2",
+            "P=3-4",
+            "P=5+"
+          ]
+        },
+        "independent_doi_cluster_id": {
+          "$ref": "#/$defs/rootId"
+        }
+      },
+      "additionalProperties": false
+    },
+    "evidence": {
+      "type": "object",
+      "required": [
+        "selection",
+        "source_doi_ids",
+        "source_doi_ids_sha256",
+        "source_doi_strata"
+      ],
+      "properties": {
+        "selection": {
+          "$ref": "#/$defs/selection"
+        },
+        "source_doi_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/doi"
+          }
+        },
+        "source_doi_ids_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "source_doi_strata": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/stratumAssignment"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "seal": {
+      "type": "object",
+      "required": [
+        "status",
+        "sealed_report_hash",
+        "seal_hash"
+      ],
+      "properties": {
+        "status": {
+          "const": "TERMINAL"
+        },
+        "sealed_report_hash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "seal_hash": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

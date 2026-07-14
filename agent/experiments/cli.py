@@ -7,6 +7,10 @@ from pathlib import Path
 from typing import Sequence
 
 from .aggregate import AggregationError, aggregate_runs
+from .c2_terminal_finalizer import (
+    finalize_manifest as finalize_c2_terminal_manifest,
+    write_final_report as write_c2_terminal_final_report,
+)
 from .decision_report import (
     build_decision_report,
     write_decision_report,
@@ -161,6 +165,13 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     provenance_parser.add_argument("manifest", type=Path)
     provenance_parser.add_argument("--out", type=Path, required=True)
+
+    c2_finalizer_parser = subparsers.add_parser(
+        "c2-terminal-finalize",
+        help="Build a terminal-only C2 report from sealed chunk reports",
+    )
+    c2_finalizer_parser.add_argument("manifest", type=Path)
+    c2_finalizer_parser.add_argument("--out", type=Path, required=True)
     return parser
 
 
@@ -429,6 +440,25 @@ def _provenance_stage_command(args: argparse.Namespace) -> int:
     return 0 if payload["status"] == "COMPLETE" else 3
 
 
+def _c2_terminal_finalize_command(args: argparse.Namespace) -> int:
+    report = finalize_c2_terminal_manifest(args.manifest)
+    path = write_c2_terminal_final_report(report, args.out)
+    print(
+        json.dumps(
+            {
+                "final_universe_report": str(path),
+                "final_report_hash": report["final_report_hash"],
+                "status": report["status"],
+                "claim_status": report["claim_status"],
+            },
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return 0 if report["status"] == "ADMITTED" else 3
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
@@ -449,6 +479,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return _merge_rejudge_command(args)
         if args.command == "provenance-stage":
             return _provenance_stage_command(args)
+        if args.command == "c2-terminal-finalize":
+            return _c2_terminal_finalize_command(args)
     except (AggregationError, MatrixError, ProvenanceError, StatisticsError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
