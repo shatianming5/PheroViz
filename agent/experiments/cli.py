@@ -7,6 +7,10 @@ from pathlib import Path
 from typing import Sequence
 
 from .aggregate import AggregationError, aggregate_runs
+from .c2_remediation_root_finalizer import (
+    SUPPORTED_REMEDIATION_CHUNKS,
+    finalize_remediation_root,
+)
 from .c2_terminal_finalizer import finalize_to_path as finalize_c2_to_path
 from .decision_report import (
     build_decision_report,
@@ -169,6 +173,21 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     c2_finalizer_parser.add_argument("manifest", type=Path)
     c2_finalizer_parser.add_argument("--out", type=Path, required=True)
+
+    c2_remediation_parser = subparsers.add_parser(
+        "c2-remediation-root-finalize",
+        help="Seal a fresh C2 remediation root from immutable raw attempt evidence",
+    )
+    c2_remediation_parser.add_argument(
+        "chunk_id",
+        choices=tuple(sorted(SUPPORTED_REMEDIATION_CHUNKS)),
+    )
+    c2_remediation_parser.add_argument("--raw-root", type=Path, required=True)
+    c2_remediation_parser.add_argument("--target-root", type=Path, required=True)
+    c2_remediation_parser.add_argument("--source-chunk", type=Path, required=True)
+    c2_remediation_parser.add_argument("--frozen-universe", type=Path, required=True)
+    c2_remediation_parser.add_argument("--freeze-summary", type=Path, required=True)
+    c2_remediation_parser.add_argument("--worktree", type=Path, required=True)
     return parser
 
 
@@ -455,6 +474,20 @@ def _c2_terminal_finalize_command(args: argparse.Namespace) -> int:
     return 0 if report["status"] == "ADMITTED" else 3
 
 
+def _c2_remediation_root_finalize_command(args: argparse.Namespace) -> int:
+    result = finalize_remediation_root(
+        chunk_id=args.chunk_id,
+        raw_root=args.raw_root,
+        target_root=args.target_root,
+        source_chunk=args.source_chunk,
+        frozen_universe=args.frozen_universe,
+        freeze_summary=args.freeze_summary,
+        worktree=args.worktree,
+    )
+    print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
@@ -477,6 +510,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return _provenance_stage_command(args)
         if args.command == "c2-terminal-finalize":
             return _c2_terminal_finalize_command(args)
+        if args.command == "c2-remediation-root-finalize":
+            return _c2_remediation_root_finalize_command(args)
     except (AggregationError, MatrixError, ProvenanceError, StatisticsError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
