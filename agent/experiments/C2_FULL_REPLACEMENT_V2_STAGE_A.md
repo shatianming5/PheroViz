@@ -1,113 +1,121 @@
-# C2 full-replacement V2 — Stage A only
+# C2 full-replacement V2.1 — source-classification Stage A
 
-This is an isolated successor to `c2-terminal-finalize`; it does not alter V1.
-It exists to exercise the reviewed V2 verifier with synthetic data only.
+This isolated V2.1 path supersedes the rejected Stage-A full DOI→P-map design.
+It does not alter V1 terminal admission and it does not admit production C2
+evidence.
 
-## Production gate
+## Production boundary
 
-`phero-experiments c2-full-replacement-finalize MANIFEST --out REPORT` has no
-policy, mapping, digest, root, evidence-skip, environment, or path-selector
-option. During Stage A its fixed production resolver always fails before
-reading the manifest or creating output, because no package-internal,
-Git-reviewed policy resource and compiled resource-byte SHA-256 exist yet.
+`phero-experiments c2-full-replacement-finalize MANIFEST --out REPORT` accepts
+only the manifest and `--out`. It has no policy, map, digest, root, evidence
+skip, environment, or path selector. During Stage A the fixed production policy
+resolver fails before reading either path or creating output: no Git-reviewed
+package resource and compiled resource-byte SHA-256 exist.
 
-The only injectable policy API is explicitly test-named:
-`compile_synthetic_policy_for_testing` together with
-`prepare_full_replacement_finalization_for_testing`. It accepts an in-memory
-synthetic object and is not a security boundary inside a hostile Python
-process. No production CLI route calls it.
+The explicitly test-named in-process APIs accept synthetic ordered acquisition
+policies only. They are structural APIs, not a hostile-process security
+boundary. No CLI path can select them.
 
-Do not add a production policy, root ID, digest, manifest, or evidence bundle
-until the separate Stage B forensic approval.
+## Two populations; no fabricated P labels
 
-## Fixed Stage-A contract
+V2.1 validates all 2,463 ordered acquisition DOI in the fixed
+`001..013`/`12×200+63` partition. The test policy pins only the frozen ordered
+DOI, chunk bindings, replacement plan, code/rule hashes, and source evidence
+rules. It **never** contains a P label or cluster for every acquisition DOI.
 
-The synthetic compiler requires the literal ordered roster `001` through
-`013`, all thirteen replacement/retirement plan entries, and the frozen
-partition `12 × 200 + 63 = 2,463`. Chunk `013` has global ordinals
-`2401..2463` and local ordinals `1..63` on **every** initial/retry1/retry2 raw
-stream. It cannot be padded, reordered, or treated as a 200-record chunk.
+Every DOI has one ordered `acquisition_dispositions` record derived from sealed
+retry2 terminal evidence:
 
-Policy mapping rows have exactly:
+- non-download terminal states become the matching `NON_STRATIFIED_*` result;
+- a downloaded DOI with a verified empty source inventory becomes
+  `NON_STRATIFIED_DOWNLOADED_NO_VERIFIED_SOURCE`;
+- a downloaded DOI with no qualifying canonical case becomes
+  `NON_STRATIFIED_SOURCE_NO_CANONICAL_CASE`;
+- only a downloaded DOI with complete verified source/canonical evidence and
+  one all-case stratum becomes `STRATIFIED_SOURCE_CANONICAL`.
 
-```json
-{
-  "global_ordinal": 1,
-  "doi_id": "10.xxxx/normalized-doi",
-  "p_disposition": "P2",
-  "independent_cluster_id": "policy-literal"
-}
-```
+No acquisition-only or non-stratified record has a P label or cluster. P1,
+P2, P3_4, and P5PLUS exist only in `stratified_source_classifications`.
+Cluster identity is exactly normalized `doi_id`, never a synthetic alias.
 
-Every full synthetic policy contains 2,463 ordered rows. Mapping aggregation is
-shared by validation and reporting. No evidence, manifest, report, CLI
-argument, or hash claim can supply or alter P/cluster semantics.
+## Descriptor-rooted evidence
 
-The closed P enum is `P1`, `P2`, `P3_4`, `P5PLUS`. Every P1 row has exactly
-`P1_NONINFERENTIAL`; it has zero countable independent clusters and is never
-inference eligible. A present P1 row is deficient. An absent P1 stratum is
-`NOT_PRESENT` rather than deficient. P2/P3_4/P5PLUS are deficient only when
-present with fewer than two distinct policy-literal clusters. A zero-row
-non-P1 stratum is also `NOT_PRESENT`, has zero clusters, is nondeficient, and
-is not inference eligible. P5PLUS deficiency has blocked-status precedence.
-Every deficiency produces `UNSUPPORTED`, `NOT_RUN` trend status, and `NOT_RUN`
-equivalence status.
+The manifest is at the trusted evidence-root leaf. All dynamic paths are safe
+manifest-relative paths; symlink traversal, hard-link aliases, dot traversal,
+duplicate input paths, stale hashes, and parent replacement are rejected.
+Every artifact is opened once with descriptor-relative `O_NOFOLLOW`, hashed
+while its exact bytes are read, parsed from those captured bytes, and retained
+by device/inode identity.
 
-## Raw evidence layout and recomputation
+For every chunk, V2.1 verifies initial/retry1/retry2 raw streams,
+processed-success, skipped-status, a terminal-outcome ledger, and a sealed
+terminal report. The closed raw-status adapter is:
 
-The V2 manifest lives at the trusted evidence-root leaf. Every artifact path is
-strictly manifest-relative, has a full SHA-256 byte binding, cannot contain
-`.`/`..`, absolute paths, backslashes, duplicate paths, symlink traversal, or
-hard-link aliases.
+`downloaded`, `no-source-data`, `no-figures`, `no-usable-content`,
+`policy-rejected`, `fetch-error`, `download-failed`, `retry-exhausted`.
 
-For each chunk, the manifest binds:
+`DOWNLOADED` derives only from processed-success evidence. It is forbidden in
+skipped-status records. Chunk 013 requires exactly global ordinals `2401..2463`
+and local ordinals `1..63` on every attempt.
 
-1. one canonical mapping JSONL artifact;
-2. an ordered `initial`, `retry1`, `retry2` set;
-3. for each attempt, a raw JSONL stream, processed-success JSON object, and
-   skipped-status JSON object.
+## Source/canonical derivation
 
-Each raw row contains `attempt_id`, `global_ordinal`, `local_ordinal`, DOI,
-and `raw_disposition` (`PROCESSED` or `SKIPPED`). The processed-success and
-skipped-status records must be the exact ordered disjoint partition of that
-raw stream. `DOWNLOADED` is derived only from a verified processed-success row
-with no skipped entry. It is forbidden in skipped-status data; each skipped
-entry must contain a closed non-download terminal status. Retry2 is the
-terminal outcome source.
+Every downloaded DOI must have exactly one verified source inventory, one
+raw-source-evidence inventory, and one complete, clean canonical-builder
+output. The raw-source inventory binds every candidate ID to descriptor-read
+raw bytes and its SHA-256; each candidate, panel, and source table must retain
+that same raw-byte binding. Candidate, proposal, review, and canonical parent
+bindings are separate no-follow hashed artifacts tied to the same normalized
+parent DOI. Builder input/output, code/rule hashes, full parent DOI hash, and
+no-model-selection flags are checked.
 
-The verifier opens the trusted evidence directory chain with no-follow
-directory descriptors. It opens each artifact once with `O_NOFOLLOW`, hashes
-those exact bytes while reading, parses the captured bytes, retains the
-device/inode identity, and never reopens the path to validate it. The canonical
-mapping is compared row-for-row and ordinal-for-ordinal with the synthetic
-compiled map. The final report retains the complete canonical
-DOI/ordinal/attempt ledger linked to every raw artifact digest; summaries alone
-never establish attempt facts.
+Each canonical case recomputes verified panel membership from raw source-table
+artifacts. Panel/source candidate parent DOI must equal the case parent DOI;
+cross-DOI candidates, duplicate panels/candidates/fingerprints, missing source
+tables, or asserted count/P disagreement reject. A multi-panel case requires
+distinct verified same-DOI source cases. A canonical source-case record is
+provenance support for a panel; it is not an experiment case selected into the
+DOI's all-case set.
+
+All eligible canonical cases for a DOI are retained, sorted by Unicode
+`case_id`, and hashed. P derives solely from recomputed panel count:
+
+| qualified panels | derived stratum |
+| --- | --- |
+| 1 | P1 |
+| 2 | P2 |
+| 3–4 | P3_4 |
+| ≥5 | P5PLUS |
+
+Multiple eligible cases are permitted only when all derive the same stratum;
+each has equal case weight under `DOI_CASE_AGGREGATION_V1`. Mixed strata reject
+instead of selecting a favorable case.
+
+Coverage counts only DOI-level stratified classifications. P1 is reported but
+outside the coverage gate. P2, P3_4, and P5PLUS each require at least two
+independent DOI clusters. P5PLUS failure takes blocked-status precedence. All
+outputs retain `NOT_RUN` trend/equivalence fields and never generate an
+analysis.
 
 ## Output protocol
 
-`--out` must name an absent leaf under a pre-existing trusted parent chain. The
-parent chain must be root/current-euid owned, non-group/world-writable, and
-free of mutating ACLs. The output parent and evidence root must be distinct and
-non-containing; the output must be outside the evidence root and cannot alias
-any validated input by lexical path, device/inode, or hard link.
+The output parent and evidence root must be trusted, distinct, and
+non-containing. `--out` must be absent and outside all validated evidence;
+lexical, device/inode, and hard-link aliases reject.
 
-V2 never uses rename/replace publication. It creates a mode-0600
-descriptor-relative staging file in the output directory, fsyncs it, then
-publishes only by descriptor-relative hard-link creation to the final leaf.
-`EEXIST` fails without overwrite. The writer validates final/staging inode
-identity, fsyncs the directory, identity-checks staging before unlinking it,
-and fsyncs again. Unsupported link-at-style primitives, a leaf/parent swap,
-or a cleanup/durability failure produce no success result. A failed link leaves
-the restrictive staging name orphaned rather than risk unlinking a concurrently
-reused pathname.
+Publication uses only descriptor-relative same-directory staging plus
+hard-link no-replace publication. It fsyncs the staging file and parent,
+verifies inode identity, then identity-checks staging before unlink. There is
+no rename/overwrite/copy fallback. Unsupported primitives, output races,
+symlinks, cleanup uncertainty, or parent/leaf replacement return no success.
+A failed link leaves a restrictive staging file rather than deleting a
+potentially reused pathname.
 
-## Stage B remains mandatory
+## Stage B gate
 
-Stage B must add one package-internal production policy resource containing the
-reviewed full 2,463-row map, partition, all replacement/retirement bindings,
-raw-source manifest, and evidence commitments. Its exact resource bytes must
-be checked against a compiled-in SHA-256 before parsing. It must preserve all
-of the Stage-A no-follow, one-read, raw-ledger, P1, collision, trusted-parent,
-and no-replace rules. Until then this implementation is not an admission route
-for any real C2 evidence.
+Stage B still needs forensic approval and a Git-reviewed internal resource that
+pins frozen universe bindings, replacement plan, source/canonical rule hashes,
+and raw-source commitments. It must not add a full acquisition DOI→P map.
+Only verified source/canonical case evidence may derive a P stratum. Until
+then, no production manifest, root, report, scientific claim, or analysis is
+authorized.

@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "c2_full_replacement_raw_source_evidence_v2.schema.json",
+  "title": "C2 V2.1 raw source evidence inventory",
+  "type": "object",
+  "required": [
+    "artifact_type",
+    "parent_doi_id",
+    "complete",
+    "model_result_selected",
+    "source_candidates"
+  ],
+  "properties": {
+    "artifact_type": {
+      "const": "c2_v21_raw_source_evidence"
+    },
+    "parent_doi_id": {
+      "type": "string",
+      "pattern": "^10\\.[0-9]{4,9}/\\S+$"
+    },
+    "complete": {
+      "const": true
+    },
+    "model_result_selected": {
+      "const": false
+    },
+    "source_candidates": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/sourceCandidate"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "sourceCandidate": {
+      "type": "object",
+      "required": [
+        "source_candidate_id",
+        "parent_doi_id",
+        "raw_source_path",
+        "raw_source_sha256"
+      ],
+      "properties": {
+        "source_candidate_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "parent_doi_id": {
+          "type": "string",
+          "pattern": "^10\\.[0-9]{4,9}/\\S+$"
+        },
+        "raw_source_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "raw_source_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

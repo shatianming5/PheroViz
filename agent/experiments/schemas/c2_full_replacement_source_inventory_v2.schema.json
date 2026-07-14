@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "c2_full_replacement_source_inventory_v2.schema.json",
+  "title": "C2 V2.1 raw source inventory",
+  "type": "object",
+  "required": [
+    "artifact_type",
+    "parent_doi_id",
+    "complete",
+    "model_result_selected",
+    "raw_source_evidence",
+    "source_candidate_ids"
+  ],
+  "properties": {
+    "artifact_type": {
+      "const": "c2_v21_source_inventory"
+    },
+    "parent_doi_id": {
+      "type": "string",
+      "pattern": "^10\\.[0-9]{4,9}/\\S+$"
+    },
+    "complete": {
+      "const": true
+    },
+    "model_result_selected": {
+      "const": false
+    },
+    "raw_source_evidence": {
+      "$ref": "#/$defs/artifact"
+    },
+    "source_candidate_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "artifact": {
+      "type": "object",
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
