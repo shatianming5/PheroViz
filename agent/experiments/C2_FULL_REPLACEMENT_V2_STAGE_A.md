@@ -16,9 +16,10 @@ either path or creating output. No local resource or selector can satisfy that
 condition. The Stage-A resolver remains independently fail-closed when a future
 external M1 integration is available.
 
-The explicitly test-named in-process APIs accept synthetic ordered acquisition
-policies only. They are structural APIs, not a hostile-process security
-boundary. No CLI path can select them.
+Synthetic finalization support is confined to
+`agent/tests/_c2_full_replacement_test_support.py`, outside the production
+`experiments` package. No production library import or CLI path exposes those
+fixture helpers.
 
 ## Two populations; no fabricated P labels
 

@@ -15,15 +15,8 @@ from typing import Any, Iterator
 import pytest
 
 import experiments.c2_full_replacement_evidence as v2_evidence
-import experiments.c2_full_replacement_finalizer as v2_finalizer
 from experiments.c2_full_replacement_evidence import thaw_evidence_value
-from experiments.c2_full_replacement_finalizer import (
-    C2FullReplacementError,
-    _write_full_replacement_report_for_testing as write_full_replacement_report,
-    finalize_synthetic_to_path_for_testing,
-    prepare_full_replacement_finalization_for_testing,
-    validate_synthetic_final_report_for_testing,
-)
+from experiments.c2_full_replacement_finalizer import C2FullReplacementError
 from experiments.c2_full_replacement_policy import (
     ATTEMPT_IDS,
     CHUNK_IDS,
@@ -40,6 +33,13 @@ from experiments.c2_full_replacement_policy import (
 )
 from experiments.cli import _build_parser, main as cli_main
 from experiments.models import sha256_json
+import tests._c2_full_replacement_test_support as v2_test_support
+from tests._c2_full_replacement_test_support import (
+    finalize_synthetic_to_path_for_testing,
+    prepare_full_replacement_finalization_for_testing,
+    validate_synthetic_final_report_for_testing,
+    write_full_replacement_report_for_testing as write_full_replacement_report,
+)
 
 
 EXPECTED_CHUNK_IDS = (
@@ -1465,8 +1465,8 @@ def test_link_race_unsupported_and_staging_reuse_preserve_unrelated_files(
                 follow_symlinks=follow_symlinks,
             )
 
-        monkeypatch.setattr(v2_finalizer, "_linkat_no_replace_supported", lambda: True)
-        monkeypatch.setattr(v2_finalizer.os, "link", competing_leaf)
+        monkeypatch.setattr(v2_test_support, "_linkat_no_replace_supported", lambda: True)
+        monkeypatch.setattr(v2_test_support.os, "link", competing_leaf)
         try:
             with pytest.raises(C2FullReplacementError, match="existing output leaf"):
                 write_full_replacement_report(finalized, output)
@@ -1477,7 +1477,7 @@ def test_link_race_unsupported_and_staging_reuse_preserve_unrelated_files(
     with _workspace("unsupported") as workspace:
         fixture = _build_fixture(workspace)
         finalized = _prepare(fixture)
-        monkeypatch.setattr(v2_finalizer, "_linkat_no_replace_supported", lambda: False)
+        monkeypatch.setattr(v2_test_support, "_linkat_no_replace_supported", lambda: False)
         try:
             with pytest.raises(C2FullReplacementError, match="unsupported"):
                 write_full_replacement_report(finalized, fixture.output_root / "no.json")
@@ -1516,8 +1516,8 @@ def test_failed_link_and_output_parent_swap_do_not_report_success(
                 os.close(descriptor)
             raise OSError(errno.EIO, "synthetic link failure")
 
-        monkeypatch.setattr(v2_finalizer, "_linkat_no_replace_supported", lambda: True)
-        monkeypatch.setattr(v2_finalizer.os, "link", fail_after_staging_reuse)
+        monkeypatch.setattr(v2_test_support, "_linkat_no_replace_supported", lambda: True)
+        monkeypatch.setattr(v2_test_support.os, "link", fail_after_staging_reuse)
         try:
             with pytest.raises(C2FullReplacementError, match="no-replace publication failed"):
                 write_full_replacement_report(
@@ -1555,8 +1555,8 @@ def test_failed_link_and_output_parent_swap_do_not_report_success(
             fixture.output_root.rename(old_output)
             fixture.output_root.symlink_to(workspace / "attacker")
 
-        monkeypatch.setattr(v2_finalizer, "_linkat_no_replace_supported", lambda: True)
-        monkeypatch.setattr(v2_finalizer.os, "link", link_then_swap_parent)
+        monkeypatch.setattr(v2_test_support, "_linkat_no_replace_supported", lambda: True)
+        monkeypatch.setattr(v2_test_support.os, "link", link_then_swap_parent)
         try:
             with pytest.raises(C2FullReplacementError, match="output verification failed"):
                 write_full_replacement_report(
@@ -1607,8 +1607,8 @@ def test_parent_and_leaf_swap_fail_without_success_or_input_mutation(
             os.unlink(destination, dir_fd=dst_dir_fd)
             os.symlink(fixture.manifest_path, destination, dir_fd=dst_dir_fd)
 
-        monkeypatch.setattr(v2_finalizer, "_linkat_no_replace_supported", lambda: True)
-        monkeypatch.setattr(v2_finalizer.os, "link", link_then_swap)
+        monkeypatch.setattr(v2_test_support, "_linkat_no_replace_supported", lambda: True)
+        monkeypatch.setattr(v2_test_support.os, "link", link_then_swap)
         try:
             with pytest.raises(C2FullReplacementError, match="does not identify"):
                 write_full_replacement_report(finalized, fixture.output_root / "leaf.json")

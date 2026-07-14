@@ -119,13 +119,14 @@ def test_full_replacement_public_apis_deny_before_paths_or_output_creation(
             "load_production_policy",
             lambda: pytest.fail("production policy resolver was reached"),
         )
-        monkeypatch.setattr(
+        assert not hasattr(
             full_replacement,
-            "_write_full_replacement_report_for_testing",
-            lambda _finalized, _output: pytest.fail(
-                "full-replacement writer was reached"
-            ),
+            "finalize_synthetic_to_path_for_testing",
         )
+        with pytest.raises(ImportError):
+            from experiments.c2_full_replacement_finalizer import (
+                finalize_synthetic_to_path_for_testing,
+            )
 
         _assert_unavailable(
             lambda: full_replacement.prepare_full_replacement_finalization(
