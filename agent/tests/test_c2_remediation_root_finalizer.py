@@ -493,6 +493,14 @@ def test_finalizes_exact_200_and_63_roots(
         )
         assert validation["gates"]["atomic_no_replace_publication"] is True
         assert validation["gates"]["canonical_target_identity"] is True
+        assert validation["gates"]["private_trusted_staging_parent"] is True
+        report_payload = json.loads(report.read_text(encoding="utf-8"))
+        assert report_payload["publication"]["staging_parent"] == (
+            "pre-existing descriptor-validated owner/ACL-safe parent"
+        )
+        assert report_payload["publication"]["threat_boundary"].endswith(
+            "malicious same-EUID filesystem control is out of scope"
+        )
 
 
 def test_rejects_source_hash_mismatch_before_creating_target(
@@ -544,6 +552,36 @@ def test_rejects_existing_target_without_overwrite(
         with pytest.raises(finalizer.C2RemediationError, match="already exists"):
             _finalize(paths, "001")
         assert marker.read_text(encoding="utf-8") == "present"
+
+
+def test_private_staging_parent_must_preexist() -> None:
+    with experiment_workspace("c2-remediation-missing-staging-parent") as workspace:
+        missing_parent = workspace / "missing-output-parent"
+        target = missing_parent / finalizer.expected_target_root_name("001")
+
+        with pytest.raises(finalizer.ProvenanceError, match="Trusted output parent is missing"):
+            finalizer._create_target_root(target)
+
+        assert not missing_parent.exists()
+
+
+def test_rejects_group_writable_private_staging_parent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with experiment_workspace("c2-remediation-unsafe-staging-parent") as workspace:
+        paths = _make_fixture(workspace, monkeypatch, chunk_id="001")
+        staging_parent = paths["target_root"].parent
+        staging_parent.chmod(0o770)
+
+        with pytest.raises(finalizer.ProvenanceError, match="group/world writable"):
+            _finalize(paths, "001")
+
+        assert not paths["target_root"].exists()
+        assert not list(
+            staging_parent.glob(
+                f".{paths['target_root'].name}.c2-remediation-staging-*"
+            )
+        )
 
 
 def test_atomic_publish_rejects_target_replacement_without_accepting_attacker(

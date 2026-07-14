@@ -7,6 +7,8 @@ root, or overwrite an existing target.
 The target leaf name is fixed to
 `ccby_sr_npj_chunk<NNN>_rerun3_clean_ca98442`; a different name fails before
 any target is created.
+Its direct parent must already exist and satisfy the trusted private staging
+parent checks; the finalizer never creates that parent.
 
 ```bash
 cd agent
@@ -60,18 +62,29 @@ evidence and `control/source_classification_blocked.json`, then fails with
 empty canonical/P or sealed-report chain. A separately approved deterministic
 canonical/P builder is required before such a root can be sealed.
 
-The canonical target leaf is never created directly. The finalizer creates a
-random, mode-0700 private staging directory descriptor-relatively beneath the
-trusted parent, stamps and retains its inode/FD, and performs every generated
-directory operation, read, write, hash, inventory traversal, and secret scan
-through no-follow descriptors rooted there. At publication it uses only an
-atomic descriptor-relative no-replace directory rename: Darwin
+The canonical target leaf is never created directly. Its pre-existing direct
+parent is the private staging parent: it is opened by a retained no-follow FD
+with the full ancestor chain descriptor-validated, must be owned by root or
+the current EUID, must not be group/world writable, and must have no mutating
+ACL. The finalizer never creates that parent. It then creates a random,
+mode-0700 private staging directory descriptor-relatively beneath that FD,
+stamps and retains its inode/FD, and performs every generated directory
+operation, read, write, hash, inventory traversal, and secret scan through
+no-follow descriptors rooted there. At publication it uses only an atomic
+descriptor-relative no-replace directory rename: Darwin
 `renameatx_np(RENAME_EXCL)` or Linux `renameat2(RENAME_NOREPLACE)`. It never
 uses a precheck plus an overwrite-capable rename; unavailable native support
 fails closed and retains the private staging root for forensic inspection. The
 canonical lexical parent/leaf must map to the original staging inode
 immediately after publication and again before return; parent/leaf swaps fail
 closed.
+
+The local race boundary is arbitrary competing users, not a malicious process
+with the staging-parent owner's EUID (which has unrestricted filesystem
+control and is out of scope). There is no portable native `mkdir` operation
+that returns a directory FD atomically; the pre-existing private parent
+prevents an in-scope actor from replacing the random staging name before its
+first no-follow FD open.
 
 The generated preservation ledger records protected old-root contracts and
 retained `009`/`010`/`012` exclusions. For a chunk with a protected-root

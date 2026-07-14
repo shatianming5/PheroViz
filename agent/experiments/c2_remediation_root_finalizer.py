@@ -24,6 +24,7 @@ from typing import Any, Iterable, Mapping
 
 from .models import (
     ProvenanceError,
+    SecureOutputTarget,
     canonical_json,
     normalize_trusted_output_path,
     open_secure_output_target,
@@ -514,6 +515,38 @@ _STAGING_CREATE_ATTEMPTS = 128
 
 def _publication_platform() -> str:
     return sys.platform
+
+
+def _open_private_staging_parent(target_root: Path) -> SecureOutputTarget:
+    """Open the pre-existing, descriptor-validated parent used for staging."""
+
+    normalized_target = normalize_trusted_output_path(target_root)
+    target = open_secure_output_target(
+        normalized_target,
+        normalized_path=True,
+        require_trusted_parent=True,
+    )
+    try:
+        _require(
+            target.trusted_parent and target.parent_fd != -1,
+            "private staging parent was not descriptor-validated",
+        )
+        _require(
+            hasattr(os, "geteuid"),
+            "private staging parent requires an effective uid",
+        )
+        metadata = os.fstat(target.parent_fd)
+        _require(
+            stat.S_ISDIR(metadata.st_mode)
+            and metadata.st_uid in {0, os.geteuid()}
+            and not (metadata.st_mode & (stat.S_IWGRP | stat.S_IWOTH)),
+            "private staging parent is unsafe",
+        )
+        # require_trusted_parent=True also verifies no-follow ancestry and ACL safety.
+        return target
+    except Exception:
+        target.close()
+        raise
 
 
 def _publish_staging_directory(
@@ -2048,32 +2081,34 @@ def _verify_protected_old_root(
 
 
 def _create_target_root(target_root: Path) -> _SecureTargetRoot:
-    """Create a random private staging directory, never the canonical target."""
+    """Create private staging beneath an existing trusted parent, never the target."""
 
     _require(target_root.is_absolute(), "target root must be absolute")
-    normalized_target = normalize_trusted_output_path(target_root)
-    target = open_secure_output_target(
-        normalized_target,
-        normalized_path=True,
-        require_trusted_parent=True,
-    )
-    parent_fd = target.parent_fd
+    target = _open_private_staging_parent(target_root)
+    staging_parent_fd = target.parent_fd
     target.parent_fd = -1
     root_fd = -1
     try:
         # This is only an early rejection; publication independently uses NO-REPLACE.
         try:
-            os.stat(target.leaf_name, dir_fd=parent_fd, follow_symlinks=False)
+            os.stat(
+                target.leaf_name,
+                dir_fd=staging_parent_fd,
+                follow_symlinks=False,
+            )
         except FileNotFoundError:
             pass
         else:
             raise C2RemediationError("target root already exists")
+        # The retained parent FD is pre-existing, no-follow, owner/ACL validated, and
+        # not writable by competing principals. A malicious process at this EUID is
+        # outside this local-user threat boundary.
         for _ in range(_STAGING_CREATE_ATTEMPTS):
             staging_name = (
                 f".{target.leaf_name}.c2-remediation-staging-{secrets.token_hex(16)}"
             )
             try:
-                os.mkdir(staging_name, mode=0o700, dir_fd=parent_fd)
+                os.mkdir(staging_name, mode=0o700, dir_fd=staging_parent_fd)
             except FileExistsError:
                 continue
             except OSError as exc:
@@ -2083,7 +2118,7 @@ def _create_target_root(target_root: Path) -> _SecureTargetRoot:
             try:
                 staged_entry = os.stat(
                     staging_name,
-                    dir_fd=parent_fd,
+                    dir_fd=staging_parent_fd,
                     follow_symlinks=False,
                 )
                 _require(
@@ -2096,7 +2131,7 @@ def _create_target_root(target_root: Path) -> _SecureTargetRoot:
                     | os.O_DIRECTORY
                     | os.O_NOFOLLOW
                     | getattr(os, "O_CLOEXEC", 0),
-                    dir_fd=parent_fd,
+                    dir_fd=staging_parent_fd,
                 )
                 opened_entry = os.fstat(root_fd)
                 _require(
@@ -2106,7 +2141,7 @@ def _create_target_root(target_root: Path) -> _SecureTargetRoot:
                 )
                 secure_root = _SecureTargetRoot(
                     canonical_path=target.final_path,
-                    parent_fd=parent_fd,
+                    parent_fd=staging_parent_fd,
                     target_name=target.leaf_name,
                     staging_name=staging_name,
                     root_fd=root_fd,
@@ -2125,7 +2160,7 @@ def _create_target_root(target_root: Path) -> _SecureTargetRoot:
     except Exception:
         if root_fd != -1:
             os.close(root_fd)
-        os.close(parent_fd)
+        os.close(staging_parent_fd)
         raise
     finally:
         target.close()
@@ -2703,6 +2738,7 @@ def finalize_remediation_root(
                 "no_model_calls": True,
                 "secret_scan_clean": True,
                 "tests_passed": True,
+                "private_trusted_staging_parent": True,
             },
             "execution_evidence_sha256": _sha256_bytes(
                 raw_bytes["control/execution_evidence.json"]
@@ -2772,6 +2808,14 @@ def finalize_remediation_root(
                     "(renameatx_np RENAME_EXCL or renameat2 RENAME_NOREPLACE)"
                 ),
                 "canonical_target_identity_verified": True,
+                "staging_parent": (
+                    "pre-existing descriptor-validated owner/ACL-safe parent"
+                ),
+                "threat_boundary": (
+                    "protects against racing local principals other than the "
+                    "staging-parent owner; malicious same-EUID filesystem control "
+                    "is out of scope"
+                ),
             },
             "code": code,
             "code_after_finalization": postfinal_code,
@@ -2952,6 +2996,7 @@ def finalize_remediation_root(
                 "postseal_old_root_preservation": True,
                 "atomic_no_replace_publication": True,
                 "canonical_target_identity": True,
+                "private_trusted_staging_parent": True,
             },
         }
         _seal(validation, "validation_hash")
