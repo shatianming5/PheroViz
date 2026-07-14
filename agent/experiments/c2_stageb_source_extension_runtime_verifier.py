@@ -221,6 +221,7 @@ SOURCE_EXTENSION_RUNTIME_VERIFIER_TEST_MATRIX = (
     "closed-module-attribute-call-allowlist-is-enforced",
     "implicit-runtime-evaluation-routes-are-rejected",
     "higher-order-callback-dispatch-is-rejected",
+    "declarative-ast-subset-rejects-runtime-protocols",
     "test-only-fixture-is-not-a-production-input",
 )
 
@@ -614,21 +615,6 @@ def _assignment_alias_paths(
     return ()
 
 
-def _class_assignment_alias_paths(
-    class_name: str,
-    target: ast.expr | ast.expr_context,
-) -> tuple[tuple[str, ...], ...]:
-    if isinstance(target, ast.Name):
-        return ((class_name, target.id),)
-    if isinstance(target, (ast.Tuple, ast.List)):
-        return tuple(
-            path
-            for element in target.elts
-            for path in _class_assignment_alias_paths(class_name, element)
-        )
-    return ()
-
-
 def _merge_alias_kind(current: str | None, incoming: str) -> str:
     if current is None or current == incoming:
         return incoming
@@ -869,28 +855,8 @@ def _collect_static_alias_kinds(
                         imported.name,
                     ),
                 )
-        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        elif isinstance(node, ast.FunctionDef):
             _record_alias_kind(aliases, (node.name,), _ALIAS_STATIC_CALLABLE)
-        elif isinstance(node, ast.ClassDef):
-            _record_alias_kind(aliases, (node.name,), _ALIAS_STATIC_CALLABLE)
-            for statement in node.body:
-                if isinstance(statement, ast.Assign):
-                    for target in statement.targets:
-                        assignments.extend(
-                            (path, statement.value)
-                            for path in _class_assignment_alias_paths(
-                                node.name,
-                                target,
-                            )
-                        )
-                elif isinstance(statement, ast.AnnAssign):
-                    assignments.extend(
-                        (path, statement.value)
-                        for path in _class_assignment_alias_paths(
-                            node.name,
-                            statement.target,
-                        )
-                    )
         elif isinstance(node, ast.arguments):
             arguments = (
                 *node.posonlyargs,
@@ -1036,6 +1002,76 @@ def _function_has_unsafe_definition_semantics(
             *((arguments.kwarg,) if arguments.kwarg is not None else ()),
         )
     )
+
+
+def _is_magic_protocol_name(name: str) -> bool:
+    return len(name) > 4 and name.startswith("__") and name.endswith("__")
+
+
+def _reject_unsupported_declarative_ast(
+    tree: ast.AST,
+    runtime_path: str,
+) -> None:
+    if not isinstance(tree, ast.Module):
+        raise C2StageBSourceExtensionRuntimeVerifierError(
+            "runtime fixture closure requires a module AST: "
+            f"{runtime_path}"
+        )
+
+    def reject() -> None:
+        raise C2StageBSourceExtensionRuntimeVerifierError(
+            "runtime fixture closure rejects unsupported declarative AST semantics: "
+            f"{runtime_path}"
+        )
+
+    def validate_function(node: ast.FunctionDef) -> None:
+        if _is_magic_protocol_name(node.name):
+            reject()
+        if (
+            node.args.posonlyargs
+            or node.args.args
+            or node.args.kwonlyargs
+            or node.args.vararg is not None
+            or node.args.kwarg is not None
+            or _function_has_unsafe_definition_semantics(node)
+        ):
+            reject()
+        for statement in node.body:
+            if isinstance(statement, ast.Pass):
+                continue
+            if isinstance(statement, ast.Expr) and isinstance(
+                statement.value,
+                (ast.Call, ast.Constant),
+            ):
+                continue
+            if isinstance(statement, ast.Return) and (
+                statement.value is None
+                or isinstance(statement.value, ast.Constant)
+            ):
+                continue
+            reject()
+
+    for statement in tree.body:
+        if isinstance(statement, (ast.Import, ast.ImportFrom)):
+            continue
+        if isinstance(statement, ast.FunctionDef):
+            validate_function(statement)
+            continue
+        if isinstance(statement, ast.Expr) and isinstance(
+            statement.value,
+            (ast.Call, ast.Constant),
+        ):
+            continue
+        if isinstance(statement, ast.Assign):
+            if (
+                len(statement.targets) != 1
+                or not isinstance(statement.targets[0], ast.Name)
+                or _is_magic_protocol_name(statement.targets[0].id)
+                or not isinstance(statement.value, ast.Constant)
+            ):
+                reject()
+            continue
+        reject()
 
 
 def _has_unpacking_target(target: ast.expr | ast.expr_context) -> bool:
@@ -1204,6 +1240,7 @@ def _reject_unsafe_call_arguments(
 
 
 def _reject_nonstatic_call_targets(tree: ast.AST, runtime_path: str) -> None:
+    _reject_unsupported_declarative_ast(tree, runtime_path)
     _reject_reflective_namespace_syntax(tree, runtime_path)
     _reject_implicit_runtime_execution(tree, runtime_path)
     aliases = _collect_static_alias_kinds(tree)

@@ -172,3 +172,7 @@ without an explicit call target.
 Higher-order callback and iterable-dispatch APIs are blocked, and every
 argument to an allowed callable must be a harmless static value; candidate
 callables, callback registration, and deferred evaluator surfaces fail closed.
+The accepted language is a small declarative subset: runtime class definitions,
+magic/protocol bindings, callable capture, nested functions, and unsupported
+assignment/container forms are blocking; only fully validated module-level
+static functions may be called directly.

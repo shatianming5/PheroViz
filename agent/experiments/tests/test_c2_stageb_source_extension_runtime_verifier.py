@@ -374,7 +374,7 @@ def test_dynamic_import_aliases_are_rejected_from_runtime_closure(
 
     with pytest.raises(
         C2FullReplacementPolicyError,
-        match="dynamic imports|reflective|namespace",
+        match="dynamic imports|reflective|namespace|declarative AST",
     ):
         _compile_runtime_closure(alias_files)
 
@@ -391,7 +391,7 @@ def test_unproven_alias_call_target_is_rejected_from_runtime_closure() -> None:
 
     with pytest.raises(
         C2FullReplacementPolicyError,
-        match="reflective or executable",
+        match="reflective or executable|declarative AST",
     ):
         _compile_runtime_closure(unknown_alias_files)
 
@@ -429,7 +429,7 @@ def test_indirect_dynamic_alias_call_targets_fail_closed(
 
     with pytest.raises(
         C2FullReplacementPolicyError,
-        match="dynamic imports|unbound|namespace|implicit runtime",
+        match="dynamic imports|unbound|namespace|implicit runtime|declarative AST",
     ):
         _compile_runtime_closure(indirect_alias_files)
 
@@ -505,7 +505,10 @@ def test_deny_by_default_rejects_dynamic_reflection_and_unknown_calls(
         source,
     )
 
-    with pytest.raises(C2FullReplacementPolicyError, match=match):
+    with pytest.raises(
+        C2FullReplacementPolicyError,
+        match=f"{match}|declarative AST",
+    ):
         _compile_runtime_closure(prohibited_files)
 
 
@@ -574,7 +577,10 @@ def test_implicit_runtime_evaluation_routes_fail_closed(
         source,
     )
 
-    with pytest.raises(C2FullReplacementPolicyError, match=match):
+    with pytest.raises(
+        C2FullReplacementPolicyError,
+        match=f"{match}|declarative AST",
+    ):
         _compile_runtime_closure(implicit_files)
 
 
@@ -614,7 +620,7 @@ def test_higher_order_callback_loading_paths_fail_closed(source: bytes) -> None:
 
     with pytest.raises(
         C2FullReplacementPolicyError,
-        match="callback|nonstatic|reflective",
+        match="callback|nonstatic|reflective|declarative AST",
     ):
         _compile_runtime_closure(callback_files)
 
@@ -628,6 +634,95 @@ def test_static_callable_accepts_only_harmless_static_arguments() -> None:
     )
 
     closure = _compile_runtime_closure(safe_files)
+    assert any(
+        item.runtime_path == "agent/experiments/cli.py"
+        for item in closure.bindings
+    )
+
+
+@pytest.mark.parametrize(
+    "class_body",
+    [
+        b"__init__ = importfile\n",
+        b"__new__ = importfile\n",
+        b"__call__ = importfile\n",
+        b"__iter__ = importfile\n",
+        b"__fspath__ = importfile\n",
+        b"value = property(importfile)\n",
+        b"__get__ = importfile\n",
+    ],
+)
+def test_runtime_classes_and_magic_protocol_bindings_fail_closed(
+    class_body: bytes,
+) -> None:
+    fixture = _fixture()
+    class_files = _replace_runtime_bytes(
+        fixture.runtime_files,
+        "agent/experiments/cli.py",
+        b"from pydoc import importfile\n"
+        b"class D:\n"
+        + b"    " + class_body
+        + b"D()\n",
+    )
+
+    with pytest.raises(C2FullReplacementPolicyError, match="declarative AST"):
+        _compile_runtime_closure(class_files)
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        (
+            b"from pydoc import importfile\n"
+            b"def loader():\n"
+            b"    return importfile\n"
+            b"loader()\n"
+        ),
+        (
+            b"def outer():\n"
+            b"    def inner():\n"
+            b"        pass\n"
+            b"    return None\n"
+            b"outer()\n"
+        ),
+        (
+            b"from json import dumps\n"
+            b"callback = dumps\n"
+            b"callback('static')\n"
+        ),
+        (
+            b"from json import dumps\n"
+            b"callbacks = [dumps]\n"
+            b"print('static')\n"
+        ),
+    ],
+)
+def test_callable_capture_and_nested_function_forms_fail_closed(
+    source: bytes,
+) -> None:
+    fixture = _fixture()
+    capture_files = _replace_runtime_bytes(
+        fixture.runtime_files,
+        "agent/experiments/cli.py",
+        source,
+    )
+
+    with pytest.raises(C2FullReplacementPolicyError, match="declarative AST"):
+        _compile_runtime_closure(capture_files)
+
+
+def test_fully_validated_module_level_function_can_be_called_directly() -> None:
+    fixture = _fixture()
+    function_files = _replace_runtime_bytes(
+        fixture.runtime_files,
+        "agent/experiments/cli.py",
+        b"def approved():\n"
+        b"    print('static')\n"
+        b"    return None\n"
+        b"approved()\n",
+    )
+
+    closure = _compile_runtime_closure(function_files)
     assert any(
         item.runtime_path == "agent/experiments/cli.py"
         for item in closure.bindings
@@ -793,7 +888,10 @@ def test_unlisted_module_loader_and_attribute_calls_fail_closed(
         source,
     )
 
-    with pytest.raises(C2FullReplacementPolicyError, match=match):
+    with pytest.raises(
+        C2FullReplacementPolicyError,
+        match=f"{match}|declarative AST",
+    ):
         _compile_runtime_closure(prohibited_files)
 
 
@@ -1093,5 +1191,6 @@ def test_required_test_matrix_is_explicit_and_closed() -> None:
         "closed-module-attribute-call-allowlist-is-enforced",
         "implicit-runtime-evaluation-routes-are-rejected",
         "higher-order-callback-dispatch-is-rejected",
+        "declarative-ast-subset-rejects-runtime-protocols",
         "test-only-fixture-is-not-a-production-input",
     )
