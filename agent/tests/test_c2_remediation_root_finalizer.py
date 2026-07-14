@@ -61,8 +61,6 @@ def _records() -> list[dict[str, str]]:
 
 
 def _status_for(index: int, attempt_index: int) -> str:
-    if (index + attempt_index) % 4 == 0:
-        return "downloaded"
     return ("no-source-data", "no-figures", "fetch-error")[
         (index + attempt_index) % 3
     ]
@@ -73,6 +71,8 @@ def _make_fixture(
     monkeypatch: pytest.MonkeyPatch,
     *,
     chunk_id: str,
+    downloaded_mode: str = "none",
+    downloaded_attempt: str = "retry2",
 ) -> dict[str, Path]:
     workspace.chmod(0o700)
     frozen_root = workspace / "frozen"
@@ -240,6 +240,12 @@ def _make_fixture(
         for ordinal, record in enumerate(source_records, start=1):
             article_id = record["article_url"].rsplit("/", 1)[-1]
             status = _status_for(ordinal, attempt_index)
+            if (
+                downloaded_mode != "none"
+                and attempt == downloaded_attempt
+                and ordinal == 1
+            ):
+                status = "downloaded"
             statuses[article_id] = status
             if status == "downloaded":
                 processed.append(article_id)
@@ -307,12 +313,59 @@ def _make_fixture(
     for record in source_records:
         article_id = record["article_url"].rsplit("/", 1)[-1]
         status = final_statuses[article_id]
+        has_source_bearing_download = (
+            downloaded_mode != "none" and article_id == "article-1"
+        )
         provenance: dict[str, Any] = {
             "doi": record["doi"],
             "rejection_reasons": [] if status == "downloaded" else [status],
         }
-        if status == "downloaded":
-            provenance["download_status"] = "downloaded"
+        if has_source_bearing_download:
+            if downloaded_mode == "failed":
+                provenance["download_status"] = "failed"
+            else:
+                provenance["download_status"] = "downloaded"
+            if downloaded_mode == "source":
+                source_dir = raw_root / "content" / "_sources" / article_id
+                source_dir.mkdir(parents=True, exist_ok=True)
+                source_path = source_dir / "source.json"
+                source_payload = _canonical_json(
+                    {
+                        "doi": record["doi"],
+                        "article_id": article_id,
+                        "source": "synthetic source-bearing record",
+                    }
+                )
+                source_path.write_bytes(source_payload)
+                descriptor_path = (
+                    raw_root / "content" / "_source_evidence" / f"{article_id}.json"
+                )
+                descriptor = {
+                    "schema_version": "c2-source-evidence-v1",
+                    "doi": record["doi"],
+                    "article_id": article_id,
+                    "provenance_path": f"content/_provenance/{article_id}.json",
+                    "sources": [
+                        {
+                            "relative_path": (
+                                f"content/_sources/{article_id}/source.json"
+                            ),
+                            "sha256": _sha256(source_payload),
+                            "bytes": len(source_payload),
+                            "doi": record["doi"],
+                        }
+                    ],
+                }
+                _seal(descriptor, "descriptor_hash")
+                _write_json(descriptor_path, descriptor)
+                descriptor_payload = descriptor_path.read_bytes()
+                provenance["source_evidence"] = {
+                    "descriptor_path": (
+                        f"content/_source_evidence/{article_id}.json"
+                    ),
+                    "descriptor_sha256": _sha256(descriptor_payload),
+                    "descriptor_bytes": len(descriptor_payload),
+                }
         _write_json(provenance_dir / f"{article_id}.json", provenance)
 
     target_parent = workspace / "output"
@@ -508,6 +561,126 @@ def test_rejects_absolute_provenance_reference(
 
 
 @pytest.mark.parametrize(
+    ("downloaded_mode", "message"),
+    [
+        ("minimal", "lacks source evidence"),
+        ("failed", "downloaded provenance status is invalid"),
+    ],
+)
+def test_rejects_downloaded_terminal_claim_without_strict_source_evidence(
+    monkeypatch: pytest.MonkeyPatch,
+    downloaded_mode: str,
+    message: str,
+) -> None:
+    with experiment_workspace(
+        f"c2-remediation-downloaded-{downloaded_mode}"
+    ) as workspace:
+        paths = _make_fixture(
+            workspace,
+            monkeypatch,
+            chunk_id="001",
+            downloaded_mode=downloaded_mode,
+        )
+
+        with pytest.raises(finalizer.C2RemediationError, match=message):
+            _finalize(paths, "001")
+        assert not paths["target_root"].exists()
+
+
+def test_blocks_source_bearing_terminal_before_empty_canonical_p_seal(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with experiment_workspace("c2-remediation-source-bearing") as workspace:
+        paths = _make_fixture(
+            workspace,
+            monkeypatch,
+            chunk_id="001",
+            downloaded_mode="source",
+        )
+
+        with pytest.raises(finalizer.C2RemediationError, match="canonical/P builder"):
+            _finalize(paths, "001")
+
+        target = paths["target_root"]
+        blocked = json.loads(
+            (target / "control/source_classification_blocked.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        assert blocked["status"] == (
+            "NOT_SEALABLE_SOURCE_CLASSIFICATION_BUILDER_REQUIRED"
+        )
+        terminal = json.loads(
+            (target / "control/terminal_outcomes.jsonl").read_text(
+                encoding="utf-8"
+            ).splitlines()[0]
+        )
+        assert terminal["acquisition_disposition"] == "SOURCE_BEARING_DOWNLOAD"
+        assert terminal["source_classification_state"] == (
+            "BLOCKED_CANONICAL_P_BUILDER_REQUIRED"
+        )
+        terminal_summary = json.loads(
+            (target / "control/postfetch_terminal_summary.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        assert terminal_summary["source_classification"] == {
+            "source_bearing_terminal_records": 1,
+            "source_less_terminal_records": 199,
+            "empty_chain_authorized": False,
+        }
+        assert not (target / "canonical_v1").exists()
+        assert not (target / "p_evidence_v1").exists()
+        assert not (target / "sealed_report_v1").exists()
+
+
+def test_blocks_prior_attempt_source_bearing_record_before_empty_seal(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with experiment_workspace("c2-remediation-prior-source-bearing") as workspace:
+        paths = _make_fixture(
+            workspace,
+            monkeypatch,
+            chunk_id="001",
+            downloaded_mode="source",
+            downloaded_attempt="initial",
+        )
+
+        with pytest.raises(finalizer.C2RemediationError, match="canonical/P builder"):
+            _finalize(paths, "001")
+
+        terminal = json.loads(
+            (paths["target_root"] / "control/terminal_outcomes.jsonl").read_text(
+                encoding="utf-8"
+            ).splitlines()[0]
+        )
+        assert terminal["terminal_status"] == "no-source-data"
+        assert terminal["acquisition_disposition"] == (
+            "SOURCE_BEARING_PRIOR_ATTEMPT_DOWNLOAD_RETRY2_NO_SOURCE_DATA"
+        )
+        assert not (paths["target_root"] / "canonical_v1").exists()
+        assert not (paths["target_root"] / "sealed_report_v1").exists()
+
+
+def test_rejects_unreferenced_source_artifact_before_target_creation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with experiment_workspace("c2-remediation-orphan-source") as workspace:
+        paths = _make_fixture(
+            workspace,
+            monkeypatch,
+            chunk_id="001",
+            downloaded_mode="source",
+        )
+        orphan = paths["raw_root"] / "content/_sources/article-1/orphan.json"
+        orphan.write_text('{"unreferenced":true}\n', encoding="utf-8")
+
+        with pytest.raises(finalizer.C2RemediationError, match="unreferenced"):
+            _finalize(paths, "001")
+        assert not paths["target_root"].exists()
+
+
+@pytest.mark.parametrize(
     ("mutation", "message"),
     [
         ("downloaded-status", "invalid skipped status"),
@@ -555,6 +728,82 @@ def test_rejects_symlink_target_parent(
         with pytest.raises(finalizer.ProvenanceError):
             _finalize(paths, "001")
         assert not (real_parent / "target").exists()
+
+
+def test_descriptor_writes_reject_injected_target_subdirectory_symlink(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with experiment_workspace("c2-remediation-target-subdir-symlink") as workspace:
+        paths = _make_fixture(workspace, monkeypatch, chunk_id="001")
+        outside = workspace / "outside"
+        outside.mkdir(mode=0o700)
+        original_write = finalizer._write_bytes
+
+        def inject_symlink(
+            target: finalizer._SecureTargetRoot,
+            relative: str,
+            payload: bytes,
+        ) -> str:
+            if relative == "control/acquisition_config.json":
+                os.symlink(outside, paths["target_root"] / "control")
+            return original_write(target, relative, payload)
+
+        monkeypatch.setattr(finalizer, "_write_bytes", inject_symlink)
+
+        with pytest.raises(finalizer.C2RemediationError, match="symlink"):
+            _finalize(paths, "001")
+        assert not (outside / "acquisition_config.json").exists()
+
+
+def test_descriptor_target_detects_parent_swap_without_outside_write(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with experiment_workspace("c2-remediation-target-parent-swap") as workspace:
+        paths = _make_fixture(workspace, monkeypatch, chunk_id="001")
+        outside = workspace / "outside"
+        outside.mkdir(mode=0o700)
+        original_scan = finalizer._write_secret_scan
+
+        def swap_parent(
+            target: finalizer._SecureTargetRoot,
+        ) -> tuple[str, dict[str, Any]]:
+            result = original_scan(target)
+            output_parent = paths["target_root"].parent
+            moved_parent = workspace / "moved-output"
+            output_parent.rename(moved_parent)
+            os.symlink(outside, output_parent)
+            return result
+
+        monkeypatch.setattr(finalizer, "_write_secret_scan", swap_parent)
+
+        with pytest.raises(finalizer.ProvenanceError):
+            _finalize(paths, "001")
+        assert not (outside / paths["target_root"].name).exists()
+
+
+def test_descriptor_target_detects_leaf_swap_without_outside_write(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with experiment_workspace("c2-remediation-target-leaf-swap") as workspace:
+        paths = _make_fixture(workspace, monkeypatch, chunk_id="001")
+        outside = workspace / "outside"
+        outside.mkdir(mode=0o700)
+        original_scan = finalizer._write_secret_scan
+
+        def swap_leaf(
+            target: finalizer._SecureTargetRoot,
+        ) -> tuple[str, dict[str, Any]]:
+            result = original_scan(target)
+            moved_target = workspace / "moved-target"
+            paths["target_root"].rename(moved_target)
+            os.symlink(outside, paths["target_root"])
+            return result
+
+        monkeypatch.setattr(finalizer, "_write_secret_scan", swap_leaf)
+
+        with pytest.raises(finalizer.ProvenanceError):
+            _finalize(paths, "001")
+        assert not any(outside.iterdir())
 
 
 def test_rejects_target_nested_in_raw_evidence_root(

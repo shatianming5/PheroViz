@@ -321,20 +321,6 @@ def _ensure_relative(relative: str | Path, label: str) -> Path:
     return path
 
 
-def _safe_directory(root: Path, relative: str | Path, label: str) -> Path:
-    path = _ensure_relative(relative, label)
-    candidate = root / path
-    _require(not candidate.is_symlink(), f"{label} is a symlink")
-    try:
-        resolved_root = root.resolve(strict=True)
-        resolved = candidate.resolve(strict=True)
-        resolved.relative_to(resolved_root)
-    except (OSError, ValueError) as exc:
-        raise C2RemediationError(f"{label} is missing or escapes its root") from exc
-    _require(resolved.is_dir(), f"{label} is not a directory")
-    return resolved
-
-
 def _verify_trusted_existing_root(root: Path, label: str) -> Path:
     _require(root.is_absolute(), f"{label} must be absolute")
     normalized = normalize_trusted_output_path(root)
@@ -353,6 +339,16 @@ class _RawRead:
     payload: bytes
     sha256: str
     metadata: Mapping[str, int]
+
+
+@dataclass(frozen=True)
+class _SourceEvidence:
+    """Validated source-bearing evidence linked to one terminal provenance file."""
+
+    descriptor_path: str
+    descriptor_sha256: str
+    descriptor_bytes: int
+    source_paths: tuple[Mapping[str, Any], ...]
 
 
 class _RawRootReader:
@@ -454,6 +450,365 @@ class _RawRootReader:
             metadata=self._metadata(before),
         )
         return payload
+
+    def files_under(self, relative: str | Path, label: str) -> tuple[str, ...]:
+        """Return a no-follow, descriptor-relative recursive regular-file listing."""
+
+        path = _ensure_relative(relative, label)
+        current_fd = os.dup(self._root_fd)
+        flags = (
+            os.O_RDONLY
+            | os.O_DIRECTORY
+            | os.O_NOFOLLOW
+            | getattr(os, "O_CLOEXEC", 0)
+        )
+
+        def descend(directory_fd: int, prefix: tuple[str, ...]) -> Iterable[str]:
+            for name in sorted(os.listdir(directory_fd)):
+                file_stat = os.stat(
+                    name,
+                    dir_fd=directory_fd,
+                    follow_symlinks=False,
+                )
+                relative_name = "/".join((*prefix, name))
+                _require(
+                    not stat.S_ISLNK(file_stat.st_mode),
+                    f"{label} contains a symlink: {relative_name}",
+                )
+                if stat.S_ISDIR(file_stat.st_mode):
+                    child_fd = os.open(name, flags, dir_fd=directory_fd)
+                    try:
+                        yield from descend(child_fd, (*prefix, name))
+                    finally:
+                        os.close(child_fd)
+                    continue
+                _require(
+                    stat.S_ISREG(file_stat.st_mode),
+                    f"{label} contains a non-regular artifact: {relative_name}",
+                )
+                yield relative_name
+
+        try:
+            for component in path.parts:
+                next_fd = os.open(component, flags, dir_fd=current_fd)
+                os.close(current_fd)
+                current_fd = next_fd
+            return tuple(descend(current_fd, tuple(path.parts)))
+        except C2RemediationError:
+            raise
+        except OSError as exc:
+            if exc.errno == errno.ELOOP:
+                raise C2RemediationError(f"{label} contains a symlink") from exc
+            raise C2RemediationError(f"cannot securely list {label}") from exc
+        finally:
+            os.close(current_fd)
+
+
+class _SecureTargetRoot:
+    """Descriptor-anchored fresh target whose contents never use pathname writes."""
+
+    def __init__(
+        self,
+        *,
+        path: Path,
+        parent_fd: int,
+        leaf_name: str,
+        root_fd: int,
+    ) -> None:
+        self.path = path
+        self._parent_fd = parent_fd
+        self._leaf_name = leaf_name
+        self._root_fd = root_fd
+        self._parent_identity = os.fstat(parent_fd)
+        self._root_identity = os.fstat(root_fd)
+        _require(
+            stat.S_ISDIR(self._root_identity.st_mode),
+            "created target root is not a directory",
+        )
+
+    @property
+    def name(self) -> str:
+        return self._leaf_name
+
+    def close(self) -> None:
+        for attribute in ("_root_fd", "_parent_fd"):
+            descriptor = getattr(self, attribute)
+            if descriptor != -1:
+                os.close(descriptor)
+                setattr(self, attribute, -1)
+
+    def _open_parent(
+        self,
+        relative: str | Path,
+        *,
+        create: bool,
+    ) -> tuple[int, str]:
+        path = _ensure_relative(relative, f"target {relative}")
+        current_fd = os.dup(self._root_fd)
+        flags = (
+            os.O_RDONLY
+            | os.O_DIRECTORY
+            | os.O_NOFOLLOW
+            | getattr(os, "O_CLOEXEC", 0)
+        )
+        try:
+            for component in path.parts[:-1]:
+                if create:
+                    try:
+                        os.mkdir(component, mode=0o700, dir_fd=current_fd)
+                    except FileExistsError:
+                        existing = os.stat(
+                            component,
+                            dir_fd=current_fd,
+                            follow_symlinks=False,
+                        )
+                        _require(
+                            not stat.S_ISLNK(existing.st_mode),
+                            f"target path contains a symlink: {relative}",
+                        )
+                next_fd = os.open(component, flags, dir_fd=current_fd)
+                os.close(current_fd)
+                current_fd = next_fd
+                _require(
+                    stat.S_ISDIR(os.fstat(current_fd).st_mode),
+                    f"target parent is not a directory: {component}",
+                )
+            return current_fd, path.name
+        except C2RemediationError:
+            os.close(current_fd)
+            raise
+        except OSError as exc:
+            os.close(current_fd)
+            if exc.errno == errno.ELOOP:
+                raise C2RemediationError(
+                    f"target path contains a symlink: {relative}"
+                ) from exc
+            raise C2RemediationError(
+                f"cannot securely open target parent: {relative}"
+            ) from exc
+
+    @staticmethod
+    def _read_regular_at(parent_fd: int, name: str, label: str) -> bytes:
+        descriptor = -1
+        try:
+            descriptor = os.open(
+                name,
+                os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0),
+                dir_fd=parent_fd,
+            )
+            before = os.fstat(descriptor)
+            _require(stat.S_ISREG(before.st_mode), f"{label} is not a regular file")
+            chunks: list[bytes] = []
+            while True:
+                block = os.read(descriptor, 1024 * 1024)
+                if not block:
+                    break
+                chunks.append(block)
+            after = os.fstat(descriptor)
+            _require(
+                (
+                    before.st_dev,
+                    before.st_ino,
+                    before.st_size,
+                    before.st_mtime_ns,
+                    before.st_ctime_ns,
+                )
+                == (
+                    after.st_dev,
+                    after.st_ino,
+                    after.st_size,
+                    after.st_mtime_ns,
+                    after.st_ctime_ns,
+                ),
+                f"{label} changed while being read",
+            )
+            return b"".join(chunks)
+        except OSError as exc:
+            if exc.errno == errno.ELOOP:
+                raise C2RemediationError(f"{label} is a symlink") from exc
+            raise C2RemediationError(f"cannot securely read {label}") from exc
+        finally:
+            if descriptor != -1:
+                os.close(descriptor)
+
+    def write_bytes(self, relative: str, payload: bytes) -> str:
+        parent_fd, leaf_name = self._open_parent(relative, create=True)
+        descriptor = -1
+        try:
+            descriptor = os.open(
+                leaf_name,
+                os.O_WRONLY
+                | os.O_CREAT
+                | os.O_EXCL
+                | os.O_NOFOLLOW
+                | getattr(os, "O_CLOEXEC", 0),
+                0o600,
+                dir_fd=parent_fd,
+            )
+            with os.fdopen(descriptor, "wb", closefd=False) as handle:
+                handle.write(payload)
+                handle.flush()
+                os.fsync(handle.fileno())
+            return _ensure_relative(relative, f"target {relative}").as_posix()
+        except FileExistsError as exc:
+            raise C2RemediationError(
+                f"refusing to overwrite generated artifact {relative}"
+            ) from exc
+        except OSError as exc:
+            if exc.errno == errno.ELOOP:
+                raise C2RemediationError(
+                    f"target path contains a symlink: {relative}"
+                ) from exc
+            raise C2RemediationError(
+                f"cannot securely write generated artifact {relative}"
+            ) from exc
+        finally:
+            if descriptor != -1:
+                os.close(descriptor)
+            os.close(parent_fd)
+
+    def read_bytes(self, relative: str) -> bytes:
+        parent_fd, leaf_name = self._open_parent(relative, create=False)
+        try:
+            return self._read_regular_at(parent_fd, leaf_name, f"target {relative}")
+        finally:
+            os.close(parent_fd)
+
+    def sha256(self, relative: str) -> str:
+        return _sha256_bytes(self.read_bytes(relative))
+
+    def mkdir(self, relative: str) -> None:
+        parent_fd, leaf_name = self._open_parent(relative, create=True)
+        try:
+            try:
+                os.mkdir(leaf_name, mode=0o700, dir_fd=parent_fd)
+            except FileExistsError as exc:
+                raise C2RemediationError(
+                    f"refusing to overwrite generated directory {relative}"
+                ) from exc
+            descriptor = os.open(
+                leaf_name,
+                os.O_RDONLY
+                | os.O_DIRECTORY
+                | os.O_NOFOLLOW
+                | getattr(os, "O_CLOEXEC", 0),
+                dir_fd=parent_fd,
+            )
+            try:
+                _require(
+                    stat.S_ISDIR(os.fstat(descriptor).st_mode),
+                    f"generated target directory is invalid: {relative}",
+                )
+            finally:
+                os.close(descriptor)
+        except OSError as exc:
+            if exc.errno == errno.ELOOP:
+                raise C2RemediationError(
+                    f"target path contains a symlink: {relative}"
+                ) from exc
+            raise C2RemediationError(
+                f"cannot securely create target directory {relative}"
+            ) from exc
+        finally:
+            os.close(parent_fd)
+
+    def files(self, excludes: set[str] | None = None) -> Iterable[tuple[str, int, bytes]]:
+        excluded = excludes or set()
+
+        def is_excluded(relative: str) -> bool:
+            return any(
+                relative == item.rstrip("/") or relative.startswith(item)
+                for item in excluded
+            )
+
+        def descend(directory_fd: int, prefix: tuple[str, ...]) -> Iterable[tuple[str, int, bytes]]:
+            for name in sorted(os.listdir(directory_fd)):
+                relative = "/".join((*prefix, name))
+                file_stat = os.stat(
+                    name,
+                    dir_fd=directory_fd,
+                    follow_symlinks=False,
+                )
+                _require(
+                    not stat.S_ISLNK(file_stat.st_mode),
+                    f"target artifact symlink {relative}",
+                )
+                if stat.S_ISDIR(file_stat.st_mode):
+                    if is_excluded(f"{relative}/"):
+                        continue
+                    child_fd = os.open(
+                        name,
+                        os.O_RDONLY
+                        | os.O_DIRECTORY
+                        | os.O_NOFOLLOW
+                        | getattr(os, "O_CLOEXEC", 0),
+                        dir_fd=directory_fd,
+                    )
+                    try:
+                        yield from descend(child_fd, (*prefix, name))
+                    finally:
+                        os.close(child_fd)
+                    continue
+                _require(
+                    stat.S_ISREG(file_stat.st_mode),
+                    f"unsupported target artifact {relative}",
+                )
+                if is_excluded(relative):
+                    continue
+                yield (
+                    relative,
+                    file_stat.st_size,
+                    self._read_regular_at(
+                        directory_fd,
+                        name,
+                        f"target artifact {relative}",
+                    ),
+                )
+
+        root_fd = os.dup(self._root_fd)
+        try:
+            yield from descend(root_fd, ())
+        finally:
+            os.close(root_fd)
+
+    def verify_identity(self) -> None:
+        _require(self._root_fd != -1 and self._parent_fd != -1, "target is closed")
+        anchored_root = os.fstat(self._root_fd)
+        anchored_leaf = os.stat(
+            self._leaf_name,
+            dir_fd=self._parent_fd,
+            follow_symlinks=False,
+        )
+        _require(
+            stat.S_ISDIR(anchored_leaf.st_mode)
+            and (anchored_leaf.st_dev, anchored_leaf.st_ino)
+            == (self._root_identity.st_dev, self._root_identity.st_ino)
+            and (anchored_root.st_dev, anchored_root.st_ino)
+            == (self._root_identity.st_dev, self._root_identity.st_ino),
+            "anchored target directory identity changed",
+        )
+        probe = open_secure_output_target(
+            self.path,
+            normalized_path=True,
+            require_trusted_parent=True,
+        )
+        try:
+            visible_parent = os.fstat(probe.parent_fd)
+            visible_leaf = os.stat(
+                probe.leaf_name,
+                dir_fd=probe.parent_fd,
+                follow_symlinks=False,
+            )
+            _require(
+                (visible_parent.st_dev, visible_parent.st_ino)
+                == (self._parent_identity.st_dev, self._parent_identity.st_ino)
+                and stat.S_ISDIR(visible_leaf.st_mode)
+                and (visible_leaf.st_dev, visible_leaf.st_ino)
+                == (self._root_identity.st_dev, self._root_identity.st_ino),
+                "visible target directory identity changed",
+            )
+        finally:
+            probe.close()
 
 
 def _read_external_file_once(path: Path, label: str) -> bytes:
@@ -1178,10 +1533,128 @@ def _validate_raw_root(
         raise
 
 
+def _validate_download_source_evidence(
+    reader: _RawRootReader,
+    *,
+    article_id: str,
+    doi: str,
+    provenance_path: str,
+    provenance: Mapping[str, Any],
+) -> _SourceEvidence:
+    _require(
+        provenance.get("download_status") == "downloaded",
+        f"downloaded provenance status is invalid: {article_id}",
+    )
+    evidence = provenance.get("source_evidence")
+    _require(
+        isinstance(evidence, dict),
+        f"downloaded provenance lacks source evidence: {article_id}",
+    )
+    expected_descriptor_path = f"content/_source_evidence/{article_id}.json"
+    _require(
+        evidence.get("descriptor_path") == expected_descriptor_path,
+        f"source evidence descriptor path is invalid: {article_id}",
+    )
+    _require(
+        _is_sha256(evidence.get("descriptor_sha256"))
+        and isinstance(evidence.get("descriptor_bytes"), int)
+        and not isinstance(evidence["descriptor_bytes"], bool)
+        and evidence["descriptor_bytes"] > 0,
+        f"source evidence descriptor metadata is invalid: {article_id}",
+    )
+    descriptor_payload = reader.read(
+        expected_descriptor_path,
+        f"source evidence descriptor {article_id}",
+    )
+    _require(
+        len(descriptor_payload) == evidence["descriptor_bytes"]
+        and _sha256_bytes(descriptor_payload) == evidence["descriptor_sha256"],
+        f"source evidence descriptor digest mismatch: {article_id}",
+    )
+    descriptor = _read_json_bytes(
+        descriptor_payload,
+        f"source evidence descriptor {article_id}",
+    )
+    _reject_absolute_path_values(
+        descriptor,
+        raw_root=reader.root,
+        label=f"source evidence descriptor {article_id}",
+    )
+    _require(
+        descriptor.get("schema_version") == "c2-source-evidence-v1",
+        f"source evidence descriptor schema mismatch: {article_id}",
+    )
+    _require(
+        descriptor.get("doi") == doi
+        and descriptor.get("article_id") == article_id
+        and descriptor.get("provenance_path") == provenance_path,
+        f"source evidence descriptor provenance linkage mismatch: {article_id}",
+    )
+    _require(
+        isinstance(descriptor.get("descriptor_hash"), str)
+        and _sha256_json(_json_without(descriptor, "descriptor_hash"))
+        == descriptor["descriptor_hash"],
+        f"source evidence descriptor semantic hash mismatch: {article_id}",
+    )
+    sources = descriptor.get("sources")
+    _require(
+        isinstance(sources, list) and sources,
+        f"source evidence descriptor has no source files: {article_id}",
+    )
+    expected_prefix = f"content/_sources/{article_id}/"
+    source_paths: list[Mapping[str, Any]] = []
+    seen_paths: set[str] = set()
+    for index, source in enumerate(sources, start=1):
+        _require(
+            isinstance(source, dict),
+            f"source evidence source entry {index} is invalid: {article_id}",
+        )
+        relative_path = source.get("relative_path")
+        _require(
+            isinstance(relative_path, str)
+            and relative_path.startswith(expected_prefix)
+            and relative_path not in seen_paths,
+            f"source evidence source path is invalid: {article_id}",
+        )
+        _ensure_relative(relative_path, f"source evidence source path {article_id}")
+        _require(
+            source.get("doi") == doi
+            and _is_sha256(source.get("sha256"))
+            and isinstance(source.get("bytes"), int)
+            and not isinstance(source["bytes"], bool)
+            and source["bytes"] > 0,
+            f"source evidence source metadata is invalid: {article_id}",
+        )
+        source_payload = reader.read(
+            relative_path,
+            f"source evidence source {article_id}:{index}",
+        )
+        _require(
+            len(source_payload) == source["bytes"]
+            and _sha256_bytes(source_payload) == source["sha256"],
+            f"source evidence source digest mismatch: {article_id}",
+        )
+        seen_paths.add(relative_path)
+        source_paths.append(
+            {
+                "relative_path": relative_path,
+                "sha256": source["sha256"],
+                "bytes": source["bytes"],
+                "doi": doi,
+            }
+        )
+    return _SourceEvidence(
+        descriptor_path=expected_descriptor_path,
+        descriptor_sha256=evidence["descriptor_sha256"],
+        descriptor_bytes=evidence["descriptor_bytes"],
+        source_paths=tuple(source_paths),
+    )
+
+
 def _read_provenance(
     reader: _RawRootReader,
     records: list[dict[str, Any]],
-    statuses: Mapping[str, str],
+    statuses_by_attempt: Mapping[str, Mapping[str, str]],
 ) -> dict[str, dict[str, Any]]:
     provenance: dict[str, dict[str, Any]] = {}
     for record in records:
@@ -1200,77 +1673,110 @@ def _read_provenance(
         )
         reasons = value.get("rejection_reasons")
         _require(isinstance(reasons, list), f"provenance reasons invalid: {article_id}")
-        status = statuses[article_id]
-        if status == "downloaded":
-            _require(reasons == [], f"downloaded provenance has rejection reason: {article_id}")
+        terminal_status = statuses_by_attempt["retry2"][article_id]
+        source_bearing = any(
+            statuses_by_attempt[attempt][article_id] == "downloaded"
+            for attempt in ATTEMPTS
+        )
+        if source_bearing:
             _require(
-                value.get("download_status") not in {None, "", "empty", "error"},
-                f"downloaded provenance is not successful: {article_id}",
+                reasons == ([] if terminal_status == "downloaded" else [terminal_status]),
+                f"source-bearing provenance rejection reason mismatch: {article_id}",
+            )
+            source_evidence = _validate_download_source_evidence(
+                reader,
+                article_id=article_id,
+                doi=_normalized_doi(record),
+                provenance_path=relative,
+                provenance=value,
+            )
+            acquisition_disposition = (
+                "SOURCE_BEARING_DOWNLOAD"
+                if terminal_status == "downloaded"
+                else (
+                    "SOURCE_BEARING_PRIOR_ATTEMPT_DOWNLOAD_"
+                    f"RETRY2_{terminal_status.upper().replace('-', '_')}"
+                )
+            )
+            source_classification_state = (
+                "BLOCKED_CANONICAL_P_BUILDER_REQUIRED"
             )
         else:
             _require(
-                reasons == [status],
+                reasons == [terminal_status],
                 f"provenance rejection reason mismatch: {article_id}",
             )
+            _require(
+                "download_status" not in value and "source_evidence" not in value,
+                f"source-less provenance contains source claim: {article_id}",
+            )
+            source_evidence = None
+            acquisition_disposition = (
+                f"SOURCELESS_{terminal_status.upper().replace('-', '_')}"
+            )
+            source_classification_state = "EMPTY_CHAIN_ELIGIBLE_NO_SOURCE"
         provenance[article_id] = {
             "relative_path": relative,
             "sha256": _sha256_bytes(payload),
             "payload": payload,
             "value": value,
+            "source_evidence": source_evidence,
+            "acquisition_disposition": acquisition_disposition,
+            "source_classification_state": source_classification_state,
         }
     return provenance
 
 
-def _write_new_path(path: Path, payload: bytes, label: str) -> Path:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    _require(not path.exists(), f"refusing to overwrite {label}")
-    descriptor = os.open(
-        path,
-        os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
-        0o600,
+def _validate_content_closure(
+    reader: _RawRootReader,
+    provenance: Mapping[str, Mapping[str, Any]],
+) -> tuple[str, ...]:
+    """Reject raw content not bound to terminal provenance/source descriptors."""
+
+    expected_paths = {
+        str(entry["relative_path"])
+        for entry in provenance.values()
+    }
+    for article_id, entry in provenance.items():
+        evidence = entry["source_evidence"]
+        if evidence is None:
+            continue
+        expected_paths.add(evidence.descriptor_path)
+        expected_paths.update(
+            str(source["relative_path"])
+            for source in evidence.source_paths
+        )
+    observed_paths = set(reader.files_under("content", "raw content"))
+    _require(
+        observed_paths == expected_paths,
+        "raw content contains unreferenced, missing, or source-less source artifacts",
     )
-    try:
-        with os.fdopen(descriptor, "wb", closefd=False) as handle:
-            handle.write(payload)
-            handle.flush()
-            os.fsync(handle.fileno())
-    finally:
-        os.close(descriptor)
-    return path
+    return tuple(sorted(observed_paths))
 
 
-def _write_bytes(root: Path, relative: str, payload: bytes) -> Path:
-    return _write_new_path(
-        root / _ensure_relative(relative, f"output {relative}"),
-        payload,
-        f"generated artifact {relative}",
-    )
+def _write_bytes(root: _SecureTargetRoot, relative: str, payload: bytes) -> str:
+    return root.write_bytes(relative, payload)
 
 
 def _copy_raw_tree(
     reader: _RawRootReader,
-    destination_root: Path,
+    destination_root: _SecureTargetRoot,
+    content_files: Iterable[str],
 ) -> None:
-    source = _safe_directory(reader.root, "content", "raw content")
-    destination = destination_root / "content"
-    destination.mkdir(parents=True, exist_ok=False)
-    for item in sorted(source.rglob("*")):
-        _require(not item.is_symlink(), f"symlink source artifact {item}")
-        relative = item.relative_to(source)
-        target = destination / relative
-        if item.is_dir():
-            target.mkdir()
-            continue
-        _require(item.is_file(), f"unsupported source artifact {item}")
-        source_relative = f"content/{relative.as_posix()}"
+    destination_root.mkdir("content")
+    for source_relative in content_files:
         if source_relative in reader.reads:
             payload = reader.reads[source_relative].payload
         else:
             payload = reader.read(source_relative, f"raw {source_relative}")
-        _write_new_path(target, payload, f"copied raw artifact {source_relative}")
+        destination_root.write_bytes(source_relative, payload)
 
 
-def _write_json(root: Path, relative: str, value: Mapping[str, Any]) -> Path:
+def _write_json(
+    root: _SecureTargetRoot,
+    relative: str,
+    value: Mapping[str, Any],
+) -> str:
     return _write_bytes(
         root,
         relative,
@@ -1287,7 +1793,11 @@ def _write_json(root: Path, relative: str, value: Mapping[str, Any]) -> Path:
     )
 
 
-def _write_jsonl(root: Path, relative: str, values: Iterable[Mapping[str, Any]]) -> Path:
+def _write_jsonl(
+    root: _SecureTargetRoot,
+    relative: str,
+    values: Iterable[Mapping[str, Any]],
+) -> str:
     payload = "".join(
         json.dumps(value, ensure_ascii=False, sort_keys=True, allow_nan=False) + "\n"
         for value in values
@@ -1321,16 +1831,25 @@ def _artifact_entries(root: Path, excludes: set[str]) -> list[dict[str, Any]]:
     return entries
 
 
-def _write_secret_scan(root: Path) -> tuple[Path, dict[str, Any]]:
+def _target_artifact_entries(
+    root: _SecureTargetRoot,
+    excludes: set[str],
+) -> list[dict[str, Any]]:
+    return [
+        {
+            "path": relative,
+            "bytes": byte_count,
+            "sha256": _sha256_bytes(payload),
+        }
+        for relative, byte_count, payload in root.files(excludes)
+    ]
+
+
+def _write_secret_scan(root: _SecureTargetRoot) -> tuple[str, dict[str, Any]]:
     hits: list[dict[str, str]] = []
     files_scanned = 0
-    for path in sorted(root.rglob("*")):
-        relative = path.relative_to(root).as_posix()
-        _require(not path.is_symlink(), f"target artifact symlink {relative}")
-        if not path.is_file():
-            continue
+    for relative, _byte_count, payload in root.files():
         files_scanned += 1
-        payload = path.read_bytes()
         for label, pattern in SECRET_PATTERNS:
             if pattern.search(payload):
                 hits.append({"path": relative, "pattern": label})
@@ -1388,7 +1907,7 @@ def _verify_protected_old_root(
     }
 
 
-def _create_target_root(target_root: Path) -> Path:
+def _create_target_root(target_root: Path) -> _SecureTargetRoot:
     _require(target_root.is_absolute(), "target root must be absolute")
     normalized_target = normalize_trusted_output_path(target_root)
     target = open_secure_output_target(
@@ -1396,20 +1915,41 @@ def _create_target_root(target_root: Path) -> Path:
         normalized_path=True,
         require_trusted_parent=True,
     )
+    parent_fd = target.parent_fd
+    target.parent_fd = -1
+    root_fd = -1
     try:
         try:
-            os.stat(target.leaf_name, dir_fd=target.parent_fd, follow_symlinks=False)
+            os.stat(target.leaf_name, dir_fd=parent_fd, follow_symlinks=False)
         except FileNotFoundError:
             pass
         else:
             raise C2RemediationError("target root already exists")
         try:
-            os.mkdir(target.leaf_name, mode=0o700, dir_fd=target.parent_fd)
+            os.mkdir(target.leaf_name, mode=0o700, dir_fd=parent_fd)
         except OSError as exc:
             raise C2RemediationError("cannot create fresh target root") from exc
-        created = target.final_path
-        _require(created.is_dir() and not created.is_symlink(), "created target root is unsafe")
-        return created
+        root_fd = os.open(
+            target.leaf_name,
+            os.O_RDONLY
+            | os.O_DIRECTORY
+            | os.O_NOFOLLOW
+            | getattr(os, "O_CLOEXEC", 0),
+            dir_fd=parent_fd,
+        )
+        secure_root = _SecureTargetRoot(
+            path=target.final_path,
+            parent_fd=parent_fd,
+            leaf_name=target.leaf_name,
+            root_fd=root_fd,
+        )
+        root_fd = -1
+        return secure_root
+    except Exception:
+        if root_fd != -1:
+            os.close(root_fd)
+        os.close(parent_fd)
+        raise
     finally:
         target.close()
 
@@ -1551,8 +2091,9 @@ def finalize_remediation_root(
         provenance = _read_provenance(
             raw_reader,
             records,
-            statuses_by_attempt["retry2"],
+            statuses_by_attempt,
         )
+        content_files = _validate_content_closure(raw_reader, provenance)
     except Exception:
         raw_reader.close()
         raise
@@ -1571,6 +2112,7 @@ def finalize_remediation_root(
         raw_reader.close()
         raise
 
+    target: _SecureTargetRoot | None = None
     try:
         target = _create_target_root(target_root)
     except Exception:
@@ -1579,7 +2121,7 @@ def finalize_remediation_root(
     try:
         for relative, payload in raw_bytes.items():
             _write_bytes(target, relative, payload)
-        _copy_raw_tree(raw_reader, target)
+        _copy_raw_tree(raw_reader, target, content_files)
 
         source_manifest = _source_manifest(raw_reader.reads)
         _write_json(target, "control/v2/raw_source_manifest.json", source_manifest)
@@ -1649,7 +2191,7 @@ def finalize_remediation_root(
                 "coverage_records": partition.records,
                 "input_records": partition.records,
                 "input_sha256": partition.source_sha256,
-                "ledger_sha256": sha256_file(ledger_path),
+                "ledger_sha256": target.sha256(ledger_path),
                 "postfetch_exit": 0,
                 "postfetch_log_sha256": _sha256_bytes(
                     raw_bytes[f"control/{attempt}/postfetch.log"]
@@ -1680,7 +2222,7 @@ def finalize_remediation_root(
             evidence.append(
                 {
                     **summary,
-                    "summary_file_sha256": sha256_file(summary_path),
+                    "summary_file_sha256": target.sha256(summary_path),
                 }
             )
             ledgers[attempt] = ledger
@@ -1708,6 +2250,12 @@ def finalize_remediation_root(
                     "input_index_1based": ordinal,
                     "provenance_path": final_provenance["relative_path"],
                     "provenance_sha256": final_provenance["sha256"],
+                    "acquisition_disposition": final_provenance[
+                        "acquisition_disposition"
+                    ],
+                    "source_classification_state": final_provenance[
+                        "source_classification_state"
+                    ],
                     "rounds": {
                         attempt: statuses_by_attempt[attempt][article_id]
                         for attempt in ATTEMPTS
@@ -1723,6 +2271,10 @@ def finalize_remediation_root(
         terminal_counts = _closed_status_counts(
             row["terminal_status"] for row in terminal_rows
         )
+        source_bearing_terminal_records = sum(
+            provenance[row["article_id"]]["source_evidence"] is not None
+            for row in terminal_rows
+        )
         cleanup = {"schema_version": "1.0", "records": []}
         cleanup_path = _write_json(target, "control/terminal_cleanup.json", cleanup)
         retry_policy = {
@@ -1731,9 +2283,9 @@ def finalize_remediation_root(
             "frozen_accepted_sha256": partition.source_sha256,
             "outcome_independent": True,
             "selection_rule": binding["selection_rule"],
-            "attempt_coverage_sha256": sha256_file(coverage_path),
+            "attempt_coverage_sha256": target.sha256(coverage_path),
             "attempt_coverage_summary_hash": coverage["summary_hash"],
-            "terminal_outcomes_sha256": sha256_file(terminal_path),
+            "terminal_outcomes_sha256": target.sha256(terminal_path),
             "terminal_counts": terminal_counts,
         }
         _seal(retry_policy, "policy_hash")
@@ -1744,12 +2296,19 @@ def finalize_remediation_root(
             "accepted_sha256": partition.source_sha256,
             "attempt_count": 3,
             "attempt_coverage_exact": True,
-            "attempt_coverage_sha256": sha256_file(coverage_path),
+            "attempt_coverage_sha256": target.sha256(coverage_path),
             "provenance_records": partition.records,
             "terminal": terminal_counts,
-            "terminal_outcomes_sha256": sha256_file(terminal_path),
-            "terminal_cleanup_sha256": sha256_file(cleanup_path),
-            "retry_policy_sha256": sha256_file(retry_path),
+            "source_classification": {
+                "source_bearing_terminal_records": source_bearing_terminal_records,
+                "source_less_terminal_records": (
+                    partition.records - source_bearing_terminal_records
+                ),
+                "empty_chain_authorized": source_bearing_terminal_records == 0,
+            },
+            "terminal_outcomes_sha256": target.sha256(terminal_path),
+            "terminal_cleanup_sha256": target.sha256(cleanup_path),
+            "retry_policy_sha256": target.sha256(retry_path),
         }
         _seal(terminal_summary, "summary_hash")
         terminal_summary_path = _write_json(
@@ -1757,6 +2316,49 @@ def finalize_remediation_root(
             "control/postfetch_terminal_summary.json",
             terminal_summary,
         )
+
+        source_bearing_rows = [
+            {
+                "article_id": row["article_id"],
+                "doi": row["doi"],
+                "provenance_path": row["provenance_path"],
+                "provenance_sha256": row["provenance_sha256"],
+                "source_evidence": {
+                    "descriptor_path": provenance[row["article_id"]][
+                        "source_evidence"
+                    ].descriptor_path,
+                    "descriptor_sha256": provenance[row["article_id"]][
+                        "source_evidence"
+                    ].descriptor_sha256,
+                    "descriptor_bytes": provenance[row["article_id"]][
+                        "source_evidence"
+                    ].descriptor_bytes,
+                    "source_paths": list(
+                        provenance[row["article_id"]]["source_evidence"].source_paths
+                    ),
+                },
+            }
+            for row in terminal_rows
+            if provenance[row["article_id"]]["source_evidence"] is not None
+        ]
+        if source_bearing_rows:
+            blocked = {
+                "schema_version": "c2-source-classification-block-v1",
+                "status": "NOT_SEALABLE_SOURCE_CLASSIFICATION_BUILDER_REQUIRED",
+                "reason": (
+                    "source-bearing terminal records require a separately approved "
+                    "deterministic canonical/P builder; empty canonical/P evidence "
+                    "is forbidden"
+                ),
+                "terminal_outcomes_sha256": target.sha256(terminal_path),
+                "terminal_summary_sha256": target.sha256(terminal_summary_path),
+                "source_bearing_rows": source_bearing_rows,
+            }
+            _seal(blocked, "block_hash")
+            _write_json(target, "control/source_classification_blocked.json", blocked)
+            raise C2RemediationError(
+                "source-bearing terminal rows require an approved canonical/P builder"
+            )
 
         manifest_rows = [
             {
@@ -1788,7 +2390,7 @@ def finalize_remediation_root(
             "unique_dois": partition.records,
             "strict_vor_ccby": True,
             "cc_by_vor_valid": partition.records,
-            "manifest_sha256": sha256_file(manifest_path),
+            "manifest_sha256": target.sha256(manifest_path),
         }
         _write_json(target, "manifest_v1/manifest_summary.json", manifest_summary)
         _write_jsonl(
@@ -1873,7 +2475,7 @@ def finalize_remediation_root(
             "status": "CANONICAL_EMPTY_NO_PROPOSALS",
             "chunk": int(chunk_id),
             "input_proposals": 0,
-            "canonical_summary_sha256": sha256_file(canonical_path),
+            "canonical_summary_sha256": target.sha256(canonical_path),
             "canonical_summary_hash": canonical["summary_hash"],
             "reason": "no canonical accepted cases",
         }
@@ -1884,8 +2486,8 @@ def finalize_remediation_root(
             "status": "NOT_EMITTED_NO_REVIEWED_CASES",
             "assembly_run": False,
             "eligible_cases": 0,
-            "canonical_summary_sha256": sha256_file(canonical_path),
-            "p_summary_sha256": sha256_file(p_path),
+            "canonical_summary_sha256": target.sha256(canonical_path),
+            "p_summary_sha256": target.sha256(p_path),
         }
         _write_json(target, "control/sealed_benchmark_status.json", benchmark)
 
@@ -1931,20 +2533,21 @@ def finalize_remediation_root(
             "execution_evidence_hash": execution_evidence["evidence_hash"],
             "test_results": execution_evidence["tests"],
             "secret_scan_status": execution_evidence["secret_scan_status"],
-            "generated_secret_scan_sha256": sha256_file(secret_scan_path),
+            "generated_secret_scan_sha256": target.sha256(secret_scan_path),
             "generated_secret_scan_hash": secret_scan["scan_hash"],
             "code_before": code,
             "code_after": postfinal_code,
         }
         _seal(preseal, "validation_hash")
         preseal_path = _write_json(target, "control/preseal_validation.json", preseal)
+        target.verify_identity()
 
         inventory_excludes = {
             ".pipeline_worktree/",
             "control/root_inventory.json",
             "sealed_report_v1/",
         }
-        inventory_entries = _artifact_entries(target, inventory_excludes)
+        inventory_entries = _target_artifact_entries(target, inventory_excludes)
         inventory = {
             "schema_version": "1.0",
             "root_name": target.name,
@@ -1957,7 +2560,7 @@ def finalize_remediation_root(
         inventory_path = _write_json(target, "control/root_inventory.json", inventory)
 
         manifest_excludes = {".pipeline_worktree/", "sealed_report_v1/"}
-        artifact_entries = _artifact_entries(target, manifest_excludes)
+        artifact_entries = _target_artifact_entries(target, manifest_excludes)
         artifact_manifest = {
             "schema_version": "1.0",
             "root_name": target.name,
@@ -1975,13 +2578,15 @@ def finalize_remediation_root(
         _write_bytes(
             target,
             "sealed_report_v1/artifact_manifest.sha256",
-            f"{sha256_file(artifact_manifest_path)}  artifact_manifest.json\n".encode("utf-8"),
+            f"{target.sha256(artifact_manifest_path)}  artifact_manifest.json\n".encode(
+                "utf-8"
+            ),
         )
 
         report = {
             "sealed_report_version": "3.0",
             "status": "SEALED_COMPLETE_ATTEMPT_EVIDENCE_NO_CASES",
-            "root": str(target),
+            "root": str(target.path),
             "code": code,
             "code_after_finalization": postfinal_code,
             "frozen_input": {
@@ -2002,7 +2607,7 @@ def finalize_remediation_root(
                 "no_model_calls": True,
             },
             "preservation": {
-                "ledger_file_sha256": sha256_file(preservation_ledger_path),
+                "ledger_file_sha256": target.sha256(preservation_ledger_path),
                 "ledger_hash": preservation_ledger["ledger_hash"],
                 "protected_old_root_contracts": len(
                     preservation_ledger["old_root_contracts"]
@@ -2016,16 +2621,16 @@ def finalize_remediation_root(
             },
             "attempt_evidence": {
                 "coverage_exact": True,
-                "coverage_file_sha256": sha256_file(coverage_path),
+                "coverage_file_sha256": target.sha256(coverage_path),
                 "coverage_summary_hash": coverage["summary_hash"],
             },
             "postfetch": {
-                "terminal_outcomes_sha256": sha256_file(terminal_path),
-                "summary_file_sha256": sha256_file(terminal_summary_path),
+                "terminal_outcomes_sha256": target.sha256(terminal_path),
+                "summary_file_sha256": target.sha256(terminal_summary_path),
                 "summary_hash": terminal_summary["summary_hash"],
                 "terminal_counts": terminal_counts,
                 "provenance_records": partition.records,
-                "provenance_relocation_sha256": sha256_file(
+                "provenance_relocation_sha256": target.sha256(
                     provenance_relocation_path
                 ),
                 "provenance_relocation_hash": provenance_relocation[
@@ -2034,55 +2639,57 @@ def finalize_remediation_root(
             },
             "corpus_manifest": manifest_summary,
             "cases": {
-                "summary_file_sha256": sha256_file(cases_path),
+                "summary_file_sha256": target.sha256(cases_path),
                 "summary_hash": cases["summary_hash"],
                 "candidates": 0,
                 "ambiguous": 0,
             },
             "proposals": {
-                "summary_file_sha256": sha256_file(proposals_path),
+                "summary_file_sha256": target.sha256(proposals_path),
                 "summary_hash": proposals["summary_hash"],
                 "proposals": 0,
                 "rejected": 0,
             },
             "canonical": {
-                "summary_file_sha256": sha256_file(canonical_path),
+                "summary_file_sha256": target.sha256(canonical_path),
                 "summary_hash": canonical["summary_hash"],
                 "status": canonical["status"],
             },
             "p_strata": {
-                "summary_file_sha256": sha256_file(p_path),
+                "summary_file_sha256": target.sha256(p_path),
                 "summary_hash": p_summary["summary_hash"],
                 "status": p_summary["status"],
             },
             "review": {
-                "validation_file_sha256": sha256_file(review_path),
+                "validation_file_sha256": target.sha256(review_path),
                 "summary_hash": review["summary_hash"],
                 "status": review["status"],
             },
             "trust_chain": {
-                "raw_source_manifest_sha256": sha256_file(
-                    target / "control/v2/raw_source_manifest.json"
+                "raw_source_manifest_sha256": target.sha256(
+                    "control/v2/raw_source_manifest.json"
                 ),
-                "raw_attempt_attestation_sha256": sha256_file(
-                    target / "control/v2/raw_attempt_attestation.json"
+                "raw_attempt_attestation_sha256": target.sha256(
+                    "control/v2/raw_attempt_attestation.json"
                 ),
-                "provenance_relocation_sha256": sha256_file(
+                "provenance_relocation_sha256": target.sha256(
                     provenance_relocation_path
                 ),
                 "execution_evidence_sha256": _sha256_bytes(
                     raw_bytes["control/execution_evidence.json"]
                 ),
                 "execution_evidence_hash": execution_evidence["evidence_hash"],
-                "secret_scan_sha256": sha256_file(secret_scan_path),
+                "secret_scan_sha256": target.sha256(secret_scan_path),
                 "secret_scan_hash": secret_scan["scan_hash"],
-                "preseal_validation_sha256": sha256_file(preseal_path),
+                "preseal_validation_sha256": target.sha256(preseal_path),
                 "preseal_validation_hash": preseal["validation_hash"],
                 "root_inventory_path": "control/root_inventory.json",
-                "root_inventory_sha256": sha256_file(inventory_path),
+                "root_inventory_sha256": target.sha256(inventory_path),
                 "root_inventory_hash": inventory["inventory_hash"],
                 "artifact_manifest_path": "sealed_report_v1/artifact_manifest.json",
-                "artifact_manifest_file_sha256": sha256_file(artifact_manifest_path),
+                "artifact_manifest_file_sha256": target.sha256(
+                    artifact_manifest_path
+                ),
                 "artifact_manifest_hash": artifact_manifest["manifest_hash"],
                 "artifact_hashes": {
                     entry["path"]: entry["sha256"] for entry in artifact_entries
@@ -2094,7 +2701,7 @@ def finalize_remediation_root(
         _write_bytes(
             target,
             "sealed_report_v1/sealed_report.sha256",
-            f"{sha256_file(report_path)}  sealed_report.json\n".encode("utf-8"),
+            f"{target.sha256(report_path)}  sealed_report.json\n".encode("utf-8"),
         )
         postseal_code = _verify_worktree(worktree)
         _require(
@@ -2133,10 +2740,10 @@ def finalize_remediation_root(
             "schema_version": "2.0",
             "status": "PASS",
             "all_gates_pass": True,
-            "sealed_report_file_sha256": sha256_file(report_path),
+            "sealed_report_file_sha256": target.sha256(report_path),
             "sealed_report_hash": report["report_hash"],
             "code_after_sealed_report": postseal_code,
-            "postseal_preservation_sha256": sha256_file(
+            "postseal_preservation_sha256": target.sha256(
                 postseal_preservation_path
             ),
             "postseal_preservation_hash": postseal_preservation[
@@ -2167,15 +2774,16 @@ def finalize_remediation_root(
         )
 
         _require(
-            sha256_file(report_path) == validation["sealed_report_file_sha256"],
+            target.sha256(report_path) == validation["sealed_report_file_sha256"],
             "generated report checksum mismatch",
         )
-        _require(validation_path.is_file(), "generated validation is missing")
+        _require(target.read_bytes(validation_path), "generated validation is missing")
+        target.verify_identity()
         return {
             "chunk_id": chunk_id,
-            "target_root": str(target),
+            "target_root": str(target.path),
             "input_total": partition.records,
-            "sealed_report_sha256": sha256_file(report_path),
+            "sealed_report_sha256": target.sha256(report_path),
             "report_hash": report["report_hash"],
             "status": report["status"],
         }
@@ -2184,4 +2792,6 @@ def finalize_remediation_root(
         # A later invocation rejects the existing path rather than overwriting it.
         raise
     finally:
+        if target is not None:
+            target.close()
         raw_reader.close()
