@@ -37,6 +37,7 @@ def _entry_bytes(entry: dict[str, Any]) -> bytes:
 
 def _runtime_files() -> tuple[runtime_verifier.SourceExtensionRuntimeFixtureFile, ...]:
     python_bytes_by_path = {
+        "agent/experiments/__init__.py": b"\"\"\"fixture package.\"\"\"\n",
         "agent/experiments/c2_remediation_root_finalizer.py": (
             b"from . import c2_source_bearing_extension\n"
         ),
@@ -88,12 +89,14 @@ def _fixture(
     manifest_bytes: bytes = b"synthetic test-only manifest bytes",
     runtime_files: tuple[runtime_verifier.SourceExtensionRuntimeFixtureFile, ...]
     | None = None,
+    project_import_paths: tuple[str, ...] = (),
 ) -> runtime_verifier.SourceExtensionRuntimeTestFixture:
     return runtime_verifier.SourceExtensionRuntimeTestFixture(
         implementation_commit_full=implementation_commit_full,
         manifest_only_attestation_commit_full=manifest_only_attestation_commit_full,
         manifest_bytes=manifest_bytes,
         runtime_files=_runtime_files() if runtime_files is None else runtime_files,
+        project_import_paths=project_import_paths,
     )
 
 
@@ -133,19 +136,42 @@ def _compile_registry(
 
 def _compile_runtime_closure(
     runtime_files: tuple[runtime_verifier.SourceExtensionRuntimeFixtureFile, ...],
+    *,
+    project_import_paths: tuple[str, ...] = (),
 ) -> runtime_verifier.SourceExtensionRuntimeByteImportClosure:
     compiler = getattr(
         runtime_verifier,
         "compile_source_extension_runtime_byte_import_closure_for_testing",
     )
-    return compiler(runtime_files)
+    return compiler(
+        runtime_files,
+        project_import_paths=project_import_paths,
+    )
+
+
+def _compile_import_roots(
+    runtime_files: tuple[runtime_verifier.SourceExtensionRuntimeFixtureFile, ...],
+    *,
+    project_import_paths: tuple[str, ...] = (),
+) -> runtime_verifier.SourceExtensionRuntimeByteImportClosure:
+    compiler = getattr(
+        runtime_verifier,
+        "compile_source_extension_import_roots_for_testing",
+    )
+    return compiler(
+        runtime_files,
+        project_import_paths=project_import_paths,
+    )
 
 
 def _lock(
     registry: code_attestation.SourceExtensionCodeAttestationRegistryEntry,
     fixture: runtime_verifier.SourceExtensionRuntimeTestFixture,
 ) -> runtime_verifier.DeploymentPinnedSourceExtensionRuntimeLock:
-    closure = _compile_runtime_closure(fixture.runtime_files)
+    closure = _compile_runtime_closure(
+        fixture.runtime_files,
+        project_import_paths=fixture.project_import_paths,
+    )
     return runtime_verifier.DeploymentPinnedSourceExtensionRuntimeLock(
         expected_code_attestation_registry_id_sha256=registry.registry_id_sha256,
         expected_extension_implementation_commit_full=(
@@ -202,10 +228,12 @@ def test_test_only_typed_interface_binds_registry_manifest_blobset_and_closure(
     assert local_dependencies[
         "agent/experiments/c2_remediation_root_finalizer.py"
     ] == (
+        "agent/experiments/__init__.py",
         "agent/experiments/c2_source_bearing_extension.py",
         "agent/experiments/models.py",
     )
     assert local_dependencies["agent/experiments/c2_source_bearing_extension.py"] == (
+        "agent/experiments/__init__.py",
         "agent/experiments/models.py",
     )
     assert "admitted" not in binding.to_dict()
@@ -762,6 +790,114 @@ def test_explicit_static_local_module_call_is_allowed(
     assert cli_binding.direct_imports == expected_imports
 
 
+def test_relative_import_requires_a_pinned_package_initializer() -> None:
+    fixture = _fixture()
+    without_initializer = tuple(
+        runtime_file
+        for runtime_file in fixture.runtime_files
+        if runtime_file.runtime_path != "agent/experiments/__init__.py"
+    )
+
+    with pytest.raises(
+        C2FullReplacementPolicyError,
+        match="unrostered project-local dependency",
+    ):
+        _compile_import_roots(without_initializer)
+
+
+def test_nested_local_package_requires_each_initializer() -> None:
+    files = (
+        runtime_verifier.SourceExtensionRuntimeFixtureFile(
+            runtime_path="agent/experiments/__init__.py",
+            role="EXPERIMENTS_PACKAGE_INITIALIZER",
+            runtime_bytes=b"\"\"\"fixture package.\"\"\"\n",
+        ),
+        runtime_verifier.SourceExtensionRuntimeFixtureFile(
+            runtime_path="agent/experiments/nested/module.py",
+            role="SOURCE_EXTENSION_RUNTIME",
+            runtime_bytes=b"\"\"\"fixture nested module.\"\"\"\n",
+        ),
+        runtime_verifier.SourceExtensionRuntimeFixtureFile(
+            runtime_path="agent/experiments/cli.py",
+            role="EXPERIMENTS_CLI_RUNTIME",
+            runtime_bytes=b"from .nested import module\n",
+        ),
+    )
+
+    with pytest.raises(
+        C2FullReplacementPolicyError,
+        match="unrostered project-local dependency",
+    ):
+        _compile_import_roots(files)
+
+    with_initializer = (
+        files[0],
+        runtime_verifier.SourceExtensionRuntimeFixtureFile(
+            runtime_path="agent/experiments/nested/__init__.py",
+            role="EXPERIMENTS_PACKAGE_INITIALIZER",
+            runtime_bytes=b"\"\"\"fixture nested package.\"\"\"\n",
+        ),
+        files[1],
+        files[2],
+    )
+    closure = _compile_import_roots(with_initializer)
+    cli_binding = next(
+        item
+        for item in closure.bindings
+        if item.runtime_path == "agent/experiments/cli.py"
+    )
+    assert cli_binding.resolved_project_local_dependencies == (
+        "agent/experiments/__init__.py",
+        "agent/experiments/nested/__init__.py",
+        "agent/experiments/nested/module.py",
+    )
+
+
+def test_top_level_project_and_shadowed_external_imports_fail_closed() -> None:
+    fixture = _fixture()
+    project_import = _replace_runtime_bytes(
+        fixture.runtime_files,
+        "agent/experiments/cli.py",
+        b"import run_chain\n",
+    )
+    with pytest.raises(
+        C2FullReplacementPolicyError,
+        match="project code outside the attested roster",
+    ):
+        _compile_runtime_closure(
+            project_import,
+            project_import_paths=("agent/run_chain.py",),
+        )
+
+    shadowed_external = _replace_runtime_bytes(
+        fixture.runtime_files,
+        "agent/experiments/cli.py",
+        b"import json\njson.dumps({})\n",
+    )
+    with pytest.raises(
+        C2FullReplacementPolicyError,
+        match="shadowable external module name",
+    ):
+        _compile_runtime_closure(
+            shadowed_external,
+            project_import_paths=("agent/json.py",),
+        )
+
+
+def test_attested_roster_pins_the_executed_package_initializer() -> None:
+    fixture = _fixture()
+    closure = _compile_runtime_closure(fixture.runtime_files)
+    initializer = next(
+        item
+        for item in closure.bindings
+        if item.runtime_path == "agent/experiments/__init__.py"
+    )
+    assert initializer.role == "EXPERIMENTS_PACKAGE_INITIALIZER"
+    assert initializer.byte_sha256 == hashlib.sha256(
+        b"\"\"\"fixture package.\"\"\"\n"
+    ).hexdigest()
+
+
 @pytest.mark.parametrize(
     ("source", "expected_imports"),
     [
@@ -1106,13 +1242,13 @@ def test_malformed_path_role_rosters_fail_for_lock_registry_and_fixture() -> Non
 
 def test_runtime_byte_import_closure_is_a_separate_required_binding() -> None:
     lock, registry, fixture = _verified_inputs()
-    changed_file = replace(
-        fixture.runtime_files[0],
-        runtime_bytes=b"import collections\nfrom . import models\n",
-    )
     changed_fixture = replace(
         fixture,
-        runtime_files=(changed_file, *fixture.runtime_files[1:]),
+        runtime_files=_replace_runtime_bytes(
+            fixture.runtime_files,
+            "agent/experiments/c2_remediation_root_finalizer.py",
+            b"import collections\nfrom . import models\n",
+        ),
     )
     changed_registry = _compile_registry(changed_fixture)
     stale_closure_lock = replace(
@@ -1192,5 +1328,6 @@ def test_required_test_matrix_is_explicit_and_closed() -> None:
         "implicit-runtime-evaluation-routes-are-rejected",
         "higher-order-callback-dispatch-is-rejected",
         "declarative-ast-subset-rejects-runtime-protocols",
+        "import-roots-and-package-initializers-are-pinned",
         "test-only-fixture-is-not-a-production-input",
     )

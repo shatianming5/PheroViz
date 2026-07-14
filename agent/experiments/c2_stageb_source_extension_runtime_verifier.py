@@ -48,7 +48,27 @@ _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 _RUNTIME_PACKAGE_PATH = ("agent", "experiments")
 _RUNTIME_PRIMARY_PACKAGE = "experiments"
-_RUNTIME_ALTERNATE_PACKAGE = "agent.experiments"
+_SOURCE_EXTENSION_RUNTIME_IMPORT_ROOT_PATH = "agent"
+_SOURCE_EXTENSION_RUNTIME_IMPORT_ROOT_PACKAGE = "experiments"
+# This bounded list is reviewed with the fixed roster and never inferred from
+# candidate source, sys.path, installed packages, or a worktree.
+_SOURCE_EXTENSION_RUNTIME_EXTERNAL_IMPORT_ROOTS = frozenset(
+    {
+        "argparse",
+        "collections",
+        "ctypes",
+        "dataclasses",
+        "hashlib",
+        "json",
+        "math",
+        "os",
+        "pathlib",
+        "re",
+        "secrets",
+        "stat",
+        "subprocess",
+    }
+)
 _ALIAS_STATIC_CALLABLE = "static-callable"
 _ALIAS_STATIC_MODULE = "static-module"
 _ALIAS_LOCAL_STATIC_MODULE = "local-static-module"
@@ -222,6 +242,7 @@ SOURCE_EXTENSION_RUNTIME_VERIFIER_TEST_MATRIX = (
     "implicit-runtime-evaluation-routes-are-rejected",
     "higher-order-callback-dispatch-is-rejected",
     "declarative-ast-subset-rejects-runtime-protocols",
+    "import-roots-and-package-initializers-are-pinned",
     "test-only-fixture-is-not-a-production-input",
 )
 
@@ -261,6 +282,7 @@ class SourceExtensionRuntimeTestFixture:
     manifest_only_attestation_commit_full: str
     manifest_bytes: bytes
     runtime_files: tuple[SourceExtensionRuntimeFixtureFile, ...]
+    project_import_paths: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -478,7 +500,36 @@ def _validate_fixture(
         raise C2StageBSourceExtensionRuntimeVerifierError(
             "test-only runtime fixture must supply an immutable ordered file roster"
         )
+    _validate_project_import_paths(fixture.project_import_paths)
     return fixture
+
+
+def _validate_project_import_paths(value: Any) -> tuple[str, ...]:
+    if not isinstance(value, tuple):
+        raise C2StageBSourceExtensionRuntimeVerifierError(
+            "test-only project import paths must be an immutable tuple"
+        )
+    parsed = tuple(
+        _require_canonical_repo_relative_path(
+            path,
+            "test-only project import path",
+        )
+        for path in value
+    )
+    if len(parsed) != len(set(parsed)):
+        raise C2StageBSourceExtensionRuntimeVerifierError(
+            "test-only project import paths must not repeat a path"
+        )
+    root = _SOURCE_EXTENSION_RUNTIME_IMPORT_ROOT_PATH
+    if any(not path.startswith(f"{root}/") for path in parsed):
+        raise C2StageBSourceExtensionRuntimeVerifierError(
+            "test-only project import paths must remain under the approved import root"
+        )
+    if any(not path.endswith(".py") for path in parsed):
+        raise C2StageBSourceExtensionRuntimeVerifierError(
+            "test-only project import paths must name Python import candidates"
+        )
+    return parsed
 
 
 def _validate_fixture_files(
@@ -532,7 +583,7 @@ def _require_module_name(value: str, label: str) -> str:
     return value
 
 
-def _runtime_module_names(runtime_path: str) -> tuple[str, str]:
+def _runtime_module_name(runtime_path: str) -> str:
     path = _require_canonical_repo_relative_path(runtime_path, "runtime path")
     parts = PurePosixPath(path).parts
     if (
@@ -557,12 +608,7 @@ def _runtime_module_names(runtime_path: str) -> tuple[str, str]:
         if not suffix
         else f"{_RUNTIME_PRIMARY_PACKAGE}.{suffix}"
     )
-    alternate = (
-        _RUNTIME_ALTERNATE_PACKAGE
-        if not suffix
-        else f"{_RUNTIME_ALTERNATE_PACKAGE}.{suffix}"
-    )
-    return primary, alternate
+    return primary
 
 
 def _build_runtime_module_index(
@@ -577,17 +623,16 @@ def _build_runtime_module_index(
     for runtime_file in runtime_files:
         if not runtime_file.runtime_path.endswith(".py"):
             continue
-        primary, alternate = _runtime_module_names(runtime_file.runtime_path)
+        primary = _runtime_module_name(runtime_file.runtime_path)
         primary_module_by_path[runtime_file.runtime_path] = primary
-        for module_name in (primary, alternate):
-            existing_path = module_to_path.get(module_name)
-            if existing_path is not None:
-                raise C2StageBSourceExtensionRuntimeVerifierError(
-                    "runtime import closure has a duplicate local module mapping: "
-                    f"{module_name} maps to both {existing_path} and "
-                    f"{runtime_file.runtime_path}"
-                )
-            module_to_path[module_name] = runtime_file.runtime_path
+        existing_path = module_to_path.get(primary)
+        if existing_path is not None:
+            raise C2StageBSourceExtensionRuntimeVerifierError(
+                "runtime import closure has a duplicate local module mapping: "
+                f"{primary} maps to both {existing_path} and "
+                f"{runtime_file.runtime_path}"
+            )
+        module_to_path[primary] = runtime_file.runtime_path
     return module_to_path, primary_module_by_path, roster_index
 
 
@@ -648,8 +693,6 @@ def _is_project_runtime_module_name(module_name: str) -> bool:
     return (
         module_name == _RUNTIME_PRIMARY_PACKAGE
         or module_name.startswith(f"{_RUNTIME_PRIMARY_PACKAGE}.")
-        or module_name == _RUNTIME_ALTERNATE_PACKAGE
-        or module_name.startswith(f"{_RUNTIME_ALTERNATE_PACKAGE}.")
     )
 
 
@@ -704,7 +747,7 @@ def _from_import_alias_kind(
         return _ALIAS_LOCAL_STATIC_MODULE
     if relative_level:
         return _ALIAS_STATIC_CALLABLE
-    if module_name in {_RUNTIME_PRIMARY_PACKAGE, _RUNTIME_ALTERNATE_PACKAGE}:
+    if module_name == _RUNTIME_PRIMARY_PACKAGE:
         return _ALIAS_LOCAL_STATIC_MODULE
     if module_name == "builtins":
         return (
@@ -1363,7 +1406,11 @@ def _relative_import_base(
     relative_level: int,
     importer_path: str,
 ) -> str:
-    package_parts = importer_module.split(".")[:-1]
+    package_parts = (
+        importer_module.split(".")
+        if importer_path.endswith("/__init__.py")
+        else importer_module.split(".")[:-1]
+    )
     if relative_level < 1 or relative_level > len(package_parts):
         raise C2StageBSourceExtensionRuntimeVerifierError(
             "runtime fixture relative import has traversal or no static package base: "
@@ -1372,13 +1419,31 @@ def _relative_import_base(
     return ".".join(package_parts[: len(package_parts) - relative_level + 1])
 
 
-def _is_project_local_module(module_name: str) -> bool:
-    return (
-        module_name == _RUNTIME_PRIMARY_PACKAGE
-        or module_name.startswith(f"{_RUNTIME_PRIMARY_PACKAGE}.")
-        or module_name == "agent"
-        or module_name.startswith("agent.")
-    )
+def _project_import_root_names(
+    runtime_files: Sequence[SourceExtensionRuntimeFixtureFile],
+    project_import_paths: Sequence[str],
+) -> frozenset[str]:
+    root = _SOURCE_EXTENSION_RUNTIME_IMPORT_ROOT_PATH
+    names: set[str] = set()
+    for runtime_path in (
+        *(runtime_file.runtime_path for runtime_file in runtime_files),
+        *project_import_paths,
+    ):
+        path = _require_canonical_repo_relative_path(
+            runtime_path,
+            "project import path",
+        )
+        parts = PurePosixPath(path).parts
+        if len(parts) < 2 or parts[0] != root:
+            raise C2StageBSourceExtensionRuntimeVerifierError(
+                "project import path lies outside the approved import root"
+            )
+        candidate = parts[1]
+        if len(parts) == 2 and candidate.endswith(".py"):
+            candidate = candidate[:-3]
+        if candidate.isidentifier():
+            names.add(candidate)
+    return frozenset(names)
 
 
 def _resolve_local_module_path(
@@ -1390,12 +1455,103 @@ def _resolve_local_module_path(
     if path is None:
         raise C2StageBSourceExtensionRuntimeVerifierError(
             "runtime fixture import resolves to an unrostered project-local "
-            f"dependency: {module_name} from {importer_path}"
+            "dependency or namespace package: "
+            f"{module_name} from {importer_path}"
         )
     return _require_canonical_repo_relative_path(
         path,
         "resolved project-local dependency",
     )
+
+
+def _resolve_local_module_dependencies(
+    module_name: str,
+    module_to_path: dict[str, str],
+    importer_path: str,
+) -> tuple[str, ...]:
+    target_path = _resolve_local_module_path(
+        module_name,
+        module_to_path,
+        importer_path,
+    )
+    parts = module_name.split(".")
+    package_count = (
+        len(parts)
+        if target_path.endswith("/__init__.py")
+        else len(parts) - 1
+    )
+    dependencies: list[str] = []
+    for length in range(1, package_count + 1):
+        package_name = ".".join(parts[:length])
+        initializer_path = _resolve_local_module_path(
+            package_name,
+            module_to_path,
+            importer_path,
+        )
+        if not initializer_path.endswith("/__init__.py"):
+            raise C2StageBSourceExtensionRuntimeVerifierError(
+                "runtime fixture import has an ambiguous package initializer: "
+                f"{package_name} from {importer_path}"
+            )
+        dependencies.append(initializer_path)
+    dependencies.append(target_path)
+    return tuple(dict.fromkeys(dependencies))
+
+
+def _resolve_absolute_import_kind(
+    module_name: str,
+    project_import_root_names: frozenset[str],
+    importer_path: str,
+) -> str:
+    root_name = module_name.split(".", 1)[0]
+    if root_name == _SOURCE_EXTENSION_RUNTIME_IMPORT_ROOT_PACKAGE:
+        return "project"
+    if root_name in _SOURCE_EXTENSION_RUNTIME_EXTERNAL_IMPORT_ROOTS:
+        if root_name in project_import_root_names:
+            raise C2StageBSourceExtensionRuntimeVerifierError(
+                "runtime fixture import has a shadowable external module name: "
+                f"{root_name} from {importer_path}"
+            )
+        return "external"
+    if root_name in project_import_root_names:
+        raise C2StageBSourceExtensionRuntimeVerifierError(
+            "runtime fixture import resolves to project code outside the attested "
+            f"roster: {module_name} from {importer_path}"
+        )
+    raise C2StageBSourceExtensionRuntimeVerifierError(
+        "runtime fixture import root is unresolved and could map to project code: "
+        f"{module_name} from {importer_path}"
+    )
+
+
+def _append_from_local_dependencies(
+    dependencies: list[str],
+    module_name: str,
+    imported_names: Sequence[str],
+    module_to_path: dict[str, str],
+    importer_path: str,
+) -> None:
+    target_path = _resolve_local_module_path(
+        module_name,
+        module_to_path,
+        importer_path,
+    )
+    dependencies.extend(
+        _resolve_local_module_dependencies(
+            module_name,
+            module_to_path,
+            importer_path,
+        )
+    )
+    if target_path.endswith("/__init__.py"):
+        for imported_name in imported_names:
+            dependencies.extend(
+                _resolve_local_module_dependencies(
+                    f"{module_name}.{imported_name}",
+                    module_to_path,
+                    importer_path,
+                )
+            )
 
 
 def _resolve_static_local_dependencies(
@@ -1404,6 +1560,7 @@ def _resolve_static_local_dependencies(
     imports: Sequence[_StaticImport],
     module_to_path: dict[str, str],
     roster_index: dict[str, int],
+    project_import_root_names: frozenset[str],
 ) -> tuple[str, ...]:
     dependencies: list[str] = []
     for static_import in imports:
@@ -1415,53 +1572,67 @@ def _resolve_static_local_dependencies(
             )
             if static_import.module is None:
                 for imported_name in static_import.imported_names:
-                    dependencies.append(
-                        _resolve_local_module_path(
+                    dependencies.extend(
+                        _resolve_local_module_dependencies(
                             f"{base}.{imported_name}",
                             module_to_path,
                             importer_path,
                         )
                     )
             else:
-                dependencies.append(
-                    _resolve_local_module_path(
-                        f"{base}.{static_import.module}",
-                        module_to_path,
-                        importer_path,
-                    )
+                _append_from_local_dependencies(
+                    dependencies,
+                    f"{base}.{static_import.module}",
+                    static_import.imported_names,
+                    module_to_path,
+                    importer_path,
                 )
             continue
 
         module_name = static_import.module
-        if module_name is None or not _is_project_local_module(module_name):
+        if module_name is None:
+            raise C2StageBSourceExtensionRuntimeVerifierError(
+                f"runtime fixture import has no module target: {importer_path}"
+            )
+        import_kind = _resolve_absolute_import_kind(
+            module_name,
+            project_import_root_names,
+            importer_path,
+        )
+        if import_kind == "external":
             continue
-        if (
-            static_import.is_from_import
-            and module_name
-            in {_RUNTIME_PRIMARY_PACKAGE, _RUNTIME_ALTERNATE_PACKAGE}
-        ):
-            for imported_name in static_import.imported_names:
-                dependencies.append(
-                    _resolve_local_module_path(
-                        f"{module_name}.{imported_name}",
-                        module_to_path,
-                        importer_path,
-                    )
-                )
+        if static_import.is_from_import:
+            _append_from_local_dependencies(
+                dependencies,
+                module_name,
+                static_import.imported_names,
+                module_to_path,
+                importer_path,
+            )
         else:
-            dependencies.append(
-                _resolve_local_module_path(
+            dependencies.extend(
+                _resolve_local_module_dependencies(
                     module_name,
                     module_to_path,
                     importer_path,
                 )
             )
-    if len(dependencies) != len(set(dependencies)):
+    non_initializer_dependencies = [
+        dependency
+        for dependency in dependencies
+        if not dependency.endswith("/__init__.py")
+    ]
+    if len(non_initializer_dependencies) != len(set(non_initializer_dependencies)):
         raise C2StageBSourceExtensionRuntimeVerifierError(
             "runtime fixture import closure has a duplicate local dependency: "
             f"{importer_path}"
         )
-    return tuple(sorted(dependencies, key=roster_index.__getitem__))
+    return tuple(
+        sorted(
+            set(dependencies),
+            key=roster_index.__getitem__,
+        )
+    )
 
 
 def _resolve_recursive_local_import_closures(
@@ -1526,12 +1697,18 @@ def _canonical_attested_blob_set_sha256(
 
 def _compile_runtime_byte_import_closure(
     runtime_files: Sequence[SourceExtensionRuntimeFixtureFile],
+    *,
+    project_import_paths: Sequence[str] = (),
 ) -> SourceExtensionRuntimeByteImportClosure:
     (
         module_to_path,
         primary_module_by_path,
         roster_index,
     ) = _build_runtime_module_index(runtime_files)
+    project_import_root_names = _project_import_root_names(
+        runtime_files,
+        project_import_paths,
+    )
     parsed_imports_by_path: dict[str, tuple[_StaticImport, ...]] = {}
     local_dependencies_by_path: dict[str, tuple[str, ...]] = {}
     for runtime_file in runtime_files:
@@ -1549,6 +1726,7 @@ def _compile_runtime_byte_import_closure(
                 imports,
                 module_to_path,
                 roster_index,
+                project_import_root_names,
             )
         )
     recursive_local_dependencies_by_path = _resolve_recursive_local_import_closures(
@@ -1593,10 +1771,41 @@ def _compile_runtime_byte_import_closure(
 
 def compile_source_extension_runtime_byte_import_closure_for_testing(
     runtime_files: tuple[SourceExtensionRuntimeFixtureFile, ...],
+    *,
+    project_import_paths: tuple[str, ...] = (),
 ) -> SourceExtensionRuntimeByteImportClosure:
     """Compile an in-memory byte/import closure for tests, never production."""
 
-    return _compile_runtime_byte_import_closure(_validate_fixture_files(runtime_files))
+    return _compile_runtime_byte_import_closure(
+        _validate_fixture_files(runtime_files),
+        project_import_paths=_validate_project_import_paths(project_import_paths),
+    )
+
+
+def compile_source_extension_import_roots_for_testing(
+    runtime_files: tuple[SourceExtensionRuntimeFixtureFile, ...],
+    *,
+    project_import_paths: tuple[str, ...] = (),
+) -> SourceExtensionRuntimeByteImportClosure:
+    """Exercise test-only import-root resolution without a production roster."""
+
+    if not isinstance(runtime_files, tuple):
+        raise C2StageBSourceExtensionRuntimeVerifierError(
+            "test-only import-root files must be an immutable tuple"
+        )
+    for index, runtime_file in enumerate(runtime_files):
+        if type(runtime_file) is not SourceExtensionRuntimeFixtureFile:
+            raise C2StageBSourceExtensionRuntimeVerifierError(
+                f"test-only import-root file {index} has an invalid type"
+            )
+        if type(runtime_file.runtime_bytes) is not bytes:
+            raise C2StageBSourceExtensionRuntimeVerifierError(
+                f"test-only import-root file {index} must carry exact bytes"
+            )
+    return _compile_runtime_byte_import_closure(
+        runtime_files,
+        project_import_paths=_validate_project_import_paths(project_import_paths),
+    )
 
 
 def canonical_attested_blob_set_sha256_for_testing(
@@ -1671,7 +1880,10 @@ def _verify_source_extension_runtime_fixture(
         lock.expected_canonical_attested_blob_set_sha256,
         "candidate canonical attested blob set",
     )
-    closure = _compile_runtime_byte_import_closure(files)
+    closure = _compile_runtime_byte_import_closure(
+        files,
+        project_import_paths=test_fixture.project_import_paths,
+    )
     _require_equal(
         closure.canonical_sha256,
         lock.expected_runtime_byte_import_closure_sha256,

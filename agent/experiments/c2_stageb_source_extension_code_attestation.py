@@ -47,7 +47,7 @@ _SOURCE_EXTENSION_CODE_ATTESTATION_SCHEMA_PATH = (
     / SOURCE_EXTENSION_CODE_ATTESTATION_SCHEMA_ID
 )
 SOURCE_EXTENSION_CODE_ATTESTATION_SCHEMA_SHA256 = (
-    "10d442fbc11e393bd88a4a0c2af3dcae33f732203843d6abc67641e6654120f7"
+    "348f458e52c22dd8c78f8d609643756beeb785f67c85ee744857598c662eead2"
 )
 
 _SOURCE_EXTENSION_CODE_ATTESTATION_RESOURCE_PACKAGE = "experiments"
@@ -68,6 +68,10 @@ _COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 # This is a path/role compatibility contract only.  It intentionally contains
 # no commit, blob, manifest, source, outcome, or scientific data.
 SOURCE_EXTENSION_RUNTIME_PATH_ROLES = (
+    (
+        "agent/experiments/__init__.py",
+        "EXPERIMENTS_PACKAGE_INITIALIZER",
+    ),
     (
         "agent/experiments/c2_remediation_root_finalizer.py",
         "REMEDIATION_FINALIZER_RUNTIME",

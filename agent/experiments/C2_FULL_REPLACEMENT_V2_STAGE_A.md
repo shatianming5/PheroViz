@@ -176,3 +176,7 @@ The accepted language is a small declarative subset: runtime class definitions,
 magic/protocol bindings, callable capture, nested functions, and unsupported
 assignment/container forms are blocking; only fully validated module-level
 static functions may be called directly.
+Imports resolve only through verifier-owned import roots. Every project-local
+module and each executed package initializer must be in the pinned roster;
+namespace packages, shadowable external roots, and unresolved top-level imports
+are blocking.
