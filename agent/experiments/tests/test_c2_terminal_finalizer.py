@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import ctypes
+import errno
 import hashlib
 import json
 import os
@@ -70,6 +72,53 @@ STRATA_BY_CHUNK = {
     "012": "P=5+",
     "013": "P=1",
 }
+
+
+class _FakeNativeFunction:
+    def __init__(self, implementation: Any) -> None:
+        self.implementation = implementation
+
+    def __call__(self, *args: Any) -> Any:
+        return self.implementation(*args)
+
+
+class _FakeDarwinAclLibrary:
+    def __init__(self, tag: int | None, permissions: int = 0) -> None:
+        self.tag = tag
+        self.permissions = permissions
+        self.descriptor: int | None = None
+        self.acl_type: int | None = None
+        self.acl_get_fd_np = _FakeNativeFunction(self._get_fd)
+        self.acl_get_entry = _FakeNativeFunction(self._get_entry)
+        self.acl_get_tag_type = _FakeNativeFunction(self._get_tag)
+        self.acl_get_permset_mask_np = _FakeNativeFunction(self._get_permissions)
+        self.acl_free = _FakeNativeFunction(lambda _acl: 0)
+
+    def _get_fd(self, descriptor: int, acl_type: int) -> int | None:
+        self.descriptor = descriptor
+        self.acl_type = acl_type
+        if self.tag is None:
+            ctypes.set_errno(errno.ENOENT)
+            return None
+        return 0xAC1
+
+    def _get_entry(self, _acl: int, entry_id: int, entry: Any) -> int:
+        if entry_id == 0:
+            ctypes.cast(entry, ctypes.POINTER(ctypes.c_void_p)).contents.value = 0xE17
+            return 0
+        ctypes.set_errno(errno.EINVAL)
+        return -1
+
+    def _get_tag(self, _entry: int, tag: Any) -> int:
+        ctypes.cast(tag, ctypes.POINTER(ctypes.c_int)).contents.value = self.tag
+        return 0
+
+    def _get_permissions(self, _entry: int, permissions: Any) -> int:
+        ctypes.cast(
+            permissions,
+            ctypes.POINTER(ctypes.c_uint64),
+        ).contents.value = self.permissions
+        return 0
 
 
 @contextmanager
@@ -658,6 +707,214 @@ def test_library_writes_a_noncolliding_output_path() -> None:
 
         assert written_path == output_path
         assert _read_json(output_path) == report
+
+
+@pytest.mark.parametrize(
+    ("tag", "permissions", "expected"),
+    (
+        (1, 1 << 2, True),
+        (2, 1 << 2, False),
+        (1, 1 << 1, False),
+        (1, 1 << 30, True),
+    ),
+)
+def test_darwin_native_acl_metadata_classifies_mutating_allow_entries(
+    monkeypatch: pytest.MonkeyPatch,
+    tag: int,
+    permissions: int,
+    expected: bool,
+) -> None:
+    native_acl = _FakeDarwinAclLibrary(tag, permissions)
+    monkeypatch.setattr(
+        experiment_models.ctypes,
+        "CDLL",
+        lambda *args, **kwargs: native_acl,
+    )
+
+    assert experiment_models._darwin_acl_allows_mutation(73) is expected
+    assert native_acl.descriptor == 73
+    assert native_acl.acl_type == 0x00000100
+
+
+def test_darwin_native_acl_metadata_allows_absent_acl(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    native_acl = _FakeDarwinAclLibrary(None)
+    monkeypatch.setattr(
+        experiment_models.ctypes,
+        "CDLL",
+        lambda *args, **kwargs: native_acl,
+    )
+
+    assert experiment_models._darwin_acl_allows_mutation(73) is False
+
+
+def test_darwin_native_acl_metadata_fails_closed_when_uninspectable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_to_load_native_acl(*args: Any, **kwargs: Any) -> None:
+        raise OSError("synthetic ACL metadata failure")
+
+    monkeypatch.setattr(
+        experiment_models.ctypes,
+        "CDLL",
+        fail_to_load_native_acl,
+    )
+
+    with pytest.raises(
+        experiment_models.ProvenanceError,
+        match="Cannot inspect Darwin ACL metadata",
+    ):
+        experiment_models._darwin_acl_allows_mutation(73)
+
+
+def test_linux_posix_acl_metadata_rejects_present_or_uninspectable_acl(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def present_acl(_descriptor: int, _name: str) -> bytes:
+        return b"synthetic-acl"
+
+    monkeypatch.setattr(
+        experiment_models.os,
+        "getxattr",
+        present_acl,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        experiment_models.os,
+        "supports_fd",
+        frozenset({present_acl}),
+    )
+    assert experiment_models._linux_acl_allows_mutation(73) is True
+
+    def unreadable_acl(_descriptor: int, _name: str) -> bytes:
+        raise OSError(errno.EPERM, "synthetic ACL metadata failure")
+
+    monkeypatch.setattr(experiment_models.os, "getxattr", unreadable_acl)
+    monkeypatch.setattr(
+        experiment_models.os,
+        "supports_fd",
+        frozenset({unreadable_acl}),
+    )
+    with pytest.raises(
+        experiment_models.ProvenanceError,
+        match="Cannot inspect POSIX ACL metadata",
+    ):
+        experiment_models._linux_acl_allows_mutation(73)
+
+
+def test_library_checks_every_trusted_output_ancestor_for_acl_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _workspace("acl-clean-trusted-chain") as workspace:
+        manifest_path, _, _ = _build_admission(workspace)
+        output_parent = workspace / "trusted-output"
+        output_parent.mkdir()
+        output_path = output_parent / "final-report.json"
+        checked_ancestors: list[tuple[int, int]] = []
+
+        def no_mutating_acl(descriptor: int) -> bool:
+            metadata = os.fstat(descriptor)
+            checked_ancestors.append((metadata.st_dev, metadata.st_ino))
+            return False
+
+        monkeypatch.setattr(
+            experiment_models,
+            "_trusted_acl_allows_foreign_mutation",
+            no_mutating_acl,
+        )
+
+        _, written_path = finalize_to_path(manifest_path, output_path)
+
+        assert written_path == output_path
+        assert len(checked_ancestors) >= len(output_path.parent.parts)
+        assert _read_json(output_path)["status"] == "ADMITTED"
+
+
+def test_library_rejects_mocked_mutating_acl_before_write(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _workspace("mutating-acl-library") as workspace:
+        manifest_path, _, report_paths = _build_admission(workspace)
+        manifest_bytes = manifest_path.read_bytes()
+        chunk_path = report_paths["013"]
+        chunk_bytes = chunk_path.read_bytes()
+        output_parent = workspace / "trusted-output"
+        output_parent.mkdir()
+        output_path = output_parent / "final-report.json"
+        inspected_ancestors: list[int] = []
+
+        def has_mutating_acl(descriptor: int) -> bool:
+            inspected_ancestors.append(os.fstat(descriptor).st_ino)
+            return len(inspected_ancestors) == 2
+
+        def fail_if_writer_runs(*args: Any, **kwargs: Any) -> None:
+            pytest.fail("mutating ACL reached the writer")
+
+        monkeypatch.setattr(
+            experiment_models,
+            "_trusted_acl_allows_foreign_mutation",
+            has_mutating_acl,
+        )
+        monkeypatch.setattr(
+            c2_terminal_finalizer,
+            "write_json_atomic_to_target",
+            fail_if_writer_runs,
+        )
+
+        with pytest.raises(C2AdmissionError, match="Cannot secure final report output"):
+            finalize_to_path(manifest_path, output_path)
+
+        assert len(inspected_ancestors) == 2
+        assert not output_path.exists()
+        assert manifest_path.read_bytes() == manifest_bytes
+        assert chunk_path.read_bytes() == chunk_bytes
+
+
+def test_cli_rejects_mocked_mutating_acl_without_success_output(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with _workspace("mutating-acl-cli") as workspace:
+        manifest_path, _, report_paths = _build_admission(workspace)
+        manifest_bytes = manifest_path.read_bytes()
+        chunk_path = report_paths["013"]
+        chunk_bytes = chunk_path.read_bytes()
+        output_parent = workspace / "trusted-output"
+        output_parent.mkdir()
+        output_path = output_parent / "final-report.json"
+
+        def fail_if_writer_runs(*args: Any, **kwargs: Any) -> None:
+            pytest.fail("mutating ACL reached the writer")
+
+        monkeypatch.setattr(
+            experiment_models,
+            "_trusted_acl_allows_foreign_mutation",
+            lambda _descriptor: True,
+        )
+        monkeypatch.setattr(
+            c2_terminal_finalizer,
+            "write_json_atomic_to_target",
+            fail_if_writer_runs,
+        )
+
+        assert (
+            cli_main(
+                [
+                    "c2-terminal-finalize",
+                    str(manifest_path),
+                    "--out",
+                    str(output_path),
+                ]
+            )
+            == 2
+        )
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert "Cannot secure final report output" in captured.err
+        assert not output_path.exists()
+        assert manifest_path.read_bytes() == manifest_bytes
+        assert chunk_path.read_bytes() == chunk_bytes
 
 
 @pytest.mark.parametrize("mode", (0o775, 0o777))

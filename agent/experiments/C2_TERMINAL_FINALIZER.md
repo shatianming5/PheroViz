@@ -25,8 +25,13 @@ anchored descriptor and captured published-output inode; a detected parent/leaf
 swap fails without reporting output success.
 For finalizer success, the output parent must already exist as an absolute
 no-symlink directory chain owned by root or the current effective uid, with no
-group/world-writable component. The threat model permits arbitrary *other*
-local users to race names and rejects their writable/symlinked chains; full
+group/world-writable component. Every opened ancestor is also inspected for
+ACL metadata: on macOS this uses the descriptor-based native extended-ACL API,
+not `ls` output; any mutating (or unknown) allow permission is rejected.
+Deny-only ACL entries do not grant mutation and may remain. Linux rejects either
+POSIX ACL metadata xattr conservatively; unsupported or uninspectable ACL
+metadata fails closed. The threat model permits arbitrary *other* local users
+to race names and rejects their writable/symlinked/ACL-granted chains; full
 same-euid filesystem control is out of scope. The finalizer never creates an
 output parent after this trust check. A rejected output path produces no
 reported final-report path.

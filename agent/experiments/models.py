@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import ctypes
+import errno
 import hashlib
 import json
 import math
@@ -7,6 +9,7 @@ import os
 import re
 import secrets
 import stat
+import sys
 from dataclasses import asdict, dataclass, field, fields
 from datetime import datetime, timezone
 from pathlib import Path
@@ -22,6 +25,38 @@ _BUDGET_TYPES = {"renders", "wall_clock_seconds"}
 _SECURE_OUTPUT_DIR_FD_SUPPORTED = all(
     operation in os.supports_dir_fd
     for operation in (os.open, os.mkdir, os.rename, os.stat, os.unlink)
+)
+_DARWIN_ACL_TYPE_EXTENDED = 0x00000100
+_DARWIN_ACL_FIRST_ENTRY = 0
+_DARWIN_ACL_NEXT_ENTRY = -1
+_DARWIN_ACL_EXTENDED_ALLOW = 1
+_DARWIN_ACL_EXTENDED_DENY = 2
+_DARWIN_MUTATING_ACL_PERMISSIONS = (
+    (1 << 2)  # ACL_WRITE_DATA / ACL_ADD_FILE
+    | (1 << 4)  # ACL_DELETE
+    | (1 << 5)  # ACL_APPEND_DATA / ACL_ADD_SUBDIRECTORY
+    | (1 << 6)  # ACL_DELETE_CHILD
+    | (1 << 8)  # ACL_WRITE_ATTRIBUTES
+    | (1 << 10)  # ACL_WRITE_EXTATTRIBUTES
+    | (1 << 12)  # ACL_WRITE_SECURITY
+    | (1 << 13)  # ACL_CHANGE_OWNER
+)
+_DARWIN_NON_MUTATING_ACL_PERMISSIONS = (
+    (1 << 1)  # ACL_READ_DATA / ACL_LIST_DIRECTORY
+    | (1 << 3)  # ACL_EXECUTE / ACL_SEARCH
+    | (1 << 7)  # ACL_READ_ATTRIBUTES
+    | (1 << 9)  # ACL_READ_EXTATTRIBUTES
+    | (1 << 11)  # ACL_READ_SECURITY
+    | (1 << 20)  # ACL_SYNCHRONIZE
+)
+_ACL_ABSENT_ERRNOS = frozenset(
+    code
+    for code in (
+        errno.ENOENT,
+        getattr(errno, "ENODATA", None),
+        getattr(errno, "ENOATTR", None),
+    )
+    if code is not None
 )
 
 
@@ -125,6 +160,110 @@ def _directory_open_flags() -> int:
     return flags
 
 
+def _darwin_acl_entries(descriptor: int) -> tuple[tuple[int, int], ...]:
+    """Read Darwin extended ACL entries from an already-open directory."""
+
+    try:
+        library = ctypes.CDLL("/usr/lib/libSystem.B.dylib", use_errno=True)
+        acl_get_fd_np = library.acl_get_fd_np
+        acl_get_entry = library.acl_get_entry
+        acl_get_tag_type = library.acl_get_tag_type
+        acl_get_permset_mask_np = library.acl_get_permset_mask_np
+        acl_free = library.acl_free
+    except (AttributeError, OSError) as exc:
+        raise ProvenanceError("Cannot inspect Darwin ACL metadata") from exc
+
+    acl_get_fd_np.argtypes = [ctypes.c_int, ctypes.c_int]
+    acl_get_fd_np.restype = ctypes.c_void_p
+    acl_get_entry.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_int,
+        ctypes.POINTER(ctypes.c_void_p),
+    ]
+    acl_get_entry.restype = ctypes.c_int
+    acl_get_tag_type.argtypes = [
+        ctypes.c_void_p,
+        ctypes.POINTER(ctypes.c_int),
+    ]
+    acl_get_tag_type.restype = ctypes.c_int
+    acl_get_permset_mask_np.argtypes = [
+        ctypes.c_void_p,
+        ctypes.POINTER(ctypes.c_uint64),
+    ]
+    acl_get_permset_mask_np.restype = ctypes.c_int
+    acl_free.argtypes = [ctypes.c_void_p]
+    acl_free.restype = ctypes.c_int
+
+    ctypes.set_errno(0)
+    acl = acl_get_fd_np(descriptor, _DARWIN_ACL_TYPE_EXTENDED)
+    if not acl:
+        error = ctypes.get_errno()
+        if error in _ACL_ABSENT_ERRNOS:
+            return ()
+        raise ProvenanceError("Cannot inspect Darwin ACL metadata")
+
+    try:
+        entries: list[tuple[int, int]] = []
+        entry_id = _DARWIN_ACL_FIRST_ENTRY
+        while True:
+            entry = ctypes.c_void_p()
+            ctypes.set_errno(0)
+            result = acl_get_entry(acl, entry_id, ctypes.byref(entry))
+            error = ctypes.get_errno()
+            if result in {0, 1} and entry.value:
+                tag = ctypes.c_int()
+                permissions = ctypes.c_uint64()
+                if acl_get_tag_type(entry, ctypes.byref(tag)) != 0:
+                    raise ProvenanceError("Cannot inspect Darwin ACL metadata")
+                if (
+                    acl_get_permset_mask_np(entry, ctypes.byref(permissions))
+                    != 0
+                ):
+                    raise ProvenanceError("Cannot inspect Darwin ACL metadata")
+                entries.append((tag.value, permissions.value))
+                entry_id = _DARWIN_ACL_NEXT_ENTRY
+                continue
+            if result == -1 and error == errno.EINVAL and entries:
+                return tuple(entries)
+            raise ProvenanceError("Cannot inspect Darwin ACL metadata")
+    finally:
+        acl_free(acl)
+
+
+def _darwin_acl_allows_mutation(descriptor: int) -> bool:
+    for tag, permissions in _darwin_acl_entries(descriptor):
+        if tag == _DARWIN_ACL_EXTENDED_ALLOW:
+            if permissions & _DARWIN_MUTATING_ACL_PERMISSIONS:
+                return True
+            if permissions & ~_DARWIN_NON_MUTATING_ACL_PERMISSIONS:
+                return True
+        elif tag != _DARWIN_ACL_EXTENDED_DENY:
+            raise ProvenanceError("Cannot classify Darwin ACL metadata")
+    return False
+
+
+def _linux_acl_allows_mutation(descriptor: int) -> bool:
+    if not hasattr(os, "getxattr") or os.getxattr not in os.supports_fd:
+        raise ProvenanceError("Cannot inspect POSIX ACL metadata")
+    for name in ("system.posix_acl_access", "system.posix_acl_default"):
+        try:
+            os.getxattr(descriptor, name)
+        except OSError as exc:
+            if exc.errno in _ACL_ABSENT_ERRNOS:
+                continue
+            raise ProvenanceError("Cannot inspect POSIX ACL metadata") from exc
+        return True
+    return False
+
+
+def _trusted_acl_allows_foreign_mutation(descriptor: int) -> bool:
+    if sys.platform == "darwin":
+        return _darwin_acl_allows_mutation(descriptor)
+    if sys.platform.startswith("linux"):
+        return _linux_acl_allows_mutation(descriptor)
+    raise ProvenanceError("Trusted output ACL inspection is unsupported")
+
+
 def _validate_trusted_directory(descriptor: int, path: Path) -> None:
     if not hasattr(os, "geteuid"):
         raise ProvenanceError("Trusted output parents require an effective uid")
@@ -136,6 +275,10 @@ def _validate_trusted_directory(descriptor: int, path: Path) -> None:
     if metadata.st_mode & (stat.S_IWGRP | stat.S_IWOTH):
         raise ProvenanceError(
             f"Trusted output parent is group/world writable: {path}"
+        )
+    if _trusted_acl_allows_foreign_mutation(descriptor):
+        raise ProvenanceError(
+            f"Trusted output parent has a mutating ACL: {path}"
         )
 
 
