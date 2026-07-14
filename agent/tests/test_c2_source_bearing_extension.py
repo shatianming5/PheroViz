@@ -69,7 +69,33 @@ def _zip(entries: dict[str, bytes]) -> bytes:
     return output.getvalue()
 
 
-def _xlsx() -> bytes:
+def _dos_directory_with_data_zip() -> bytes:
+    output = io.BytesIO()
+    with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_STORED) as archive:
+        directory = zipfile.ZipInfo("dos-directory/")
+        directory.create_system = 0
+        directory.external_attr = 0x10
+        archive.writestr(directory, b"must-not-be-directory-data")
+    return output.getvalue()
+
+
+def _xlsx(*, workbook_extra_relationship: bytes = b"") -> bytes:
+    style_parts = (
+        {
+            "xl/styles.xml": (
+                b'<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/'
+                b'2006/main"/>'
+            )
+        }
+        if workbook_extra_relationship
+        else {}
+    )
+    content_type_extra = (
+        b'<Override PartName="/xl/styles.xml" ContentType="application/vnd.'
+        b'openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+        if workbook_extra_relationship
+        else b""
+    )
     return _zip(
         {
             "[Content_Types].xml": (
@@ -81,7 +107,9 @@ def _xlsx() -> bytes:
                 b'openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
                 b'<Override PartName="/xl/worksheets/sheet1.xml" ContentType='
                 b'"application/vnd.openxmlformats-officedocument.spreadsheetml.'
-                b'worksheet+xml"/></Types>'
+                b'worksheet+xml"/>'
+                + content_type_extra
+                + b"</Types>"
             ),
             "_rels/.rels": (
                 b'<Relationships xmlns="http://schemas.openxmlformats.org/package/'
@@ -99,12 +127,15 @@ def _xlsx() -> bytes:
                 b'<Relationships xmlns="http://schemas.openxmlformats.org/package/'
                 b'2006/relationships"><Relationship Id="rId1" Type="http://'
                 b'schemas.openxmlformats.org/officeDocument/2006/relationships/'
-                b'worksheet" Target="worksheets/sheet1.xml"/></Relationships>'
+                b'worksheet" Target="worksheets/sheet1.xml"/>'
+                + workbook_extra_relationship
+                + b"</Relationships>"
             ),
             "xl/worksheets/sheet1.xml": (
                 b'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/'
                 b'2006/main"><sheetData/></worksheet>'
             ),
+            **style_parts,
         }
     )
 
@@ -779,6 +810,20 @@ def test_raw_xlsx_is_a_zip_accounted_outer_self_unit() -> None:
             )
         )
 
+    traversal_style_xlsx = _xlsx(
+        workbook_extra_relationship=(
+            b'<Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.'
+            b'org/officeDocument/2006/relationships/styles" Target="../styles.xml"/>'
+        )
+    )
+    with pytest.raises(SourceBearingExtensionError, match="DECLARED_KIND_FORMAT"):
+        _build(
+            _bound_assets(
+                table_payload=traversal_style_xlsx,
+                table_format=["ZIP_V1", "XLSX_V1"],
+            )
+        )
+
 
 def test_declared_format_bypass_cross_doi_and_mixed_p_fail_closed() -> None:
     archive = _zip({"table.csv": b"panel,value\na,1\n"})
@@ -865,6 +910,8 @@ def test_duplicate_doi_case_group_panel_membership_is_terminal() -> None:
 def test_archive_directory_data_and_aggregate_limits_fail_closed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    import experiments.c2_source_bearing_extension as extension
+
     data_bearing_directory = _zip({"directory/": b"must not be ignored"})
     with pytest.raises(SourceBearingExtensionError, match="DIRECTORY_ENTRY"):
         _build(
@@ -881,7 +928,23 @@ def test_archive_directory_data_and_aggregate_limits_fail_closed(
             ]
         )
 
-    import experiments.c2_source_bearing_extension as extension
+    dos_directory_data = _dos_directory_with_data_zip()
+    with pytest.raises(SourceBearingExtensionError, match="DIRECTORY_ENTRY"):
+        extension._parse_zip_v1(dos_directory_data)
+    with pytest.raises(SourceBearingExtensionError, match="DIRECTORY_ENTRY"):
+        _build(
+            [
+                _asset(
+                    article_id="article-1",
+                    doi_id="10.9999/source-1",
+                    asset_id="dos-archive",
+                    payload=dos_directory_data,
+                    kind="source_archive",
+                    detected=["ZIP_V1", "GENERIC_ZIP_V1"],
+                ),
+                *_bound_assets()[1:],
+            ]
+        )
 
     monkeypatch.setattr(extension, "MAX_ARCHIVE_CONTAINER_UNCOMPRESSED_BYTES", 20)
     aggregate_limited_archive = _zip(
@@ -1034,6 +1097,54 @@ def test_v2_opt_in_blocks_prior_attempt_source_without_stage_b_policy(
         )
         assert not (staging / "canonical_v2").exists()
         assert not (staging / "p_evidence_v2").exists()
+
+
+def test_stage_b_block_keeps_raw_acquisition_binding_separate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with experiment_workspace("c2-stageb-raw-binding-separation") as workspace:
+        paths = _make_fixture(
+            workspace,
+            monkeypatch,
+            chunk_id="001",
+            downloaded_mode="source",
+        )
+        _upgrade_raw_source_descriptor_v2(paths["raw_root"])
+        assert (
+            subprocess.check_output(
+                ["git", "-C", str(paths["worktree"]), "rev-parse", "HEAD"],
+                text=True,
+            ).strip()
+            == finalizer.FROZEN_CODE_COMMIT
+        )
+        with pytest.raises(
+            finalizer.C2RemediationError,
+            match="STAGEB_POLICY_REQUIRED",
+        ):
+            finalizer.finalize_remediation_root(
+                chunk_id="001",
+                source_bearing_v2=True,
+                **paths,
+            )
+        staging = _private_staging_root(paths)
+        raw_binding = json.loads(
+            (staging / "control/pre_download_binding.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        execution_evidence = json.loads(
+            (staging / "control/execution_evidence.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        assert raw_binding["code_commit"] == finalizer.FROZEN_CODE_COMMIT
+        assert execution_evidence["code_commit"] == finalizer.FROZEN_CODE_COMMIT
+        assert json.loads(
+            (staging / "control/source_classification_blocked.json").read_text(
+                encoding="utf-8"
+            )
+        )["status"] == "NOT_SEALABLE_SOURCE_EXTENSION_STAGEB_POLICY_REQUIRED"
+        assert not (staging / "canonical_v2").exists()
 
 
 def _upgrade_raw_source_descriptor_v2(raw_root: Path) -> None:

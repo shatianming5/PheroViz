@@ -39,6 +39,9 @@ logs, zero exits, final provenance, and a hash-sealed
 records. The config must pin the established strict CC-BY/input-sort/postfetch
 limits and one positive worker count for all three passes. The execution
 evidence must attest the one-fresh-root cap and no active retained pipeline.
+The raw acquisition/downloader binding always remains the frozen acquisition
+commit `ca98442b9e805110089b03083cb240e19b58d4a2`; no source-extension
+authorization can replace it or claim that extension code acquired raw data.
 `downloaded` is derived only from a processed-success ID absent from
 `_skipped.txt`; it is forbidden in skipped maps. The output recomputes
 raw-attestation entries and retry2 terminal rows, then emits relative

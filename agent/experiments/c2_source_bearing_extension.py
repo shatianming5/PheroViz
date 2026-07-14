@@ -94,6 +94,9 @@ _ZIP_SIGNATURES = (b"PK\x03\x04", b"PK\x05\x06", b"PK\x07\x08")
 _EOCD_SIGNATURE = b"PK\x05\x06"
 _CENTRAL_SIGNATURE = b"PK\x01\x02"
 _ZIP64_MARKER = 0xFFFFFFFF
+_UNIX_ZIP_CREATOR_HOSTS = frozenset({3, 19})
+_DOS_FAT_ZIP_CREATOR_HOSTS = frozenset({0, 10, 14})
+_DOS_DIRECTORY_ATTRIBUTE = 0x10
 
 _PROHIBITED_LEGACY_FIELDS = frozenset(
     {
@@ -1476,9 +1479,10 @@ def _parse_zip_v1(payload: bytes) -> _ZipInfo:
             "REJECT_ZIP_LOCAL_BOUNDS",
         )
         local_ranges.append((local_offset, data_end))
+        creator_host = (made_by >> 8) & 0xFF
         mode = (external_attributes >> 16) & 0xFFFF
         is_directory = selector.endswith("/")
-        if mode:
+        if creator_host in _UNIX_ZIP_CREATOR_HOSTS and mode:
             kind = stat.S_IFMT(mode)
             _require(
                 kind in {0, stat.S_IFREG, stat.S_IFDIR},
@@ -1486,6 +1490,10 @@ def _parse_zip_v1(payload: bytes) -> _ZipInfo:
             )
             if stat.S_ISDIR(mode):
                 is_directory = True
+        if creator_host in _DOS_FAT_ZIP_CREATOR_HOSTS and (
+            external_attributes & _DOS_DIRECTORY_ATTRIBUTE
+        ):
+            is_directory = True
         if is_directory:
             _require(
                 selector.endswith("/")
@@ -1658,6 +1666,57 @@ def _ooxml_relationships(
     return relationships
 
 
+def _opc_relationship_owner(selector: str) -> str | None:
+    if selector == "_rels/.rels":
+        return ""
+    pieces = selector.split("/")
+    if (
+        len(pieces) < 3
+        or pieces[-2] != "_rels"
+        or not pieces[-1].endswith(".rels")
+    ):
+        return None
+    owner_name = pieces[-1][:-5]
+    if not owner_name:
+        return None
+    return "/".join([*pieces[:-2], owner_name])
+
+
+def _resolve_internal_opc_target(owner: str, target: str) -> str | None:
+    if (
+        not target
+        or target != unicodedata.normalize("NFC", target)
+        or target.startswith("/")
+        or "\\" in target
+        or _DRIVE_RE.match(target)
+        or "?" in target
+        or "#" in target
+    ):
+        return None
+    pieces = target.split("/")
+    if any(piece in {"", ".", ".."} for piece in pieces):
+        return None
+    owner_directory = owner.rsplit("/", 1)[0] if "/" in owner else ""
+    return "/".join(
+        [*([owner_directory] if owner_directory else []), *pieces]
+    )
+
+
+def _opc_content_type(
+    selector: str,
+    *,
+    defaults: Mapping[str, str],
+    overrides: Mapping[str, str],
+) -> str | None:
+    override = overrides.get(f"/{selector}")
+    if override is not None:
+        return override
+    if "." not in selector:
+        return None
+    extension = selector.rsplit(".", 1)[1]
+    return defaults.get(extension)
+
+
 def _xlsx_profile(payload: bytes, archive: _ZipInfo) -> bool:
     """Recognize only a structurally valid OOXML spreadsheet package."""
 
@@ -1683,25 +1742,28 @@ def _xlsx_profile(payload: bytes, archive: _ZipInfo) -> bool:
     if any(root is None for root in parsed.values()):
         return False
     content_types = parsed["[Content_Types].xml"]
-    root_relationships = _ooxml_relationships(parsed["_rels/.rels"])
     workbook = parsed["xl/workbook.xml"]
-    workbook_relationships = _ooxml_relationships(
-        parsed["xl/_rels/workbook.xml.rels"]
-    )
     if (
         content_types is None
         or content_types.tag != f"{{{_OOXML_CONTENT_TYPES_NS}}}Types"
-        or root_relationships is None
         or workbook is None
         or workbook.tag != f"{{{_OOXML_SPREADSHEET_NS}}}workbook"
-        or workbook_relationships is None
     ):
         return False
     overrides: dict[str, str] = {}
+    defaults: dict[str, str] = {}
     for child in content_types:
         if child.tag == f"{{{_OOXML_CONTENT_TYPES_NS}}}Default":
-            if not child.get("Extension") or not child.get("ContentType"):
+            extension = child.get("Extension")
+            content_type = child.get("ContentType")
+            if (
+                not extension
+                or not content_type
+                or extension in defaults
+                or "." in extension
+            ):
                 return False
+            defaults[extension] = content_type
             continue
         if child.tag != f"{{{_OOXML_CONTENT_TYPES_NS}}}Override":
             return False
@@ -1715,10 +1777,58 @@ def _xlsx_profile(payload: bytes, archive: _ZipInfo) -> bool:
         ):
             return False
         overrides[part_name] = content_type
+    if any("/_rels/" in selector and not selector.endswith(".rels") for selector in selectors):
+        return False
+    relationship_parts: dict[str, tuple[str, dict[str, tuple[str, str]]]] = {}
+    try:
+        for selector in sorted(
+            candidate for candidate in selectors if candidate.endswith(".rels")
+        ):
+            owner = _opc_relationship_owner(selector)
+            if owner is None or (owner and owner not in selectors):
+                return False
+            relationship_root = _parse_ooxml_xml(
+                _read_zip_member(payload, by_selector[selector])
+            )
+            if relationship_root is None:
+                return False
+            relationships = _ooxml_relationships(relationship_root)
+            if relationships is None:
+                return False
+            relationship_parts[selector] = (owner, relationships)
+    except SourceBearingExtensionError:
+        return False
+    if set(relationship_parts) != {
+        selector for selector in selectors if selector.endswith(".rels")
+    }:
+        return False
+    for owner, relationships in relationship_parts.values():
+        for _, target in relationships.values():
+            resolved = _resolve_internal_opc_target(owner, target)
+            if (
+                resolved is None
+                or resolved not in selectors
+                or resolved.endswith("/")
+                or _opc_content_type(
+                    resolved,
+                    defaults=defaults,
+                    overrides=overrides,
+                )
+                is None
+            ):
+                return False
+    root_relationships = relationship_parts.get("_rels/.rels")
+    workbook_relationship_part = relationship_parts.get(
+        "xl/_rels/workbook.xml.rels"
+    )
+    if root_relationships is None or workbook_relationship_part is None:
+        return False
+    root_relationships = root_relationships[1]
+    workbook_relationships = workbook_relationship_part[1]
     if overrides.get("/xl/workbook.xml") != _OOXML_WORKBOOK_CONTENT_TYPE:
         return False
     office_document_targets = {
-        target
+        _resolve_internal_opc_target("", target)
         for relationship_type, target in root_relationships.values()
         if relationship_type == _OOXML_OFFICE_DOCUMENT_RELATIONSHIP
     }
@@ -1750,15 +1860,9 @@ def _xlsx_profile(payload: bytes, archive: _ZipInfo) -> bool:
         relationship = workbook_relationships.get(relationship_id)
         if relationship is None or relationship[0] != _OOXML_WORKSHEET_RELATIONSHIP:
             return False
-        target = relationship[1]
-        if (
-            target.startswith("/")
-            or "\\" in target
-            or not target.startswith("worksheets/")
-            or any(part in {"", ".", ".."} for part in target.split("/"))
-        ):
+        selector = _resolve_internal_opc_target("xl/workbook.xml", relationship[1])
+        if selector is None or not selector.startswith("xl/worksheets/"):
             return False
-        selector = f"xl/{target}"
         if selector not in selectors or selector in worksheet_selectors:
             return False
         sheet_ids.add(int(sheet_id))
@@ -1770,14 +1874,9 @@ def _xlsx_profile(payload: bytes, archive: _ZipInfo) -> bool:
     for relationship_type, target in workbook_relationships.values():
         if relationship_type != _OOXML_WORKSHEET_RELATIONSHIP:
             continue
-        if (
-            target.startswith("/")
-            or "\\" in target
-            or not target.startswith("worksheets/")
-            or any(part in {"", ".", ".."} for part in target.split("/"))
-        ):
+        selector = _resolve_internal_opc_target("xl/workbook.xml", target)
+        if selector is None or not selector.startswith("xl/worksheets/"):
             return False
-        selector = f"xl/{target}"
         if selector in worksheet_relationship_targets:
             return False
         worksheet_relationship_targets.add(selector)

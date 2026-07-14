@@ -143,16 +143,6 @@ def _make_fixture(
         "FROZEN_FREEZE_SUMMARY_HASH",
         str(summary["summary_hash"]),
     )
-    worktree = Path(__file__).resolve().parents[2]
-    monkeypatch.setattr(
-        finalizer,
-        "FROZEN_CODE_COMMIT",
-        subprocess.check_output(
-            ["git", "-C", str(worktree), "rev-parse", "HEAD"],
-            text=True,
-        ).strip(),
-    )
-
     raw_root = workspace / "raw"
     raw_root.mkdir(mode=0o700)
     (raw_root / "accepted.jsonl").write_bytes(source_bytes)
@@ -390,6 +380,30 @@ def _make_fixture(
             }
         },
     )
+    worktree = workspace / "frozen-acquisition-worktree"
+    repository = Path(__file__).resolve().parents[2]
+    subprocess.run(
+        ["git", "clone", "--shared", "--no-checkout", str(repository), str(worktree)],
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(worktree),
+            "checkout",
+            "--detach",
+            finalizer.FROZEN_CODE_COMMIT,
+        ],
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    worktree.chmod(0o700)
     return {
         "raw_root": raw_root,
         "target_root": target_parent / finalizer.expected_target_root_name(chunk_id),
