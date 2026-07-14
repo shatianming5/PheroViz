@@ -345,6 +345,7 @@ def _records(root: _MemoryRoot, path: str) -> list[dict[str, Any]]:
 
 def _test_only_attestation_payload(repository: Path, commit: str) -> bytes:
     paths = (
+        "agent/experiments/c2_m1_trust_boundary.py",
         "agent/experiments/c2_remediation_root_finalizer.py",
         "agent/experiments/c2_source_bearing_extension.py",
         "agent/experiments/cli.py",
@@ -410,6 +411,7 @@ def test_test_only_code_attestation_rejects_wrong_commit_blob_and_runtime_path()
     assert {
         blob.relative_path for blob in attestation.code_blobs
     } >= {
+        "agent/experiments/c2_m1_trust_boundary.py",
         "agent/experiments/c2_source_bearing_extension.py",
         "agent/experiments/c2_remediation_root_finalizer.py",
         "agent/experiments/schemas/c2_v2_fd_format_classifier_config_v1.schema.json",
@@ -433,16 +435,28 @@ def test_test_only_code_attestation_rejects_wrong_commit_blob_and_runtime_path()
         )
         extension_path = clone / "agent/experiments/c2_source_bearing_extension.py"
         finalizer_path = clone / "agent/experiments/c2_remediation_root_finalizer.py"
+        m1_trust_boundary_path = (
+            clone / "agent/experiments/c2_m1_trust_boundary.py"
+        )
         verify_source_extension_code_attestation_for_testing(
             clone,
             loaded_extension_path=extension_path,
             loaded_finalizer_path=finalizer_path,
+            loaded_m1_trust_boundary_path=m1_trust_boundary_path,
         )
         with pytest.raises(SourceBearingExtensionError, match="loaded runtime path"):
             verify_source_extension_code_attestation_for_testing(
                 clone,
                 loaded_extension_path=extension_path,
                 loaded_finalizer_path=Path(__file__),
+                loaded_m1_trust_boundary_path=m1_trust_boundary_path,
+            )
+        with pytest.raises(SourceBearingExtensionError, match="loaded runtime path"):
+            verify_source_extension_code_attestation_for_testing(
+                clone,
+                loaded_extension_path=extension_path,
+                loaded_finalizer_path=finalizer_path,
+                loaded_m1_trust_boundary_path=Path(__file__),
             )
         subprocess.run(
             [
@@ -526,6 +540,7 @@ def test_test_only_code_attestation_rejects_wrong_commit_blob_and_runtime_path()
                 clone,
                 loaded_extension_path=extension_path,
                 loaded_finalizer_path=finalizer_path,
+                loaded_m1_trust_boundary_path=m1_trust_boundary_path,
             )
         subprocess.run(
             [
@@ -549,6 +564,7 @@ def test_test_only_code_attestation_rejects_wrong_commit_blob_and_runtime_path()
                 clone,
                 loaded_extension_path=extension_path,
                 loaded_finalizer_path=finalizer_path,
+                loaded_m1_trust_boundary_path=m1_trust_boundary_path,
             )
         subprocess.run(
             ["git", "-C", str(clone), "checkout", "--detach", current_commit],
@@ -563,6 +579,24 @@ def test_test_only_code_attestation_rejects_wrong_commit_blob_and_runtime_path()
                 clone,
                 loaded_extension_path=extension_path,
                 loaded_finalizer_path=finalizer_path,
+                loaded_m1_trust_boundary_path=m1_trust_boundary_path,
+            )
+        subprocess.run(
+            ["git", "-C", str(clone), "checkout", "--detach", current_commit],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        m1_trust_boundary_path.write_bytes(
+            m1_trust_boundary_path.read_bytes() + b"\n# forged M1 boundary\n"
+        )
+        with pytest.raises(SourceBearingExtensionError, match="worktree is dirty"):
+            verify_source_extension_code_attestation_for_testing(
+                clone,
+                loaded_extension_path=extension_path,
+                loaded_finalizer_path=finalizer_path,
+                loaded_m1_trust_boundary_path=m1_trust_boundary_path,
             )
 
         malicious_clone = workspace / "malicious-test-only-clone"
@@ -673,6 +707,9 @@ def test_test_only_code_attestation_rejects_wrong_commit_blob_and_runtime_path()
                 malicious_clone
                 / "agent/experiments/c2_remediation_root_finalizer.py"
             ),
+            loaded_m1_trust_boundary_path=(
+                malicious_clone / "agent/experiments/c2_m1_trust_boundary.py"
+            ),
         )
         assert (
             matching_test_only.approved_implementation_commit_full
@@ -720,6 +757,9 @@ def test_test_only_code_attestation_rejects_invalid_child_topologies_and_manifes
         manifest_path = clone / manifest_relative
         extension_path = clone / "agent/experiments/c2_source_bearing_extension.py"
         finalizer_path = clone / "agent/experiments/c2_remediation_root_finalizer.py"
+        m1_trust_boundary_path = (
+            clone / "agent/experiments/c2_m1_trust_boundary.py"
+        )
         unexpected_child = clone / "unexpected-test-only-child.txt"
 
         def checkout_implementation() -> None:
@@ -754,6 +794,7 @@ def test_test_only_code_attestation_rejects_invalid_child_topologies_and_manifes
                 clone,
                 loaded_extension_path=extension_path,
                 loaded_finalizer_path=finalizer_path,
+                loaded_m1_trust_boundary_path=m1_trust_boundary_path,
             )
 
         checkout_implementation()
@@ -770,6 +811,7 @@ def test_test_only_code_attestation_rejects_invalid_child_topologies_and_manifes
                 clone,
                 loaded_extension_path=extension_path,
                 loaded_finalizer_path=finalizer_path,
+                loaded_m1_trust_boundary_path=m1_trust_boundary_path,
             )
 
         wrong_blob = clone_manifest()
@@ -784,6 +826,7 @@ def test_test_only_code_attestation_rejects_invalid_child_topologies_and_manifes
                 clone,
                 loaded_extension_path=extension_path,
                 loaded_finalizer_path=finalizer_path,
+                loaded_m1_trust_boundary_path=m1_trust_boundary_path,
             )
 
         wrong_path = clone_manifest()
@@ -803,6 +846,7 @@ def test_test_only_code_attestation_rejects_invalid_child_topologies_and_manifes
                 clone,
                 loaded_extension_path=extension_path,
                 loaded_finalizer_path=finalizer_path,
+                loaded_m1_trust_boundary_path=m1_trust_boundary_path,
             )
 
         wrong_manifest = clone_manifest()
@@ -820,6 +864,7 @@ def test_test_only_code_attestation_rejects_invalid_child_topologies_and_manifes
                 clone,
                 loaded_extension_path=extension_path,
                 loaded_finalizer_path=finalizer_path,
+                loaded_m1_trust_boundary_path=m1_trust_boundary_path,
             )
 
 

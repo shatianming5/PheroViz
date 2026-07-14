@@ -64,6 +64,7 @@ MAX_ARCHIVE_CONTAINER_UNCOMPRESSED_BYTES = 256 * 1024 * 1024
 MAX_ARCHIVE_RUN_COMPRESSED_BYTES = 512 * 1024 * 1024
 MAX_ARCHIVE_RUN_UNCOMPRESSED_BYTES = 1024 * 1024 * 1024
 
+_M1_TRUST_BOUNDARY_RELATIVE_PATH = "agent/experiments/c2_m1_trust_boundary.py"
 _EXTENSION_RELATIVE_PATH = "agent/experiments/c2_source_bearing_extension.py"
 _FINALIZER_RELATIVE_PATH = "agent/experiments/c2_remediation_root_finalizer.py"
 _CLI_RELATIVE_PATH = "agent/experiments/cli.py"
@@ -82,6 +83,7 @@ _REQUIRED_SCHEMA_NAMES = (
 )
 _REQUIRED_ATTESTED_CODE_PATHS = frozenset(
     {
+        _M1_TRUST_BOUNDARY_RELATIVE_PATH,
         _EXTENSION_RELATIVE_PATH,
         _FINALIZER_RELATIVE_PATH,
         _CLI_RELATIVE_PATH,
@@ -962,11 +964,17 @@ class TestOnlySourceExtensionCodeAttestation:
             f"code attestation has no binding for {relative_path}"
         )
 
-    def verify_runtime(self, *, loaded_finalizer_path: Path | None = None) -> None:
+    def verify_runtime(
+        self,
+        *,
+        loaded_finalizer_path: Path | None = None,
+        loaded_m1_trust_boundary_path: Path | None = None,
+    ) -> None:
         require_external_m1_trust_lock()
         observed = verify_source_extension_code_attestation_for_testing(
             self.worktree,
             loaded_finalizer_path=loaded_finalizer_path,
+            loaded_m1_trust_boundary_path=loaded_m1_trust_boundary_path,
         )
         _require(
             observed == self,
@@ -1012,12 +1020,18 @@ def _attested_runtime_paths(
     worktree: Path,
     loaded_extension_path: Path | None,
     loaded_finalizer_path: Path | None,
+    loaded_m1_trust_boundary_path: Path | None,
 ) -> dict[str, Path]:
     require_external_m1_trust_lock()
     runtime_paths = {
         _EXTENSION_RELATIVE_PATH: (
             Path(__file__) if loaded_extension_path is None else loaded_extension_path
-        )
+        ),
+        _M1_TRUST_BOUNDARY_RELATIVE_PATH: (
+            _loaded_m1_trust_boundary_path()
+            if loaded_m1_trust_boundary_path is None
+            else loaded_m1_trust_boundary_path
+        ),
     }
     if loaded_finalizer_path is not None:
         runtime_paths[_FINALIZER_RELATIVE_PATH] = loaded_finalizer_path
@@ -1039,6 +1053,17 @@ def _attested_runtime_paths(
     return runtime_paths
 
 
+def _loaded_m1_trust_boundary_path() -> Path:
+    require_external_m1_trust_lock()
+    module = sys.modules.get(require_external_m1_trust_lock.__module__)
+    module_path = getattr(module, "__file__", None)
+    _require(
+        isinstance(module_path, str),
+        "loaded M1 trust-boundary runtime module is unavailable",
+    )
+    return Path(module_path)
+
+
 def _module_worktree() -> Path:
     require_external_m1_trust_lock()
     module_path = Path(__file__).resolve()
@@ -1054,6 +1079,7 @@ def verify_source_extension_code_attestation_for_testing(
     *,
     loaded_extension_path: Path | None = None,
     loaded_finalizer_path: Path | None = None,
+    loaded_m1_trust_boundary_path: Path | None = None,
 ) -> TestOnlySourceExtensionCodeAttestation:
     """Verify a synthetic Git/blob anchor for tests only, never production."""
 
@@ -1203,6 +1229,7 @@ def verify_source_extension_code_attestation_for_testing(
         worktree=resolved_worktree,
         loaded_extension_path=loaded_extension_path,
         loaded_finalizer_path=loaded_finalizer_path,
+        loaded_m1_trust_boundary_path=loaded_m1_trust_boundary_path,
     )
     return TestOnlySourceExtensionCodeAttestation(
         worktree=resolved_worktree,
