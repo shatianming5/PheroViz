@@ -142,6 +142,21 @@ class SecureOutputTarget:
                 self.parent_fd = -1
 
 
+@dataclass
+class TrustedDirectory:
+    """A trusted directory held by descriptor rather than a reopenable pathname."""
+
+    path: Path
+    descriptor: int
+
+    def close(self) -> None:
+        if self.descriptor != -1:
+            try:
+                os.close(self.descriptor)
+            finally:
+                self.descriptor = -1
+
+
 def _require_secure_output_primitives() -> None:
     if (
         not _SECURE_OUTPUT_DIR_FD_SUPPORTED
@@ -328,6 +343,55 @@ def _open_secure_parent(
     except Exception:
         os.close(descriptor)
         raise
+
+
+def open_trusted_directory(path: Path) -> TrustedDirectory:
+    """Open an existing absolute directory through a trusted no-follow chain."""
+
+    try:
+        absolute = Path(os.path.abspath(os.fspath(path.expanduser())))
+    except (OSError, RuntimeError) as exc:
+        raise ProvenanceError(f"Cannot resolve trusted directory: {path}") from exc
+    if not absolute.is_absolute():
+        raise ProvenanceError("Trusted directory path must be absolute")
+    try:
+        descriptor = _open_secure_parent(
+            absolute,
+            create=False,
+            require_trusted_chain=True,
+        )
+    except OSError as exc:
+        raise ProvenanceError(f"Cannot securely open trusted directory: {absolute}") from exc
+    return TrustedDirectory(path=absolute, descriptor=descriptor)
+
+
+def verify_trusted_directory(directory: TrustedDirectory) -> None:
+    """Reject if a visible trusted directory name no longer denotes its descriptor."""
+
+    if directory.descriptor == -1:
+        raise ProvenanceError("Trusted directory is already closed")
+    anchored = os.fstat(directory.descriptor)
+    try:
+        visible_descriptor = _open_secure_parent(
+            directory.path,
+            create=False,
+            require_trusted_chain=True,
+        )
+    except OSError as exc:
+        raise ProvenanceError(
+            f"Trusted directory changed after opening: {directory.path}"
+        ) from exc
+    try:
+        visible = os.fstat(visible_descriptor)
+        if (
+            visible.st_dev != anchored.st_dev
+            or visible.st_ino != anchored.st_ino
+        ):
+            raise ProvenanceError(
+                f"Trusted directory changed after opening: {directory.path}"
+            )
+    finally:
+        os.close(visible_descriptor)
 
 
 def open_secure_output_target(

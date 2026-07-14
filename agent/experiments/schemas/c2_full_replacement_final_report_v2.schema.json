@@ -1,0 +1,412 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "c2_full_replacement_final_report_v2.schema.json",
+  "title": "C2 full-replacement V2 final report",
+  "description": "A Stage-A synthetic-policy report. Production policy admission remains unavailable until Stage B.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "finalizer",
+    "status",
+    "claim_status",
+    "claim_scope",
+    "trend_status",
+    "equivalence_status",
+    "policy_binding",
+    "p1_model",
+    "admission_manifest",
+    "frozen_universe",
+    "code",
+    "chunks",
+    "canonical_attempt_ledger",
+    "source_doi_ids_sha256",
+    "source_doi_count",
+    "strata",
+    "deficient_strata",
+    "final_report_hash"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "2.0-stagea"
+    },
+    "finalizer": {
+      "const": "c2_full_replacement_admission"
+    },
+    "status": {
+      "enum": [
+        "ADMITTED",
+        "BLOCKED_INSUFFICIENT_INDEPENDENT_P1",
+        "BLOCKED_INSUFFICIENT_INDEPENDENT_P2",
+        "BLOCKED_INSUFFICIENT_INDEPENDENT_P3_4",
+        "BLOCKED_INSUFFICIENT_INDEPENDENT_P5PLUS"
+      ]
+    },
+    "claim_status": {
+      "enum": [
+        "SUPPORTED",
+        "UNSUPPORTED"
+      ]
+    },
+    "claim_scope": {
+      "const": "TERMINAL_ADMISSION_ONLY"
+    },
+    "trend_status": {
+      "const": "NOT_RUN"
+    },
+    "equivalence_status": {
+      "const": "NOT_RUN"
+    },
+    "policy_binding": {
+      "$ref": "#/$defs/policyBinding"
+    },
+    "p1_model": {
+      "$ref": "#/$defs/p1Model"
+    },
+    "admission_manifest": {
+      "$ref": "#/$defs/manifestBinding"
+    },
+    "frozen_universe": {
+      "$ref": "#/$defs/frozenUniverse"
+    },
+    "code": {
+      "$ref": "#/$defs/cleanCode"
+    },
+    "chunks": {
+      "type": "array",
+      "minItems": 13,
+      "maxItems": 13,
+      "items": {
+        "$ref": "#/$defs/chunk"
+      }
+    },
+    "canonical_attempt_ledger": {
+      "type": "array",
+      "minItems": 39,
+      "maxItems": 39,
+      "items": {
+        "$ref": "#/$defs/attemptLedger"
+      }
+    },
+    "source_doi_ids_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "source_doi_count": {
+      "const": 2463
+    },
+    "strata": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "$ref": "#/$defs/stratum"
+      }
+    },
+    "deficient_strata": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "P1",
+          "P2",
+          "P3_4",
+          "P5PLUS"
+        ]
+      }
+    },
+    "final_report_hash": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "chunkId": {
+      "type": "string",
+      "pattern": "^[0-9]{3}$"
+    },
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "relativePath": {
+      "type": "string",
+      "minLength": 1
+    },
+    "frozenUniverse": {
+      "type": "object",
+      "required": [
+        "sha256",
+        "doi_ids_sha256",
+        "input_total"
+      ],
+      "properties": {
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "doi_ids_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "input_total": {
+          "const": 2463
+        }
+      },
+      "additionalProperties": false
+    },
+    "cleanCode": {
+      "type": "object",
+      "required": [
+        "commit",
+        "dirty"
+      ],
+      "properties": {
+        "commit": {
+          "$ref": "#/$defs/commit"
+        },
+        "dirty": {
+          "const": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "artifact": {
+      "type": "object",
+      "required": [
+        "path",
+        "sha256",
+        "byte_count"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/relativePath"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "byte_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "policyBinding": {
+      "type": "object",
+      "required": [
+        "authority",
+        "policy_id",
+        "policy_version",
+        "test_policy_sha256"
+      ],
+      "properties": {
+        "authority": {
+          "const": "SYNTHETIC_TEST_ONLY"
+        },
+        "policy_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "policy_version": {
+          "$ref": "#/$defs/identifier"
+        },
+        "test_policy_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "additionalProperties": false
+    },
+    "p1Model": {
+      "type": "object",
+      "required": [
+        "p_disposition",
+        "independent_cluster_literal",
+        "countable_independent_cluster_count",
+        "inference_eligible"
+      ],
+      "properties": {
+        "p_disposition": {
+          "const": "P1"
+        },
+        "independent_cluster_literal": {
+          "const": "P1_NONINFERENTIAL"
+        },
+        "countable_independent_cluster_count": {
+          "const": 0
+        },
+        "inference_eligible": {
+          "const": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "manifestBinding": {
+      "type": "object",
+      "required": [
+        "file_sha256",
+        "manifest_hash"
+      ],
+      "properties": {
+        "file_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "manifest_hash": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "additionalProperties": false
+    },
+    "chunk": {
+      "type": "object",
+      "required": [
+        "chunk_id",
+        "replacement_root_id",
+        "retired_root_ids",
+        "input_total",
+        "input_doi_ids_sha256",
+        "canonical_mapping"
+      ],
+      "properties": {
+        "chunk_id": {
+          "$ref": "#/$defs/chunkId"
+        },
+        "replacement_root_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "retired_root_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "input_total": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "input_doi_ids_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "canonical_mapping": {
+          "$ref": "#/$defs/artifact"
+        }
+      },
+      "additionalProperties": false
+    },
+    "attemptLedger": {
+      "type": "object",
+      "required": [
+        "chunk_id",
+        "attempt_id",
+        "raw_stream",
+        "processed_success",
+        "skipped_status",
+        "outcomes"
+      ],
+      "properties": {
+        "chunk_id": {
+          "$ref": "#/$defs/chunkId"
+        },
+        "attempt_id": {
+          "enum": [
+            "initial",
+            "retry1",
+            "retry2"
+          ]
+        },
+        "raw_stream": {
+          "$ref": "#/$defs/artifact"
+        },
+        "processed_success": {
+          "$ref": "#/$defs/artifact"
+        },
+        "skipped_status": {
+          "$ref": "#/$defs/artifact"
+        },
+        "outcomes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/outcome"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "outcome": {
+      "type": "object",
+      "required": [
+        "global_ordinal",
+        "local_ordinal",
+        "doi_id",
+        "terminal_status"
+      ],
+      "properties": {
+        "global_ordinal": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "local_ordinal": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "doi_id": {
+          "type": "string",
+          "pattern": "^10\\.[0-9]{4,9}/\\S+$"
+        },
+        "terminal_status": {
+          "enum": [
+            "DOWNLOADED",
+            "NO_SOURCE_DATA",
+            "NO_FIGURES",
+            "NO_USABLE_CONTENT",
+            "POLICY_REJECTED",
+            "DOWNLOAD_FAILED",
+            "RETRY_EXHAUSTED"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "stratum": {
+      "type": "object",
+      "required": [
+        "p_disposition",
+        "doi_count",
+        "independent_cluster_count",
+        "inference_eligible",
+        "deficient"
+      ],
+      "properties": {
+        "p_disposition": {
+          "enum": [
+            "P1",
+            "P2",
+            "P3_4",
+            "P5PLUS"
+          ]
+        },
+        "doi_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "independent_cluster_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "inference_eligible": {
+          "type": "boolean"
+        },
+        "deficient": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
