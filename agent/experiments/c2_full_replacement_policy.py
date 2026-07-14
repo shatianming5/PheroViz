@@ -14,7 +14,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Mapping, Sequence
 from urllib.parse import unquote, urlparse
 
-from .c2_m1_trust_boundary import require_external_m1_trust_lock
+from .c2_m1_trust_boundary import (
+    require_owner_authorized_c2_execution as require_external_m1_trust_lock,
+)
 from .models import ProvenanceError, sha256_json
 
 if TYPE_CHECKING:

@@ -1,0 +1,36 @@
+{
+  "admission_authorized": false,
+  "authority": {
+    "record_body_sha256": "e2b35af386c965109f415458e3fa9dc7defae82d3fb285332946b75dce93cb69",
+    "record_url": "https://github.com/shatianming5/PheroViz/issues/1#issuecomment-4974450311",
+    "recorded_at": "2026-07-14T22:09:08Z",
+    "repository": "shatianming5/PheroViz",
+    "repository_owner": "shatianming5"
+  },
+  "authorization_id_sha256": "9dd1b4bdb93082d04e14ea8fd21a21ca40700614cc16975f2fee21541fb7e17a",
+  "authorization_type": "C2_OWNER_AUTHORIZED_NON_INDEPENDENT",
+  "capabilities": [
+    "M2_RUNTIME_VERIFICATION",
+    "M3_READ_ONLY_PREFLIGHT",
+    "C2_REMEDIATION_EXECUTION",
+    "C2_SOURCE_EXTENSION_BUILD_REPLAY",
+    "C2_CANDIDATE_VALIDATION"
+  ],
+  "execution_authorized": true,
+  "publication_authorized": false,
+  "schema_version": "c2-owner-execution-authorization-v1",
+  "scientific_outcome_preapproved": false,
+  "target": {
+    "base_attestation_commit_full": "2739b5bff23fddfb1126d0506e358cf91792df37",
+    "base_implementation_commit_full": "d31edc1c97aa463ec69ab67f62f0196207a18162",
+    "frozen_universe_sha256": "51848466c6bf6bf400b58faf539953830349abab21438e527eaefd74103450df",
+    "m1_request_sha256": "79ab51973e1034e1f498ffaaca7a1a025793d03449446692db00c0ac9a695362"
+  },
+  "threat_model": "TRUSTED_SAME_EUID_OPERATOR_NO_HOSTILE_IN_PROCESS_CODE",
+  "trust": {
+    "external_m1_trust_lock_satisfied": false,
+    "external_signature_present": false,
+    "independent_external_verification": false,
+    "same_authority_as_candidate_repository": true
+  }
+}

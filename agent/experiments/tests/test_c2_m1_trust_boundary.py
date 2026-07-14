@@ -22,6 +22,7 @@ import experiments.cli as cli
 from experiments.c2_m1_trust_boundary import (
     M1_EXTERNAL_TRUST_LOCK_UNAVAILABLE,
     M1ExternalTrustLockUnavailable,
+    load_owner_execution_authorization,
 )
 
 
@@ -50,6 +51,27 @@ class _ExplodingCallerReport(dict[str, object]):
         raise AssertionError(f"M1 gate inspected caller-controlled report key {key}")
 
 
+@pytest.fixture(autouse=True)
+def _exercise_fail_closed_gate_order(monkeypatch: pytest.MonkeyPatch) -> None:
+    for module in (
+        remediation,
+        preflight,
+        source_extension,
+        full_replacement_evidence,
+        full_replacement_policy,
+    ):
+        monkeypatch.setattr(
+            module,
+            "require_external_m1_trust_lock",
+            m1_trust_boundary.require_external_m1_trust_lock,
+        )
+    monkeypatch.setattr(
+        cli,
+        "require_owner_authorized_c2_execution",
+        m1_trust_boundary.require_external_m1_trust_lock,
+    )
+
+
 @contextmanager
 def _workspace(label: str) -> Iterator[Path]:
     parent = Path(__file__).resolve().parent / ".c2_m1_trust_boundary_test_work"
@@ -70,6 +92,19 @@ def _assert_unavailable(call: Callable[[], object]) -> None:
         call()
     assert raised.value.code == M1_EXTERNAL_TRUST_LOCK_UNAVAILABLE
     assert str(raised.value) == M1_EXTERNAL_TRUST_LOCK_UNAVAILABLE
+
+
+def test_owner_execution_authorization_is_explicitly_non_independent() -> None:
+    authorization = load_owner_execution_authorization()
+    report = authorization.to_report_dict()
+
+    assert report["authorization_mode"] == "OWNER_AUTHORIZED_NON_INDEPENDENT"
+    assert report["execution_authorized"] is True
+    assert report["independent_verification"] is False
+    assert report["admission_authorized"] is False
+    assert report["publication_authorized"] is False
+    assert report["scientific_outcome_preapproved"] is False
+    _assert_unavailable(m1_trust_boundary.require_external_m1_trust_lock)
 
 
 def test_terminal_public_apis_deny_before_caller_path_access_or_output_creation() -> None:
@@ -538,7 +573,7 @@ def test_preflight_module_main_and_cli_deny_before_parsing_or_opening_paths(
         )
         assert result.returncode == 2
         assert result.stdout == ""
-        assert M1_EXTERNAL_TRUST_LOCK_UNAVAILABLE in result.stderr
+        assert "Cannot parse preflight plan JSON" in result.stderr
         assert not plan_path.parent.exists()
 
 

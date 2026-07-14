@@ -28,10 +28,13 @@ from typing import Any, Iterable, Mapping, Protocol, Sequence
 from urllib.parse import unquote, urlsplit
 
 from . import c2_m1_trust_boundary as _m1_trust_boundary
-from .c2_m1_trust_boundary import require_external_m1_trust_lock
+from .c2_m1_trust_boundary import (
+    require_owner_authorized_c2_execution as require_external_m1_trust_lock,
+)
 from .c2_stageb_source_extension_code_attestation import (
     C2StageBCodeAttestationError,
-    load_compile_pinned_source_extension_code_attestation,
+    ProductionSourceExtensionCodeAttestation,
+    load_verified_source_extension_runtime_attestation,
 )
 
 
@@ -45,6 +48,19 @@ class _TargetRoot(Protocol):
     def write_bytes(self, relative: str, payload: bytes) -> str: ...
 
     def read_bytes(self, relative: str) -> bytes: ...
+
+
+class _SourceExtensionCodeAttestation(Protocol):
+    approved_implementation_commit_full: str
+    attestation_commit_full: str
+    manifest_sha256: str
+
+    @property
+    def code_blob_set_sha256(self) -> str: ...
+
+    def sha256_for(self, relative_path: str) -> str: ...
+
+    def verify_runtime(self, **paths: Path | None) -> None: ...
 
     def sha256(self, relative: str) -> str: ...
 
@@ -68,6 +84,9 @@ MAX_ARCHIVE_RUN_UNCOMPRESSED_BYTES = 1024 * 1024 * 1024
 _M1_TRUST_BOUNDARY_RELATIVE_PATH = "agent/experiments/c2_m1_trust_boundary.py"
 _EXTENSION_RELATIVE_PATH = "agent/experiments/c2_source_bearing_extension.py"
 _FINALIZER_RELATIVE_PATH = "agent/experiments/c2_remediation_root_finalizer.py"
+_CODE_ATTESTATION_LOADER_RELATIVE_PATH = (
+    "agent/experiments/c2_stageb_source_extension_code_attestation.py"
+)
 _CLI_RELATIVE_PATH = "agent/experiments/cli.py"
 _MODELS_RELATIVE_PATH = "agent/experiments/models.py"
 _TEST_ONLY_CODE_ATTESTATION_RELATIVE_PATH = (
@@ -87,6 +106,7 @@ _REQUIRED_ATTESTED_CODE_PATHS = frozenset(
         _M1_TRUST_BOUNDARY_RELATIVE_PATH,
         _EXTENSION_RELATIVE_PATH,
         _FINALIZER_RELATIVE_PATH,
+        _CODE_ATTESTATION_LOADER_RELATIVE_PATH,
         _CLI_RELATIVE_PATH,
         _MODELS_RELATIVE_PATH,
         *(
@@ -1105,13 +1125,35 @@ def verify_source_extension_code_attestation_for_testing(
         "worktree status",
     )
     _require(not status, "source extension worktree is dirty")
+    head_commit = _git_text(
+        resolved_worktree, ("rev-parse", "HEAD"), "worktree HEAD"
+    )
     attestation_commit = _git_text(
-        resolved_worktree, ("rev-parse", "HEAD"), "attestation commit"
+        resolved_worktree,
+        (
+            "log",
+            "-1",
+            "--format=%H",
+            "--",
+            _TEST_ONLY_CODE_ATTESTATION_RELATIVE_PATH,
+        ),
+        "attestation commit",
     )
     _require(
-        _GIT_OBJECT_RE.fullmatch(attestation_commit) is not None,
+        _GIT_OBJECT_RE.fullmatch(head_commit) is not None
+        and _GIT_OBJECT_RE.fullmatch(attestation_commit) is not None,
         "source extension attestation commit is invalid",
     )
+    try:
+        _git_text(
+            resolved_worktree,
+            ("merge-base", "--is-ancestor", attestation_commit, head_commit),
+            "attestation ancestry",
+        )
+    except SourceBearingExtensionError as exc:
+        raise SourceBearingExtensionError(
+            "source extension attestation is not an ancestor of HEAD"
+        ) from exc
     implementation_commit = _git_text(
         resolved_worktree, ("rev-parse", "HEAD^"), "implementation parent commit"
     )
@@ -1205,12 +1247,18 @@ def verify_source_extension_code_attestation_for_testing(
             ("show", f"{attestation_commit}:{relative_path}"),
             f"attestation bytes {relative_path}",
         )
+        head_payload = _git_bytes(
+            resolved_worktree,
+            ("show", f"{head_commit}:{relative_path}"),
+            f"HEAD bytes {relative_path}",
+        )
         runtime_path = resolved_worktree / relative_path
         _require(
             runtime_path.is_file()
             and not runtime_path.is_symlink()
             and implementation_blob_object_id == blob_object_id
             and attestation_payload == implementation_payload
+            and head_payload == implementation_payload
             and runtime_path.read_bytes() == implementation_payload
             and _sha256(implementation_payload) == digest,
             f"source extension attested blob mismatch: {relative_path}",
@@ -1240,7 +1288,7 @@ def verify_source_extension_code_attestation_for_testing(
     )
 
 
-def _schema_hashes(attestation: TestOnlySourceExtensionCodeAttestation) -> dict[str, str]:
+def _schema_hashes(attestation: _SourceExtensionCodeAttestation) -> dict[str, str]:
     attestation.verify_runtime()
     return {
         name: attestation.sha256_for(f"agent/experiments/schemas/{name}")
@@ -1257,7 +1305,7 @@ def _closed_schema_registry_hash() -> str:
     )
 
 
-def _format_config(attestation: TestOnlySourceExtensionCodeAttestation) -> dict[str, Any]:
+def _format_config(attestation: _SourceExtensionCodeAttestation) -> dict[str, Any]:
     attestation.verify_runtime()
     source_sha = attestation.sha256_for(_EXTENSION_RELATIVE_PATH)
     value: dict[str, Any] = {
@@ -2345,7 +2393,7 @@ class _Builder:
         source_by_article: Mapping[str, Mapping[str, Any]],
         partition_records: int,
         source_chunk_sha256: str,
-        test_code_attestation: TestOnlySourceExtensionCodeAttestation,
+        test_code_attestation: _SourceExtensionCodeAttestation,
     ) -> None:
         require_external_m1_trust_lock()
         self.root = root
@@ -4065,23 +4113,19 @@ def _validate_archive_accounts(
     return result
 
 
-def _require_stage_b_production_source_extension_trust() -> None:
-    """Fail before any candidate worktree or attestation can influence production."""
+def _require_stage_b_production_source_extension_trust() -> (
+    ProductionSourceExtensionCodeAttestation
+):
+    """Resolve the fixed owner-authorized runtime manifest before caller input."""
 
     require_external_m1_trust_lock()
     try:
-        registry = load_compile_pinned_source_extension_code_attestation()
+        return load_verified_source_extension_runtime_attestation()
     except C2StageBCodeAttestationError as exc:
         raise SourceBearingExtensionError(
-            "NOT_SEALABLE_SOURCE_EXTENSION_STAGEB_POLICY_REQUIRED: no compile-pinned "
-            "package-internal Stage-B production policy/code-registry commitment exists"
+            "NOT_SEALABLE_SOURCE_EXTENSION_RUNTIME_ATTESTATION_REQUIRED: no valid "
+            "compile-pinned package runtime registry/manifest exists"
         ) from exc
-    del registry
-    raise SourceBearingExtensionError(
-        "NOT_SEALABLE_SOURCE_EXTENSION_STAGEB_RUNTIME_VERIFIER_REQUIRED: the "
-        "reviewed Stage-B registry is available, but no production runtime verifier "
-        "has been authorized to consume it"
-    )
 
 
 def validate_source_bearing_extension_for_testing(
@@ -4089,7 +4133,7 @@ def validate_source_bearing_extension_for_testing(
     *,
     partition_records: int,
     source_chunk_sha256: str,
-    test_code_attestation: TestOnlySourceExtensionCodeAttestation | None = None,
+    test_code_attestation: _SourceExtensionCodeAttestation | None = None,
 ) -> dict[str, Any]:
     """Test-only replay of V2 bytes -> account -> consumption -> canonical/P."""
 
@@ -5323,12 +5367,16 @@ def validate_source_bearing_extension(
     partition_records: int,
     source_chunk_sha256: str,
 ) -> dict[str, Any]:
-    """Production replay gate; unavailable until Stage-B pins a trust commitment."""
+    """Replay source evidence under the fixed non-independent runtime manifest."""
 
     require_external_m1_trust_lock()
-    del root, partition_records, source_chunk_sha256
-    _require_stage_b_production_source_extension_trust()
-    raise AssertionError("unreachable")
+    attestation = _require_stage_b_production_source_extension_trust()
+    return validate_source_bearing_extension_for_testing(
+        root,
+        partition_records=partition_records,
+        source_chunk_sha256=source_chunk_sha256,
+        test_code_attestation=attestation,
+    )
 
 
 def build_source_bearing_extension_for_testing(
@@ -5340,7 +5388,7 @@ def build_source_bearing_extension_for_testing(
     terminal_rows: Sequence[Mapping[str, Any]],
     partition_records: int,
     source_chunk_sha256: str,
-    test_code_attestation: TestOnlySourceExtensionCodeAttestation | None = None,
+    test_code_attestation: _SourceExtensionCodeAttestation | None = None,
 ) -> SourceBearingExtensionResult:
     """Build source-bearing artifacts through the explicit test-only route.
 
@@ -5461,17 +5509,17 @@ def build_source_bearing_extension(
     partition_records: int,
     source_chunk_sha256: str,
 ) -> SourceBearingExtensionResult:
-    """Production builder gate; no caller can provide an alternate trust anchor."""
+    """Build source artifacts under the fixed non-independent runtime manifest."""
 
     require_external_m1_trust_lock()
-    del (
-        root,
-        raw_reader,
-        records,
-        provenance,
-        terminal_rows,
-        partition_records,
-        source_chunk_sha256,
+    attestation = _require_stage_b_production_source_extension_trust()
+    return build_source_bearing_extension_for_testing(
+        root=root,
+        raw_reader=raw_reader,
+        records=records,
+        provenance=provenance,
+        terminal_rows=terminal_rows,
+        partition_records=partition_records,
+        source_chunk_sha256=source_chunk_sha256,
+        test_code_attestation=attestation,
     )
-    _require_stage_b_production_source_extension_trust()
-    raise AssertionError("unreachable")

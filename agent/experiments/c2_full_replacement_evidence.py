@@ -17,7 +17,9 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
 
 from . import models as _models
-from .c2_m1_trust_boundary import require_external_m1_trust_lock
+from .c2_m1_trust_boundary import (
+    require_owner_authorized_c2_execution as require_external_m1_trust_lock,
+)
 from .c2_full_replacement_policy import (
     ATTEMPT_IDS,
     CHUNK_IDS,

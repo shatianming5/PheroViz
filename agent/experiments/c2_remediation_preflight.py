@@ -20,19 +20,26 @@ from typing import Any, Callable, Mapping, Sequence
 
 from . import models as _models
 from .c2_m1_trust_boundary import (
-    M1ExternalTrustLockUnavailable,
-    require_external_m1_trust_lock,
+    OwnerExecutionAuthorizationUnavailable as M1ExternalTrustLockUnavailable,
+    require_owner_authorized_c2_execution as require_external_m1_trust_lock,
 )
 from .c2_full_replacement_policy import (
     C2FullReplacementPolicyError,
-    load_production_policy,
     normalize_doi,
+)
+from .c2_owner_remediation_execution_policy import (
+    C2OwnerRemediationExecutionPolicyError,
+    load_owner_remediation_execution_policy,
 )
 from .c2_remediation_root_finalizer import (
     FROZEN_PARTITIONS as _FINALIZER_FROZEN_PARTITIONS,
 )
 from .c2_remediation_root_finalizer import (
     FROZEN_UNIVERSE_SHA256 as _FINALIZER_FROZEN_UNIVERSE_SHA256,
+)
+from .c2_stageb_source_extension_code_attestation import (
+    C2StageBCodeAttestationError,
+    load_verified_source_extension_runtime_attestation,
 )
 from .models import ProvenanceError, canonical_json, open_trusted_directory
 from .models import verify_trusted_directory
@@ -660,39 +667,81 @@ def _parse_plan(plan: Mapping[str, Any]) -> tuple[Path, dict[str, Mapping[str, A
     return frozen_universe, chunks
 
 
-def _stage_gates() -> dict[str, dict[str, str]]:
-    """Check only integrated code gates; caller input cannot mark either gate passed."""
+def _stage_gates() -> dict[str, dict[str, Any]]:
+    """Check fixed owner resources; caller input cannot mark a gate passed."""
 
-    require_external_m1_trust_lock()
-    source_extension = {
-        "status": "BLOCKED",
-        "reason": (
-            "No approved integrated source-bearing strict-evidence validator is "
-            "available; source classification claims are rejected."
-        ),
+    authorization = require_external_m1_trust_lock()
+    owner_authorization: dict[str, Any] = {
+        "status": "PASS",
+        "authorization_mode": "OWNER_AUTHORIZED_NON_INDEPENDENT",
+        "authorization_id_sha256": authorization.authorization_id_sha256,
+        "independent_verification": False,
+        "admission_authorized": False,
     }
     try:
-        policy = load_production_policy()
-    except C2FullReplacementPolicyError as exc:
-        stage_b = {
+        runtime = load_verified_source_extension_runtime_attestation()
+    except C2StageBCodeAttestationError as exc:
+        source_extension: dict[str, Any] = {
             "status": "BLOCKED",
             "reason": str(exc),
         }
     else:
-        stage_b = (
-            {
-                "status": "BLOCKED",
-                "reason": "Stage-B resolver returned a test-only policy",
-            }
-            if policy.is_test_only
-            else {
-                "status": "PASS",
-                "reason": "A non-test Stage-B production policy is installed.",
-            }
+        source_extension = {
+            "status": "PASS",
+            "implementation_commit_full": (
+                runtime.approved_implementation_commit_full
+            ),
+            "attestation_commit_full": runtime.attestation_commit_full,
+            "manifest_sha256": runtime.manifest_sha256,
+            "runtime_blob_set_sha256": runtime.code_blob_set_sha256,
+            "independent_verification": False,
+        }
+    try:
+        policy = load_owner_remediation_execution_policy()
+        expected_chunks = tuple(
+            (
+                binding.chunk_id,
+                binding.first_global_ordinal,
+                binding.last_global_ordinal,
+                binding.input_total,
+                binding.sha256,
+            )
+            for binding in DEFAULT_BINDINGS.chunks
         )
+        observed_chunks = tuple(
+            (
+                binding.chunk_id,
+                binding.first_global_ordinal,
+                binding.last_global_ordinal,
+                binding.input_total,
+                binding.chunk_file_sha256,
+            )
+            for binding in policy.chunks
+        )
+        if (
+            policy.universe_file_sha256 != DEFAULT_BINDINGS.frozen_universe_sha256
+            or observed_chunks != expected_chunks
+        ):
+            raise C2OwnerRemediationExecutionPolicyError(
+                "Owner execution policy differs from compiled preflight bindings"
+            )
+    except C2OwnerRemediationExecutionPolicyError as exc:
+        execution_policy: dict[str, Any] = {
+            "status": "BLOCKED",
+            "reason": str(exc),
+        }
+    else:
+        execution_policy = {
+            "status": "PASS",
+            "policy_id_sha256": policy.policy_id_sha256,
+            "resource_sha256": policy.resource_sha256,
+            "independent_verification": False,
+            "admission_authorized": False,
+        }
     return {
+        "owner_execution_authorization": owner_authorization,
         "source_extension": source_extension,
-        "stage_b_policy_resource": stage_b,
+        "owner_remediation_execution_policy": execution_policy,
     }
 
 
@@ -883,10 +932,11 @@ def _run_preflight(
     plan: Mapping[str, Any],
     *,
     bindings: _FrozenBindings,
+    execution_authorization_allowed: bool = False,
 ) -> dict[str, Any]:
     """Build a deterministic report from an internal frozen binding."""
 
-    require_external_m1_trust_lock()
+    authorization = require_external_m1_trust_lock()
     frozen_universe_path, chunks = _parse_plan(plan)
     universe, _, universe_records, _ = _universe_result(
         frozen_universe_path,
@@ -912,10 +962,14 @@ def _run_preflight(
         "chunks": chunk_reports,
         "gates_before_real_execution": gates,
         "inputs_pass": inputs_pass,
-        "execution_authorized": False,
+        "trust_provenance": authorization.to_report_dict(),
+        "execution_authorized": (
+            execution_authorization_allowed and inputs_pass and gates_pass
+        ),
+        "admission_authorized": False,
         "overall_status": (
-            "PREFLIGHT_INPUTS_READY_SEPARATE_AUTHORIZATION_REQUIRED"
-            if inputs_pass and gates_pass
+            "PREFLIGHT_INPUTS_READY_OWNER_EXECUTION_AUTHORIZED"
+            if execution_authorization_allowed and inputs_pass and gates_pass
             else "BLOCKED"
         ),
         "prohibitions": [
@@ -946,7 +1000,11 @@ def _build_production_runner(
         """
 
         require_external_m1_trust_lock()
-        return canonical_runner(plan, bindings=compiled_bindings)
+        return canonical_runner(
+            plan,
+            bindings=compiled_bindings,
+            execution_authorization_allowed=True,
+        )
 
     return run_preflight
 

@@ -348,6 +348,7 @@ def _test_only_attestation_payload(repository: Path, commit: str) -> bytes:
         "agent/experiments/c2_m1_trust_boundary.py",
         "agent/experiments/c2_remediation_root_finalizer.py",
         "agent/experiments/c2_source_bearing_extension.py",
+        "agent/experiments/c2_stageb_source_extension_code_attestation.py",
         "agent/experiments/cli.py",
         "agent/experiments/models.py",
         "agent/experiments/schemas/c2_v2_candidate_set_input_v1.schema.json",

@@ -22,7 +22,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
-from .c2_m1_trust_boundary import require_external_m1_trust_lock
+from .c2_m1_trust_boundary import (
+    require_owner_authorized_c2_execution as require_external_m1_trust_lock,
+)
 from .models import (
     ProvenanceError,
     SecureOutputTarget,

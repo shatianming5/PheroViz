@@ -86,6 +86,10 @@ def test_runtime_path_contract_is_closed_ordered_and_nonclassification() -> None
             "agent/experiments/c2_source_bearing_extension.py",
             "SOURCE_EXTENSION_RUNTIME",
         ),
+        (
+            "agent/experiments/c2_stageb_source_extension_code_attestation.py",
+            "CODE_ATTESTATION_LOADER_RUNTIME",
+        ),
         ("agent/experiments/cli.py", "EXPERIMENTS_CLI_RUNTIME"),
         ("agent/experiments/models.py", "EXPERIMENTS_MODELS_RUNTIME"),
         (
