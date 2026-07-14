@@ -2,13 +2,12 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "c2_stageb_source_extension_code_attestation_v1.schema.json",
   "title": "C2 Stage-B source-extension code-attestation registry entry",
-  "description": "A closed, nonclassification provenance anchor shape for a future internal Stage-B policy. It binds only opaque Git/object digests and the exact reviewed runtime path-role contract; it is not source evidence, an outcome, or an admission.",
+  "description": "A closed, nonclassification provenance anchor shape for a future internal Stage-B policy. Its self-omitting canonical SHA-256 is its only registry identity; no declared free-form identifier is permitted. It binds only opaque Git/object digests and the exact reviewed runtime path-role contract; it is not source evidence, an outcome, or an admission.",
   "type": "object",
   "required": [
     "schema_version",
     "registry_entry_type",
-    "registry_entry_id",
-    "registry_entry_sha256",
+    "registry_id_sha256",
     "extension_implementation_commit_full",
     "manifest_only_attestation_commit_full",
     "manifest_sha256",
@@ -22,10 +21,7 @@
     "registry_entry_type": {
       "const": "C2_STAGEB_SOURCE_EXTENSION_CODE_ATTESTATION"
     },
-    "registry_entry_id": {
-      "$ref": "#/$defs/identifier"
-    },
-    "registry_entry_sha256": {
+    "registry_id_sha256": {
       "$ref": "#/$defs/sha256"
     },
     "extension_implementation_commit_full": {
@@ -58,10 +54,6 @@
     "commit": {
       "type": "string",
       "pattern": "^[0-9a-f]{40}$"
-    },
-    "identifier": {
-      "type": "string",
-      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
     },
     "relativeRuntimePath": {
       "type": "string",

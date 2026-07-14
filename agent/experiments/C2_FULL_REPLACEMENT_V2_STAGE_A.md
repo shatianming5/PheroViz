@@ -140,3 +140,5 @@ manifest-only attestation must provide opaque implementation/attestation commit
 identities, manifest/blob-set digests, and the exact ordered runtime path/role
 roster required by that registry. The registry does not read Git, a worktree,
 the manifest, or evidence, and does not authorize the extension by itself.
+Its self-omitting canonical SHA-256 is its only registry identity; it accepts
+no declared free-form identifier.

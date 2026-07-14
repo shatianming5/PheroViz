@@ -47,7 +47,7 @@ _SOURCE_EXTENSION_CODE_ATTESTATION_SCHEMA_PATH = (
     / SOURCE_EXTENSION_CODE_ATTESTATION_SCHEMA_ID
 )
 SOURCE_EXTENSION_CODE_ATTESTATION_SCHEMA_SHA256 = (
-    "880bed0145fcb019c62c03061efb6a3792e5842a4d6c8cf1c09237ce052cfdd2"
+    "10d442fbc11e393bd88a4a0c2af3dcae33f732203843d6abc67641e6654120f7"
 )
 
 _SOURCE_EXTENSION_CODE_ATTESTATION_RESOURCE_PACKAGE = "experiments"
@@ -64,7 +64,6 @@ _SOURCE_EXTENSION_CODE_ATTESTATION_ROUTE_APPROVED = False
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
-_IDENTIFIER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 
 # This is a path/role compatibility contract only.  It intentionally contains
 # no commit, blob, manifest, source, outcome, or scientific data.
@@ -171,63 +170,6 @@ _FORBIDDEN_EXACT_FIELDS = frozenset(
         "classifications",
     }
 )
-_FORBIDDEN_IDENTIFIER_MARKERS = (
-    "head",
-    "parent",
-    "fallback",
-    "replacement",
-    "selector",
-    "source_claim",
-    "doi_to_p",
-    "doi_p_map",
-    "doi_to_cluster",
-    "doi_cluster",
-    "p1_sentinel",
-    "cluster",
-    "stratum",
-    "coverage",
-    "report_status",
-    "admission_status",
-    "scientific_outcome",
-    "method_outcome",
-    "method_result",
-    "trend",
-    "equivalence",
-    "classification",
-)
-_FORBIDDEN_RESULT_VALUES = frozenset(
-    {
-        "P1",
-        "P2",
-        "P3_4",
-        "P5PLUS",
-        "P=1",
-        "P=2",
-        "P=3-4",
-        "P=5+",
-        "ADMITTED",
-        "SUPPORTED",
-        "UNSUPPORTED",
-        "NOT_RUN_COVERAGE_GATE",
-        "NOT_RUN_NO_ANALYSIS_AUTHORIZED",
-    }
-)
-_FORBIDDEN_IDENTIFIER_TOKENS = frozenset({"p1", "p2", "p3_4", "p5plus"})
-_SAFE_STRING_VALUE_FIELDS = frozenset(
-    {
-        "schema_version",
-        "registry_entry_type",
-        "extension_implementation_commit_full",
-        "manifest_only_attestation_commit_full",
-        "manifest_sha256",
-        "canonical_attested_blob_set_sha256",
-        "registry_entry_sha256",
-        "runtime_path",
-        "role",
-    }
-)
-
-
 @dataclass(frozen=True, slots=True)
 class SourceExtensionRuntimePathRole:
     """One exact runtime path/role covered by an external attestation."""
@@ -243,8 +185,7 @@ class SourceExtensionRuntimePathRole:
 class SourceExtensionCodeAttestationRegistryEntry:
     """Opaque nonclassification entry a later internal policy can carry."""
 
-    registry_entry_id: str
-    registry_entry_sha256: str
+    registry_id_sha256: str
     extension_implementation_commit_full: str
     manifest_only_attestation_commit_full: str
     manifest_sha256: str
@@ -252,14 +193,19 @@ class SourceExtensionCodeAttestationRegistryEntry:
     covered_runtime_paths: tuple[SourceExtensionRuntimePathRole, ...]
     resource_sha256: str | None
 
+    @property
+    def registry_id(self) -> str:
+        """Return the only registry identity: the self-omitting canonical digest."""
+
+        return self.registry_id_sha256
+
     def to_dict(self) -> dict[str, Any]:
         """Return the closed value a future internal policy may carry."""
 
         return {
             "schema_version": "c2-stageb-source-extension-code-attestation-v1",
             "registry_entry_type": "C2_STAGEB_SOURCE_EXTENSION_CODE_ATTESTATION",
-            "registry_entry_id": self.registry_entry_id,
-            "registry_entry_sha256": self.registry_entry_sha256,
+            "registry_id_sha256": self.registry_id_sha256,
             "extension_implementation_commit_full": (
                 self.extension_implementation_commit_full
             ),
@@ -291,12 +237,6 @@ def _require_sha256(value: Any, label: str) -> str:
 def _require_commit(value: Any, label: str) -> str:
     if not isinstance(value, str) or _COMMIT_RE.fullmatch(value) is None:
         raise C2StageBCodeAttestationError(f"{label} must be a full Git commit")
-    return value
-
-
-def _require_identifier(value: Any, label: str) -> str:
-    if not isinstance(value, str) or _IDENTIFIER_RE.fullmatch(value) is None:
-        raise C2StageBCodeAttestationError(f"{label} is not a valid identifier")
     return value
 
 
@@ -377,26 +317,6 @@ def _forbidden_field_name(name: str) -> bool:
     return "classification" in normalized
 
 
-def _forbidden_string_value(path: tuple[str, ...], value: str) -> bool:
-    if path and path[-1] in _SAFE_STRING_VALUE_FIELDS:
-        return False
-    normalized = _normalized_marker(value)
-    if any(marker in normalized for marker in _FORBIDDEN_IDENTIFIER_MARKERS):
-        return True
-    if normalized in {
-        "admitted",
-        "supported",
-        "unsupported",
-        "not_run_coverage_gate",
-        "not_run_no_analysis_authorized",
-    }:
-        return True
-    return (
-        "p3_4" in normalized
-        or bool(set(normalized.split("_")) & _FORBIDDEN_IDENTIFIER_TOKENS)
-    )
-
-
 def _reject_forbidden_semantics(value: Any, path: tuple[str, ...] = ()) -> None:
     if isinstance(value, Mapping):
         for key, item in value.items():
@@ -416,18 +336,6 @@ def _reject_forbidden_semantics(value: Any, path: tuple[str, ...] = ()) -> None:
         for index, item in enumerate(value):
             _reject_forbidden_semantics(item, (*path, str(index)))
         return
-    if isinstance(value, str):
-        if value in _FORBIDDEN_RESULT_VALUES:
-            raise C2StageBCodeAttestationError(
-                "Source-extension code-attestation forbids P labels and outcomes"
-            )
-        if _forbidden_string_value(path, value):
-            raise C2StageBCodeAttestationError(
-                "Source-extension code-attestation identifier encodes a forbidden "
-                "dynamic/semantic value"
-            )
-
-
 def _require_safe_runtime_path(value: Any, label: str) -> str:
     if not isinstance(value, str) or not value or "\\" in value:
         raise C2StageBCodeAttestationError(
@@ -495,14 +403,14 @@ def _compile_registry_entry(
 ) -> SourceExtensionCodeAttestationRegistryEntry:
     entry = _validate_schema(value)
     _reject_forbidden_semantics(entry)
-    entry_sha256 = _require_sha256(
-        entry["registry_entry_sha256"],
-        "registry_entry_sha256",
+    registry_id_sha256 = _require_sha256(
+        entry["registry_id_sha256"],
+        "registry_id_sha256",
     )
-    if sha256_json(_without(entry, "registry_entry_sha256")) != entry_sha256:
+    if sha256_json(_without(entry, "registry_id_sha256")) != registry_id_sha256:
         raise C2StageBCodeAttestationError(
-            "Source-extension code-attestation entry failed its self-omitting "
-            "semantic SHA-256"
+            "Source-extension code-attestation registry ID failed its self-omitting "
+            "canonical SHA-256"
         )
     parsed_resource_sha256 = (
         None
@@ -523,11 +431,7 @@ def _compile_registry_entry(
             "must be distinct"
         )
     return SourceExtensionCodeAttestationRegistryEntry(
-        registry_entry_id=_require_identifier(
-            entry["registry_entry_id"],
-            "registry_entry_id",
-        ),
-        registry_entry_sha256=entry_sha256,
+        registry_id_sha256=registry_id_sha256,
         extension_implementation_commit_full=implementation_commit,
         manifest_only_attestation_commit_full=attestation_commit,
         manifest_sha256=_require_sha256(entry["manifest_sha256"], "manifest_sha256"),
