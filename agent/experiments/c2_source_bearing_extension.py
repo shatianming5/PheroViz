@@ -27,6 +27,11 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping, Protocol, Sequence
 from urllib.parse import unquote, urlsplit
 
+from .c2_stageb_source_extension_code_attestation import (
+    C2StageBCodeAttestationError,
+    load_compile_pinned_source_extension_code_attestation,
+)
+
 
 class SourceBearingExtensionError(ValueError):
     """Raised when V2 source/canonical evidence is incomplete or tampered."""
@@ -4023,9 +4028,18 @@ def _validate_archive_accounts(
 def _require_stage_b_production_source_extension_trust() -> None:
     """Fail before any candidate worktree or attestation can influence production."""
 
+    try:
+        registry = load_compile_pinned_source_extension_code_attestation()
+    except C2StageBCodeAttestationError as exc:
+        raise SourceBearingExtensionError(
+            "NOT_SEALABLE_SOURCE_EXTENSION_STAGEB_POLICY_REQUIRED: no compile-pinned "
+            "package-internal Stage-B production policy/code-registry commitment exists"
+        ) from exc
+    del registry
     raise SourceBearingExtensionError(
-        "NOT_SEALABLE_SOURCE_EXTENSION_STAGEB_POLICY_REQUIRED: no compile-pinned "
-        "package-internal Stage-B production policy/code-registry commitment exists"
+        "NOT_SEALABLE_SOURCE_EXTENSION_STAGEB_RUNTIME_VERIFIER_REQUIRED: the "
+        "reviewed Stage-B registry is available, but no production runtime verifier "
+        "has been authorized to consume it"
     )
 
 

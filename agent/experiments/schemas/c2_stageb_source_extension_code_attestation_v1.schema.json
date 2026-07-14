@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "c2_stageb_source_extension_code_attestation_v1.schema.json",
+  "title": "C2 Stage-B source-extension code-attestation registry entry",
+  "description": "A closed, nonclassification provenance anchor shape for a future internal Stage-B policy. Its self-omitting canonical SHA-256 is its only registry identity; no declared free-form identifier is permitted. It binds only opaque Git/object digests and the exact reviewed runtime path-role contract; it is not source evidence, an outcome, or an admission.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "registry_entry_type",
+    "registry_id_sha256",
+    "extension_implementation_commit_full",
+    "manifest_only_attestation_commit_full",
+    "manifest_sha256",
+    "canonical_attested_blob_set_sha256",
+    "covered_runtime_paths"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "c2-stageb-source-extension-code-attestation-v1"
+    },
+    "registry_entry_type": {
+      "const": "C2_STAGEB_SOURCE_EXTENSION_CODE_ATTESTATION"
+    },
+    "registry_id_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "extension_implementation_commit_full": {
+      "$ref": "#/$defs/commit"
+    },
+    "manifest_only_attestation_commit_full": {
+      "$ref": "#/$defs/commit"
+    },
+    "manifest_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "canonical_attested_blob_set_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "covered_runtime_paths": {
+      "type": "array",
+      "minItems": 11,
+      "maxItems": 11,
+      "items": {
+        "$ref": "#/$defs/runtimePathRole"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "relativeRuntimePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*\\\\).+$"
+    },
+    "runtimeRole": {
+      "enum": [
+        "SOURCE_EXTENSION_RUNTIME",
+        "REMEDIATION_FINALIZER_RUNTIME",
+        "EXPERIMENTS_CLI_RUNTIME",
+        "EXPERIMENTS_MODELS_RUNTIME",
+        "SOURCE_EXTENSION_SCHEMA"
+      ]
+    },
+    "runtimePathRole": {
+      "type": "object",
+      "required": [
+        "runtime_path",
+        "role"
+      ],
+      "properties": {
+        "runtime_path": {
+          "$ref": "#/$defs/relativeRuntimePath"
+        },
+        "role": {
+          "$ref": "#/$defs/runtimeRole"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

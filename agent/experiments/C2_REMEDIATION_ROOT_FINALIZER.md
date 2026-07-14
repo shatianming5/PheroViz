@@ -85,9 +85,9 @@ production policy/code-registry commitment. Consequently, a source-bearing V2
 root fails closed with
 `NOT_SEALABLE_SOURCE_EXTENSION_STAGEB_POLICY_REQUIRED` before it reads any
 candidate worktree, parent commit, manifest, or runtime attestation. A future
-production route must consume only the independently approved Stage-B
-package-resource commitment; test-only Git/blob anchors are not a production
-trust boundary.
+production route must consume only
+`c2_stageb_source_extension_code_attestation.load_compile_pinned_source_extension_code_attestation`;
+test-only Git/blob anchors are not a production trust boundary.
 
 The canonical target leaf is never created directly. Its pre-existing direct
 parent is the private staging parent: it is opened by a retained no-follow FD
