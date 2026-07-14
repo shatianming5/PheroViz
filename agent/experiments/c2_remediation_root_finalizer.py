@@ -7,13 +7,16 @@ model, or mutates the raw-evidence root.
 
 from __future__ import annotations
 
+import ctypes
 import errno
 import hashlib
 import json
 import os
 import re
+import secrets
 import stat
 import subprocess
+import sys
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
@@ -504,31 +507,132 @@ class _RawRootReader:
             os.close(current_fd)
 
 
+_DARWIN_RENAME_EXCL = 0x00000004
+_LINUX_RENAME_NOREPLACE = 0x00000001
+_STAGING_CREATE_ATTEMPTS = 128
+
+
+def _publication_platform() -> str:
+    return sys.platform
+
+
+def _publish_staging_directory(
+    *,
+    parent_fd: int,
+    staging_name: str,
+    target_name: str,
+) -> None:
+    """Atomically publish a staging directory without replacing any target."""
+
+    _require(
+        staging_name
+        and target_name
+        and "/" not in staging_name
+        and "/" not in target_name
+        and "\x00" not in staging_name
+        and "\x00" not in target_name,
+        "atomic publication names are invalid",
+    )
+    libc = ctypes.CDLL(None, use_errno=True)
+    try:
+        platform = _publication_platform()
+        if platform == "darwin":
+            rename_no_replace = libc.renameatx_np
+            rename_no_replace.argtypes = (
+                ctypes.c_int,
+                ctypes.c_char_p,
+                ctypes.c_int,
+                ctypes.c_char_p,
+                ctypes.c_uint,
+            )
+            rename_no_replace.restype = ctypes.c_int
+            ctypes.set_errno(0)
+            result = rename_no_replace(
+                parent_fd,
+                os.fsencode(staging_name),
+                parent_fd,
+                os.fsencode(target_name),
+                _DARWIN_RENAME_EXCL,
+            )
+        elif platform.startswith("linux"):
+            rename_no_replace = libc.renameat2
+            rename_no_replace.argtypes = (
+                ctypes.c_int,
+                ctypes.c_char_p,
+                ctypes.c_int,
+                ctypes.c_char_p,
+                ctypes.c_uint,
+            )
+            rename_no_replace.restype = ctypes.c_int
+            ctypes.set_errno(0)
+            result = rename_no_replace(
+                parent_fd,
+                os.fsencode(staging_name),
+                parent_fd,
+                os.fsencode(target_name),
+                _LINUX_RENAME_NOREPLACE,
+            )
+        else:
+            raise C2RemediationError(
+                "atomic no-replace directory publication is unsupported on this platform"
+            )
+    except AttributeError as exc:
+        raise C2RemediationError(
+            "atomic no-replace directory publication is unavailable on this platform"
+        ) from exc
+
+    if result == 0:
+        return
+    error_number = ctypes.get_errno()
+    if error_number in {errno.EEXIST, errno.ENOTEMPTY}:
+        raise C2RemediationError(
+            "canonical target appeared before atomic staging publication"
+        )
+    raise C2RemediationError(
+        "atomic no-replace directory publication failed"
+    ) from OSError(error_number, os.strerror(error_number))
+
+
 class _SecureTargetRoot:
-    """Descriptor-anchored fresh target whose contents never use pathname writes."""
+    """Descriptor-anchored staging root with an atomic no-replace publication."""
 
     def __init__(
         self,
         *,
-        path: Path,
+        canonical_path: Path,
         parent_fd: int,
-        leaf_name: str,
+        target_name: str,
+        staging_name: str,
         root_fd: int,
+        staging_identity: tuple[int, int],
     ) -> None:
-        self.path = path
+        self.path = canonical_path
         self._parent_fd = parent_fd
-        self._leaf_name = leaf_name
+        self._target_name = target_name
+        self._staging_name = staging_name
         self._root_fd = root_fd
         self._parent_identity = os.fstat(parent_fd)
         self._root_identity = os.fstat(root_fd)
+        self._staging_identity = staging_identity
+        self._published = False
         _require(
-            stat.S_ISDIR(self._root_identity.st_mode),
-            "created target root is not a directory",
+            stat.S_ISDIR(self._root_identity.st_mode)
+            and (self._root_identity.st_dev, self._root_identity.st_ino)
+            == self._staging_identity,
+            "created private staging root identity is invalid",
         )
 
     @property
     def name(self) -> str:
-        return self._leaf_name
+        return self._target_name
+
+    @property
+    def staging_name(self) -> str:
+        return self._staging_name
+
+    @property
+    def published(self) -> bool:
+        return self._published
 
     def close(self) -> None:
         for attribute in ("_root_fd", "_parent_fd"):
@@ -771,22 +875,27 @@ class _SecureTargetRoot:
         finally:
             os.close(root_fd)
 
-    def verify_identity(self) -> None:
+    def _verify_anchored_entry(self, name: str, label: str) -> None:
         _require(self._root_fd != -1 and self._parent_fd != -1, "target is closed")
         anchored_root = os.fstat(self._root_fd)
-        anchored_leaf = os.stat(
-            self._leaf_name,
-            dir_fd=self._parent_fd,
-            follow_symlinks=False,
-        )
+        try:
+            anchored_leaf = os.stat(
+                name,
+                dir_fd=self._parent_fd,
+                follow_symlinks=False,
+            )
+        except FileNotFoundError as exc:
+            raise C2RemediationError(f"{label} directory identity changed") from exc
         _require(
             stat.S_ISDIR(anchored_leaf.st_mode)
             and (anchored_leaf.st_dev, anchored_leaf.st_ino)
             == (self._root_identity.st_dev, self._root_identity.st_ino)
             and (anchored_root.st_dev, anchored_root.st_ino)
             == (self._root_identity.st_dev, self._root_identity.st_ino),
-            "anchored target directory identity changed",
+            f"anchored {label} directory identity changed",
         )
+
+    def _verify_visible_parent(self) -> None:
         probe = open_secure_output_target(
             self.path,
             normalized_path=True,
@@ -794,21 +903,52 @@ class _SecureTargetRoot:
         )
         try:
             visible_parent = os.fstat(probe.parent_fd)
+            _require(
+                (visible_parent.st_dev, visible_parent.st_ino)
+                == (self._parent_identity.st_dev, self._parent_identity.st_ino),
+                "visible target parent directory identity changed",
+            )
+        finally:
+            probe.close()
+
+    def verify_staging_identity(self) -> None:
+        _require(not self._published, "private staging root is already published")
+        self._verify_anchored_entry(self._staging_name, "private staging")
+        self._verify_visible_parent()
+
+    def verify_published_identity(self) -> None:
+        _require(self._published, "private staging root has not been published")
+        self._verify_anchored_entry(self._target_name, "canonical target")
+        self._verify_visible_parent()
+        probe = open_secure_output_target(
+            self.path,
+            normalized_path=True,
+            require_trusted_parent=True,
+        )
+        try:
             visible_leaf = os.stat(
                 probe.leaf_name,
                 dir_fd=probe.parent_fd,
                 follow_symlinks=False,
             )
             _require(
-                (visible_parent.st_dev, visible_parent.st_ino)
-                == (self._parent_identity.st_dev, self._parent_identity.st_ino)
-                and stat.S_ISDIR(visible_leaf.st_mode)
+                stat.S_ISDIR(visible_leaf.st_mode)
                 and (visible_leaf.st_dev, visible_leaf.st_ino)
                 == (self._root_identity.st_dev, self._root_identity.st_ino),
-                "visible target directory identity changed",
+                "visible canonical target directory identity changed",
             )
         finally:
             probe.close()
+
+    def publish(self) -> None:
+        self.verify_staging_identity()
+        _publish_staging_directory(
+            parent_fd=self._parent_fd,
+            staging_name=self._staging_name,
+            target_name=self._target_name,
+        )
+        self._published = True
+        self.verify_published_identity()
 
 
 def _read_external_file_once(path: Path, label: str) -> bytes:
@@ -1908,6 +2048,8 @@ def _verify_protected_old_root(
 
 
 def _create_target_root(target_root: Path) -> _SecureTargetRoot:
+    """Create a random private staging directory, never the canonical target."""
+
     _require(target_root.is_absolute(), "target root must be absolute")
     normalized_target = normalize_trusted_output_path(target_root)
     target = open_secure_output_target(
@@ -1919,32 +2061,67 @@ def _create_target_root(target_root: Path) -> _SecureTargetRoot:
     target.parent_fd = -1
     root_fd = -1
     try:
+        # This is only an early rejection; publication independently uses NO-REPLACE.
         try:
             os.stat(target.leaf_name, dir_fd=parent_fd, follow_symlinks=False)
         except FileNotFoundError:
             pass
         else:
             raise C2RemediationError("target root already exists")
-        try:
-            os.mkdir(target.leaf_name, mode=0o700, dir_fd=parent_fd)
-        except OSError as exc:
-            raise C2RemediationError("cannot create fresh target root") from exc
-        root_fd = os.open(
-            target.leaf_name,
-            os.O_RDONLY
-            | os.O_DIRECTORY
-            | os.O_NOFOLLOW
-            | getattr(os, "O_CLOEXEC", 0),
-            dir_fd=parent_fd,
+        for _ in range(_STAGING_CREATE_ATTEMPTS):
+            staging_name = (
+                f".{target.leaf_name}.c2-remediation-staging-{secrets.token_hex(16)}"
+            )
+            try:
+                os.mkdir(staging_name, mode=0o700, dir_fd=parent_fd)
+            except FileExistsError:
+                continue
+            except OSError as exc:
+                raise C2RemediationError(
+                    "cannot create private remediation staging root"
+                ) from exc
+            try:
+                staged_entry = os.stat(
+                    staging_name,
+                    dir_fd=parent_fd,
+                    follow_symlinks=False,
+                )
+                _require(
+                    stat.S_ISDIR(staged_entry.st_mode),
+                    "created private staging root is not a directory",
+                )
+                root_fd = os.open(
+                    staging_name,
+                    os.O_RDONLY
+                    | os.O_DIRECTORY
+                    | os.O_NOFOLLOW
+                    | getattr(os, "O_CLOEXEC", 0),
+                    dir_fd=parent_fd,
+                )
+                opened_entry = os.fstat(root_fd)
+                _require(
+                    (opened_entry.st_dev, opened_entry.st_ino)
+                    == (staged_entry.st_dev, staged_entry.st_ino),
+                    "private staging root changed while opening",
+                )
+                secure_root = _SecureTargetRoot(
+                    canonical_path=target.final_path,
+                    parent_fd=parent_fd,
+                    target_name=target.leaf_name,
+                    staging_name=staging_name,
+                    root_fd=root_fd,
+                    staging_identity=(staged_entry.st_dev, staged_entry.st_ino),
+                )
+                root_fd = -1
+                return secure_root
+            except Exception:
+                if root_fd != -1:
+                    os.close(root_fd)
+                    root_fd = -1
+                raise
+        raise C2RemediationError(
+            "cannot allocate a collision-free private remediation staging root"
         )
-        secure_root = _SecureTargetRoot(
-            path=target.final_path,
-            parent_fd=parent_fd,
-            leaf_name=target.leaf_name,
-            root_fd=root_fd,
-        )
-        root_fd = -1
-        return secure_root
     except Exception:
         if root_fd != -1:
             os.close(root_fd)
@@ -2540,7 +2717,7 @@ def finalize_remediation_root(
         }
         _seal(preseal, "validation_hash")
         preseal_path = _write_json(target, "control/preseal_validation.json", preseal)
-        target.verify_identity()
+        target.verify_staging_identity()
 
         inventory_excludes = {
             ".pipeline_worktree/",
@@ -2582,11 +2759,20 @@ def finalize_remediation_root(
                 "utf-8"
             ),
         )
+        target.verify_staging_identity()
+        target.publish()
 
         report = {
             "sealed_report_version": "3.0",
             "status": "SEALED_COMPLETE_ATTEMPT_EVIDENCE_NO_CASES",
             "root": str(target.path),
+            "publication": {
+                "method": (
+                    "descriptor-relative atomic no-replace directory rename "
+                    "(renameatx_np RENAME_EXCL or renameat2 RENAME_NOREPLACE)"
+                ),
+                "canonical_target_identity_verified": True,
+            },
             "code": code,
             "code_after_finalization": postfinal_code,
             "frozen_input": {
@@ -2764,6 +2950,8 @@ def finalize_remediation_root(
                 "execution_evidence": True,
                 "generated_secret_scan": True,
                 "postseal_old_root_preservation": True,
+                "atomic_no_replace_publication": True,
+                "canonical_target_identity": True,
             },
         }
         _seal(validation, "validation_hash")
@@ -2778,7 +2966,7 @@ def finalize_remediation_root(
             "generated report checksum mismatch",
         )
         _require(target.read_bytes(validation_path), "generated validation is missing")
-        target.verify_identity()
+        target.verify_published_identity()
         return {
             "chunk_id": chunk_id,
             "target_root": str(target.path),
@@ -2788,8 +2976,8 @@ def finalize_remediation_root(
             "status": report["status"],
         }
     except Exception:
-        # Deliberately retain an incomplete fresh target for forensic inspection.
-        # A later invocation rejects the existing path rather than overwriting it.
+        # Never clean up an incomplete staging/published root by pathname.
+        # A later invocation rejects any canonical target rather than overwriting it.
         raise
     finally:
         if target is not None:

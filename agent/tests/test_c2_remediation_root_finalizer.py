@@ -404,6 +404,15 @@ def _finalize(paths: dict[str, Path], chunk_id: str) -> dict[str, Any]:
     return finalizer.finalize_remediation_root(chunk_id=chunk_id, **paths)
 
 
+def _private_staging_root(paths: dict[str, Path]) -> Path:
+    target = paths["target_root"]
+    roots = sorted(
+        target.parent.glob(f".{target.name}.c2-remediation-staging-*")
+    )
+    assert len(roots) == 1
+    return roots[0]
+
+
 def test_static_partition_covers_the_frozen_2463_record_universe() -> None:
     partitions = finalizer.FROZEN_PARTITIONS
     assert tuple(partitions) == tuple(f"{index:03d}" for index in range(1, 14))
@@ -437,6 +446,10 @@ def test_finalizes_exact_200_and_63_roots(
         target = paths["target_root"]
         assert result["input_total"] == expected_records
         assert result["status"] == "SEALED_COMPLETE_ATTEMPT_EVIDENCE_NO_CASES"
+        assert target.is_dir()
+        assert not list(
+            target.parent.glob(f".{target.name}.c2-remediation-staging-*")
+        )
         assert len(
             (target / "control/terminal_outcomes.jsonl").read_text(
                 encoding="utf-8"
@@ -475,6 +488,11 @@ def test_finalizes_exact_200_and_63_roots(
         assert (
             target / "sealed_report_v1/sealed_report.sha256"
         ).read_text(encoding="utf-8") == f"{sha256_file(report)}  sealed_report.json\n"
+        validation = json.loads(
+            (target / "sealed_report_v1/validation.json").read_text(encoding="utf-8")
+        )
+        assert validation["gates"]["atomic_no_replace_publication"] is True
+        assert validation["gates"]["canonical_target_identity"] is True
 
 
 def test_rejects_source_hash_mismatch_before_creating_target(
@@ -526,6 +544,120 @@ def test_rejects_existing_target_without_overwrite(
         with pytest.raises(finalizer.C2RemediationError, match="already exists"):
             _finalize(paths, "001")
         assert marker.read_text(encoding="utf-8") == "present"
+
+
+def test_atomic_publish_rejects_target_replacement_without_accepting_attacker(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with experiment_workspace("c2-remediation-atomic-publish-collision") as workspace:
+        paths = _make_fixture(workspace, monkeypatch, chunk_id="001")
+        original_publish = finalizer._publish_staging_directory
+
+        def replace_target_before_publish(
+            *,
+            parent_fd: int,
+            staging_name: str,
+            target_name: str,
+        ) -> None:
+            os.mkdir(target_name, mode=0o700, dir_fd=parent_fd)
+            attacker_fd = os.open(
+                target_name,
+                os.O_RDONLY
+                | os.O_DIRECTORY
+                | os.O_NOFOLLOW
+                | getattr(os, "O_CLOEXEC", 0),
+                dir_fd=parent_fd,
+            )
+            try:
+                marker_fd = os.open(
+                    "attacker-marker",
+                    os.O_WRONLY
+                    | os.O_CREAT
+                    | os.O_EXCL
+                    | os.O_NOFOLLOW
+                    | getattr(os, "O_CLOEXEC", 0),
+                    0o600,
+                    dir_fd=attacker_fd,
+                )
+                try:
+                    os.write(marker_fd, b"attacker-owned\n")
+                finally:
+                    os.close(marker_fd)
+            finally:
+                os.close(attacker_fd)
+            original_publish(
+                parent_fd=parent_fd,
+                staging_name=staging_name,
+                target_name=target_name,
+            )
+
+        monkeypatch.setattr(
+            finalizer,
+            "_publish_staging_directory",
+            replace_target_before_publish,
+        )
+
+        with pytest.raises(
+            finalizer.C2RemediationError,
+            match="canonical target appeared",
+        ):
+            _finalize(paths, "001")
+
+        target = paths["target_root"]
+        assert target.is_dir()
+        assert (target / "attacker-marker").read_text(encoding="utf-8") == (
+            "attacker-owned\n"
+        )
+        assert {path.name for path in target.iterdir()} == {"attacker-marker"}
+        staging = _private_staging_root(paths)
+        assert (staging / "control/preseal_validation.json").is_file()
+
+
+def test_atomic_publish_binds_canonical_leaf_to_staging_inode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with experiment_workspace("c2-remediation-atomic-publish") as workspace:
+        paths = _make_fixture(workspace, monkeypatch, chunk_id="001")
+        original_publish = finalizer._SecureTargetRoot.publish
+        observed: dict[str, tuple[int, int]] = {}
+
+        def capture_published_inode(target: finalizer._SecureTargetRoot) -> None:
+            assert not paths["target_root"].exists()
+            original_publish(target)
+            canonical = os.stat(paths["target_root"], follow_symlinks=False)
+            staged = os.fstat(target._root_fd)
+            observed["canonical"] = (canonical.st_dev, canonical.st_ino)
+            observed["staging"] = (staged.st_dev, staged.st_ino)
+
+        monkeypatch.setattr(
+            finalizer._SecureTargetRoot,
+            "publish",
+            capture_published_inode,
+        )
+
+        _finalize(paths, "001")
+
+        assert observed["canonical"] == observed["staging"]
+        assert paths["target_root"].is_dir()
+
+
+def test_unsupported_native_publication_retains_private_staging(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with experiment_workspace("c2-remediation-unsupported-publication") as workspace:
+        paths = _make_fixture(workspace, monkeypatch, chunk_id="001")
+        monkeypatch.setattr(
+            finalizer,
+            "_publication_platform",
+            lambda: "unsupported-platform",
+        )
+
+        with pytest.raises(finalizer.C2RemediationError, match="unsupported"):
+            _finalize(paths, "001")
+
+        assert not paths["target_root"].exists()
+        staging = _private_staging_root(paths)
+        assert (staging / "sealed_report_v1/artifact_manifest.json").is_file()
 
 
 def test_rejects_symlinked_provenance_before_creating_target(
@@ -601,7 +733,8 @@ def test_blocks_source_bearing_terminal_before_empty_canonical_p_seal(
         with pytest.raises(finalizer.C2RemediationError, match="canonical/P builder"):
             _finalize(paths, "001")
 
-        target = paths["target_root"]
+        assert not paths["target_root"].exists()
+        target = _private_staging_root(paths)
         blocked = json.loads(
             (target / "control/source_classification_blocked.json").read_text(
                 encoding="utf-8"
@@ -649,8 +782,10 @@ def test_blocks_prior_attempt_source_bearing_record_before_empty_seal(
         with pytest.raises(finalizer.C2RemediationError, match="canonical/P builder"):
             _finalize(paths, "001")
 
+        assert not paths["target_root"].exists()
+        staging = _private_staging_root(paths)
         terminal = json.loads(
-            (paths["target_root"] / "control/terminal_outcomes.jsonl").read_text(
+            (staging / "control/terminal_outcomes.jsonl").read_text(
                 encoding="utf-8"
             ).splitlines()[0]
         )
@@ -658,8 +793,8 @@ def test_blocks_prior_attempt_source_bearing_record_before_empty_seal(
         assert terminal["acquisition_disposition"] == (
             "SOURCE_BEARING_PRIOR_ATTEMPT_DOWNLOAD_RETRY2_NO_SOURCE_DATA"
         )
-        assert not (paths["target_root"] / "canonical_v1").exists()
-        assert not (paths["target_root"] / "sealed_report_v1").exists()
+        assert not (staging / "canonical_v1").exists()
+        assert not (staging / "sealed_report_v1").exists()
 
 
 def test_rejects_unreferenced_source_artifact_before_target_creation(
@@ -745,7 +880,10 @@ def test_descriptor_writes_reject_injected_target_subdirectory_symlink(
             payload: bytes,
         ) -> str:
             if relative == "control/acquisition_config.json":
-                os.symlink(outside, paths["target_root"] / "control")
+                os.symlink(
+                    outside,
+                    paths["target_root"].parent / target.staging_name / "control",
+                )
             return original_write(target, relative, payload)
 
         monkeypatch.setattr(finalizer, "_write_bytes", inject_symlink)
@@ -788,18 +926,21 @@ def test_descriptor_target_detects_leaf_swap_without_outside_write(
         paths = _make_fixture(workspace, monkeypatch, chunk_id="001")
         outside = workspace / "outside"
         outside.mkdir(mode=0o700)
-        original_scan = finalizer._write_secret_scan
+        original_publish = finalizer._SecureTargetRoot.publish
 
-        def swap_leaf(
+        def swap_published_leaf(
             target: finalizer._SecureTargetRoot,
-        ) -> tuple[str, dict[str, Any]]:
-            result = original_scan(target)
+        ) -> None:
+            original_publish(target)
             moved_target = workspace / "moved-target"
             paths["target_root"].rename(moved_target)
             os.symlink(outside, paths["target_root"])
-            return result
 
-        monkeypatch.setattr(finalizer, "_write_secret_scan", swap_leaf)
+        monkeypatch.setattr(
+            finalizer._SecureTargetRoot,
+            "publish",
+            swap_published_leaf,
+        )
 
         with pytest.raises(finalizer.ProvenanceError):
             _finalize(paths, "001")
@@ -862,8 +1003,10 @@ def test_blocks_generated_root_when_secret_scan_hits(
 
         with pytest.raises(finalizer.C2RemediationError, match="secret scan"):
             _finalize(paths, "001")
+        assert not paths["target_root"].exists()
+        staging = _private_staging_root(paths)
         scan = json.loads(
-            (paths["target_root"] / "control/secret_scan.json").read_text(
+            (staging / "control/secret_scan.json").read_text(
                 encoding="utf-8"
             )
         )

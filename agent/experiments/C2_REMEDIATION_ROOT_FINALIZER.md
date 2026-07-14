@@ -60,11 +60,18 @@ evidence and `control/source_classification_blocked.json`, then fails with
 empty canonical/P or sealed-report chain. A separately approved deterministic
 canonical/P builder is required before such a root can be sealed.
 
-After creating the absent target, every generated directory, read, write,
-hash, inventory traversal, and secret scan is descriptor-relative with
-no-follow opens. The finalizer retains the target and parent directory
-descriptors throughout, and verifies both the anchored and lexical
-parent/leaf inode identities before sealing and before return.
+The canonical target leaf is never created directly. The finalizer creates a
+random, mode-0700 private staging directory descriptor-relatively beneath the
+trusted parent, stamps and retains its inode/FD, and performs every generated
+directory operation, read, write, hash, inventory traversal, and secret scan
+through no-follow descriptors rooted there. At publication it uses only an
+atomic descriptor-relative no-replace directory rename: Darwin
+`renameatx_np(RENAME_EXCL)` or Linux `renameat2(RENAME_NOREPLACE)`. It never
+uses a precheck plus an overwrite-capable rename; unavailable native support
+fails closed and retains the private staging root for forensic inspection. The
+canonical lexical parent/leaf must map to the original staging inode
+immediately after publication and again before return; parent/leaf swaps fail
+closed.
 
 The generated preservation ledger records protected old-root contracts and
 retained `009`/`010`/`012` exclusions. For a chunk with a protected-root
