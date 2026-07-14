@@ -15,7 +15,7 @@ import stat
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 from . import models as _models
 from .c2_full_replacement_policy import (
@@ -917,14 +917,25 @@ def _run_preflight(
     return report
 
 
-def run_preflight(plan: Mapping[str, Any]) -> dict[str, Any]:
-    """Run production preflight with only the compiled frozen C2 bindings.
+def _build_production_runner(
+    compiled_bindings: _FrozenBindings,
+) -> Callable[[Mapping[str, Any]], dict[str, Any]]:
+    """Capture immutable compiled bindings outside the mutable module namespace."""
 
-    The public API deliberately has no binding argument.  Callers cannot replace
-    the 2,463 DOI universe, the 12×200+63 partition, or any chunk SHA-256.
-    """
+    def run_preflight(plan: Mapping[str, Any]) -> dict[str, Any]:
+        """Run production preflight with only the compiled frozen C2 bindings.
 
-    return _run_preflight(plan, bindings=DEFAULT_BINDINGS)
+        The public API deliberately has no binding argument.  Callers cannot
+        replace the 2,463 DOI universe, the 12×200+63 partition, or any chunk
+        SHA-256.
+        """
+
+        return _run_preflight(plan, bindings=compiled_bindings)
+
+    return run_preflight
+
+
+run_preflight = _build_production_runner(DEFAULT_BINDINGS)
 
 
 def run_preflight_for_testing(
