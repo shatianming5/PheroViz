@@ -11,10 +11,13 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Any, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Mapping, Sequence
 from urllib.parse import unquote, urlparse
 
 from .models import ProvenanceError, sha256_json
+
+if TYPE_CHECKING:
+    from .c2_full_replacement_stageb_policy import CompiledStageBProductionPolicy
 
 
 C2_FULL_REPLACEMENT_V2_VERSION = "2.1-stagea"
@@ -706,10 +709,9 @@ def compile_synthetic_policy_for_testing(
     )
 
 
-def load_production_policy() -> CompiledFullReplacementPolicy:
-    """Fail closed until Stage B commits a resource and compiled byte digest."""
+def load_production_policy() -> CompiledStageBProductionPolicy:
+    """Resolve only the fixed internal Stage-B resource; never accept a selector."""
 
-    raise C2FullReplacementPolicyError(
-        "C2 full-replacement V2.1 is Stage-A only: no Git-reviewed internal "
-        "production policy resource and compiled SHA-256 are pinned"
-    )
+    from .c2_full_replacement_stageb_policy import load_stage_b_production_policy
+
+    return load_stage_b_production_policy()

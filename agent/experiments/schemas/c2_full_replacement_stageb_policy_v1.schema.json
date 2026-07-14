@@ -1,0 +1,545 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "c2_full_replacement_stageb_policy_v1.schema.json",
+  "title": "C2 V2.1 Stage-B nonclassification policy resource",
+  "description": "A closed internal policy shape for frozen acquisition identity, replacement roots, nonclassification registries, evidence roles, and later verified nonclassification commitments. It is not an admission, report, or classification resource.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "policy_type",
+    "policy_id",
+    "policy_version",
+    "policy_sha256",
+    "frozen_universe",
+    "partition",
+    "replacement_plan",
+    "nonclassification_registries",
+    "evidence_role_layout",
+    "evidence_commitments"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "c2-stageb-policy-v1"
+    },
+    "policy_type": {
+      "const": "C2_FULL_REPLACEMENT_STAGEB_NONCLASSIFICATION_POLICY"
+    },
+    "policy_id": {
+      "$ref": "#/$defs/identifier"
+    },
+    "policy_version": {
+      "$ref": "#/$defs/identifier"
+    },
+    "policy_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "frozen_universe": {
+      "$ref": "#/$defs/frozenUniverse"
+    },
+    "partition": {
+      "type": "array",
+      "minItems": 13,
+      "maxItems": 13,
+      "items": {
+        "$ref": "#/$defs/partition"
+      }
+    },
+    "replacement_plan": {
+      "type": "array",
+      "minItems": 13,
+      "maxItems": 13,
+      "items": {
+        "$ref": "#/$defs/replacementPlan"
+      }
+    },
+    "nonclassification_registries": {
+      "$ref": "#/$defs/nonclassificationRegistries"
+    },
+    "evidence_role_layout": {
+      "$ref": "#/$defs/evidenceRoleLayout"
+    },
+    "evidence_commitments": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/evidenceCommitment"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "doi": {
+      "type": "string",
+      "pattern": "^10\\.[0-9]{4,9}/\\S+$"
+    },
+    "chunkId": {
+      "enum": [
+        "001",
+        "002",
+        "003",
+        "004",
+        "005",
+        "006",
+        "007",
+        "008",
+        "009",
+        "010",
+        "011",
+        "012",
+        "013"
+      ]
+    },
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*\\\\).+$"
+    },
+    "frozenUniverse": {
+      "type": "object",
+      "required": [
+        "universe_file_sha256",
+        "ordered_doi_ids_sha256",
+        "input_total",
+        "ordered_doi_ids",
+        "chunk_file_sha256_by_id",
+        "chunk_concat_sha256"
+      ],
+      "properties": {
+        "universe_file_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "ordered_doi_ids_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "input_total": {
+          "const": 2463
+        },
+        "ordered_doi_ids": {
+          "type": "array",
+          "minItems": 2463,
+          "maxItems": 2463,
+          "items": {
+            "$ref": "#/$defs/doi"
+          }
+        },
+        "chunk_file_sha256_by_id": {
+          "type": "object",
+          "minProperties": 13,
+          "maxProperties": 13,
+          "propertyNames": {
+            "$ref": "#/$defs/chunkId"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/sha256"
+          }
+        },
+        "chunk_concat_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "additionalProperties": false
+    },
+    "partition": {
+      "type": "object",
+      "required": [
+        "chunk_id",
+        "first_global_ordinal",
+        "input_total",
+        "doi_ids_sha256"
+      ],
+      "properties": {
+        "chunk_id": {
+          "$ref": "#/$defs/chunkId"
+        },
+        "first_global_ordinal": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "input_total": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "doi_ids_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "additionalProperties": false
+    },
+    "replacementPlan": {
+      "type": "object",
+      "required": [
+        "chunk_id",
+        "replacement_root_id",
+        "retired_root_ids",
+        "partial_root"
+      ],
+      "properties": {
+        "chunk_id": {
+          "$ref": "#/$defs/chunkId"
+        },
+        "replacement_root_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "retired_root_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "partial_root": {
+          "const": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "identity": {
+      "type": "object",
+      "required": [
+        "id",
+        "version",
+        "sha256"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "version": {
+          "$ref": "#/$defs/identifier"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "additionalProperties": false
+    },
+    "codeIdentity": {
+      "type": "object",
+      "required": [
+        "id",
+        "commit_full",
+        "sha256"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "commit_full": {
+          "$ref": "#/$defs/commit"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "additionalProperties": false
+    },
+    "schemaIdentity": {
+      "type": "object",
+      "required": [
+        "id",
+        "sha256"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "additionalProperties": false
+    },
+    "nonclassificationRegistries": {
+      "type": "object",
+      "required": [
+        "canonical_json",
+        "error_enum",
+        "code",
+        "rules",
+        "schemas"
+      ],
+      "properties": {
+        "canonical_json": {
+          "$ref": "#/$defs/identity"
+        },
+        "error_enum": {
+          "$ref": "#/$defs/identity"
+        },
+        "code": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/codeIdentity"
+          }
+        },
+        "rules": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/identity"
+          }
+        },
+        "schemas": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/schemaIdentity"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "evidenceRoleLayout": {
+      "type": "object",
+      "required": [
+        "layout_id",
+        "layout_version",
+        "root_relative_only",
+        "descriptor_read_required",
+        "no_symlink",
+        "chunk_roles",
+        "downloaded_doi_roles",
+        "collection_roles",
+        "required_cross_role_fields"
+      ],
+      "properties": {
+        "layout_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "layout_version": {
+          "$ref": "#/$defs/identifier"
+        },
+        "root_relative_only": {
+          "const": true
+        },
+        "descriptor_read_required": {
+          "const": true
+        },
+        "no_symlink": {
+          "const": true
+        },
+        "chunk_roles": {
+          "type": "array",
+          "minItems": 11,
+          "maxItems": 11,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "initial_raw_stream",
+              "initial_processed_success",
+              "initial_skipped_status",
+              "retry1_raw_stream",
+              "retry1_processed_success",
+              "retry1_skipped_status",
+              "retry2_raw_stream",
+              "retry2_processed_success",
+              "retry2_skipped_status",
+              "terminal_outcomes",
+              "sealed_terminal_report"
+            ]
+          }
+        },
+        "downloaded_doi_roles": {
+          "type": "array",
+          "minItems": 12,
+          "maxItems": 12,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "source_inventory",
+              "raw_source_evidence",
+              "canonical_builder",
+              "candidate_parent_manifest",
+              "proposal_parent_manifest",
+              "structural_review_parent_manifest",
+              "canonical_parent_manifest",
+              "raw_source_bytes",
+              "source_table",
+              "panel_descriptor",
+              "all_case_set",
+              "per_container_accounts"
+            ]
+          }
+        },
+        "collection_roles": {
+          "type": "array",
+          "minItems": 7,
+          "maxItems": 7,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "detected_format_collection",
+              "container_accounting_index",
+              "derived_archive_member_collection",
+              "consumable_source_unit_collection",
+              "downstream_consumption_collection",
+              "candidate_set_input_collection",
+              "consumption_bijection_validation"
+            ]
+          }
+        },
+        "required_cross_role_fields": {
+          "type": "array",
+          "minItems": 12,
+          "maxItems": 12,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "chunk_id",
+              "parent_doi_id",
+              "frozen_input_ordinal",
+              "relative_path",
+              "file_sha256",
+              "byte_count",
+              "semantic_sha256",
+              "complete",
+              "sealed",
+              "clean_code",
+              "model_result_selected",
+              "record_order"
+            ]
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "evidenceCommitment": {
+      "type": "object",
+      "required": [
+        "commitment_id",
+        "role",
+        "chunk_id_or_null",
+        "frozen_input_ordinal_or_null",
+        "parent_doi_id_or_null",
+        "relative_path",
+        "file_sha256",
+        "byte_count",
+        "semantic_sha256",
+        "complete",
+        "sealed",
+        "clean_code",
+        "model_result_selected",
+        "record_order"
+      ],
+      "properties": {
+        "commitment_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "role": {
+          "enum": [
+            "initial_raw_stream",
+            "initial_processed_success",
+            "initial_skipped_status",
+            "retry1_raw_stream",
+            "retry1_processed_success",
+            "retry1_skipped_status",
+            "retry2_raw_stream",
+            "retry2_processed_success",
+            "retry2_skipped_status",
+            "terminal_outcomes",
+            "sealed_terminal_report",
+            "source_inventory",
+            "raw_source_evidence",
+            "canonical_builder",
+            "candidate_parent_manifest",
+            "proposal_parent_manifest",
+            "structural_review_parent_manifest",
+            "canonical_parent_manifest",
+            "raw_source_bytes",
+            "source_table",
+            "panel_descriptor",
+            "all_case_set",
+            "per_container_accounts",
+            "detected_format_collection",
+            "container_accounting_index",
+            "derived_archive_member_collection",
+            "consumable_source_unit_collection",
+            "downstream_consumption_collection",
+            "candidate_set_input_collection",
+            "consumption_bijection_validation"
+          ]
+        },
+        "chunk_id_or_null": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "001",
+            "002",
+            "003",
+            "004",
+            "005",
+            "006",
+            "007",
+            "008",
+            "009",
+            "010",
+            "011",
+            "012",
+            "013",
+            null
+          ]
+        },
+        "frozen_input_ordinal_or_null": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "maximum": 2463
+        },
+        "parent_doi_id_or_null": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^10\\.[0-9]{4,9}/\\S+$"
+        },
+        "relative_path": {
+          "$ref": "#/$defs/relativePath"
+        },
+        "file_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "byte_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "semantic_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "complete": {
+          "const": true
+        },
+        "sealed": {
+          "const": true
+        },
+        "clean_code": {
+          "const": true
+        },
+        "model_result_selected": {
+          "const": false
+        },
+        "record_order": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
