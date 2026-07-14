@@ -19,10 +19,10 @@ import experiments.c2_full_replacement_finalizer as v2_finalizer
 from experiments.c2_full_replacement_evidence import thaw_evidence_value
 from experiments.c2_full_replacement_finalizer import (
     C2FullReplacementError,
+    _write_full_replacement_report_for_testing as write_full_replacement_report,
     finalize_synthetic_to_path_for_testing,
     prepare_full_replacement_finalization_for_testing,
     validate_synthetic_final_report_for_testing,
-    write_full_replacement_report,
 )
 from experiments.c2_full_replacement_policy import (
     ATTEMPT_IDS,
@@ -810,7 +810,7 @@ def test_production_resolver_and_cli_remain_stage_b_blocked(
     captured = capsys.readouterr()
     assert exit_code == 2
     assert captured.out == ""
-    assert "Stage-A only" in captured.err
+    assert "M1_EXTERNAL_TRUST_LOCK_UNAVAILABLE" in captured.err
 
 
 def test_full_acquisition_coverage_and_stratified_subset_gate_publish() -> None:

@@ -17,6 +17,10 @@ from typing import Any, Mapping, Sequence
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
 
+from .c2_m1_trust_boundary import (
+    M1ExternalTrustLockUnavailable,
+    require_external_m1_trust_lock,
+)
 from .models import (
     ProvenanceError,
     SecureOutputTarget,
@@ -538,6 +542,13 @@ def validate_final_report(report: Mapping[str, Any]) -> None:
 def prepare_finalization(manifest_path: Path) -> FinalizedAdmission:
     """Validate sealed inputs and retain their resolved paths for safe output."""
 
+    require_external_m1_trust_lock()
+    return _prepare_finalization_for_testing(manifest_path)
+
+
+def _prepare_finalization_for_testing(manifest_path: Path) -> FinalizedAdmission:
+    """Exercise terminal-admission validation only from private test code."""
+
     if manifest_path.is_symlink():
         raise C2AdmissionError("Admission manifest must not be a symlink")
     try:
@@ -674,7 +685,14 @@ def prepare_finalization(manifest_path: Path) -> FinalizedAdmission:
 def finalize_manifest(manifest_path: Path) -> dict[str, Any]:
     """Build a terminal-only report without writing an output file."""
 
-    return prepare_finalization(manifest_path).report
+    require_external_m1_trust_lock()
+    return _finalize_manifest_for_testing(manifest_path)
+
+
+def _finalize_manifest_for_testing(manifest_path: Path) -> dict[str, Any]:
+    """Exercise terminal-only report construction only from private test code."""
+
+    return _prepare_finalization_for_testing(manifest_path).report
 
 
 def _normalize_final_output_path(path: Path) -> Path:
@@ -731,6 +749,16 @@ def write_final_report(
 ) -> Path:
     """Write a validated report only when its output cannot overwrite evidence."""
 
+    require_external_m1_trust_lock()
+    return _write_final_report_for_testing(finalized, output_path)
+
+
+def _write_final_report_for_testing(
+    finalized: FinalizedAdmission,
+    output_path: Path,
+) -> Path:
+    """Exercise report publication only from private test code."""
+
     if not isinstance(finalized, FinalizedAdmission):
         raise C2AdmissionError(
             "write_final_report requires a FinalizedAdmission from prepare_finalization"
@@ -770,8 +798,18 @@ def finalize_to_path(
 ) -> tuple[dict[str, Any], Path]:
     """Finalize a manifest and safely write its report."""
 
-    finalized = prepare_finalization(manifest_path)
-    return finalized.report, write_final_report(finalized, output_path)
+    require_external_m1_trust_lock()
+    return _finalize_to_path_for_testing(manifest_path, output_path)
+
+
+def _finalize_to_path_for_testing(
+    manifest_path: Path,
+    output_path: Path,
+) -> tuple[dict[str, Any], Path]:
+    """Exercise terminal publication only from private test code."""
+
+    finalized = _prepare_finalization_for_testing(manifest_path)
+    return finalized.report, _write_final_report_for_testing(finalized, output_path)
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -784,10 +822,12 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    args = _build_parser().parse_args(argv)
+    parser = _build_parser()
     try:
+        require_external_m1_trust_lock()
+        args = parser.parse_args(argv)
         report, output_path = finalize_to_path(args.manifest, args.out)
-    except C2AdmissionError as exc:
+    except (C2AdmissionError, M1ExternalTrustLockUnavailable) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     print(

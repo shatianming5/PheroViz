@@ -1281,7 +1281,7 @@ def test_v2_opt_in_keeps_a_zero_source_root_on_the_empty_chain(
 ) -> None:
     with experiment_workspace("c2-source-bearing-zero-source") as workspace:
         paths = _make_fixture(workspace, monkeypatch, chunk_id="001")
-        result = finalizer.finalize_remediation_root(
+        result = finalizer._finalize_remediation_root_for_testing(
             chunk_id="001",
             source_bearing_v2=True,
             **paths,
@@ -1307,7 +1307,7 @@ def test_v2_opt_in_blocks_prior_attempt_source_without_stage_b_policy(
             finalizer.C2RemediationError,
             match="STAGEB_POLICY_REQUIRED",
         ):
-            finalizer.finalize_remediation_root(
+            finalizer._finalize_remediation_root_for_testing(
                 chunk_id="001",
                 source_bearing_v2=True,
                 **paths,
@@ -1348,7 +1348,7 @@ def test_stage_b_block_keeps_raw_acquisition_binding_separate(
             finalizer.C2RemediationError,
             match="STAGEB_POLICY_REQUIRED",
         ):
-            finalizer.finalize_remediation_root(
+            finalizer._finalize_remediation_root_for_testing(
                 chunk_id="001",
                 source_bearing_v2=True,
                 **paths,
@@ -1460,7 +1460,7 @@ def test_finalizer_blocks_source_bearing_roots_without_stage_b_policy(
             finalizer.C2RemediationError,
             match="STAGEB_POLICY_REQUIRED",
         ):
-            finalizer.finalize_remediation_root(
+            finalizer._finalize_remediation_root_for_testing(
                 chunk_id=chunk_id,
                 source_bearing_v2=True,
                 **paths,

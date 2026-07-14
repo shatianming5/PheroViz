@@ -22,6 +22,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
+from .c2_m1_trust_boundary import require_external_m1_trust_lock
 from .models import (
     ProvenanceError,
     SecureOutputTarget,
@@ -2273,6 +2274,32 @@ def finalize_remediation_root(
     source_bearing_v2: bool = False,
 ) -> dict[str, Any]:
     """Seal one fresh remediation root from independently acquired raw evidence."""
+
+    require_external_m1_trust_lock()
+    return _finalize_remediation_root_for_testing(
+        chunk_id=chunk_id,
+        raw_root=raw_root,
+        target_root=target_root,
+        source_chunk=source_chunk,
+        frozen_universe=frozen_universe,
+        freeze_summary=freeze_summary,
+        worktree=worktree,
+        source_bearing_v2=source_bearing_v2,
+    )
+
+
+def _finalize_remediation_root_for_testing(
+    *,
+    chunk_id: str,
+    raw_root: Path,
+    target_root: Path,
+    source_chunk: Path,
+    frozen_universe: Path,
+    freeze_summary: Path,
+    worktree: Path,
+    source_bearing_v2: bool = False,
+) -> dict[str, Any]:
+    """Exercise remediation sealing only from private test code."""
 
     _require(
         chunk_id in SUPPORTED_REMEDIATION_CHUNKS,

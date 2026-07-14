@@ -11,6 +11,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from .c2_m1_trust_boundary import require_external_m1_trust_lock
 from .c2_full_replacement_evidence import (
     C2FullReplacementEvidenceError,
     EvidenceArtifact,
@@ -403,6 +404,7 @@ def prepare_full_replacement_finalization(
 ) -> ValidatedFullReplacementAdmission:
     """Production resolver: intentionally unavailable until Stage B."""
 
+    require_external_m1_trust_lock()
     del manifest_path
     try:
         load_production_policy()
@@ -624,6 +626,16 @@ def write_full_replacement_report(
 ) -> Path:
     """Publish a source-derived Stage-A report with no-replace semantics."""
 
+    require_external_m1_trust_lock()
+    return _write_full_replacement_report_for_testing(finalized, output_path)
+
+
+def _write_full_replacement_report_for_testing(
+    finalized: ValidatedFullReplacementAdmission,
+    output_path: Path,
+) -> Path:
+    """Exercise Stage-A publication only from private test code."""
+
     if not isinstance(finalized, ValidatedFullReplacementAdmission):
         raise C2FullReplacementError(
             "V2.1 output requires a validated full-replacement admission"
@@ -685,7 +697,7 @@ def finalize_synthetic_to_path_for_testing(
 
     finalized = prepare_full_replacement_finalization_for_testing(manifest_path, policy)
     try:
-        output = write_full_replacement_report(finalized, output_path)
+        output = _write_full_replacement_report_for_testing(finalized, output_path)
         return thaw_evidence_value(finalized.report), output
     finally:
         finalized.evidence.close()
@@ -697,6 +709,7 @@ def finalize_to_path(
 ) -> tuple[dict[str, Any], Path]:
     """Production V2.1 route, deliberately blocked until Stage B policy pinning."""
 
+    require_external_m1_trust_lock()
     del output_path
     finalized = prepare_full_replacement_finalization(manifest_path)
     try:

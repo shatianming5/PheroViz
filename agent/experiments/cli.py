@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Sequence
 
 from .aggregate import AggregationError, aggregate_runs
+from .c2_m1_trust_boundary import require_external_m1_trust_lock
 from .c2_remediation_root_finalizer import (
     SUPPORTED_REMEDIATION_CHUNKS,
     finalize_remediation_root,
@@ -40,6 +41,15 @@ from .provenance_stage import (
     write_provenance_index,
 )
 from .rejudge import merge_rejudged_summary, rejudge_batch
+
+
+_C2_PRODUCTION_COMMANDS = frozenset(
+    {
+        "c2-terminal-finalize",
+        "c2-remediation-root-finalize",
+        "c2-full-replacement-finalize",
+    }
+)
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -478,6 +488,7 @@ def _provenance_stage_command(args: argparse.Namespace) -> int:
 
 
 def _c2_terminal_finalize_command(args: argparse.Namespace) -> int:
+    require_external_m1_trust_lock()
     report, path = finalize_c2_to_path(args.manifest, args.out)
     print(
         json.dumps(
@@ -496,6 +507,7 @@ def _c2_terminal_finalize_command(args: argparse.Namespace) -> int:
 
 
 def _c2_remediation_root_finalize_command(args: argparse.Namespace) -> int:
+    require_external_m1_trust_lock()
     result = finalize_remediation_root(
         chunk_id=args.chunk_id,
         raw_root=args.raw_root,
@@ -511,6 +523,7 @@ def _c2_remediation_root_finalize_command(args: argparse.Namespace) -> int:
 
 
 def _c2_full_replacement_finalize_command(args: argparse.Namespace) -> int:
+    require_external_m1_trust_lock()
     report, path = finalize_c2_full_replacement_v2_to_path(args.manifest, args.out)
     print(
         json.dumps(
@@ -529,9 +542,12 @@ def _c2_full_replacement_finalize_command(args: argparse.Namespace) -> int:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    parser = _build_parser()
-    args = parser.parse_args(argv)
+    raw_argv = sys.argv[1:] if argv is None else argv
     try:
+        if raw_argv and raw_argv[0] in _C2_PRODUCTION_COMMANDS:
+            require_external_m1_trust_lock()
+        parser = _build_parser()
+        args = parser.parse_args(raw_argv)
         if args.command == "run":
             return _run_command(args)
         if args.command == "aggregate":
