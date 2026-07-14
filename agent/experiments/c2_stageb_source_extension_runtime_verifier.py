@@ -51,6 +51,7 @@ _RUNTIME_PRIMARY_PACKAGE = "experiments"
 _RUNTIME_ALTERNATE_PACKAGE = "agent.experiments"
 _ALIAS_STATIC_CALLABLE = "static-callable"
 _ALIAS_STATIC_MODULE = "static-module"
+_ALIAS_LOCAL_STATIC_MODULE = "local-static-module"
 _ALIAS_STATIC_VALUE = "static-value"
 _ALIAS_UNKNOWN = "unknown"
 _ALIAS_IMPORTLIB_MODULE = "importlib-module"
@@ -78,6 +79,23 @@ _REFLECTIVE_OR_EXECUTABLE_CALLABLE_NAMES = frozenset(
         "locals",
         "setattr",
         "vars",
+    }
+    | {
+        "ExtensionFileLoader",
+        "FileFinder",
+        "FrozenImporter",
+        "NamespaceLoader",
+        "PathFinder",
+        "SourceFileLoader",
+        "SourcelessFileLoader",
+        "BuiltinImporter",
+        "exec_module",
+        "find_spec",
+        "load_module",
+        "module_from_spec",
+        "run_module",
+        "run_path",
+        "spec_from_file_location",
     }
 )
 _REFLECTIVE_NAMESPACE_ATTRIBUTE_NAMES = frozenset({"__dict__", "__builtins__"})
@@ -139,6 +157,58 @@ _KNOWN_STATIC_BUILTIN_CALLABLE_NAMES = frozenset(
         "zip",
     }
 )
+# This closed list is reviewed with the fixed runtime roster. It is never
+# inferred from fixture bytes, a worktree, imports, or candidate source.
+SOURCE_EXTENSION_RUNTIME_MODULE_ATTRIBUTE_CALL_ALLOWLIST = frozenset(
+    {
+        ("argparse", "ArgumentParser"),
+        ("ctypes", "CDLL"),
+        ("ctypes", "POINTER"),
+        ("ctypes", "byref"),
+        ("ctypes", "c_int"),
+        ("ctypes", "c_uint64"),
+        ("ctypes", "c_void_p"),
+        ("ctypes", "get_errno"),
+        ("ctypes", "set_errno"),
+        ("collections", "Counter"),
+        ("dataclasses", "asdict"),
+        ("dataclasses", "dataclass"),
+        ("dataclasses", "field"),
+        ("dataclasses", "fields"),
+        ("hashlib", "sha256"),
+        ("json", "dumps"),
+        ("json", "loads"),
+        ("math", "isfinite"),
+        ("os", "close"),
+        ("os", "dup"),
+        ("os", "fdopen"),
+        ("os", "fsencode"),
+        ("os", "fspath"),
+        ("os", "fstat"),
+        ("os", "fsync"),
+        ("os", "geteuid"),
+        ("os", "getxattr"),
+        ("os", "listdir"),
+        ("os", "mkdir"),
+        ("os", "open"),
+        ("os", "read"),
+        ("os", "rename"),
+        ("os", "stat"),
+        ("os", "strerror"),
+        ("pathlib", "Path"),
+        ("re", "compile"),
+        ("re", "escape"),
+        ("re", "match"),
+        ("re", "search"),
+        ("re", "sub"),
+        ("secrets", "token_hex"),
+        ("stat", "S_IMODE"),
+        ("stat", "S_ISDIR"),
+        ("stat", "S_ISLNK"),
+        ("stat", "S_ISREG"),
+        ("subprocess", "check_output"),
+    }
+)
 
 SOURCE_EXTENSION_RUNTIME_VERIFIER_TEST_MATRIX = (
     "absence-fails-before-candidate-access",
@@ -149,6 +219,7 @@ SOURCE_EXTENSION_RUNTIME_VERIFIER_TEST_MATRIX = (
     "duplicate-or-cyclic-local-import-graph-is-rejected",
     "dynamic-import-aliases-and-unknown-targets-are-rejected",
     "deny-by-default-static-call-targets-are-required",
+    "closed-module-attribute-call-allowlist-is-enforced",
     "test-only-fixture-is-not-a-production-input",
 )
 
@@ -575,24 +646,43 @@ def _record_alias_kind(
     return True
 
 
-def _import_module_alias_kind(module_name: str, binding_name: str) -> str:
+def _static_module_alias_kind(module_name: str) -> str:
+    return f"{_ALIAS_STATIC_MODULE}:{module_name}"
+
+
+def _static_module_identity(kind: str | None) -> str | None:
+    prefix = f"{_ALIAS_STATIC_MODULE}:"
+    if isinstance(kind, str) and kind.startswith(prefix):
+        return kind.removeprefix(prefix)
+    return None
+
+
+def _is_project_runtime_module_name(module_name: str) -> bool:
+    return (
+        module_name == _RUNTIME_PRIMARY_PACKAGE
+        or module_name.startswith(f"{_RUNTIME_PRIMARY_PACKAGE}.")
+        or module_name == _RUNTIME_ALTERNATE_PACKAGE
+        or module_name.startswith(f"{_RUNTIME_ALTERNATE_PACKAGE}.")
+    )
+
+
+def _import_module_alias_kind(
+    module_name: str,
+    bound_module_name: str,
+) -> str:
     if (
         module_name == "importlib"
-        or (
-            module_name.startswith("importlib.")
-            and binding_name == "importlib"
-        )
+        or module_name.startswith("importlib.")
     ):
         return _ALIAS_IMPORTLIB_MODULE
     if (
         module_name == "builtins"
-        or (
-            module_name.startswith("builtins.")
-            and binding_name == "builtins"
-        )
+        or module_name.startswith("builtins.")
     ):
         return _ALIAS_BUILTINS_MODULE
-    return _ALIAS_STATIC_MODULE
+    if _is_project_runtime_module_name(bound_module_name):
+        return _ALIAS_LOCAL_STATIC_MODULE
+    return _static_module_alias_kind(bound_module_name)
 
 
 def _from_import_alias_kind(
@@ -610,13 +700,32 @@ def _from_import_alias_kind(
             return _ALIAS_BUILTINS_CALLABLE
         if imported_name in _REFLECTIVE_OR_EXECUTABLE_CALLABLE_NAMES:
             return _ALIAS_PROHIBITED_CALLABLE
+    if (
+        module_name is not None
+        and (
+            module_name,
+            imported_name,
+        )
+        in SOURCE_EXTENSION_RUNTIME_MODULE_ATTRIBUTE_CALL_ALLOWLIST
+    ):
+        return _ALIAS_STATIC_CALLABLE
     if imported_name in _DYNAMIC_IMPORT_ATTRIBUTE_NAMES:
         return _ALIAS_IMPORTLIB_CALLABLE
     if imported_name in _REFLECTIVE_OR_EXECUTABLE_CALLABLE_NAMES:
         return _ALIAS_PROHIBITED_CALLABLE
     if relative_level and module_name is None:
-        return _ALIAS_STATIC_MODULE
-    return _ALIAS_STATIC_CALLABLE
+        return _ALIAS_LOCAL_STATIC_MODULE
+    if relative_level:
+        return _ALIAS_STATIC_CALLABLE
+    if module_name in {_RUNTIME_PRIMARY_PACKAGE, _RUNTIME_ALTERNATE_PACKAGE}:
+        return _ALIAS_LOCAL_STATIC_MODULE
+    if module_name == "builtins":
+        return (
+            _ALIAS_STATIC_CALLABLE
+            if imported_name in _KNOWN_STATIC_BUILTIN_CALLABLE_NAMES
+            else _ALIAS_UNKNOWN
+        )
+    return _ALIAS_UNKNOWN
 
 
 def _alias_kind_for_path(
@@ -632,10 +741,6 @@ def _alias_kind_for_path(
     attribute_name = path[-1]
     if attribute_name in _REFLECTIVE_NAMESPACE_ATTRIBUTE_NAMES:
         return _ALIAS_PROHIBITED_CALLABLE
-    if attribute_name in _DYNAMIC_IMPORT_ATTRIBUTE_NAMES:
-        return _ALIAS_IMPORTLIB_CALLABLE
-    if attribute_name in _REFLECTIVE_OR_EXECUTABLE_CALLABLE_NAMES:
-        return _ALIAS_PROHIBITED_CALLABLE
     if parent_kind in {
         _ALIAS_IMPORTLIB_MODULE,
         _ALIAS_BUILTINS_MODULE,
@@ -645,7 +750,25 @@ def _alias_kind_for_path(
         return _ALIAS_IMPORTLIB_CALLABLE
     if parent_kind == _ALIAS_PROHIBITED_CALLABLE:
         return _ALIAS_PROHIBITED_CALLABLE
-    if parent_kind == _ALIAS_STATIC_MODULE:
+    module_identity = _static_module_identity(parent_kind)
+    if module_identity is not None:
+        if (
+            module_identity,
+            attribute_name,
+        ) in SOURCE_EXTENSION_RUNTIME_MODULE_ATTRIBUTE_CALL_ALLOWLIST:
+            return _ALIAS_STATIC_CALLABLE
+        if (
+            attribute_name in _DYNAMIC_IMPORT_ATTRIBUTE_NAMES
+            or attribute_name in _REFLECTIVE_OR_EXECUTABLE_CALLABLE_NAMES
+        ):
+            return _ALIAS_PROHIBITED_CALLABLE
+        return _ALIAS_UNKNOWN
+    if (
+        attribute_name in _DYNAMIC_IMPORT_ATTRIBUTE_NAMES
+        or attribute_name in _REFLECTIVE_OR_EXECUTABLE_CALLABLE_NAMES
+    ):
+        return _ALIAS_PROHIBITED_CALLABLE
+    if parent_kind == _ALIAS_LOCAL_STATIC_MODULE:
         return _ALIAS_STATIC_CALLABLE
     if parent_kind == _ALIAS_STATIC_CALLABLE:
         return (
@@ -718,10 +841,18 @@ def _collect_static_alias_kinds(
         if isinstance(node, ast.Import):
             for imported in node.names:
                 binding_name = imported.asname or imported.name.split(".", 1)[0]
+                bound_module_name = (
+                    imported.name
+                    if imported.asname is not None
+                    else imported.name.split(".", 1)[0]
+                )
                 _record_alias_kind(
                     aliases,
                     (binding_name,),
-                    _import_module_alias_kind(imported.name, binding_name),
+                    _import_module_alias_kind(
+                        imported.name,
+                        bound_module_name,
+                    ),
                 )
         elif isinstance(node, ast.ImportFrom):
             for imported in node.names:

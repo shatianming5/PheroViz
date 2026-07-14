@@ -162,3 +162,6 @@ Its closure policy is deny-by-default: every call target must resolve to an
 explicit static non-dynamic callable. Namespace/mapping mutation, reflection,
 `__dict__`/`__builtins__`, and executable loaders are blocking constructs, not
 exceptions to be admitted later.
+External module attribute calls use a closed verifier-owned allowlist of
+reviewed `module.attribute` identities; no module-level or wildcard permission
+exists, so unlisted loader APIs fail closed.

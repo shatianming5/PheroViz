@@ -542,6 +542,136 @@ def test_explicit_static_local_module_call_is_allowed(
     assert cli_binding.direct_imports == expected_imports
 
 
+@pytest.mark.parametrize(
+    ("source", "expected_imports"),
+    [
+        (b"import json\njson.dumps({})\n", ("json",)),
+        (b"import json as payload\npayload.dumps({})\n", ("json",)),
+        (b"from json import dumps\ndumps({})\n", ("json",)),
+    ],
+)
+def test_closed_module_attribute_allowlist_permits_reviewed_calls(
+    source: bytes,
+    expected_imports: tuple[str, ...],
+) -> None:
+    fixture = _fixture()
+    allowed_files = _replace_runtime_bytes(
+        fixture.runtime_files,
+        "agent/experiments/cli.py",
+        source,
+    )
+
+    closure = _compile_runtime_closure(allowed_files)
+    cli_binding = next(
+        item
+        for item in closure.bindings
+        if item.runtime_path == "agent/experiments/cli.py"
+    )
+    assert cli_binding.direct_imports == expected_imports
+    assert ("json", "dumps") in (
+        runtime_verifier.SOURCE_EXTENSION_RUNTIME_MODULE_ATTRIBUTE_CALL_ALLOWLIST
+    )
+
+
+def test_every_reviewed_runtime_module_call_is_explicitly_allowlisted() -> None:
+    allowed_calls = (
+        runtime_verifier.SOURCE_EXTENSION_RUNTIME_MODULE_ATTRIBUTE_CALL_ALLOWLIST
+    )
+    source = "\n".join(
+        line
+        for index, (module_name, attribute_name) in enumerate(
+            sorted(allowed_calls)
+        )
+        for line in (
+            f"import {module_name} as module_{index}",
+            f"module_{index}.{attribute_name}()",
+        )
+    ).encode("utf-8")
+    fixture = _fixture()
+    reviewed_files = _replace_runtime_bytes(
+        fixture.runtime_files,
+        "agent/experiments/cli.py",
+        source,
+    )
+
+    closure = _compile_runtime_closure(reviewed_files)
+    cli_binding = next(
+        item
+        for item in closure.bindings
+        if item.runtime_path == "agent/experiments/cli.py"
+    )
+    assert len(cli_binding.direct_imports) == len(
+        {
+            module_name
+            for module_name, _ in allowed_calls
+        }
+    )
+
+
+@pytest.mark.parametrize(
+    ("source", "match"),
+    [
+        (
+            b"import runpy\nrunpy.run_module('unrostered')\n",
+            "reflective or executable",
+        ),
+        (
+            b"import runpy\nrunpy.run_path('unrostered.py')\n",
+            "reflective or executable",
+        ),
+        (
+            (
+                b"import importlib.machinery as machinery\n"
+                b"machinery.SourceFileLoader('x', 'unrostered.py')\n"
+            ),
+            "dynamic imports|reflective or executable",
+        ),
+        (
+            (
+                b"from importlib.machinery import SourceFileLoader as loader\n"
+                b"loader('x', 'unrostered.py')\n"
+            ),
+            "reflective or executable",
+        ),
+        (
+            (
+                b"import runpy\n"
+                b"loader = runpy.run_module\n"
+                b"loader('unrostered')\n"
+            ),
+            "reflective or executable",
+        ),
+        (
+            (
+                b"from runpy import run_path as loader\n"
+                b"loader('unrostered.py')\n"
+            ),
+            "reflective or executable",
+        ),
+        (b"import json\njson.JSONEncoder()\n", "unbound or not a statically allowed"),
+    ],
+)
+def test_unlisted_module_loader_and_attribute_calls_fail_closed(
+    source: bytes,
+    match: str,
+) -> None:
+    assert ("runpy", "run_module") not in (
+        runtime_verifier.SOURCE_EXTENSION_RUNTIME_MODULE_ATTRIBUTE_CALL_ALLOWLIST
+    )
+    assert ("runpy", "run_path") not in (
+        runtime_verifier.SOURCE_EXTENSION_RUNTIME_MODULE_ATTRIBUTE_CALL_ALLOWLIST
+    )
+    fixture = _fixture()
+    prohibited_files = _replace_runtime_bytes(
+        fixture.runtime_files,
+        "agent/experiments/cli.py",
+        source,
+    )
+
+    with pytest.raises(C2FullReplacementPolicyError, match=match):
+        _compile_runtime_closure(prohibited_files)
+
+
 def test_absent_production_resource_fails_before_registry_or_fixture_access(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -835,5 +965,6 @@ def test_required_test_matrix_is_explicit_and_closed() -> None:
         "duplicate-or-cyclic-local-import-graph-is-rejected",
         "dynamic-import-aliases-and-unknown-targets-are-rejected",
         "deny-by-default-static-call-targets-are-required",
+        "closed-module-attribute-call-allowlist-is-enforced",
         "test-only-fixture-is-not-a-production-input",
     )
