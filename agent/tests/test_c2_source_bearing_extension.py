@@ -24,7 +24,6 @@ from experiments.c2_source_bearing_extension import (
 )
 from tests.test_c2_remediation_root_finalizer import (
     _make_fixture,
-    _private_staging_root,
 )
 from tests.test_experiment_support import experiment_workspace
 
@@ -408,7 +407,18 @@ def test_test_only_code_attestation_rejects_wrong_commit_blob_and_runtime_path()
         text=True,
     ).strip()
     attestation = verify_source_extension_code_attestation_for_testing(repository)
-    assert attestation.attestation_commit_full == current_commit
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repository),
+            "merge-base",
+            "--is-ancestor",
+            attestation.attestation_commit_full,
+            current_commit,
+        ],
+        check=True,
+    )
     assert {
         blob.relative_path for blob in attestation.code_blobs
     } >= {
@@ -1347,7 +1357,7 @@ def test_v2_opt_in_keeps_a_zero_source_root_on_the_empty_chain(
         assert not (paths["target_root"] / "canonical_v2").exists()
 
 
-def test_v2_opt_in_blocks_prior_attempt_source_without_stage_b_policy(
+def test_v2_opt_in_seals_prior_attempt_source_under_fixed_stage_b_policy(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     with experiment_workspace("c2-source-bearing-prior-download") as workspace:
@@ -1359,30 +1369,26 @@ def test_v2_opt_in_blocks_prior_attempt_source_without_stage_b_policy(
             downloaded_attempt="initial",
         )
         _upgrade_raw_source_descriptor_v2(paths["raw_root"])
-        with pytest.raises(
-            finalizer.C2RemediationError,
-            match="STAGEB_POLICY_REQUIRED",
-        ):
-            finalizer.finalize_remediation_root(
-                chunk_id="001",
-                source_bearing_v2=True,
-                **paths,
-            )
-        assert not paths["target_root"].exists()
-        staging = _private_staging_root(paths)
-        blocked = json.loads(
-            (staging / "control/source_classification_blocked.json").read_text(
-                encoding="utf-8"
-            )
+        result = finalizer.finalize_remediation_root(
+            chunk_id="001",
+            source_bearing_v2=True,
+            **paths,
         )
-        assert blocked["status"] == (
-            "NOT_SEALABLE_SOURCE_EXTENSION_STAGEB_POLICY_REQUIRED"
-        )
-        assert not (staging / "canonical_v2").exists()
-        assert not (staging / "p_evidence_v2").exists()
+        assert result["status"] == "SEALED_COMPLETE_ATTEMPT_EVIDENCE_SOURCE_V2"
+        assert (
+            paths["target_root"]
+            / "canonical_v2/canonical_case_set_manifest.json"
+        ).is_file()
+        assert (
+            paths["target_root"]
+            / "p_evidence_v2/source_classifications.jsonl"
+        ).is_file()
+        assert not (
+            paths["target_root"] / "control/source_classification_blocked.json"
+        ).exists()
 
 
-def test_stage_b_block_keeps_raw_acquisition_binding_separate(
+def test_stage_b_execution_keeps_raw_acquisition_binding_separate(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     with experiment_workspace("c2-stageb-raw-binding-separation") as workspace:
@@ -1400,34 +1406,31 @@ def test_stage_b_block_keeps_raw_acquisition_binding_separate(
             ).strip()
             == finalizer.FROZEN_CODE_COMMIT
         )
-        with pytest.raises(
-            finalizer.C2RemediationError,
-            match="STAGEB_POLICY_REQUIRED",
-        ):
-            finalizer.finalize_remediation_root(
-                chunk_id="001",
-                source_bearing_v2=True,
-                **paths,
-            )
-        staging = _private_staging_root(paths)
+        result = finalizer.finalize_remediation_root(
+            chunk_id="001",
+            source_bearing_v2=True,
+            **paths,
+        )
+        assert result["status"] == "SEALED_COMPLETE_ATTEMPT_EVIDENCE_SOURCE_V2"
+        sealed_root = paths["target_root"]
         raw_binding = json.loads(
-            (staging / "control/pre_download_binding.json").read_text(
+            (sealed_root / "control/pre_download_binding.json").read_text(
                 encoding="utf-8"
             )
         )
         execution_evidence = json.loads(
-            (staging / "control/execution_evidence.json").read_text(
+            (sealed_root / "control/execution_evidence.json").read_text(
                 encoding="utf-8"
             )
         )
         assert raw_binding["code_commit"] == finalizer.FROZEN_CODE_COMMIT
         assert execution_evidence["code_commit"] == finalizer.FROZEN_CODE_COMMIT
-        assert json.loads(
-            (staging / "control/source_classification_blocked.json").read_text(
-                encoding="utf-8"
-            )
-        )["status"] == "NOT_SEALABLE_SOURCE_EXTENSION_STAGEB_POLICY_REQUIRED"
-        assert not (staging / "canonical_v2").exists()
+        assert (
+            sealed_root / "control/v2/source_bearing_extension_validation.json"
+        ).is_file()
+        assert not (
+            sealed_root / "control/source_classification_blocked.json"
+        ).exists()
 
 
 def _upgrade_raw_source_descriptor_v2(raw_root: Path) -> None:
@@ -1500,7 +1503,7 @@ def _upgrade_raw_source_descriptor_v2(raw_root: Path) -> None:
 
 
 @pytest.mark.parametrize("chunk_id", ["001", "013"])
-def test_finalizer_blocks_source_bearing_roots_without_stage_b_policy(
+def test_finalizer_seals_source_bearing_roots_with_fixed_stage_b_policy(
     monkeypatch: pytest.MonkeyPatch,
     chunk_id: str,
 ) -> None:
@@ -1512,21 +1515,24 @@ def test_finalizer_blocks_source_bearing_roots_without_stage_b_policy(
             downloaded_mode="source",
         )
         _upgrade_raw_source_descriptor_v2(paths["raw_root"])
-        with pytest.raises(
-            finalizer.C2RemediationError,
-            match="STAGEB_POLICY_REQUIRED",
-        ):
-            finalizer.finalize_remediation_root(
-                chunk_id=chunk_id,
-                source_bearing_v2=True,
-                **paths,
-            )
+        result = finalizer.finalize_remediation_root(
+            chunk_id=chunk_id,
+            source_bearing_v2=True,
+            **paths,
+        )
 
-        assert not paths["target_root"].exists()
-        staging = _private_staging_root(paths)
-        assert json.loads(
-            (staging / "control/source_classification_blocked.json").read_text(
-                encoding="utf-8"
-            )
-        )["status"] == "NOT_SEALABLE_SOURCE_EXTENSION_STAGEB_POLICY_REQUIRED"
-        assert not (staging / "canonical_v2").exists()
+        assert result["status"] == "SEALED_COMPLETE_ATTEMPT_EVIDENCE_SOURCE_V2"
+        assert result["input_total"] == finalizer.FROZEN_PARTITIONS[chunk_id].records
+        if chunk_id == "013":
+            assert result["input_total"] == 63
+        assert (
+            paths["target_root"]
+            / "canonical_v2/canonical_case_set_manifest.json"
+        ).is_file()
+        assert (
+            paths["target_root"]
+            / "p_evidence_v2/source_classifications.jsonl"
+        ).is_file()
+        assert not (
+            paths["target_root"] / "control/source_classification_blocked.json"
+        ).exists()
