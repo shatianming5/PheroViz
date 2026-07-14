@@ -133,3 +133,10 @@ hashes, and raw-source commitments. It must not add a full acquisition DOI→P
 map. Only verified source/canonical case evidence may derive a P stratum. Until
 then, no production manifest, root, report, scientific claim, or analysis is
 authorized.
+
+The separate Stage-B source-extension code-attestation registry is also
+non-admissive. When a source extension is independently reviewed, its
+manifest-only attestation must provide opaque implementation/attestation commit
+identities, manifest/blob-set digests, and the exact ordered runtime path/role
+roster required by that registry. The registry does not read Git, a worktree,
+the manifest, or evidence, and does not authorize the extension by itself.
