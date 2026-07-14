@@ -79,6 +79,17 @@ def _dos_directory_with_data_zip() -> bytes:
     return output.getvalue()
 
 
+def _dos_directory_archive(directory_payload: bytes) -> bytes:
+    output = io.BytesIO()
+    with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_STORED) as archive:
+        directory = zipfile.ZipInfo("dos-directory/")
+        directory.create_system = 0
+        directory.external_attr = 0x10
+        archive.writestr(directory, directory_payload)
+        archive.writestr("table.csv", b"panel,value\na,1\n")
+    return output.getvalue()
+
+
 def _xlsx(*, workbook_extra_relationship: bytes = b"") -> bytes:
     style_parts = (
         {
@@ -963,6 +974,60 @@ def test_archive_directory_data_and_aggregate_limits_fail_closed(
                 ),
                 *_bound_assets()[1:],
             ]
+        )
+
+    valid_dos_archive = _dos_directory_archive(b"")
+    root, _ = _build(
+        [
+            _asset(
+                article_id="article-1",
+                doi_id="10.9999/source-1",
+                asset_id="archive",
+                payload=valid_dos_archive,
+                kind="source_archive",
+                detected=["ZIP_V1", "GENERIC_ZIP_V1"],
+                hints=[
+                    {
+                        "member_selector_or_null": "table.csv",
+                        "panel_id": "panel-a",
+                        "case_group_or_null": None,
+                        "figure_asset_id": "figure",
+                        "caption_asset_id": "caption",
+                    }
+                ],
+            ),
+            *_bound_assets()[1:],
+        ]
+    )
+    replay_directory_data = _dos_directory_archive(b"forged-directory-data")
+    raw_path = "content/_sources/article-1/archive.bin"
+    account_path = "source_inventory_v2/container_accounts/container-000001.json"
+    index_path = "source_inventory_v2/container_accounting_index.json"
+    root.payloads[raw_path] = replay_directory_data
+    account = json.loads(root.read_bytes(account_path))
+    account["verified_file_sha256"] = _sha256(replay_directory_data)
+    account["verified_bytes"] = len(replay_directory_data)
+    account.pop("archive_accounting_hash")
+    extension._seal(account, "archive_accounting_hash")
+    root.payloads[account_path] = _canonical(account) + b"\n"
+    index = json.loads(root.read_bytes(index_path))
+    node = index["container_nodes"][0]
+    node["verified_file_sha256"] = _sha256(replay_directory_data)
+    node["verified_bytes"] = len(replay_directory_data)
+    node["account_sha256"] = _sha256(root.read_bytes(account_path))
+    node["archive_accounting_hash"] = account["archive_accounting_hash"]
+    node.pop("entry_hash")
+    extension._seal(node, "entry_hash")
+    index.pop("index_hash")
+    extension._seal(index, "index_hash")
+    with pytest.raises(SourceBearingExtensionError, match="DIRECTORY_ENTRY"):
+        extension._validate_archive_accounts(
+            root,
+            index,
+            json.loads(
+                root.read_bytes("source_inventory_v2/fd_format_classifier_config.json")
+            ),
+            extension._ArchiveRunBudget(),
         )
 
     monkeypatch.setattr(extension, "MAX_ARCHIVE_CONTAINER_UNCOMPRESSED_BYTES", 20)
