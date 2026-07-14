@@ -82,8 +82,8 @@ class C2RemediationPreflightError(ProvenanceError):
 
 
 @dataclass(frozen=True)
-class FrozenChunkBinding:
-    """The compile-time binding for one exact frozen universe slice."""
+class _FrozenChunkBinding:
+    """The internal compile-time binding for one exact frozen universe slice."""
 
     chunk_id: str
     input_total: int
@@ -93,18 +93,52 @@ class FrozenChunkBinding:
 
 
 @dataclass(frozen=True)
-class PreflightBindings:
-    """Bindings injected only by tests; production uses ``DEFAULT_BINDINGS``."""
+class _FrozenBindings:
+    """Internal fixed C2 universe bindings used by the production API."""
 
     frozen_universe_sha256: str
-    chunks: tuple[FrozenChunkBinding, ...]
+    chunks: tuple[_FrozenChunkBinding, ...]
 
-    def chunk(self, chunk_id: str) -> FrozenChunkBinding:
+    def chunk(self, chunk_id: str) -> _FrozenChunkBinding:
         for binding in self.chunks:
             if binding.chunk_id == chunk_id:
                 return binding
         raise C2RemediationPreflightError(
             f"No frozen binding is available for chunk {chunk_id}"
+        )
+
+
+@dataclass(frozen=True)
+class TestOnlyChunkBinding:
+    """Synthetic chunk data accepted only by ``run_preflight_for_testing``."""
+
+    chunk_id: str
+    input_total: int
+    sha256: str
+    first_global_ordinal: int
+    last_global_ordinal: int
+
+
+@dataclass(frozen=True)
+class TestOnlyPreflightBindings:
+    """Synthetic bindings for tests; never accepted by ``run_preflight``."""
+
+    frozen_universe_sha256: str
+    chunks: tuple[TestOnlyChunkBinding, ...]
+
+    def _to_internal_bindings(self) -> _FrozenBindings:
+        return _FrozenBindings(
+            frozen_universe_sha256=self.frozen_universe_sha256,
+            chunks=tuple(
+                _FrozenChunkBinding(
+                    chunk_id=chunk.chunk_id,
+                    input_total=chunk.input_total,
+                    sha256=chunk.sha256,
+                    first_global_ordinal=chunk.first_global_ordinal,
+                    last_global_ordinal=chunk.last_global_ordinal,
+                )
+                for chunk in self.chunks
+            ),
         )
 
 
@@ -157,11 +191,11 @@ class _RootInventory:
         }
 
 
-def _default_bindings() -> PreflightBindings:
+def _default_bindings() -> _FrozenBindings:
     if _FINALIZER_FROZEN_UNIVERSE_SHA256 != FROZEN_UNIVERSE_SHA256:
         raise RuntimeError("C2 frozen universe bindings disagree across modules")
     bindings = tuple(
-        FrozenChunkBinding(
+        _FrozenChunkBinding(
             chunk_id=chunk_id,
             input_total=partition.records,
             sha256=partition.source_sha256,
@@ -178,7 +212,7 @@ def _default_bindings() -> PreflightBindings:
         or bindings[-1].input_total != 63
     ):
         raise RuntimeError("C2 frozen chunk binding table has an invalid partition")
-    return PreflightBindings(
+    return _FrozenBindings(
         frozen_universe_sha256=FROZEN_UNIVERSE_SHA256,
         chunks=bindings,
     )
@@ -261,7 +295,16 @@ def _directory_flags() -> int:
 
 
 def _file_flags() -> int:
-    return os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0)
+    if not hasattr(os, "O_NONBLOCK"):
+        raise C2RemediationPreflightError(
+            "Safe nonblocking evidence-file reads are unsupported on this platform"
+        )
+    return (
+        os.O_RDONLY
+        | os.O_NOFOLLOW
+        | os.O_NONBLOCK
+        | getattr(os, "O_CLOEXEC", 0)
+    )
 
 
 def _read_regular_file_at(
@@ -274,6 +317,10 @@ def _read_regular_file_at(
         before = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
         if stat.S_ISLNK(before.st_mode):
             raise C2RemediationPreflightError(f"{label} is a symlink")
+        if not _is_safe_metadata(before, directory=False):
+            raise C2RemediationPreflightError(
+                f"{label} is not a regular single-link file before open"
+            )
         descriptor = os.open(name, _file_flags(), dir_fd=parent_fd)
     except OSError as exc:
         if exc.errno is not None:
@@ -641,7 +688,7 @@ def _stage_gates() -> dict[str, dict[str, str]]:
 def _universe_result(
     frozen_universe_path: Path,
     *,
-    bindings: PreflightBindings,
+    bindings: _FrozenBindings,
 ) -> tuple[dict[str, Any], bytes | None, list[dict[str, Any]] | None, str | None]:
     expected = bindings.frozen_universe_sha256
     result: dict[str, Any] = {
@@ -676,7 +723,7 @@ def _universe_result(
 def _inspect_chunk(
     item: Mapping[str, Any],
     *,
-    binding: FrozenChunkBinding,
+    binding: _FrozenChunkBinding,
     universe_records: Sequence[Mapping[str, Any]] | None,
 ) -> dict[str, Any]:
     chunk_id = binding.chunk_id
@@ -819,12 +866,12 @@ def _inspect_chunk(
     }
 
 
-def run_preflight(
+def _run_preflight(
     plan: Mapping[str, Any],
     *,
-    bindings: PreflightBindings = DEFAULT_BINDINGS,
+    bindings: _FrozenBindings,
 ) -> dict[str, Any]:
-    """Return a deterministic diagnostic report without changing any input root."""
+    """Build a deterministic report from an internal frozen binding."""
 
     frozen_universe_path, chunks = _parse_plan(plan)
     universe, _, universe_records, _ = _universe_result(
@@ -868,6 +915,29 @@ def run_preflight(
         canonical_json(report).encode("utf-8")
     )
     return report
+
+
+def run_preflight(plan: Mapping[str, Any]) -> dict[str, Any]:
+    """Run production preflight with only the compiled frozen C2 bindings.
+
+    The public API deliberately has no binding argument.  Callers cannot replace
+    the 2,463 DOI universe, the 12×200+63 partition, or any chunk SHA-256.
+    """
+
+    return _run_preflight(plan, bindings=DEFAULT_BINDINGS)
+
+
+def run_preflight_for_testing(
+    plan: Mapping[str, Any],
+    *,
+    test_bindings: TestOnlyPreflightBindings,
+) -> dict[str, Any]:
+    """Exercise synthetic fixtures; this test-only helper is not a production API."""
+
+    return _run_preflight(
+        plan,
+        bindings=test_bindings._to_internal_bindings(),
+    )
 
 
 def _load_plan_from_path(path: Path) -> Mapping[str, Any]:
