@@ -3,7 +3,7 @@
   "$id": "c2_v2_fd_format_classifier_config_v1.schema.json",
   "title": "C2 V2 FD format classifier configuration",
   "type": "object",
-  "required": ["schema_version", "format_classifier_id", "format_classifier_version", "format_classifier_code_sha256", "zip_v1_parser_id", "zip_v1_parser_version", "zip_v1_parser_code_sha256", "xlsx_profile_parser_id", "xlsx_profile_parser_version", "xlsx_profile_parser_code_sha256", "noncontainer_parser_registry_id", "noncontainer_parser_registry_version", "noncontainer_parser_registry_hash", "format_detection_rule_id", "format_detection_rule_version", "format_detection_rule_hash", "format_error_enum_version", "format_error_enum_hash", "maximum_container_depth", "schema_hashes", "closed_schema_registry_hash", "review_mode", "review_protocol_hash", "config_hash"],
+  "required": ["schema_version", "format_classifier_id", "format_classifier_version", "format_classifier_code_sha256", "zip_v1_parser_id", "zip_v1_parser_version", "zip_v1_parser_code_sha256", "xlsx_profile_parser_id", "xlsx_profile_parser_version", "xlsx_profile_parser_code_sha256", "noncontainer_parser_registry_id", "noncontainer_parser_registry_version", "noncontainer_parser_registry_hash", "format_detection_rule_id", "format_detection_rule_version", "format_detection_rule_hash", "format_error_enum_version", "format_error_enum_hash", "maximum_container_depth", "schema_hashes", "closed_schema_registry_hash", "approved_implementation_commit_full", "attestation_commit_full", "code_attestation_manifest_sha256", "attested_code_blobs_sha256", "review_mode", "review_protocol_hash", "config_hash"],
   "properties": {
     "schema_version": {"const": "c2_v2_fd_format_classifier_config_v1"},
     "format_classifier_id": {"type": "string"},
@@ -47,10 +47,17 @@
       "additionalProperties": false
     },
     "closed_schema_registry_hash": {"$ref": "#/$defs/sha256"},
+    "approved_implementation_commit_full": {"$ref": "#/$defs/git_object"},
+    "attestation_commit_full": {"$ref": "#/$defs/git_object"},
+    "code_attestation_manifest_sha256": {"$ref": "#/$defs/sha256"},
+    "attested_code_blobs_sha256": {"$ref": "#/$defs/sha256"},
     "review_mode": {"const": "C2_V2_STRUCTURAL_REVIEW_V1"},
     "review_protocol_hash": {"$ref": "#/$defs/sha256"},
     "config_hash": {"$ref": "#/$defs/sha256"}
   },
   "additionalProperties": false,
-  "$defs": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "git_object": {"type": "string", "pattern": "^[0-9a-f]{40,64}$"}
+  }
 }

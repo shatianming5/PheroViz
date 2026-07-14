@@ -16,6 +16,8 @@ import json
 import re
 import stat
 import struct
+import subprocess
+import sys
 import unicodedata
 import xml.etree.ElementTree as ElementTree
 import zipfile
@@ -50,9 +52,42 @@ CANONICAL_RULE_ID = "c2_v2_canonical_builder_v1"
 P_RULE_ID = "c2_v2_panel_stratum_v1"
 MAX_CONTAINER_DEPTH = 4
 MAX_ARCHIVE_ENTRIES = 10_000
-MAX_ARCHIVE_MEMBER_BYTES = 128 * 1024 * 1024
+MAX_ARCHIVE_MEMBER_BYTES = 32 * 1024 * 1024
+MAX_ARCHIVE_CONTAINER_COMPRESSED_BYTES = 128 * 1024 * 1024
+MAX_ARCHIVE_CONTAINER_UNCOMPRESSED_BYTES = 256 * 1024 * 1024
+MAX_ARCHIVE_RUN_COMPRESSED_BYTES = 512 * 1024 * 1024
+MAX_ARCHIVE_RUN_UNCOMPRESSED_BYTES = 1024 * 1024 * 1024
+
+_EXTENSION_RELATIVE_PATH = "agent/experiments/c2_source_bearing_extension.py"
+_FINALIZER_RELATIVE_PATH = "agent/experiments/c2_remediation_root_finalizer.py"
+_CLI_RELATIVE_PATH = "agent/experiments/cli.py"
+_MODELS_RELATIVE_PATH = "agent/experiments/models.py"
+_CODE_ATTESTATION_RELATIVE_PATH = (
+    "agent/experiments/c2_source_bearing_extension_code_attestation.json"
+)
+_REQUIRED_SCHEMA_NAMES = (
+    "c2_v2_fd_format_classifier_config_v1.schema.json",
+    "c2_v2_detected_format_v1.schema.json",
+    "c2_v2_container_accounting_index_v1.schema.json",
+    "c2_v2_consumable_source_unit_v1.schema.json",
+    "c2_v2_downstream_consumption_v1.schema.json",
+    "c2_v2_candidate_set_input_v1.schema.json",
+    "c2_v2_consumption_bijection_validation_v1.schema.json",
+)
+_REQUIRED_ATTESTED_CODE_PATHS = frozenset(
+    {
+        _EXTENSION_RELATIVE_PATH,
+        _FINALIZER_RELATIVE_PATH,
+        _CLI_RELATIVE_PATH,
+        _MODELS_RELATIVE_PATH,
+        *(
+            f"agent/experiments/schemas/{name}" for name in _REQUIRED_SCHEMA_NAMES
+        ),
+    }
+)
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+_GIT_OBJECT_RE = re.compile(r"^[0-9a-f]{40,64}$")
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 _DRIVE_RE = re.compile(r"^[A-Za-z]:")
 _ZIP_SIGNATURES = (b"PK\x03\x04", b"PK\x05\x06", b"PK\x07\x08")
@@ -177,6 +212,10 @@ _CLOSED_FIELDS: dict[str, frozenset[str]] = {
             "maximum_container_depth",
             "schema_hashes",
             "closed_schema_registry_hash",
+            "approved_implementation_commit_full",
+            "attestation_commit_full",
+            "code_attestation_manifest_sha256",
+            "attested_code_blobs_sha256",
             "review_mode",
             "review_protocol_hash",
             "config_hash",
@@ -577,6 +616,7 @@ _CLOSED_FIELDS: dict[str, frozenset[str]] = {
             "acquisition_disposition_doi_ids_sha256",
             "stratified_source_doi_ids_sha256",
             "non_stratified_doi_ids_sha256",
+            "per_doi_case_set_hashes_sha256",
             "terminal_status_counts",
             "disposition_counts",
             "stratum_source_doi_counts",
@@ -621,6 +661,10 @@ _CLOSED_FIELDS: dict[str, frozenset[str]] = {
             "format_config_hash",
             "consumption_bijection_hash",
             "canonical_case_set_manifest_hash",
+            "approved_implementation_commit_full",
+            "attestation_commit_full",
+            "code_attestation_manifest_sha256",
+            "attested_code_blobs_sha256",
             "validation_hash",
         }
     ),
@@ -867,33 +911,296 @@ def _file_binding(root: _TargetRoot, relative: str) -> dict[str, Any]:
     }
 
 
-def _source_code_sha256() -> str:
-    return _sha256(Path(__file__).read_bytes())
-
-
 def _rule_hash(rule_id: str, version: str) -> str:
     return _sha256_json({"rule_id": rule_id, "version": version})
 
 
-def _schema_hashes() -> dict[str, str]:
-    schema_dir = Path(__file__).with_name("schemas")
-    names = (
-        "c2_v2_fd_format_classifier_config_v1.schema.json",
-        "c2_v2_detected_format_v1.schema.json",
-        "c2_v2_container_accounting_index_v1.schema.json",
-        "c2_v2_consumable_source_unit_v1.schema.json",
-        "c2_v2_downstream_consumption_v1.schema.json",
-        "c2_v2_candidate_set_input_v1.schema.json",
-        "c2_v2_consumption_bijection_validation_v1.schema.json",
+@dataclass(frozen=True)
+class _AttestedCodeBlob:
+    relative_path: str
+    git_blob_object_id: str
+    sha256: str
+
+
+@dataclass(frozen=True)
+class SourceExtensionCodeAttestation:
+    """A reviewed, non-circular Git/blob binding for the extension runtime."""
+
+    worktree: Path
+    attestation_commit_full: str
+    approved_implementation_commit_full: str
+    manifest_sha256: str
+    code_blobs: tuple[_AttestedCodeBlob, ...]
+
+    @property
+    def code_blob_set_sha256(self) -> str:
+        return _sha256_json(
+            [
+                {
+                    "relative_path": blob.relative_path,
+                    "git_blob_object_id": blob.git_blob_object_id,
+                    "sha256": blob.sha256,
+                }
+                for blob in self.code_blobs
+            ]
+        )
+
+    def sha256_for(self, relative_path: str) -> str:
+        for blob in self.code_blobs:
+            if blob.relative_path == relative_path:
+                return blob.sha256
+        raise SourceBearingExtensionError(
+            f"code attestation has no binding for {relative_path}"
+        )
+
+    def verify_runtime(self, *, loaded_finalizer_path: Path | None = None) -> None:
+        observed = verify_source_extension_code_attestation(
+            self.worktree,
+            loaded_finalizer_path=loaded_finalizer_path,
+        )
+        _require(
+            observed == self,
+            "source extension code attestation changed during execution",
+        )
+
+
+def _git_text(worktree: Path, arguments: Sequence[str], label: str) -> str:
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(worktree), *arguments],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise SourceBearingExtensionError(
+            f"cannot verify source extension {label}"
+        ) from exc
+    return completed.stdout.strip()
+
+
+def _git_bytes(worktree: Path, arguments: Sequence[str], label: str) -> bytes:
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(worktree), *arguments],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise SourceBearingExtensionError(
+            f"cannot read source extension {label}"
+        ) from exc
+    return completed.stdout
+
+
+def _attested_runtime_paths(
+    *,
+    worktree: Path,
+    loaded_extension_path: Path | None,
+    loaded_finalizer_path: Path | None,
+) -> dict[str, Path]:
+    runtime_paths = {
+        _EXTENSION_RELATIVE_PATH: (
+            Path(__file__) if loaded_extension_path is None else loaded_extension_path
+        )
+    }
+    if loaded_finalizer_path is not None:
+        runtime_paths[_FINALIZER_RELATIVE_PATH] = loaded_finalizer_path
+    else:
+        finalizer_module = sys.modules.get(
+            "experiments.c2_remediation_root_finalizer"
+        )
+        module_path = getattr(finalizer_module, "__file__", None)
+        if isinstance(module_path, str):
+            runtime_paths[_FINALIZER_RELATIVE_PATH] = Path(module_path)
+    for relative_path, runtime_path in runtime_paths.items():
+        expected_path = worktree / relative_path
+        _require(
+            runtime_path.is_file()
+            and not runtime_path.is_symlink()
+            and runtime_path.resolve() == expected_path.resolve(),
+            f"loaded runtime path is not the attested {relative_path}",
+        )
+    return runtime_paths
+
+
+def _module_worktree() -> Path:
+    module_path = Path(__file__).resolve()
+    _require(
+        module_path.as_posix().endswith(_EXTENSION_RELATIVE_PATH),
+        "source extension module path is not repository-relative",
     )
-    hashes: dict[str, str] = {}
-    for name in names:
-        try:
-            payload = (schema_dir / name).read_bytes()
-        except OSError as exc:
-            raise SourceBearingExtensionError(f"required V2 schema is unavailable: {name}") from exc
-        hashes[name] = _sha256(payload)
-    return hashes
+    return module_path.parents[2]
+
+
+def verify_source_extension_code_attestation(
+    worktree: Path | None = None,
+    *,
+    loaded_extension_path: Path | None = None,
+    loaded_finalizer_path: Path | None = None,
+) -> SourceExtensionCodeAttestation:
+    """Verify the attestation commit and every loaded/declared extension blob."""
+
+    candidate = _module_worktree() if worktree is None else Path(worktree)
+    _require(
+        candidate.is_absolute()
+        and candidate.is_dir()
+        and not candidate.is_symlink(),
+        "source extension worktree is unsafe",
+    )
+    resolved_worktree = candidate.resolve()
+    repository_root = Path(
+        _git_text(candidate, ("rev-parse", "--show-toplevel"), "worktree root")
+    ).resolve()
+    _require(
+        repository_root == resolved_worktree,
+        "source extension worktree is not the Git repository root",
+    )
+    status = _git_text(
+        resolved_worktree,
+        ("status", "--porcelain=v1", "--untracked-files=all"),
+        "worktree status",
+    )
+    _require(not status, "source extension worktree is dirty")
+    attestation_commit = _git_text(
+        resolved_worktree, ("rev-parse", "HEAD"), "attestation commit"
+    )
+    _require(
+        _GIT_OBJECT_RE.fullmatch(attestation_commit) is not None,
+        "source extension attestation commit is invalid",
+    )
+    implementation_commit = _git_text(
+        resolved_worktree, ("rev-parse", "HEAD^"), "implementation parent commit"
+    )
+    _require(
+        _GIT_OBJECT_RE.fullmatch(implementation_commit) is not None,
+        "source extension implementation commit is invalid",
+    )
+    changed = _git_text(
+        resolved_worktree,
+        ("diff", "--name-status", "--no-renames", implementation_commit, attestation_commit),
+        "attestation commit contents",
+    )
+    _require(
+        changed == f"A\t{_CODE_ATTESTATION_RELATIVE_PATH}",
+        "source extension attestation commit must add only its manifest",
+    )
+    manifest_path = resolved_worktree / _CODE_ATTESTATION_RELATIVE_PATH
+    _require(
+        manifest_path.is_file() and not manifest_path.is_symlink(),
+        "source extension attestation manifest is unavailable",
+    )
+    manifest_payload = manifest_path.read_bytes()
+    _require(
+        manifest_payload
+        == _git_bytes(
+            resolved_worktree,
+            ("show", f"{attestation_commit}:{_CODE_ATTESTATION_RELATIVE_PATH}"),
+            "attestation manifest blob",
+        ),
+        "source extension attestation manifest runtime bytes changed",
+    )
+    manifest = _json_object(manifest_payload, "source extension code attestation")
+    _require(
+        set(manifest)
+        == {
+            "schema_version",
+            "approved_implementation_commit_full",
+            "attested_paths",
+        }
+        and manifest.get("schema_version")
+        == "c2_source_bearing_extension_code_attestation_v1"
+        and manifest.get("approved_implementation_commit_full")
+        == implementation_commit
+        and manifest_payload == _canonical_bytes(manifest) + b"\n",
+        "source extension code attestation manifest is invalid",
+    )
+    raw_blobs = manifest.get("attested_paths")
+    _require(
+        isinstance(raw_blobs, list) and raw_blobs,
+        "source extension code attestation has no paths",
+    )
+    code_blobs: list[_AttestedCodeBlob] = []
+    seen_paths: set[str] = set()
+    for raw_blob in raw_blobs:
+        _require(
+            isinstance(raw_blob, Mapping)
+            and set(raw_blob)
+            == {"relative_path", "git_blob_object_id", "sha256"},
+            "source extension code attestation blob fields are invalid",
+        )
+        relative_path = _require_relative(
+            raw_blob.get("relative_path"),
+            "source extension code attestation path is invalid",
+        )
+        blob_object_id = raw_blob.get("git_blob_object_id")
+        digest = raw_blob.get("sha256")
+        _require(
+            relative_path in _REQUIRED_ATTESTED_CODE_PATHS
+            and relative_path not in seen_paths
+            and isinstance(blob_object_id, str)
+            and _GIT_OBJECT_RE.fullmatch(blob_object_id) is not None
+            and isinstance(digest, str)
+            and _SHA256_RE.fullmatch(digest) is not None,
+            "source extension code attestation blob is invalid",
+        )
+        implementation_blob_object_id = _git_text(
+            resolved_worktree,
+            ("rev-parse", f"{implementation_commit}:{relative_path}"),
+            f"implementation blob {relative_path}",
+        )
+        implementation_payload = _git_bytes(
+            resolved_worktree,
+            ("show", f"{implementation_commit}:{relative_path}"),
+            f"implementation bytes {relative_path}",
+        )
+        attestation_payload = _git_bytes(
+            resolved_worktree,
+            ("show", f"{attestation_commit}:{relative_path}"),
+            f"attestation bytes {relative_path}",
+        )
+        runtime_path = resolved_worktree / relative_path
+        _require(
+            runtime_path.is_file()
+            and not runtime_path.is_symlink()
+            and implementation_blob_object_id == blob_object_id
+            and attestation_payload == implementation_payload
+            and runtime_path.read_bytes() == implementation_payload
+            and _sha256(implementation_payload) == digest,
+            f"source extension attested blob mismatch: {relative_path}",
+        )
+        seen_paths.add(relative_path)
+        code_blobs.append(
+            _AttestedCodeBlob(relative_path, blob_object_id, digest)
+        )
+    _require(
+        seen_paths == _REQUIRED_ATTESTED_CODE_PATHS
+        and [blob.relative_path for blob in code_blobs]
+        == sorted(blob.relative_path for blob in code_blobs),
+        "source extension code attestation path coverage is invalid",
+    )
+    _attested_runtime_paths(
+        worktree=resolved_worktree,
+        loaded_extension_path=loaded_extension_path,
+        loaded_finalizer_path=loaded_finalizer_path,
+    )
+    return SourceExtensionCodeAttestation(
+        worktree=resolved_worktree,
+        attestation_commit_full=attestation_commit,
+        approved_implementation_commit_full=implementation_commit,
+        manifest_sha256=_sha256(manifest_payload),
+        code_blobs=tuple(code_blobs),
+    )
+
+
+def _schema_hashes(attestation: SourceExtensionCodeAttestation) -> dict[str, str]:
+    attestation.verify_runtime()
+    return {
+        name: attestation.sha256_for(f"agent/experiments/schemas/{name}")
+        for name in _REQUIRED_SCHEMA_NAMES
+    }
 
 
 def _closed_schema_registry_hash() -> str:
@@ -905,8 +1212,9 @@ def _closed_schema_registry_hash() -> str:
     )
 
 
-def _format_config() -> dict[str, Any]:
-    source_sha = _source_code_sha256()
+def _format_config(attestation: SourceExtensionCodeAttestation) -> dict[str, Any]:
+    attestation.verify_runtime()
+    source_sha = attestation.sha256_for(_EXTENSION_RELATIVE_PATH)
     value: dict[str, Any] = {
         "schema_version": "c2_v2_fd_format_classifier_config_v1",
         "format_classifier_id": FORMAT_CLASSIFIER_ID,
@@ -931,8 +1239,14 @@ def _format_config() -> dict[str, Any]:
         "format_error_enum_version": "1",
         "format_error_enum_hash": _rule_hash("c2_v2_format_error_enum", "1"),
         "maximum_container_depth": MAX_CONTAINER_DEPTH,
-        "schema_hashes": _schema_hashes(),
+        "schema_hashes": _schema_hashes(attestation),
         "closed_schema_registry_hash": _closed_schema_registry_hash(),
+        "approved_implementation_commit_full": (
+            attestation.approved_implementation_commit_full
+        ),
+        "attestation_commit_full": attestation.attestation_commit_full,
+        "code_attestation_manifest_sha256": attestation.manifest_sha256,
+        "attested_code_blobs_sha256": attestation.code_blob_set_sha256,
         "review_mode": REVIEW_MODE,
         "review_protocol_hash": _rule_hash(REVIEW_MODE, "1"),
     }
@@ -967,6 +1281,30 @@ class _ZipInfo:
     entries: tuple[_CentralEntry, ...]
     central_directory_sha256: str
     eocd_sha256: str
+    total_compressed_bytes: int
+    total_uncompressed_bytes: int
+
+
+@dataclass
+class _ArchiveRunBudget:
+    """Bound every accepted container before member extraction begins."""
+
+    compressed_bytes: int = 0
+    uncompressed_bytes: int = 0
+
+    def reserve(self, payload: bytes, archive: _ZipInfo) -> None:
+        next_compressed = self.compressed_bytes + len(payload)
+        next_uncompressed = self.uncompressed_bytes + archive.total_uncompressed_bytes
+        _require(
+            next_compressed <= MAX_ARCHIVE_RUN_COMPRESSED_BYTES,
+            "REJECT_ZIP_RUN_COMPRESSED_LIMIT",
+        )
+        _require(
+            next_uncompressed <= MAX_ARCHIVE_RUN_UNCOMPRESSED_BYTES,
+            "REJECT_ZIP_RUN_UNCOMPRESSED_LIMIT",
+        )
+        self.compressed_bytes = next_compressed
+        self.uncompressed_bytes = next_uncompressed
 
 
 def _find_eocd(payload: bytes) -> tuple[int, tuple[int, ...]]:
@@ -1010,6 +1348,10 @@ def _normalise_selector(raw_name: bytes) -> tuple[str, str]:
 def _parse_zip_v1(payload: bytes) -> _ZipInfo:
     """Parse raw central bytes in physical order and bind them to ZipInfo objects."""
 
+    _require(
+        len(payload) <= MAX_ARCHIVE_CONTAINER_COMPRESSED_BYTES,
+        "REJECT_ZIP_CONTAINER_COMPRESSED_LIMIT",
+    )
     eocd_offset, eocd = _find_eocd(payload)
     _, disk_number, central_disk, disk_entries, total_entries, central_size, central_offset, _ = eocd
     _require(
@@ -1139,6 +1481,14 @@ def _parse_zip_v1(payload: bytes) -> _ZipInfo:
             )
             if stat.S_ISDIR(mode):
                 is_directory = True
+        if is_directory:
+            _require(
+                selector.endswith("/")
+                and compressed_size == 0
+                and uncompressed_size == 0
+                and crc32 == 0,
+                "REJECT_ZIP_DIRECTORY_ENTRY",
+            )
         info = infos[index]
         _require(
             info.flag_bits == flags
@@ -1170,6 +1520,16 @@ def _parse_zip_v1(payload: bytes) -> _ZipInfo:
         )
         cursor = record_end
     _require(cursor == len(central), "REJECT_ZIP_CENTRAL_BOUNDS")
+    total_compressed_bytes = sum(entry.compressed_bytes for entry in entries)
+    total_uncompressed_bytes = sum(entry.uncompressed_bytes for entry in entries)
+    _require(
+        total_compressed_bytes <= MAX_ARCHIVE_CONTAINER_COMPRESSED_BYTES,
+        "REJECT_ZIP_CONTAINER_COMPRESSED_LIMIT",
+    )
+    _require(
+        total_uncompressed_bytes <= MAX_ARCHIVE_CONTAINER_UNCOMPRESSED_BYTES,
+        "REJECT_ZIP_CONTAINER_UNCOMPRESSED_LIMIT",
+    )
     for (_, previous_end), (next_start, _) in zip(
         sorted(local_ranges), sorted(local_ranges)[1:], strict=False
     ):
@@ -1178,6 +1538,8 @@ def _parse_zip_v1(payload: bytes) -> _ZipInfo:
         entries=tuple(entries),
         central_directory_sha256=_sha256(central),
         eocd_sha256=_sha256(payload[eocd_offset:]),
+        total_compressed_bytes=total_compressed_bytes,
+        total_uncompressed_bytes=total_uncompressed_bytes,
     )
 
 
@@ -1185,7 +1547,7 @@ def _read_zip_member(payload: bytes, entry: _CentralEntry) -> bytes:
     try:
         with zipfile.ZipFile(io.BytesIO(payload), "r") as archive:
             with archive.open(entry.zip_info, "r") as member:
-                chunks: list[bytes] = []
+                result = bytearray()
                 total = 0
                 while True:
                     block = member.read(64 * 1024)
@@ -1193,15 +1555,15 @@ def _read_zip_member(payload: bytes, entry: _CentralEntry) -> bytes:
                         break
                     total += len(block)
                     _require(total <= MAX_ARCHIVE_MEMBER_BYTES, "REJECT_ZIP_MEMBER_TOO_LARGE")
-                    chunks.append(block)
+                    result.extend(block)
     except (OSError, RuntimeError, zipfile.BadZipFile) as exc:
         raise SourceBearingExtensionError("REJECT_ZIP_MEMBER_STREAM_FAILURE") from exc
-    result = b"".join(chunks)
+    payload = bytes(result)
     _require(
-        len(result) == entry.uncompressed_bytes,
+        len(payload) == entry.uncompressed_bytes,
         "REJECT_ZIP_MEMBER_SIZE_MISMATCH",
     )
-    return result
+    return payload
 
 
 def _is_csv_v1(payload: bytes) -> bool:
@@ -1233,16 +1595,196 @@ def _is_other_registered(payload: bytes) -> bool:
     return bool(text.strip()) and "\x00" not in text
 
 
+_OOXML_CONTENT_TYPES_NS = "http://schemas.openxmlformats.org/package/2006/content-types"
+_OOXML_PACKAGE_RELATIONSHIPS_NS = (
+    "http://schemas.openxmlformats.org/package/2006/relationships"
+)
+_OOXML_SPREADSHEET_NS = (
+    "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+)
+_OOXML_DOCUMENT_RELATIONSHIPS_NS = (
+    "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+)
+_OOXML_OFFICE_DOCUMENT_RELATIONSHIP = (
+    "http://schemas.openxmlformats.org/officeDocument/2006/relationships/"
+    "officeDocument"
+)
+_OOXML_WORKSHEET_RELATIONSHIP = (
+    "http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet"
+)
+_OOXML_WORKBOOK_CONTENT_TYPE = (
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"
+)
+_OOXML_WORKSHEET_CONTENT_TYPE = (
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"
+)
+
+
+def _parse_ooxml_xml(payload: bytes) -> ElementTree.Element | None:
+    if b"<!DOCTYPE" in payload or b"<!ENTITY" in payload:
+        return None
+    try:
+        return ElementTree.fromstring(payload)
+    except ElementTree.ParseError:
+        return None
+
+
+def _ooxml_relationships(
+    root: ElementTree.Element,
+) -> dict[str, tuple[str, str]] | None:
+    if root.tag != f"{{{_OOXML_PACKAGE_RELATIONSHIPS_NS}}}Relationships":
+        return None
+    relationships: dict[str, tuple[str, str]] = {}
+    for child in root:
+        if child.tag != f"{{{_OOXML_PACKAGE_RELATIONSHIPS_NS}}}Relationship":
+            return None
+        relationship_id = child.get("Id")
+        relationship_type = child.get("Type")
+        target = child.get("Target")
+        if (
+            not relationship_id
+            or not relationship_type
+            or not target
+            or relationship_id in relationships
+            or child.get("TargetMode") not in {None, "Internal"}
+        ):
+            return None
+        relationships[relationship_id] = (relationship_type, target)
+    return relationships
+
+
 def _xlsx_profile(payload: bytes, archive: _ZipInfo) -> bool:
+    """Recognize only a structurally valid OOXML spreadsheet package."""
+
+    required = {
+        "[Content_Types].xml",
+        "_rels/.rels",
+        "xl/workbook.xml",
+        "xl/_rels/workbook.xml.rels",
+    }
     selectors = {entry.selector for entry in archive.entries}
-    required = {"[Content_Types].xml", "_rels/.rels", "xl/workbook.xml"}
     if not required.issubset(selectors):
         return False
     by_selector = {entry.selector: entry for entry in archive.entries}
     try:
-        for selector in sorted(required):
-            ElementTree.fromstring(_read_zip_member(payload, by_selector[selector]))
-    except (ElementTree.ParseError, SourceBearingExtensionError):
+        parsed = {
+            selector: _parse_ooxml_xml(
+                _read_zip_member(payload, by_selector[selector])
+            )
+            for selector in required
+        }
+    except SourceBearingExtensionError:
+        return False
+    if any(root is None for root in parsed.values()):
+        return False
+    content_types = parsed["[Content_Types].xml"]
+    root_relationships = _ooxml_relationships(parsed["_rels/.rels"])
+    workbook = parsed["xl/workbook.xml"]
+    workbook_relationships = _ooxml_relationships(
+        parsed["xl/_rels/workbook.xml.rels"]
+    )
+    if (
+        content_types is None
+        or content_types.tag != f"{{{_OOXML_CONTENT_TYPES_NS}}}Types"
+        or root_relationships is None
+        or workbook is None
+        or workbook.tag != f"{{{_OOXML_SPREADSHEET_NS}}}workbook"
+        or workbook_relationships is None
+    ):
+        return False
+    overrides: dict[str, str] = {}
+    for child in content_types:
+        if child.tag == f"{{{_OOXML_CONTENT_TYPES_NS}}}Default":
+            if not child.get("Extension") or not child.get("ContentType"):
+                return False
+            continue
+        if child.tag != f"{{{_OOXML_CONTENT_TYPES_NS}}}Override":
+            return False
+        part_name = child.get("PartName")
+        content_type = child.get("ContentType")
+        if (
+            not isinstance(part_name, str)
+            or not part_name.startswith("/")
+            or not content_type
+            or part_name in overrides
+        ):
+            return False
+        overrides[part_name] = content_type
+    if overrides.get("/xl/workbook.xml") != _OOXML_WORKBOOK_CONTENT_TYPE:
+        return False
+    office_document_targets = {
+        target
+        for relationship_type, target in root_relationships.values()
+        if relationship_type == _OOXML_OFFICE_DOCUMENT_RELATIONSHIP
+    }
+    if office_document_targets != {"xl/workbook.xml"}:
+        return False
+    sheets = workbook.find(f"{{{_OOXML_SPREADSHEET_NS}}}sheets")
+    if sheets is None:
+        return False
+    worksheet_selectors: set[str] = set()
+    sheet_ids: set[int] = set()
+    relationship_ids: set[str] = set()
+    for sheet in sheets:
+        if sheet.tag != f"{{{_OOXML_SPREADSHEET_NS}}}sheet":
+            return False
+        relationship_id = sheet.get(
+            f"{{{_OOXML_DOCUMENT_RELATIONSHIPS_NS}}}id"
+        )
+        sheet_id = sheet.get("sheetId")
+        if (
+            not sheet.get("name")
+            or not relationship_id
+            or not sheet_id
+            or not sheet_id.isdecimal()
+            or int(sheet_id) < 1
+            or int(sheet_id) in sheet_ids
+            or relationship_id in relationship_ids
+        ):
+            return False
+        relationship = workbook_relationships.get(relationship_id)
+        if relationship is None or relationship[0] != _OOXML_WORKSHEET_RELATIONSHIP:
+            return False
+        target = relationship[1]
+        if (
+            target.startswith("/")
+            or "\\" in target
+            or not target.startswith("worksheets/")
+            or any(part in {"", ".", ".."} for part in target.split("/"))
+        ):
+            return False
+        selector = f"xl/{target}"
+        if selector not in selectors or selector in worksheet_selectors:
+            return False
+        sheet_ids.add(int(sheet_id))
+        relationship_ids.add(relationship_id)
+        worksheet_selectors.add(selector)
+    if not worksheet_selectors:
+        return False
+    worksheet_relationship_targets = {
+        f"xl/{target}"
+        for relationship_type, target in workbook_relationships.values()
+        if relationship_type == _OOXML_WORKSHEET_RELATIONSHIP
+        and not target.startswith("/")
+        and "\\" not in target
+        and target.startswith("worksheets/")
+        and all(part not in {"", ".", ".."} for part in target.split("/"))
+    }
+    if worksheet_relationship_targets != worksheet_selectors:
+        return False
+    try:
+        for selector in sorted(worksheet_selectors):
+            worksheet = _parse_ooxml_xml(
+                _read_zip_member(payload, by_selector[selector])
+            )
+            if (
+                worksheet is None
+                or worksheet.tag != f"{{{_OOXML_SPREADSHEET_NS}}}worksheet"
+                or worksheet.find(f"{{{_OOXML_SPREADSHEET_NS}}}sheetData") is None
+                or overrides.get(f"/{selector}") != _OOXML_WORKSHEET_CONTENT_TYPE
+            ):
+                return False
+    except SourceBearingExtensionError:
         return False
     return True
 
@@ -1258,9 +1800,15 @@ class _Detected:
         return (self.container_format, self.content_profile)
 
 
-def _detect_format(payload: bytes) -> _Detected:
+def _detect_format(
+    payload: bytes,
+    *,
+    archive_budget: _ArchiveRunBudget | None = None,
+) -> _Detected:
     if _zip_like(payload):
         archive = _parse_zip_v1(payload)
+        if archive_budget is not None:
+            archive_budget.reserve(payload, archive)
         if _xlsx_profile(payload, archive):
             return _Detected("ZIP_V1", "XLSX_V1", archive)
         return _Detected("ZIP_V1", "GENERIC_ZIP_V1", archive)
@@ -1438,6 +1986,8 @@ class SourceBearingExtensionResult:
 
 def _build_canonical_case_set_manifest(
     cases: Sequence[Mapping[str, Any]],
+    *,
+    applicable_doi_ids: Sequence[str],
 ) -> tuple[dict[str, Any], dict[str, Mapping[str, Any]]]:
     """Build the complete, ordered DOI case-set binding before P derivation."""
 
@@ -1448,7 +1998,16 @@ def _build_canonical_case_set_manifest(
 
     case_sets: list[dict[str, Any]] = []
     by_doi: dict[str, Mapping[str, Any]] = {}
-    for doi_id in sorted(cases_by_doi):
+    ordered_doi_ids = [
+        _require_doi(doi_id, "canonical case-set DOI is invalid")
+        for doi_id in applicable_doi_ids
+    ]
+    _require(
+        len(ordered_doi_ids) == len(set(ordered_doi_ids))
+        and set(cases_by_doi).issubset(ordered_doi_ids),
+        "canonical case-set DOI coverage is invalid",
+    )
+    for doi_id in ordered_doi_ids:
         descriptors: list[dict[str, Any]] = []
         for case in sorted(cases_by_doi[doi_id], key=lambda item: str(item["case_id"])):
             panel_count = case.get("qualified_panel_count")
@@ -1495,6 +2054,39 @@ def _build_canonical_case_set_manifest(
     }
     _seal(manifest, "case_set_manifest_hash")
     return manifest, by_doi
+
+
+def _applicable_case_set_doi_ids(
+    terminal_rows: Sequence[Mapping[str, Any]],
+    source_by_article: Mapping[str, Mapping[str, Any]],
+) -> tuple[str, ...]:
+    """Return frozen-order downloaded DOI with complete verified source inventory."""
+
+    doi_ids: list[str] = []
+    for terminal in sorted(
+        terminal_rows, key=lambda item: int(item["input_index_1based"])
+    ):
+        terminal_status_raw = terminal.get("terminal_status")
+        _require(
+            isinstance(terminal_status_raw, str)
+            and terminal_status_raw in _TERMINAL_STATUS_ADAPTER,
+            "terminal status is not in the closed adapter",
+        )
+        if _TERMINAL_STATUS_ADAPTER[terminal_status_raw] != "DOWNLOADED":
+            continue
+        article_id = _require_identifier(
+            terminal.get("article_id"), "terminal article ID is invalid"
+        )
+        if article_id not in source_by_article:
+            continue
+        doi_ids.append(
+            _require_doi(terminal.get("doi"), "terminal DOI is invalid")
+        )
+    _require(
+        len(doi_ids) == len(set(doi_ids)),
+        "applicable canonical case-set DOI is duplicated",
+    )
+    return tuple(doi_ids)
 
 
 def _panel_descriptors_for_case_set(case_set: Mapping[str, Any]) -> list[dict[str, Any]]:
@@ -1581,6 +2173,7 @@ class _Builder:
         source_by_article: Mapping[str, Mapping[str, Any]],
         partition_records: int,
         source_chunk_sha256: str,
+        code_attestation: SourceExtensionCodeAttestation,
     ) -> None:
         self.root = root
         self.raw_assets = tuple(raw_assets)
@@ -1588,7 +2181,9 @@ class _Builder:
         self.source_by_article = source_by_article
         self.partition_records = partition_records
         self.source_chunk_sha256 = source_chunk_sha256
-        self.config = _format_config()
+        self.code_attestation = code_attestation
+        self.code_attestation.verify_runtime()
+        self.config = _format_config(code_attestation)
         self.detected: list[dict[str, Any]] = []
         self.accounts: dict[str, dict[str, Any]] = {}
         self.account_paths: dict[str, str] = {}
@@ -1602,6 +2197,7 @@ class _Builder:
         }
         self._hints: dict[tuple[str, str, str | None], tuple[Mapping[str, Any], ...]] = {}
         self._next_node = 0
+        self._archive_budget = _ArchiveRunBudget()
         self._load_hints()
 
     def _load_hints(self) -> None:
@@ -1706,9 +2302,16 @@ class _Builder:
         pre_detected: _Detected | None = None,
     ) -> None:
         _require(depth <= MAX_CONTAINER_DEPTH, "REJECT_CONTAINER_DEPTH")
-        detected = pre_detected or _detect_format(payload)
+        detected = pre_detected or _detect_format(
+            payload,
+            archive_budget=self._archive_budget,
+        )
         node_id: str | None = None
         if detected.container_format == "ZIP_V1":
+            _require(
+                detected.zip_info is not None,
+                "REJECT_ZIP_PARSER_FAILURE",
+            )
             self._next_node += 1
             node_id = f"container-{self._next_node:06d}"
         self.detected.append(
@@ -2047,7 +2650,10 @@ class _Builder:
                 entries.append(entry)
                 continue
             member_payload = _read_zip_member(payload, central)
-            child_detected = _detect_format(member_payload)
+            child_detected = _detect_format(
+                member_payload,
+                archive_budget=self._archive_budget,
+            )
             selector = (
                 central.selector
                 if parent_selector is None
@@ -2115,7 +2721,10 @@ class _Builder:
 
     def classify_raw_assets(self) -> None:
         for raw in self.raw_assets:
-            detected = _detect_format(raw.payload)
+            detected = _detect_format(
+                raw.payload,
+                archive_budget=self._archive_budget,
+            )
             _validate_declared_format(raw.asset, detected)
             self._process_origin(
                 origin_record_hash=raw.asset_record["asset_record_hash"],
@@ -2401,12 +3010,13 @@ class _Builder:
             candidate = candidate_by_id[proposal["candidate_id"]]
             group = candidate["case_group_or_null"] or candidate["candidate_id"]
             panel_key = (candidate["parent_doi_id"], str(group), candidate["panel_id"])
-            if panel_key in seen_group_panels:
-                outcome = "REJECTED_DUPLICATE_PANEL_GROUP"
-            else:
-                outcome = "ACCEPTED_STRUCTURAL"
-                seen_group_panels.add(panel_key)
-                accepted_candidates.append(candidate)
+            _require(
+                panel_key not in seen_group_panels,
+                "DUPLICATE_PANEL_MEMBERSHIP",
+            )
+            outcome = "ACCEPTED_STRUCTURAL"
+            seen_group_panels.add(panel_key)
+            accepted_candidates.append(candidate)
             review: dict[str, Any] = {
                 "schema_version": "c2_v2_structural_review_outcome_v1",
                 "proposal_id": proposal["proposal_id"],
@@ -2679,6 +3289,17 @@ class _Builder:
                     if item["final_disposition"] != "STRATIFIED_SOURCE_CANONICAL"
                 ]
             ),
+            "per_doi_case_set_hashes_sha256": _sha256_json(
+                [
+                    {
+                        "doi_id": doi_id,
+                        "canonical_case_set_hash": case_set[
+                            "canonical_case_set_hash"
+                        ],
+                    }
+                    for doi_id, case_set in case_sets_by_doi.items()
+                ]
+            ),
             "terminal_status_counts": {
                 status: sum(item["terminal_status"] == status for item in dispositions)
                 for status in sorted(set(_TERMINAL_STATUS_ADAPTER.values()))
@@ -2903,7 +3524,13 @@ class _Builder:
         canonical_summary_path = _write_json(
             self.root, "canonical_v2/canonical_summary.json", canonical_summary
         )
-        case_set_manifest, case_sets_by_doi = _build_canonical_case_set_manifest(cases)
+        case_set_manifest, case_sets_by_doi = _build_canonical_case_set_manifest(
+            cases,
+            applicable_doi_ids=_applicable_case_set_doi_ids(
+                self.terminal_rows,
+                self.source_by_article,
+            ),
+        )
         case_set_manifest_path = _write_json(
             self.root,
             "canonical_v2/canonical_case_set_manifest.json",
@@ -2931,6 +3558,7 @@ class _Builder:
             self.root,
             partition_records=self.partition_records,
             source_chunk_sha256=self.source_chunk_sha256,
+            code_attestation=self.code_attestation,
         )
         validation_path = _write_json(
             self.root, "control/v2/source_bearing_extension_validation.json", validation
@@ -3029,7 +3657,6 @@ def _validate_raw_asset_records(
             and len(payload) == record.get("verified_bytes"),
             "raw source asset bytes changed",
         )
-        _validate_declared_format(record, _detect_format(payload))
         descriptor_relative = _require_relative(
             record.get("source_descriptor_relative_path"),
             "source descriptor path invalid",
@@ -3089,6 +3716,7 @@ def _validate_archive_accounts(
     root: _TargetRoot,
     index: Mapping[str, Any],
     config: Mapping[str, Any],
+    archive_budget: _ArchiveRunBudget,
 ) -> dict[str, Mapping[str, Any]]:
     _verify_seal(index, "index_hash", "container accounting index")
     _require(
@@ -3186,6 +3814,7 @@ def _validate_archive_accounts(
             "container source bytes changed",
         )
         archive = _parse_zip_v1(payload)
+        archive_budget.reserve(payload, archive)
         _require(
             archive.central_directory_sha256 == account.get("central_directory_sha256")
             and archive.eocd_sha256 == account.get("eocd_sha256")
@@ -3267,15 +3896,22 @@ def validate_source_bearing_extension(
     *,
     partition_records: int,
     source_chunk_sha256: str,
+    code_attestation: SourceExtensionCodeAttestation | None = None,
 ) -> dict[str, Any]:
     """Independently replay V2 bytes -> account -> consumption -> canonical/P."""
 
+    attestation = (
+        verify_source_extension_code_attestation()
+        if code_attestation is None
+        else code_attestation
+    )
+    attestation.verify_runtime()
     config = _json_object(
         root.read_bytes("source_inventory_v2/fd_format_classifier_config.json"),
         "format classifier config",
     )
     _verify_seal(config, "config_hash", "format classifier config")
-    expected_config = _format_config()
+    expected_config = _format_config(attestation)
     _require(config == expected_config, "format classifier registry/code binding changed")
     inventory = _jsonl_objects(
         root.read_bytes("source_inventory_v2/source_inventory.jsonl"), "source inventory"
@@ -3296,6 +3932,7 @@ def validate_source_bearing_extension(
         root.read_bytes("source_inventory_v2/detected_formats.jsonl"), "detected formats"
     )
     detected_by_origin: dict[str, Mapping[str, Any]] = {}
+    format_replay_budget = _ArchiveRunBudget()
     for item in detected:
         _verify_seal(item, "format_hash", "detected format")
         origin = str(item.get("origin_record_hash"))
@@ -3309,18 +3946,28 @@ def validate_source_bearing_extension(
             and len(payload) == item.get("verified_bytes"),
             "detected format source bytes changed",
         )
-        replay = _detect_format(payload)
+        replay = _detect_format(
+            payload,
+            archive_budget=format_replay_budget,
+        )
         _require(
             [replay.container_format, replay.content_profile]
             == [item.get("container_format"), item.get("content_profile")],
             "FD format replay mismatch",
         )
+        if origin in raw_by_hash:
+            _validate_declared_format(raw_by_hash[origin], replay)
         detected_by_origin[origin] = item
     index = _json_object(
         root.read_bytes("source_inventory_v2/container_accounting_index.json"),
         "container accounting index",
     )
-    accounts = _validate_archive_accounts(root, index, config)
+    accounts = _validate_archive_accounts(
+        root,
+        index,
+        config,
+        _ArchiveRunBudget(),
+    )
     archive_exclusions = _jsonl_objects(
         root.read_bytes("source_inventory_v2/archive_source_only_dispositions.jsonl"),
         "archive source-only dispositions",
@@ -3384,9 +4031,10 @@ def validate_source_bearing_extension(
             and len(payload) == item.get("verified_bytes"),
             "derived archive member bytes changed",
         )
-        replay = _detect_format(payload)
+        detected_record = detected_by_origin.get(digest)
         _require(
-            [replay.container_format, replay.content_profile]
+            detected_record is not None
+            and [detected_record["container_format"], detected_record["content_profile"]]
             == item.get("detected_format_tuple"),
             "derived member format replay mismatch",
         )
@@ -3551,9 +4199,13 @@ def validate_source_bearing_extension(
             and len(payload) == unit.get("verified_bytes"),
             "source unit bytes changed",
         )
-        replay = _detect_format(payload)
+        detected_record = detected_by_origin.get(str(unit.get("origin_record_hash")))
         _require(
-            [replay.container_format, replay.content_profile]
+            detected_record is not None
+            and [
+                detected_record["container_format"],
+                detected_record["content_profile"],
+            ]
             == unit.get("detected_format_tuple"),
             "source unit format replay mismatch",
         )
@@ -4065,12 +4717,13 @@ def validate_source_bearing_extension(
             str(group),
             str(candidate["panel_id"]),
         )
-        if panel_key in seen_group_panels:
-            outcome = "REJECTED_DUPLICATE_PANEL_GROUP"
-        else:
-            outcome = "ACCEPTED_STRUCTURAL"
-            seen_group_panels.add(panel_key)
-            accepted_candidates.append(candidate)
+        _require(
+            panel_key not in seen_group_panels,
+            "DUPLICATE_PANEL_MEMBERSHIP",
+        )
+        outcome = "ACCEPTED_STRUCTURAL"
+        seen_group_panels.add(panel_key)
+        accepted_candidates.append(candidate)
         expected_review_outcomes[proposal_id] = outcome
     _require(
         {
@@ -4158,14 +4811,6 @@ def validate_source_bearing_extension(
         "case_set_manifest_hash",
         "canonical case-set manifest",
     )
-    expected_case_set_manifest, _ = _build_canonical_case_set_manifest(cases)
-    _require(
-        case_set_manifest == expected_case_set_manifest,
-        "canonical case-set manifest binding mismatch",
-    )
-    case_sets_by_doi = {
-        str(item["doi_id"]): item for item in case_set_manifest["case_sets"]
-    }
     terminal = _jsonl_objects(
         root.read_bytes("control/terminal_outcomes.jsonl"), "terminal outcomes"
     )
@@ -4206,6 +4851,21 @@ def validate_source_bearing_extension(
                 item["asset_record_hash"] for item in ordered_assets
             ],
         }
+    applicable_case_set_doi_ids = _applicable_case_set_doi_ids(
+        terminal,
+        source_inventory_bindings,
+    )
+    expected_case_set_manifest, _ = _build_canonical_case_set_manifest(
+        cases,
+        applicable_doi_ids=applicable_case_set_doi_ids,
+    )
+    _require(
+        case_set_manifest == expected_case_set_manifest,
+        "canonical case-set manifest binding mismatch",
+    )
+    case_sets_by_doi = {
+        str(item["doi_id"]): item for item in case_set_manifest["case_sets"]
+    }
     dispositions = _jsonl_objects(
         root.read_bytes("p_evidence_v2/acquisition_dispositions.jsonl"),
         "acquisition dispositions",
@@ -4400,6 +5060,16 @@ def validate_source_bearing_extension(
                 if item["final_disposition"] != "STRATIFIED_SOURCE_CANONICAL"
             ]
         )
+        and summary.get("per_doi_case_set_hashes_sha256")
+        == _sha256_json(
+            [
+                {
+                    "doi_id": item["doi_id"],
+                    "canonical_case_set_hash": item["canonical_case_set_hash"],
+                }
+                for item in case_set_manifest["case_sets"]
+            ]
+        )
         and summary.get("terminal_status_counts")
         == {
             status: sum(item["terminal_status"] == status for item in dispositions)
@@ -4449,6 +5119,12 @@ def validate_source_bearing_extension(
         "format_config_hash": config["config_hash"],
         "consumption_bijection_hash": bijection["consumption_bijection_hash"],
         "canonical_case_set_manifest_hash": case_set_manifest["case_set_manifest_hash"],
+        "approved_implementation_commit_full": (
+            attestation.approved_implementation_commit_full
+        ),
+        "attestation_commit_full": attestation.attestation_commit_full,
+        "code_attestation_manifest_sha256": attestation.manifest_sha256,
+        "attested_code_blobs_sha256": attestation.code_blob_set_sha256,
     }
     return _seal(value, "validation_hash")
 
@@ -4462,6 +5138,7 @@ def build_source_bearing_extension(
     terminal_rows: Sequence[Mapping[str, Any]],
     partition_records: int,
     source_chunk_sha256: str,
+    code_attestation: SourceExtensionCodeAttestation | None = None,
 ) -> SourceBearingExtensionResult:
     """Build every source-bearing artifact in an already-open private staging root.
 
@@ -4470,6 +5147,12 @@ def build_source_bearing_extension(
     would violate the raw-attempt single-read contract.
     """
 
+    attestation = (
+        verify_source_extension_code_attestation()
+        if code_attestation is None
+        else code_attestation
+    )
+    attestation.verify_runtime()
     _require(len(records) == partition_records, "source extension partition count mismatch")
     assets: list[_RawAsset] = []
     source_by_article: dict[str, Mapping[str, Any]] = {}
@@ -4540,4 +5223,5 @@ def build_source_bearing_extension(
         source_by_article=source_by_article,
         partition_records=partition_records,
         source_chunk_sha256=source_chunk_sha256,
+        code_attestation=attestation,
     ).build()

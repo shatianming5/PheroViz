@@ -77,6 +77,14 @@ legacy, malformed, or ambiguous evidence fails closed. A byte-valid table with
 no deterministic source mapping receives an explicit, hash-bound source-only
 exclusion; it never falls back to an empty chain.
 
+Before a source-bearing V2 execution or replay, the finalizer requires a clean,
+reviewed code-attestation commit that adds only
+`c2_source_bearing_extension_code_attestation.json` over its pinned
+implementation parent. The manifest binds the exact Git blobs and SHA-256 bytes
+for the extension, its closed schemas, the finalizer, and CLI. The running
+module paths and worktree bytes must equal those blobs before construction and
+on every replay; runtime file hashes alone are not an attestation.
+
 The canonical target leaf is never created directly. Its pre-existing direct
 parent is the private staging parent: it is opened by a retained no-follow FD
 with the full ancestor chain descriptor-validated, must be owned by root or

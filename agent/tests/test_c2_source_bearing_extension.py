@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import subprocess
 import zipfile
 from pathlib import Path
 from types import SimpleNamespace
@@ -16,6 +17,7 @@ from experiments.c2_source_bearing_extension import (
     SourceBearingExtensionError,
     build_source_bearing_extension,
     validate_source_bearing_extension,
+    verify_source_extension_code_attestation,
 )
 from tests.test_c2_remediation_root_finalizer import _make_fixture
 from tests.test_experiment_support import experiment_workspace
@@ -60,6 +62,46 @@ def _zip(entries: dict[str, bytes]) -> bytes:
         for name, payload in entries.items():
             archive.writestr(name, payload)
     return output.getvalue()
+
+
+def _xlsx() -> bytes:
+    return _zip(
+        {
+            "[Content_Types].xml": (
+                b'<Types xmlns="http://schemas.openxmlformats.org/package/2006/'
+                b'content-types"><Default Extension="rels" ContentType="application/'
+                b'vnd.openxmlformats-package.relationships+xml"/><Default '
+                b'Extension="xml" ContentType="application/xml"/><Override '
+                b'PartName="/xl/workbook.xml" ContentType="application/vnd.'
+                b'openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+                b'<Override PartName="/xl/worksheets/sheet1.xml" ContentType='
+                b'"application/vnd.openxmlformats-officedocument.spreadsheetml.'
+                b'worksheet+xml"/></Types>'
+            ),
+            "_rels/.rels": (
+                b'<Relationships xmlns="http://schemas.openxmlformats.org/package/'
+                b'2006/relationships"><Relationship Id="rId1" Type="http://'
+                b'schemas.openxmlformats.org/officeDocument/2006/relationships/'
+                b'officeDocument" Target="xl/workbook.xml"/></Relationships>'
+            ),
+            "xl/workbook.xml": (
+                b'<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/'
+                b'2006/main" xmlns:r="http://schemas.openxmlformats.org/'
+                b'officeDocument/2006/relationships"><sheets><sheet name="Sheet1" '
+                b'sheetId="1" r:id="rId1"/></sheets></workbook>'
+            ),
+            "xl/_rels/workbook.xml.rels": (
+                b'<Relationships xmlns="http://schemas.openxmlformats.org/package/'
+                b'2006/relationships"><Relationship Id="rId1" Type="http://'
+                b'schemas.openxmlformats.org/officeDocument/2006/relationships/'
+                b'worksheet" Target="worksheets/sheet1.xml"/></Relationships>'
+            ),
+            "xl/worksheets/sheet1.xml": (
+                b'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/'
+                b'2006/main"><sheetData/></worksheet>'
+            ),
+        }
+    )
 
 
 def _asset(
@@ -258,6 +300,165 @@ def test_required_v2_schemas_are_closed_and_meta_schema_valid() -> None:
         assert schema["additionalProperties"] is False
 
 
+def test_code_attestation_rejects_wrong_commit_blob_and_runtime_path() -> None:
+    repository = Path(__file__).resolve().parents[2]
+    current_commit = subprocess.check_output(
+        ["git", "-C", str(repository), "rev-parse", "HEAD"],
+        text=True,
+    ).strip()
+    attestation = verify_source_extension_code_attestation(repository)
+    assert attestation.attestation_commit_full == current_commit
+    assert {
+        blob.relative_path for blob in attestation.code_blobs
+    } >= {
+        "agent/experiments/c2_source_bearing_extension.py",
+        "agent/experiments/c2_remediation_root_finalizer.py",
+        "agent/experiments/schemas/c2_v2_fd_format_classifier_config_v1.schema.json",
+    }
+
+    with experiment_workspace("c2-source-extension-attestation") as workspace:
+        clone = workspace / "attested-clone"
+        subprocess.run(
+            ["git", "clone", "--no-local", "--no-checkout", str(repository), str(clone)],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(clone), "checkout", "--detach", current_commit],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        extension_path = clone / "agent/experiments/c2_source_bearing_extension.py"
+        finalizer_path = clone / "agent/experiments/c2_remediation_root_finalizer.py"
+        verify_source_extension_code_attestation(
+            clone,
+            loaded_extension_path=extension_path,
+            loaded_finalizer_path=finalizer_path,
+        )
+        with pytest.raises(SourceBearingExtensionError, match="loaded runtime path"):
+            verify_source_extension_code_attestation(
+                clone,
+                loaded_extension_path=extension_path,
+                loaded_finalizer_path=Path(__file__),
+            )
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(clone),
+                "checkout",
+                "--detach",
+                attestation.approved_implementation_commit_full,
+            ],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        source_manifest = json.loads(
+            (
+                repository
+                / "agent/experiments/c2_source_bearing_extension_code_attestation.json"
+            ).read_text(encoding="utf-8")
+        )
+        source_manifest["attested_paths"][0]["sha256"] = "0" * 64
+        (clone / "agent/experiments/c2_source_bearing_extension_code_attestation.json").write_bytes(
+            _canonical(source_manifest) + b"\n"
+        )
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(clone),
+                "config",
+                "user.email",
+                "attestation-test@example.test",
+            ],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(clone),
+                "config",
+                "user.name",
+                "Attestation Test",
+            ],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(clone),
+                "add",
+                "agent/experiments/c2_source_bearing_extension_code_attestation.json",
+            ],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(clone), "commit", "-m", "forge attestation"],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        with pytest.raises(SourceBearingExtensionError, match="attested blob mismatch"):
+            verify_source_extension_code_attestation(
+                clone,
+                loaded_extension_path=extension_path,
+                loaded_finalizer_path=finalizer_path,
+            )
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(clone),
+                "checkout",
+                "--detach",
+                attestation.approved_implementation_commit_full,
+            ],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        with pytest.raises(SourceBearingExtensionError, match="attestation manifest"):
+            verify_source_extension_code_attestation(
+                clone,
+                loaded_extension_path=extension_path,
+                loaded_finalizer_path=finalizer_path,
+            )
+        subprocess.run(
+            ["git", "-C", str(clone), "checkout", "--detach", current_commit],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        extension_path.write_bytes(extension_path.read_bytes() + b"\n# forged\n")
+        with pytest.raises(SourceBearingExtensionError, match="worktree is dirty"):
+            verify_source_extension_code_attestation(
+                clone,
+                loaded_extension_path=extension_path,
+                loaded_finalizer_path=finalizer_path,
+            )
+
+
 def test_csv_pipeline_replays_without_models_and_retains_single_case() -> None:
     root, result = _build(_bound_assets())
 
@@ -349,14 +550,7 @@ def test_generic_zip_is_fd_accounted_and_every_member_is_consumed() -> None:
 
 
 def test_raw_xlsx_is_a_zip_accounted_outer_self_unit() -> None:
-    xlsx = _zip(
-        {
-            "[Content_Types].xml": b"<Types/>",
-            "_rels/.rels": b"<Relationships/>",
-            "xl/workbook.xml": b"<workbook/>",
-            "xl/worksheets/sheet1.xml": b"<worksheet/>",
-        }
-    )
+    xlsx = _xlsx()
     root, result = _build(
         _bound_assets(
             table_payload=xlsx,
@@ -375,6 +569,22 @@ def test_raw_xlsx_is_a_zip_accounted_outer_self_unit() -> None:
         entry["source_only_exclusion_reason_or_null"] for entry in account["entries"]
     } == {"XLSX_PACKAGE_COMPONENT"}
     assert result.canonical["case_count"] == 1
+
+    invalid_xlsx = _zip(
+        {
+            "[Content_Types].xml": b"<Types/>",
+            "_rels/.rels": b"<Relationships/>",
+            "xl/workbook.xml": b"<workbook/>",
+            "xl/worksheets/sheet1.xml": b"<worksheet/>",
+        }
+    )
+    with pytest.raises(SourceBearingExtensionError, match="DECLARED_KIND_FORMAT"):
+        _build(
+            _bound_assets(
+                table_payload=invalid_xlsx,
+                table_format=["ZIP_V1", "XLSX_V1"],
+            )
+        )
 
 
 def test_declared_format_bypass_cross_doi_and_mixed_p_fail_closed() -> None:
@@ -431,6 +641,78 @@ def test_declared_format_bypass_cross_doi_and_mixed_p_fail_closed() -> None:
         _build([*_bound_assets(), table2, table3])
 
 
+def test_duplicate_doi_case_group_panel_membership_is_terminal() -> None:
+    duplicate_group_hints = [
+        {
+            "member_selector_or_null": None,
+            "panel_id": "panel-a",
+            "case_group_or_null": "shared-case",
+            "figure_asset_id": "figure",
+            "caption_asset_id": "caption",
+        }
+    ]
+    duplicate_table = _asset(
+        article_id="article-1",
+        doi_id="10.9999/source-1",
+        asset_id="table-duplicate",
+        payload=b"panel,value\na,2\n",
+        kind="source_data",
+        detected=["NONE", "CSV_V1"],
+        hints=duplicate_group_hints,
+    )
+    with pytest.raises(SourceBearingExtensionError, match="DUPLICATE_PANEL_MEMBERSHIP"):
+        _build(
+            [
+                *_bound_assets(table_hints=duplicate_group_hints),
+                duplicate_table,
+            ]
+        )
+
+
+def test_archive_directory_data_and_aggregate_limits_fail_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    data_bearing_directory = _zip({"directory/": b"must not be ignored"})
+    with pytest.raises(SourceBearingExtensionError, match="DIRECTORY_ENTRY"):
+        _build(
+            [
+                _asset(
+                    article_id="article-1",
+                    doi_id="10.9999/source-1",
+                    asset_id="archive",
+                    payload=data_bearing_directory,
+                    kind="source_archive",
+                    detected=["ZIP_V1", "GENERIC_ZIP_V1"],
+                ),
+                *_bound_assets()[1:],
+            ]
+        )
+
+    import experiments.c2_source_bearing_extension as extension
+
+    monkeypatch.setattr(extension, "MAX_ARCHIVE_CONTAINER_UNCOMPRESSED_BYTES", 20)
+    aggregate_limited_archive = _zip(
+        {"first.txt": b"123456789012", "second.txt": b"abcdefghijkl"}
+    )
+    with pytest.raises(
+        SourceBearingExtensionError,
+        match="CONTAINER_UNCOMPRESSED_LIMIT",
+    ):
+        _build(
+            [
+                _asset(
+                    article_id="article-1",
+                    doi_id="10.9999/source-1",
+                    asset_id="archive",
+                    payload=aggregate_limited_archive,
+                    kind="source_archive",
+                    detected=["ZIP_V1", "GENERIC_ZIP_V1"],
+                ),
+                *_bound_assets()[1:],
+            ]
+        )
+
+
 def test_archive_traversal_rejects_and_unmapped_valid_table_stays_accounted() -> None:
     traversal = _zip({"../escape.csv": b"panel,value\na,1\n"})
     with pytest.raises(SourceBearingExtensionError, match="SELECTOR"):
@@ -456,6 +738,18 @@ def test_archive_traversal_rejects_and_unmapped_valid_table_stays_accounted() ->
     assert candidate_inputs[0]["candidate_outcome"] == "SOURCE_ONLY_EXCLUSION"
     assert consumption[0]["consumption_disposition"] == "CANDIDATE_SET_INPUT"
     assert exclusions[0]["reason_code"] == "NO_BOUND_FIGURE_CAPTION"
+    case_sets = json.loads(
+        root.read_bytes("canonical_v2/canonical_case_set_manifest.json")
+    )["case_sets"]
+    assert case_sets == [
+        {
+            "doi_id": "10.9999/source-1",
+            "cases": [],
+            "canonical_case_set_hash": _sha256(
+                _canonical({"doi_id": "10.9999/source-1", "cases": []})
+            ),
+        }
+    ]
 
 
 def test_consumption_review_and_raw_byte_tampering_are_rejected() -> None:

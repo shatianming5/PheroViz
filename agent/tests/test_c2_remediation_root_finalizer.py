@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -142,14 +143,14 @@ def _make_fixture(
         "FROZEN_FREEZE_SUMMARY_HASH",
         str(summary["summary_hash"]),
     )
+    worktree = Path(__file__).resolve().parents[2]
     monkeypatch.setattr(
         finalizer,
-        "_verify_worktree",
-        lambda _: {
-            "commit": finalizer.FROZEN_CODE_COMMIT,
-            "tree": "synthetic-clean-tree",
-            "dirty": False,
-        },
+        "FROZEN_CODE_COMMIT",
+        subprocess.check_output(
+            ["git", "-C", str(worktree), "rev-parse", "HEAD"],
+            text=True,
+        ).strip(),
     )
 
     raw_root = workspace / "raw"
@@ -389,8 +390,6 @@ def _make_fixture(
             }
         },
     )
-    worktree = workspace / "code-worktree"
-    worktree.mkdir(mode=0o700)
     return {
         "raw_root": raw_root,
         "target_root": target_parent / finalizer.expected_target_root_name(chunk_id),
