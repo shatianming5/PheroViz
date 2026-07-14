@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
 import uuid
@@ -9,9 +10,11 @@ from typing import Any, Iterator
 
 import pytest
 
+import experiments.c2_terminal_finalizer as c2_terminal_finalizer
 from experiments.c2_terminal_finalizer import (
     CHUNK_IDS,
     REPLACEMENT_CHUNK_IDS,
+    TERMINAL_OUTCOME_STATUSES,
     C2AdmissionError,
     finalize_manifest,
     validate_final_report,
@@ -22,6 +25,31 @@ from experiments.models import sha256_file, sha256_json
 
 SYNTHETIC_CODE_COMMIT = "a" * 40
 SYNTHETIC_UNIVERSE_SHA256 = "f" * 64
+EXPECTED_CHUNK_IDS = (
+    "001",
+    "002",
+    "003",
+    "004",
+    "005",
+    "006",
+    "007",
+    "008",
+    "009",
+    "010",
+    "011",
+    "012",
+    "013",
+)
+EXPECTED_REPLACEMENT_CHUNK_IDS = ("009", "010", "011", "012")
+EXPECTED_TERMINAL_OUTCOME_STATUSES = (
+    "DOWNLOADED",
+    "NO_SOURCE_DATA",
+    "NO_FIGURES",
+    "NO_USABLE_CONTENT",
+    "POLICY_REJECTED",
+    "DOWNLOAD_FAILED",
+    "RETRY_EXHAUSTED",
+)
 STRATA_BY_CHUNK = {
     "001": "P=1",
     "002": "P=1",
@@ -123,7 +151,7 @@ def _rebind_frozen_universe(
     report_paths: dict[str, Path],
 ) -> None:
     dois: list[str] = []
-    for chunk_id in CHUNK_IDS:
+    for chunk_id in EXPECTED_CHUNK_IDS:
         dois.extend(_read_json(report_paths[chunk_id])["chunk"]["input_doi_ids"])
     manifest["frozen_universe"]["input_total"] = len(dois)
     manifest["frozen_universe"]["doi_ids_sha256"] = sha256_json(dois)
@@ -139,7 +167,9 @@ def _build_admission(
     *,
     p5plus_single_cluster: bool = False,
 ) -> tuple[Path, dict[str, Any], dict[str, Path]]:
-    source_dois = [f"10.9000/synthetic-{chunk_id}" for chunk_id in CHUNK_IDS]
+    source_dois = [
+        f"10.9000/synthetic-{chunk_id}" for chunk_id in EXPECTED_CHUNK_IDS
+    ]
     frozen_universe = {
         "sha256": SYNTHETIC_UNIVERSE_SHA256,
         "input_total": len(source_dois),
@@ -149,8 +179,8 @@ def _build_admission(
     report_paths: dict[str, Path] = {}
     chunks: list[dict[str, Any]] = []
     excluded_roots: list[dict[str, str]] = []
-    for chunk_id, doi in zip(CHUNK_IDS, source_dois, strict=True):
-        if chunk_id in REPLACEMENT_CHUNK_IDS:
+    for chunk_id, doi in zip(EXPECTED_CHUNK_IDS, source_dois, strict=True):
+        if chunk_id in EXPECTED_REPLACEMENT_CHUNK_IDS:
             root = {
                 "root_id": f"replacement-root-{chunk_id}",
                 "root_kind": "replacement",
@@ -238,7 +268,7 @@ def _build_admission(
         "frozen_universe": frozen_universe,
         "code": code,
         "replacement_policy": {
-            "replacement_chunk_ids": list(REPLACEMENT_CHUNK_IDS),
+            "replacement_chunk_ids": list(EXPECTED_REPLACEMENT_CHUNK_IDS),
             "excluded_superseded_roots": excluded_roots,
         },
         "chunks": chunks,
@@ -265,6 +295,132 @@ def _all_keys(value: Any) -> set[str]:
     if isinstance(value, list):
         return set().union(*(_all_keys(item) for item in value)) if value else set()
     return set()
+
+
+def test_exported_rosters_match_independent_literal_oracles() -> None:
+    assert CHUNK_IDS == EXPECTED_CHUNK_IDS
+    assert REPLACEMENT_CHUNK_IDS == EXPECTED_REPLACEMENT_CHUNK_IDS
+    assert set(STRATA_BY_CHUNK) == set(EXPECTED_CHUNK_IDS)
+
+
+def test_literal_roster_oracle_detects_an_altered_production_roster(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _workspace("altered-roster") as workspace:
+        manifest_path, _, _ = _build_admission(workspace)
+        monkeypatch.setattr(
+            c2_terminal_finalizer,
+            "CHUNK_IDS",
+            EXPECTED_CHUNK_IDS[:-1] + ("014",),
+        )
+
+        with pytest.raises(C2AdmissionError, match="complete ordered roster"):
+            c2_terminal_finalizer.finalize_manifest(manifest_path)
+
+
+def test_terminal_status_allowlist_is_closed_in_schema_and_validator() -> None:
+    schema_path = (
+        Path(c2_terminal_finalizer.__file__).resolve().parent
+        / "schemas"
+        / "c2_terminal_chunk_report.schema.json"
+    )
+    schema = _read_json(schema_path)
+    status_schema = schema["$defs"]["terminalOutcome"]["properties"][
+        "terminal_status"
+    ]
+    assert tuple(status_schema["enum"]) == EXPECTED_TERMINAL_OUTCOME_STATUSES
+    assert TERMINAL_OUTCOME_STATUSES == frozenset(
+        EXPECTED_TERMINAL_OUTCOME_STATUSES
+    )
+
+    input_dois = ("10.9000/synthetic-001",)
+    for status in ("QUEUED", "UNKNOWN_STATUS", "PENDING"):
+        execution = {
+            "attempts_per_input": 3,
+            "all_inputs_terminal": True,
+            "outcomes": [
+                {
+                    "doi_id": input_dois[0],
+                    "attempt_count": 3,
+                    "terminal": True,
+                    "terminal_status": status,
+                }
+            ],
+        }
+        with pytest.raises(C2AdmissionError, match="unapproved terminal status"):
+            c2_terminal_finalizer._validate_terminal_outcomes(
+                execution,
+                input_dois,
+                "001",
+            )
+
+
+@pytest.mark.parametrize("status", ("QUEUED", "UNKNOWN_STATUS", "PENDING"))
+def test_schema_rejects_unknown_queued_and_nonterminal_statuses(status: str) -> None:
+    with _workspace(f"terminal-status-{status}") as workspace:
+        manifest_path, manifest, report_paths = _build_admission(workspace)
+        report_path = report_paths["013"]
+        report = _read_json(report_path)
+        report["execution"]["outcomes"][0]["terminal_status"] = status
+        _save_and_refresh(
+            report_path,
+            report,
+            manifest,
+            manifest_path,
+            report_paths,
+        )
+
+        with pytest.raises(C2AdmissionError, match="schema validation failed"):
+            finalize_manifest(manifest_path)
+
+
+def test_final_report_hashes_the_exact_manifest_and_report_bytes_read(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _workspace("byte-substitution") as workspace:
+        manifest_path, _, report_paths = _build_admission(workspace)
+        report_path = report_paths["013"]
+        manifest_bytes = manifest_path.read_bytes()
+        report_bytes = report_path.read_bytes()
+        expected_manifest_sha256 = hashlib.sha256(manifest_bytes).hexdigest()
+        expected_report_sha256 = hashlib.sha256(report_bytes).hexdigest()
+        expected_report_hash = _read_json(report_path)["report_hash"]
+        manifest_resolved = manifest_path.resolve()
+        report_resolved = report_path.resolve()
+        original_reader = c2_terminal_finalizer._read_json_object
+
+        def _read_then_substitute(
+            path: Path,
+            label: str,
+        ) -> tuple[dict[str, Any], str]:
+            value, payload_sha256 = original_reader(path, label)
+            if path == manifest_resolved:
+                path.write_bytes(b'{"substituted_manifest":true}\n')
+            elif path == report_resolved:
+                path.write_bytes(b'{"substituted_report":true}\n')
+            return value, payload_sha256
+
+        monkeypatch.setattr(
+            c2_terminal_finalizer,
+            "_read_json_object",
+            _read_then_substitute,
+        )
+        final_report = c2_terminal_finalizer.finalize_manifest(manifest_path)
+
+        report_binding = next(
+            item for item in final_report["chunks"] if item["chunk_id"] == "013"
+        )
+        assert final_report["admission_manifest"]["file_sha256"] == (
+            expected_manifest_sha256
+        )
+        assert report_binding["report_file_sha256"] == expected_report_sha256
+        assert report_binding["report_hash"] == expected_report_hash
+        assert hashlib.sha256(manifest_path.read_bytes()).hexdigest() != (
+            expected_manifest_sha256
+        )
+        assert hashlib.sha256(report_path.read_bytes()).hexdigest() != (
+            expected_report_sha256
+        )
 
 
 def test_admits_complete_sealed_roster_and_emits_terminal_only_report(

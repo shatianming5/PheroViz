@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -14,7 +15,7 @@ from typing import Any, Mapping, Sequence
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
 
-from .models import ProvenanceError, sha256_file, sha256_json, write_json_atomic
+from .models import ProvenanceError, sha256_json, write_json_atomic
 
 
 C2_FINALIZER_VERSION = "1.0"
@@ -25,14 +26,17 @@ _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 _DOI_RE = re.compile(r"^10\.[0-9]{4,9}/\S+$")
 _ROOT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
-_NONTERMINAL_OUTCOME_STATUSES = {
-    "NOT_STARTED",
-    "PENDING",
-    "RUNNING",
-    "IN_PROGRESS",
-    "RETRY_PENDING",
-    "UNKNOWN",
-}
+TERMINAL_OUTCOME_STATUSES = frozenset(
+    {
+        "DOWNLOADED",
+        "NO_SOURCE_DATA",
+        "NO_FIGURES",
+        "NO_USABLE_CONTENT",
+        "POLICY_REJECTED",
+        "DOWNLOAD_FAILED",
+        "RETRY_EXHAUSTED",
+    }
+)
 _BLOCKED_STATUS_BY_STRATUM = {
     "P=1": "BLOCKED_INSUFFICIENT_INDEPENDENT_P1",
     "P=2": "BLOCKED_INSUFFICIENT_INDEPENDENT_P2",
@@ -49,13 +53,18 @@ def _reject_json_constant(value: str) -> None:
     raise C2AdmissionError(f"Non-finite JSON value is forbidden: {value}")
 
 
-def _read_json_object(path: Path, label: str) -> tuple[dict[str, Any], bytes]:
+def _sha256_bytes(payload: bytes) -> str:
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _read_json_object(path: Path, label: str) -> tuple[dict[str, Any], str]:
     if path.is_symlink():
         raise C2AdmissionError(f"{label} must not be a symlink: {path}")
     try:
         payload_bytes = path.read_bytes()
     except OSError as exc:
         raise C2AdmissionError(f"Cannot read {label}: {path}") from exc
+    payload_sha256 = _sha256_bytes(payload_bytes)
     try:
         value = json.loads(
             payload_bytes.decode("utf-8"),
@@ -67,7 +76,7 @@ def _read_json_object(path: Path, label: str) -> tuple[dict[str, Any], bytes]:
         raise C2AdmissionError(f"Invalid {label} JSON: {path}") from exc
     if not isinstance(value, dict):
         raise C2AdmissionError(f"{label} must be a JSON object: {path}")
-    return value, payload_bytes
+    return value, payload_sha256
 
 
 @lru_cache(maxsize=None)
@@ -318,8 +327,10 @@ def _validate_terminal_outcomes(
             )
         if outcome["terminal"] is not True:
             raise C2AdmissionError(f"chunk {chunk_id} has a nonterminal outcome")
-        if outcome["terminal_status"] in _NONTERMINAL_OUTCOME_STATUSES:
-            raise C2AdmissionError(f"chunk {chunk_id} records a nonterminal status")
+        if outcome["terminal_status"] not in TERMINAL_OUTCOME_STATUSES:
+            raise C2AdmissionError(
+                f"chunk {chunk_id} records an unapproved terminal status"
+            )
 
 
 def _validate_evidence(
@@ -517,7 +528,7 @@ def finalize_manifest(manifest_path: Path) -> dict[str, Any]:
         raise C2AdmissionError(f"Admission manifest path is missing: {manifest_path}") from exc
     if not resolved_manifest.is_file():
         raise C2AdmissionError("Admission manifest path is not a file")
-    manifest, manifest_bytes = _read_json_object(
+    manifest, manifest_file_sha256 = _read_json_object(
         resolved_manifest,
         "C2 admission manifest",
     )
@@ -543,12 +554,14 @@ def finalize_manifest(manifest_path: Path) -> dict[str, Any]:
         if report_path in seen_report_files:
             raise C2AdmissionError("Admission manifest resolves multiple chunks to one report")
         seen_report_files.add(report_path)
-        actual_file_sha256 = sha256_file(report_path)
+        report, actual_file_sha256 = _read_json_object(
+            report_path,
+            f"chunk {chunk_id} sealed report",
+        )
         if actual_file_sha256 != entry["expected_report_file_sha256"]:
             raise C2AdmissionError(
                 f"chunk {chunk_id} sealed report file hash is stale or mismatched"
             )
-        report, _ = _read_json_object(report_path, f"chunk {chunk_id} sealed report")
         source_dois, chunk_assignments = _validate_chunk_report(
             report,
             entry,
@@ -619,7 +632,7 @@ def finalize_manifest(manifest_path: Path) -> dict[str, Any]:
         "trend_status": "NOT_RUN",
         "equivalence_status": "NOT_RUN",
         "admission_manifest": {
-            "file_sha256": sha256_file(resolved_manifest),
+            "file_sha256": manifest_file_sha256,
             "manifest_hash": manifest["manifest_hash"],
         },
         "frozen_universe": dict(frozen),

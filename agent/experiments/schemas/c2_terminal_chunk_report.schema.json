@@ -186,9 +186,15 @@
           "const": true
         },
         "terminal_status": {
-          "type": "string",
-          "minLength": 1,
-          "pattern": "^[A-Z][A-Z0-9_+-]*$"
+          "enum": [
+            "DOWNLOADED",
+            "NO_SOURCE_DATA",
+            "NO_FIGURES",
+            "NO_USABLE_CONTENT",
+            "POLICY_REJECTED",
+            "DOWNLOAD_FAILED",
+            "RETRY_EXHAUSTED"
+          ]
         }
       },
       "additionalProperties": false
