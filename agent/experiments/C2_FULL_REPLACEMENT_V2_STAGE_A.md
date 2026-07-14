@@ -124,9 +124,12 @@ object or self-hash as a publication authority.
 
 ## Stage B gate
 
-Stage B still needs forensic approval and a Git-reviewed internal resource that
-pins frozen universe bindings, replacement plan, source/canonical rule hashes,
-and raw-source commitments. It must not add a full acquisition DOI→P map.
-Only verified source/canonical case evidence may derive a P stratum. Until
+Stage B has a closed schema and a package-internal, no-selector resolver
+foundation, but it has no production resource, compiled resource-byte digest,
+or approved evidence commitments. The resolver therefore still fails before it
+can read a manifest or evidence. A future resource needs forensic approval and
+must pin frozen universe bindings, replacement plan, source/canonical rule
+hashes, and raw-source commitments. It must not add a full acquisition DOI→P
+map. Only verified source/canonical case evidence may derive a P stratum. Until
 then, no production manifest, root, report, scientific claim, or analysis is
 authorized.
