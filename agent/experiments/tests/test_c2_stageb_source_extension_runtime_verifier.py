@@ -274,6 +274,163 @@ def test_dynamic_import_is_rejected_from_runtime_closure() -> None:
         _compile_runtime_closure(dynamic_files)
 
 
+@pytest.mark.parametrize(
+    "source",
+    [
+        (
+            b"from importlib import import_module\n"
+            b"import_module('.aggregate', package=__package__)\n"
+        ),
+        (
+            b"from importlib import import_module as imp\n"
+            b"imp('.aggregate', package=__package__)\n"
+        ),
+        b"from builtins import __import__\n__import__('.aggregate')\n",
+        (
+            b"from builtins import __import__ as imp\n"
+            b"imp('.aggregate')\n"
+        ),
+        (
+            b"import importlib as importer\n"
+            b"importer.import_module('.aggregate', package=__package__)\n"
+        ),
+        b"import builtins as builtin_module\nbuiltin_module.__import__('.aggregate')\n",
+        (
+            b"import importlib as importer\n"
+            b"imp = importer.import_module\n"
+            b"imp('.aggregate', package=__package__)\n"
+        ),
+        (
+            b"import builtins as builtin_module\n"
+            b"imp = builtin_module.__import__\n"
+            b"imp('.aggregate')\n"
+        ),
+        (
+            b"import importlib as importer\n"
+            b"nested = importer\n"
+            b"nested_again = nested\n"
+            b"nested_again.import_module('.aggregate', package=__package__)\n"
+        ),
+        (
+            b"import builtins as builtin_module\n"
+            b"nested = builtin_module\n"
+            b"nested_again = nested\n"
+            b"nested_again.__import__('.aggregate')\n"
+        ),
+        (
+            b"from importlib import import_module as imp\n"
+            b"nested = imp\n"
+            b"nested_again = nested\n"
+            b"nested_again('.aggregate', package=__package__)\n"
+        ),
+        (
+            b"from builtins import __import__ as imp\n"
+            b"nested = imp\n"
+            b"nested_again = nested\n"
+            b"nested_again('.aggregate')\n"
+        ),
+        (
+            b"import importlib as importer\n"
+            b"imp = getattr(importer, 'import_module')\n"
+            b"imp('.aggregate', package=__package__)\n"
+        ),
+        (
+            b"import builtins as builtin_module\n"
+            b"imp = getattr(builtin_module, '__import__')\n"
+            b"imp('.aggregate')\n"
+        ),
+        (
+            b"import importlib as importer\n"
+            b"holder.imp = importer.import_module\n"
+            b"holder.imp('.aggregate', package=__package__)\n"
+        ),
+        (
+            b"import builtins as builtin_module\n"
+            b"holder.imp = builtin_module.__import__\n"
+            b"holder.imp('.aggregate')\n"
+        ),
+        (
+            b"import importlib as importer\n"
+            b"setattr(holder, 'imp', importer.import_module)\n"
+            b"holder.imp('.aggregate', package=__package__)\n"
+        ),
+        (
+            b"import builtins as builtin_module\n"
+            b"class Holder:\n"
+            b"    imp = builtin_module.__import__\n"
+            b"Holder.imp('.aggregate')\n"
+        ),
+    ],
+)
+def test_dynamic_import_aliases_are_rejected_from_runtime_closure(
+    source: bytes,
+) -> None:
+    fixture = _fixture()
+    alias_files = _replace_runtime_bytes(
+        fixture.runtime_files,
+        "agent/experiments/cli.py",
+        source,
+    )
+
+    with pytest.raises(C2FullReplacementPolicyError, match="dynamic imports"):
+        _compile_runtime_closure(alias_files)
+
+
+def test_unproven_alias_call_target_is_rejected_from_runtime_closure() -> None:
+    fixture = _fixture()
+    unknown_alias_files = _replace_runtime_bytes(
+        fixture.runtime_files,
+        "agent/experiments/cli.py",
+        b"import importlib as importer\n"
+        b"imp = getattr(importer, method_name)\n"
+        b"imp('.aggregate', package=__package__)\n",
+    )
+
+    with pytest.raises(
+        C2FullReplacementPolicyError,
+        match="cannot be proven non-dynamic",
+    ):
+        _compile_runtime_closure(unknown_alias_files)
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        (
+            b"import importlib as importer\n"
+            b"imp, unused = importer.import_module, None\n"
+            b"imp('.aggregate', package=__package__)\n"
+        ),
+        (
+            b"import importlib as importer\n"
+            b"def invoke(imp):\n"
+            b"    imp('.aggregate', package=__package__)\n"
+            b"invoke(importer.import_module)\n"
+        ),
+        (
+            b"import importlib as importer\n"
+            b"for imp in (importer.import_module,):\n"
+            b"    imp('.aggregate', package=__package__)\n"
+        ),
+    ],
+)
+def test_indirect_dynamic_alias_call_targets_fail_closed(
+    source: bytes,
+) -> None:
+    fixture = _fixture()
+    indirect_alias_files = _replace_runtime_bytes(
+        fixture.runtime_files,
+        "agent/experiments/cli.py",
+        source,
+    )
+
+    with pytest.raises(
+        C2FullReplacementPolicyError,
+        match="cannot be proven non-dynamic",
+    ):
+        _compile_runtime_closure(indirect_alias_files)
+
+
 def test_absent_production_resource_fails_before_registry_or_fixture_access(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -565,5 +722,6 @@ def test_required_test_matrix_is_explicit_and_closed() -> None:
         "malformed-fixed-path-role-roster-is-rejected",
         "unrostered-or-unresolved-local-import-is-rejected",
         "duplicate-or-cyclic-local-import-graph-is-rejected",
+        "dynamic-import-aliases-and-unknown-targets-are-rejected",
         "test-only-fixture-is-not-a-production-input",
     )

@@ -155,3 +155,6 @@ evidence reader, signed lock, or admission route.
 The test-only closure resolves static project-local imports recursively to
 canonical repository-relative paths; unresolved, dynamic, duplicate, cyclic,
 traversing, or unrostered local dependencies fail closed.
+It tracks statically identifiable aliases of `importlib.import_module` and
+`builtins.__import__`, and rejects alias call targets that cannot be proven
+non-dynamic.
