@@ -142,3 +142,13 @@ roster required by that registry. The registry does not read Git, a worktree,
 the manifest, or evidence, and does not authorize the extension by itself.
 Its self-omitting canonical SHA-256 is its only registry identity; it accepts
 no declared free-form identifier.
+
+The separate source-extension runtime-verifier foundation is likewise
+non-admissive. Its public production entry point has no selector and, while the
+compile-pinned code-attestation resource is absent and no reviewed
+deployment-pinned runtime-lock adapter exists, fails before candidate Git,
+worktree, manifest, artifact, or evidence access. Its explicitly test-named
+in-memory interface defines the later lock/registry comparison for the two
+commit identities, manifest and canonical blob-set digests, fixed ordered
+path/role roster, and runtime byte/import closure. It is not a source root,
+evidence reader, signed lock, or admission route.
