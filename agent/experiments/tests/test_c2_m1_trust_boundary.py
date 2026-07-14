@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import shutil
 import subprocess
 import sys
@@ -105,6 +106,21 @@ def test_owner_execution_authorization_is_explicitly_non_independent() -> None:
     assert report["publication_authorized"] is False
     assert report["scientific_outcome_preapproved"] is False
     _assert_unavailable(m1_trust_boundary.require_external_m1_trust_lock)
+
+
+def test_production_source_routes_expose_no_attestation_injection() -> None:
+    assert "test_code_attestation" not in inspect.signature(
+        source_extension.build_source_bearing_extension
+    ).parameters
+    assert "test_code_attestation" not in inspect.signature(
+        source_extension.validate_source_bearing_extension
+    ).parameters
+    assert "test_code_attestation" in inspect.signature(
+        source_extension.build_source_bearing_extension_for_testing
+    ).parameters
+    assert "test_code_attestation" in inspect.signature(
+        source_extension.validate_source_bearing_extension_for_testing
+    ).parameters
 
 
 def test_terminal_public_apis_deny_before_caller_path_access_or_output_creation() -> None:
