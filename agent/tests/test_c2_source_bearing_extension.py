@@ -437,7 +437,10 @@ def test_code_attestation_rejects_wrong_commit_blob_and_runtime_path() -> None:
             stderr=subprocess.PIPE,
             text=True,
         )
-        with pytest.raises(SourceBearingExtensionError, match="attestation manifest"):
+        with pytest.raises(
+            SourceBearingExtensionError,
+            match="attestation commit",
+        ):
             verify_source_extension_code_attestation(
                 clone,
                 loaded_extension_path=extension_path,
