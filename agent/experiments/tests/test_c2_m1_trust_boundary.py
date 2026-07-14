@@ -12,6 +12,7 @@ import pytest
 
 import experiments.c2_full_replacement_evidence as full_replacement_evidence
 import experiments.c2_full_replacement_finalizer as full_replacement
+import experiments.c2_full_replacement_policy as full_replacement_policy
 import experiments.c2_remediation_root_finalizer as remediation
 import experiments.c2_remediation_preflight as preflight
 import experiments.c2_source_bearing_extension as source_extension
@@ -27,8 +28,25 @@ class _ExplodingCallerPath:
     def __getattr__(self, name: str) -> object:
         raise AssertionError(f"M1 gate accessed caller-controlled value via {name}")
 
+    def __hash__(self) -> int:
+        raise AssertionError("M1 gate used a caller-controlled cache key")
+
     def __fspath__(self) -> str:
         raise AssertionError("M1 gate accessed caller-controlled filesystem path")
+
+
+class _ExplodingCallerReport(dict[str, object]):
+    def __getitem__(self, key: str) -> object:
+        raise AssertionError(f"M1 gate inspected caller-controlled report key {key}")
+
+    def __iter__(self) -> Iterator[str]:
+        raise AssertionError("M1 gate iterated a caller-controlled report")
+
+    def items(self) -> object:
+        raise AssertionError("M1 gate inspected caller-controlled report items")
+
+    def get(self, key: str, default: object = None) -> object:
+        raise AssertionError(f"M1 gate inspected caller-controlled report key {key}")
 
 
 @contextmanager
@@ -211,6 +229,146 @@ def test_full_replacement_evidence_and_source_extension_paths_deny_before_inputs
             terminal_rows=caller_path,
             partition_records=1,
             source_chunk_sha256="0" * 64,
+        )
+    )
+
+
+def test_validation_entrypoints_deny_before_caller_controlled_data(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    caller_path = _ExplodingCallerPath()
+    caller_report = _ExplodingCallerReport()
+
+    _assert_unavailable(lambda: terminal.validate_final_report(caller_report))
+    _assert_unavailable(lambda: terminal._validate_final_report(caller_report))
+    _assert_unavailable(
+        lambda: terminal._validate_schema(
+            caller_report,
+            "c2_terminal_final_report.schema.json",
+            "sentinel",
+        )
+    )
+    _assert_unavailable(
+        lambda: full_replacement.validate_synthetic_final_report_for_testing(
+            caller_report,
+            caller_path,  # type: ignore[arg-type]
+        )
+    )
+    _assert_unavailable(
+        lambda: full_replacement_evidence._validate_schema(
+            caller_report,
+            "c2_full_replacement_final_report_v2.schema.json",
+            "sentinel",
+        )
+    )
+    _assert_unavailable(
+        lambda: full_replacement_evidence._validate_trusted_evidence_metadata(
+            caller_path,  # type: ignore[arg-type]
+            caller_path,  # type: ignore[arg-type]
+            caller_path,  # type: ignore[arg-type]
+            "sentinel",
+        )
+    )
+    _assert_unavailable(
+        lambda: full_replacement._build_test_report(  # type: ignore[arg-type]
+            caller_path,
+            caller_path,
+        )
+    )
+    _assert_unavailable(
+        lambda: full_replacement._build_validated_test_report(  # type: ignore[arg-type]
+            caller_path,
+            caller_path,
+        )
+    )
+    _assert_unavailable(
+        lambda: full_replacement._validate_ledger_structure(  # type: ignore[arg-type]
+            caller_path,
+            caller_path,
+        )
+    )
+    admission = full_replacement.ValidatedFullReplacementAdmission(
+        policy=caller_path,  # type: ignore[arg-type]
+        evidence=caller_path,  # type: ignore[arg-type]
+    )
+    _assert_unavailable(lambda: admission.report)
+    _assert_unavailable(
+        lambda: full_replacement_policy.compile_synthetic_policy_for_testing(
+            caller_report
+        )
+    )
+    _assert_unavailable(
+        lambda: source_extension.validate_source_evidence_descriptor_v2(
+            caller_report,
+            article_id=caller_path,  # type: ignore[arg-type]
+            doi_id=caller_path,  # type: ignore[arg-type]
+            provenance_relative_path=caller_path,  # type: ignore[arg-type]
+        )
+    )
+
+    def _unexpected_fstat(*_args: object, **_kwargs: object) -> object:
+        pytest.fail("M1 gate accessed a caller-controlled evidence descriptor")
+
+    with monkeypatch.context() as patched:
+        patched.setattr(full_replacement_evidence.os, "fstat", _unexpected_fstat)
+        _assert_unavailable(
+            lambda: full_replacement_evidence.validate_trusted_directory_descriptor(
+                caller_path,  # type: ignore[arg-type]
+                caller_path,  # type: ignore[arg-type]
+            )
+        )
+        _assert_unavailable(
+            lambda: full_replacement_evidence.validate_trusted_regular_file_descriptor(
+                caller_path,  # type: ignore[arg-type]
+                caller_path,  # type: ignore[arg-type]
+            )
+        )
+
+
+def test_cached_schema_validation_denies_after_m1_loss(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with monkeypatch.context() as patched:
+        patched.setattr(
+            terminal,
+            "require_external_m1_trust_lock",
+            lambda: None,
+        )
+        terminal._schema_validator("c2_terminal_final_report.schema.json")
+    with monkeypatch.context() as patched:
+        patched.setattr(
+            full_replacement_evidence,
+            "require_external_m1_trust_lock",
+            lambda: None,
+        )
+        full_replacement_evidence._schema_validator(
+            "c2_full_replacement_final_report_v2.schema.json"
+        )
+
+    caller_path = _ExplodingCallerPath()
+    caller_report = _ExplodingCallerReport()
+    _assert_unavailable(
+        lambda: terminal._schema_validator(caller_path)  # type: ignore[arg-type]
+    )
+    _assert_unavailable(lambda: terminal.validate_final_report(caller_report))
+    _assert_unavailable(lambda: terminal._validate_final_report(caller_report))
+    _assert_unavailable(
+        lambda: terminal._validate_schema(
+            caller_report,
+            "c2_terminal_final_report.schema.json",
+            "sentinel",
+        )
+    )
+    _assert_unavailable(
+        lambda: full_replacement_evidence._schema_validator(
+            caller_path  # type: ignore[arg-type]
+        )
+    )
+    _assert_unavailable(
+        lambda: full_replacement_evidence._validate_schema(
+            caller_report,
+            "c2_full_replacement_final_report_v2.schema.json",
+            "sentinel",
         )
     )
 

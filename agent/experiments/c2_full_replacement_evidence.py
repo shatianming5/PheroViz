@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
@@ -55,6 +55,7 @@ def _validate_trusted_evidence_metadata(
     path: Path,
     label: str,
 ) -> None:
+    require_external_m1_trust_lock()
     if not hasattr(os, "geteuid"):
         raise ProvenanceError(f"{label} requires an effective uid")
     if metadata.st_uid not in {0, os.geteuid()}:
@@ -73,6 +74,7 @@ def validate_trusted_directory_descriptor(
 ) -> os.stat_result:
     """Validate an opened evidence directory's immutable trust boundary."""
 
+    require_external_m1_trust_lock()
     metadata = os.fstat(descriptor)
     if not stat.S_ISDIR(metadata.st_mode):
         raise ProvenanceError(f"{label} is not a directory: {path}")
@@ -88,6 +90,7 @@ def validate_trusted_regular_file_descriptor(
 ) -> os.stat_result:
     """Validate an opened evidence leaf without following its pathname."""
 
+    require_external_m1_trust_lock()
     metadata = os.fstat(descriptor)
     if not stat.S_ISREG(metadata.st_mode):
         raise ProvenanceError(f"{label} is not a regular file: {path}")
@@ -356,25 +359,35 @@ def _reject_json_constant(value: str) -> None:
     )
 
 
-@lru_cache(maxsize=None)
-def _schema_validator(schema_name: str) -> Draft202012Validator:
-    schema_path = Path(__file__).resolve().parent / "schemas" / schema_name
-    try:
-        schema = json.loads(
-            schema_path.read_text(encoding="utf-8"),
-            parse_constant=_reject_json_constant,
-        )
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise C2FullReplacementEvidenceError(
-            f"Cannot read bundled V2.1 schema {schema_name}"
-        ) from exc
-    try:
-        Draft202012Validator.check_schema(schema)
-    except SchemaError as exc:
-        raise C2FullReplacementEvidenceError(
-            f"Bundled V2.1 schema is invalid: {schema_name}"
-        ) from exc
-    return Draft202012Validator(schema)
+def _make_schema_validator() -> Callable[[str], Draft202012Validator]:
+    @lru_cache(maxsize=None)
+    def _cached_schema_validator(schema_name: str) -> Draft202012Validator:
+        schema_path = Path(__file__).resolve().parent / "schemas" / schema_name
+        try:
+            schema = json.loads(
+                schema_path.read_text(encoding="utf-8"),
+                parse_constant=_reject_json_constant,
+            )
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise C2FullReplacementEvidenceError(
+                f"Cannot read bundled V2.1 schema {schema_name}"
+            ) from exc
+        try:
+            Draft202012Validator.check_schema(schema)
+        except SchemaError as exc:
+            raise C2FullReplacementEvidenceError(
+                f"Bundled V2.1 schema is invalid: {schema_name}"
+            ) from exc
+        return Draft202012Validator(schema)
+
+    def _guarded_schema_validator(schema_name: str) -> Draft202012Validator:
+        require_external_m1_trust_lock()
+        return _cached_schema_validator(schema_name)
+
+    return _guarded_schema_validator
+
+
+_schema_validator = _make_schema_validator()
 
 
 def _validation_location(error_path: Sequence[Any]) -> str:
@@ -382,6 +395,7 @@ def _validation_location(error_path: Sequence[Any]) -> str:
 
 
 def _validate_schema(value: Any, schema_name: str, label: str) -> None:
+    require_external_m1_trust_lock()
     errors = sorted(
         _schema_validator(schema_name).iter_errors(value),
         key=lambda error: _validation_location(tuple(error.absolute_path)),

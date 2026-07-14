@@ -55,6 +55,7 @@ class ValidatedFullReplacementAdmission:
     def report(self) -> Mapping[str, Any]:
         """Expose a read-only diagnostic projection that publication never uses."""
 
+        require_external_m1_trust_lock()
         return freeze_evidence_value(
             _build_validated_test_report(self.policy, self.evidence)
         )
@@ -99,6 +100,7 @@ def _build_test_report(
     policy: CompiledFullReplacementPolicy,
     evidence: ValidatedRawEvidence,
 ) -> dict[str, Any]:
+    require_external_m1_trust_lock()
     aggregation = aggregate_stratified_source_classifications(
         evidence.stratified_source_classifications
     )
@@ -178,6 +180,7 @@ def _build_validated_test_report(
     policy: CompiledFullReplacementPolicy,
     evidence: ValidatedRawEvidence,
 ) -> dict[str, Any]:
+    require_external_m1_trust_lock()
     report = _build_test_report(policy, evidence)
     validate_synthetic_final_report_for_testing(report, policy)
     return report
@@ -196,6 +199,7 @@ def _validate_ledger_structure(
     ledger: Sequence[Mapping[str, Any]],
     policy: CompiledFullReplacementPolicy,
 ) -> None:
+    require_external_m1_trust_lock()
     expected_keys = [
         (chunk_id, attempt_id)
         for chunk_id in CHUNK_IDS
@@ -235,6 +239,7 @@ def validate_synthetic_final_report_for_testing(
 ) -> None:
     """Validate test-only output without accepting report P labels as inputs."""
 
+    require_external_m1_trust_lock()
     if not policy.is_test_only:
         raise C2FullReplacementError(
             "Stage-A final report validation accepts only a synthetic policy"

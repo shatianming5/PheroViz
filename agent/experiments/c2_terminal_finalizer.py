@@ -12,7 +12,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
@@ -102,15 +102,27 @@ def _read_json_object(path: Path, label: str) -> tuple[dict[str, Any], str]:
     return value, payload_sha256
 
 
-@lru_cache(maxsize=None)
-def _schema_validator(schema_name: str) -> Draft202012Validator:
-    schema_path = Path(__file__).resolve().parent / "schemas" / schema_name
-    schema, _ = _read_json_object(schema_path, f"schema {schema_name}")
-    try:
-        Draft202012Validator.check_schema(schema)
-    except SchemaError as exc:
-        raise C2AdmissionError(f"Invalid bundled schema {schema_name}: {exc}") from exc
-    return Draft202012Validator(schema)
+def _make_schema_validator() -> Callable[[str], Draft202012Validator]:
+    @lru_cache(maxsize=None)
+    def _cached_schema_validator(schema_name: str) -> Draft202012Validator:
+        schema_path = Path(__file__).resolve().parent / "schemas" / schema_name
+        schema, _ = _read_json_object(schema_path, f"schema {schema_name}")
+        try:
+            Draft202012Validator.check_schema(schema)
+        except SchemaError as exc:
+            raise C2AdmissionError(
+                f"Invalid bundled schema {schema_name}: {exc}"
+            ) from exc
+        return Draft202012Validator(schema)
+
+    def _guarded_schema_validator(schema_name: str) -> Draft202012Validator:
+        require_external_m1_trust_lock()
+        return _cached_schema_validator(schema_name)
+
+    return _guarded_schema_validator
+
+
+_schema_validator = _make_schema_validator()
 
 
 def _validation_location(error_path: Sequence[Any]) -> str:
@@ -122,6 +134,7 @@ def _validate_schema(
     schema_name: str,
     label: str,
 ) -> None:
+    require_external_m1_trust_lock()
     errors = sorted(
         _schema_validator(schema_name).iter_errors(value),
         key=lambda error: _validation_location(tuple(error.absolute_path)),
@@ -476,6 +489,7 @@ def _blocked_status(deficient_strata: list[str]) -> str:
 
 
 def _validate_final_report(report: Mapping[str, Any]) -> None:
+    require_external_m1_trust_lock()
     _validate_schema(
         report,
         "c2_terminal_final_report.schema.json",
@@ -538,6 +552,7 @@ def _validate_final_report(report: Mapping[str, Any]) -> None:
 def validate_final_report(report: Mapping[str, Any]) -> None:
     """Validate a finalizer output without reading any live output root."""
 
+    require_external_m1_trust_lock()
     _validate_final_report(report)
 
 

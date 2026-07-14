@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Mapping, Sequence
 from urllib.parse import unquote, urlparse
 
+from .c2_m1_trust_boundary import require_external_m1_trust_lock
 from .models import ProvenanceError, sha256_json
 
 if TYPE_CHECKING:
@@ -663,6 +664,7 @@ def compile_synthetic_policy_for_testing(
 ) -> CompiledFullReplacementPolicy:
     """Compile a complete ordered acquisition policy for test code only."""
 
+    require_external_m1_trust_lock()
     if not isinstance(value, Mapping):
         raise C2FullReplacementPolicyError("Synthetic policy must be an object")
     _require_exact_keys(

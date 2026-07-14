@@ -2033,6 +2033,7 @@ def validate_source_evidence_descriptor_v2(
 ) -> tuple[Mapping[str, Any], ...]:
     """Validate the typed V2 raw descriptor before the generic finalizer copies it."""
 
+    require_external_m1_trust_lock()
     canonical_doi = _require_doi(doi_id, "source evidence V2 parent DOI is invalid")
     _require(
         set(descriptor)

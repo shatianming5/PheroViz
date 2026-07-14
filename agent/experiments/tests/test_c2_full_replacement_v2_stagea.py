@@ -16,6 +16,7 @@ import pytest
 
 import experiments.c2_full_replacement_evidence as v2_evidence
 import experiments.c2_full_replacement_finalizer as v2_finalizer
+import experiments.c2_full_replacement_policy as v2_policy
 from experiments.c2_full_replacement_evidence import thaw_evidence_value
 from experiments.c2_full_replacement_finalizer import (
     C2FullReplacementError,
@@ -83,7 +84,7 @@ def _exercise_guarded_full_replacement_paths(
 
 
 def _allow_m1_guard_for_test(monkeypatch: pytest.MonkeyPatch) -> None:
-    for module in (v2_evidence, v2_finalizer):
+    for module in (v2_evidence, v2_finalizer, v2_policy):
         monkeypatch.setattr(
             module,
             "require_external_m1_trust_lock",
