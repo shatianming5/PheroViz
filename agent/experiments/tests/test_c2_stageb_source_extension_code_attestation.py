@@ -390,7 +390,7 @@ def test_compile_pinned_resource_and_runtime_manifest_are_active() -> None:
     entry = code_attestation.load_compile_pinned_source_extension_code_attestation()
     runtime = code_attestation.load_verified_source_extension_runtime_attestation()
     assert entry.registry_id == (
-        "c99d59137970cea7679a8c7ec353cad53f01bfd5b8e16327d9e15598cf8158e6"
+        "8f6c28ec04f117fed35aa6d02b1c62f6f43e2c86f26200d3cd7e1a15b051d48b"
     )
     assert runtime.code_blob_set_sha256 == entry.canonical_attested_blob_set_sha256
     assert len(runtime.code_blobs) == 13
