@@ -1,0 +1,169 @@
+{
+  "admission_authorized": false,
+  "allowed_operations": [
+    "M3_READ_ONLY_PREFLIGHT",
+    "C2_REMEDIATION_EXECUTION",
+    "C2_SOURCE_EXTENSION_BUILD_REPLAY",
+    "C2_CANDIDATE_VALIDATION"
+  ],
+  "authorization_id_sha256": "9dd1b4bdb93082d04e14ea8fd21a21ca40700614cc16975f2fee21541fb7e17a",
+  "chunk_actions": [
+    {
+      "chunk_id": "001",
+      "required_action": "FRESH_REMEDIATION_REQUIRED"
+    },
+    {
+      "chunk_id": "002",
+      "required_action": "FRESH_REMEDIATION_REQUIRED"
+    },
+    {
+      "chunk_id": "003",
+      "required_action": "FRESH_REMEDIATION_REQUIRED"
+    },
+    {
+      "chunk_id": "004",
+      "required_action": "FRESH_REMEDIATION_REQUIRED"
+    },
+    {
+      "chunk_id": "005",
+      "required_action": "FRESH_REMEDIATION_REQUIRED"
+    },
+    {
+      "chunk_id": "006",
+      "required_action": "FRESH_REMEDIATION_REQUIRED"
+    },
+    {
+      "chunk_id": "007",
+      "required_action": "FRESH_REMEDIATION_REQUIRED"
+    },
+    {
+      "chunk_id": "008",
+      "required_action": "FRESH_REMEDIATION_REQUIRED"
+    },
+    {
+      "chunk_id": "009",
+      "required_action": "CANDIDATE_V2_VALIDATION_ONLY"
+    },
+    {
+      "chunk_id": "010",
+      "required_action": "CANDIDATE_V2_VALIDATION_ONLY"
+    },
+    {
+      "chunk_id": "011",
+      "required_action": "STRICT_PATH_ONLY_DERIVATIVE_OR_REMEDIATION_REQUIRED"
+    },
+    {
+      "chunk_id": "012",
+      "required_action": "CANDIDATE_V2_VALIDATION_ONLY"
+    },
+    {
+      "chunk_id": "013",
+      "required_action": "TRANSPARENT_63_INPUT_DERIVATIVE_OR_FRESH_3X63_REQUIRED"
+    }
+  ],
+  "frozen_universe": {
+    "input_total": 2463,
+    "partition": [
+      {
+        "chunk_file_sha256": "e6b5d229d94fab7768a95482bbe79b895808ab925e950a0dd4352b206f32faa0",
+        "chunk_id": "001",
+        "first_global_ordinal": 1,
+        "input_total": 200,
+        "last_global_ordinal": 200
+      },
+      {
+        "chunk_file_sha256": "fa4c8a566bc31c685f18ae41bd4f1706da7fed8fa22c7bb003737a2235fe3cc2",
+        "chunk_id": "002",
+        "first_global_ordinal": 201,
+        "input_total": 200,
+        "last_global_ordinal": 400
+      },
+      {
+        "chunk_file_sha256": "e9551e7f78de013a76836aaaa9d689f37158292f2ca23328b73a2c1a0af9c71f",
+        "chunk_id": "003",
+        "first_global_ordinal": 401,
+        "input_total": 200,
+        "last_global_ordinal": 600
+      },
+      {
+        "chunk_file_sha256": "fc6c116c3ce6b1d9f7b84a34eb48879a1295d18414977e386743810834fbff25",
+        "chunk_id": "004",
+        "first_global_ordinal": 601,
+        "input_total": 200,
+        "last_global_ordinal": 800
+      },
+      {
+        "chunk_file_sha256": "527e059cf0542cec972186d1d116683b37034019237035b2ec666f7b6f48d2c0",
+        "chunk_id": "005",
+        "first_global_ordinal": 801,
+        "input_total": 200,
+        "last_global_ordinal": 1000
+      },
+      {
+        "chunk_file_sha256": "8d655f46993dffcce32d56b44562f29a1589ce9242c8e2390543699e97125c95",
+        "chunk_id": "006",
+        "first_global_ordinal": 1001,
+        "input_total": 200,
+        "last_global_ordinal": 1200
+      },
+      {
+        "chunk_file_sha256": "6ce5ad09e06bcef088dd4ccfaff2f23a7f3ebe607046b816e52e2821e6518517",
+        "chunk_id": "007",
+        "first_global_ordinal": 1201,
+        "input_total": 200,
+        "last_global_ordinal": 1400
+      },
+      {
+        "chunk_file_sha256": "19504a671479ebaee75d0743a5961f656668a487038ab41a4d348168b52c8d3d",
+        "chunk_id": "008",
+        "first_global_ordinal": 1401,
+        "input_total": 200,
+        "last_global_ordinal": 1600
+      },
+      {
+        "chunk_file_sha256": "d56a075c9323a3154c511674c3828a607ac86b808707aadd01f273b9faff174d",
+        "chunk_id": "009",
+        "first_global_ordinal": 1601,
+        "input_total": 200,
+        "last_global_ordinal": 1800
+      },
+      {
+        "chunk_file_sha256": "ccdc184da2b9476e21d2d9c40a46b315af8d5e3f757fcece8409bfeb913bc9d0",
+        "chunk_id": "010",
+        "first_global_ordinal": 1801,
+        "input_total": 200,
+        "last_global_ordinal": 2000
+      },
+      {
+        "chunk_file_sha256": "b1f8fa222278391decd6fec78c9284da1f6ee1660fd082d664e68eeef7593bc7",
+        "chunk_id": "011",
+        "first_global_ordinal": 2001,
+        "input_total": 200,
+        "last_global_ordinal": 2200
+      },
+      {
+        "chunk_file_sha256": "41ba910500ef58eebba453ffeb5d4203549846694d9a985ce64ff273468f00d2",
+        "chunk_id": "012",
+        "first_global_ordinal": 2201,
+        "input_total": 200,
+        "last_global_ordinal": 2400
+      },
+      {
+        "chunk_file_sha256": "7454ec45409115cf81b085d8cb6821d6d05d811e4ed97365a53238464ab83d03",
+        "chunk_id": "013",
+        "first_global_ordinal": 2401,
+        "input_total": 63,
+        "last_global_ordinal": 2463
+      }
+    ],
+    "universe_file_sha256": "51848466c6bf6bf400b58faf539953830349abab21438e527eaefd74103450df"
+  },
+  "independent_verification": false,
+  "policy_id_sha256": "f1efdbc434523231f92da9746b890b31883d3ecd7616620cff0738d0531d9298",
+  "policy_phase": "PRE_REMEDIATION_EXECUTION",
+  "policy_type": "C2_OWNER_REMEDIATION_EXECUTION_POLICY",
+  "publication_authorized": false,
+  "schema_version": "c2-owner-remediation-execution-policy-v1",
+  "source_extension_runtime_registry_required": true,
+  "trust_mode": "OWNER_AUTHORIZED_NON_INDEPENDENT"
+}

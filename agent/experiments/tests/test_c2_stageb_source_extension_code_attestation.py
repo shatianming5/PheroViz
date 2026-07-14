@@ -172,6 +172,11 @@ def test_typed_fixture_compiles_but_production_loader_stays_non_admissive(
         "_read_compile_pinned_resource_bytes",
         lambda: payload,
     )
+    monkeypatch.setattr(
+        code_attestation,
+        "_SOURCE_EXTENSION_CODE_ATTESTATION_ROUTE_APPROVED",
+        False,
+    )
     with pytest.raises(C2FullReplacementPolicyError, match="intentionally non-admissive"):
         code_attestation.load_compile_pinned_source_extension_code_attestation()
 
@@ -187,8 +192,10 @@ def test_loader_has_no_selector_and_ignores_environment(
     monkeypatch.setenv("C2_STAGEB_CODE_ANCHOR_PATH", "/attacker/anchor.json")
     monkeypatch.setenv("C2_STAGEB_CODE_ANCHOR_SHA256", "f" * 64)
     monkeypatch.setenv("C2_STAGEB_CODE_ANCHOR_EVIDENCE", "/attacker/evidence")
-    with pytest.raises(C2FullReplacementPolicyError, match="Stage-A only"):
-        code_attestation.load_compile_pinned_source_extension_code_attestation()
+    loaded = code_attestation.load_compile_pinned_source_extension_code_attestation()
+    assert loaded.resource_sha256 == (
+        code_attestation._SOURCE_EXTENSION_CODE_ATTESTATION_RESOURCE_SHA256
+    )
 
     parser = _build_parser()
     parsed = parser.parse_args(
@@ -368,15 +375,20 @@ def test_runtime_path_role_mismatch_is_rejected() -> None:
         _compile(entry)
 
 
-def test_no_compile_pinned_resource_exists() -> None:
-    assert code_attestation._SOURCE_EXTENSION_CODE_ATTESTATION_RESOURCE_SHA256 is None
-    assert not code_attestation._SOURCE_EXTENSION_CODE_ATTESTATION_ROUTE_APPROVED
+def test_compile_pinned_resource_and_runtime_manifest_are_active() -> None:
+    assert isinstance(
+        code_attestation._SOURCE_EXTENSION_CODE_ATTESTATION_RESOURCE_SHA256,
+        str,
+    )
+    assert code_attestation._SOURCE_EXTENSION_CODE_ATTESTATION_ROUTE_APPROVED
     resource = resources.files(
         code_attestation._SOURCE_EXTENSION_CODE_ATTESTATION_RESOURCE_PACKAGE
     ).joinpath(*code_attestation._SOURCE_EXTENSION_CODE_ATTESTATION_RESOURCE_PARTS)
-    assert not resource.is_file()
-    with pytest.raises(
-        C2FullReplacementPolicyError,
-        match="no reviewed compile-pinned internal source-extension",
-    ):
-        code_attestation.load_compile_pinned_source_extension_code_attestation()
+    assert resource.is_file()
+    entry = code_attestation.load_compile_pinned_source_extension_code_attestation()
+    runtime = code_attestation.load_verified_source_extension_runtime_attestation()
+    assert entry.registry_id == (
+        "9623ad35841c86323be4360b2163eda3d728db0070d86d8a09217bccd10a74e4"
+    )
+    assert runtime.code_blob_set_sha256 == entry.canonical_attested_blob_set_sha256
+    assert len(runtime.code_blobs) == 13
