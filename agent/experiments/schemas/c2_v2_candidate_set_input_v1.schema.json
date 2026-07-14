@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "c2_v2_candidate_set_input_v1.schema.json",
+  "title": "C2 V2 candidate set input",
+  "type": "object",
+  "required": ["schema_version", "candidate_input_id", "unit_id", "unit_hash", "parent_doi_id", "source_inventory_collection_hash", "container_accounting_index_hash", "consumption_link_hash", "candidate_builder_rule_id", "candidate_builder_rule_version", "candidate_builder_rule_hash", "candidate_outcome", "candidate_ids", "candidate_record_hashes", "source_only_exclusion_record_hash_or_null", "record_hash"],
+  "properties": {
+    "schema_version": {"const": "c2_v2_candidate_set_input_v1"},
+    "candidate_input_id": {"type": "string"},
+    "unit_id": {"type": "string"},
+    "unit_hash": {"$ref": "#/$defs/sha256"},
+    "parent_doi_id": {"type": "string"},
+    "source_inventory_collection_hash": {"$ref": "#/$defs/sha256"},
+    "container_accounting_index_hash": {"$ref": "#/$defs/sha256"},
+    "consumption_link_hash": {"$ref": "#/$defs/sha256"},
+    "candidate_builder_rule_id": {"type": "string"},
+    "candidate_builder_rule_version": {"type": "string"},
+    "candidate_builder_rule_hash": {"$ref": "#/$defs/sha256"},
+    "candidate_outcome": {"enum": ["CANDIDATES_EMITTED", "SOURCE_ONLY_EXCLUSION"]},
+    "candidate_ids": {"type": "array", "items": {"type": "string"}},
+    "candidate_record_hashes": {"type": "array", "items": {"$ref": "#/$defs/sha256"}},
+    "source_only_exclusion_record_hash_or_null": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "record_hash": {"$ref": "#/$defs/sha256"}
+  },
+  "additionalProperties": false,
+  "$defs": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+}

@@ -191,6 +191,14 @@ def _build_parser() -> argparse.ArgumentParser:
     c2_remediation_parser.add_argument("--frozen-universe", type=Path, required=True)
     c2_remediation_parser.add_argument("--freeze-summary", type=Path, required=True)
     c2_remediation_parser.add_argument("--worktree", type=Path, required=True)
+    c2_remediation_parser.add_argument(
+        "--source-bearing-v2",
+        action="store_true",
+        help=(
+            "Require typed c2-source-evidence-v2 descriptors and build the "
+            "deterministic FD-accounted source/canonical/P evidence chain"
+        ),
+    )
 
     c2_full_replacement_parser = subparsers.add_parser(
         "c2-full-replacement-finalize",
@@ -496,6 +504,7 @@ def _c2_remediation_root_finalize_command(args: argparse.Namespace) -> int:
         frozen_universe=args.frozen_universe,
         freeze_summary=args.freeze_summary,
         worktree=args.worktree,
+        source_bearing_v2=args.source_bearing_v2,
     )
     print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
     return 0

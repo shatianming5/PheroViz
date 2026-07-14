@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "c2_v2_container_accounting_index_v1.schema.json",
+  "title": "C2 V2 ZIP container accounting index",
+  "type": "object",
+  "required": ["schema_version", "format_classifier_config_hash", "container_nodes", "index_hash"],
+  "properties": {
+    "schema_version": {"const": "c2_v2_container_accounting_index_v1"},
+    "format_classifier_config_hash": {"$ref": "#/$defs/sha256"},
+    "container_nodes": {"type": "array", "items": {"$ref": "#/$defs/node"}},
+    "index_hash": {"$ref": "#/$defs/sha256"}
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "node": {
+      "type": "object",
+      "required": ["schema_version", "container_node_id", "parent_container_node_id_or_null", "origin_record_hash", "parent_doi_id", "frozen_input_ordinal", "verified_relative_path", "verified_file_sha256", "verified_bytes", "depth", "content_profile", "account_relative_path", "account_sha256", "archive_accounting_hash", "entry_hash"],
+      "properties": {
+        "schema_version": {"const": "c2_v2_container_index_entry_v1"},
+        "container_node_id": {"type": "string"},
+        "parent_container_node_id_or_null": {"type": ["string", "null"]},
+        "origin_record_hash": {"$ref": "#/$defs/sha256"},
+        "parent_doi_id": {"type": "string"},
+        "frozen_input_ordinal": {"type": "integer", "minimum": 1},
+        "verified_relative_path": {"type": "string"},
+        "verified_file_sha256": {"$ref": "#/$defs/sha256"},
+        "verified_bytes": {"type": "integer", "minimum": 1},
+        "depth": {"type": "integer", "minimum": 0},
+        "content_profile": {"enum": ["XLSX_V1", "GENERIC_ZIP_V1"]},
+        "account_relative_path": {"type": "string"},
+        "account_sha256": {"$ref": "#/$defs/sha256"},
+        "archive_accounting_hash": {"$ref": "#/$defs/sha256"},
+        "entry_hash": {"$ref": "#/$defs/sha256"}
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "c2_v2_consumption_bijection_validation_v1.schema.json",
+  "title": "C2 V2 extraction and consumption bijection",
+  "type": "object",
+  "required": ["schema_version", "derived_member_ids", "derived_unit_ids", "derived_member_unit_pairs", "unit_collection_hash", "consumption_collection_hash", "candidate_input_collection_hash", "candidate_collection_hash", "source_only_exclusion_collection_hash", "consumption_bijection_hash"],
+  "properties": {
+    "schema_version": {"const": "c2_v2_consumption_bijection_validation_v1"},
+    "derived_member_ids": {"type": "array", "items": {"type": "string"}},
+    "derived_unit_ids": {"type": "array", "items": {"type": "string"}},
+    "derived_member_unit_pairs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["derived_member_id", "derived_member_record_hash", "unit_id", "unit_hash"],
+        "properties": {
+          "derived_member_id": {"type": "string"},
+          "derived_member_record_hash": {"$ref": "#/$defs/sha256"},
+          "unit_id": {"type": "string"},
+          "unit_hash": {"$ref": "#/$defs/sha256"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "unit_collection_hash": {"$ref": "#/$defs/sha256"},
+    "consumption_collection_hash": {"$ref": "#/$defs/sha256"},
+    "candidate_input_collection_hash": {"$ref": "#/$defs/sha256"},
+    "candidate_collection_hash": {"$ref": "#/$defs/sha256"},
+    "source_only_exclusion_collection_hash": {"$ref": "#/$defs/sha256"},
+    "consumption_bijection_hash": {"$ref": "#/$defs/sha256"}
+  },
+  "additionalProperties": false,
+  "$defs": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+}

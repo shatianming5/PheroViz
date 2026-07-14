@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "c2_v2_consumable_source_unit_v1.schema.json",
+  "title": "C2 V2 consumable source unit",
+  "type": "object",
+  "required": ["schema_version", "unit_id", "parent_doi_id", "frozen_input_ordinal", "origin_kind", "origin_record_hash", "container_node_id_or_null", "verified_relative_path", "verified_file_sha256", "verified_bytes", "detected_format_tuple", "format_classifier_id", "format_classifier_version", "format_classifier_code_sha256", "format_detection_rule_hash", "raw_article_id", "raw_asset_id", "member_selector_or_null", "candidate_capable", "unit_hash"],
+  "properties": {
+    "schema_version": {"const": "c2_v2_consumable_source_unit_v1"},
+    "unit_id": {"type": "string"},
+    "parent_doi_id": {"type": "string"},
+    "frozen_input_ordinal": {"type": "integer", "minimum": 1},
+    "origin_kind": {"enum": ["RAW_NONCONTAINER_SELF", "RAW_XLSX_CONTAINER_SELF", "DERIVED_ARCHIVE_MEMBER", "DERIVED_XLSX_CONTAINER_SELF"]},
+    "origin_record_hash": {"$ref": "#/$defs/sha256"},
+    "container_node_id_or_null": {"type": ["string", "null"]},
+    "verified_relative_path": {"type": "string"},
+    "verified_file_sha256": {"$ref": "#/$defs/sha256"},
+    "verified_bytes": {"type": "integer", "minimum": 1},
+    "detected_format_tuple": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "string"}},
+    "format_classifier_id": {"type": "string"},
+    "format_classifier_version": {"type": "string"},
+    "format_classifier_code_sha256": {"$ref": "#/$defs/sha256"},
+    "format_detection_rule_hash": {"$ref": "#/$defs/sha256"},
+    "raw_article_id": {"type": "string"},
+    "raw_asset_id": {"type": "string"},
+    "member_selector_or_null": {"type": ["string", "null"]},
+    "candidate_capable": {"type": "boolean"},
+    "unit_hash": {"$ref": "#/$defs/sha256"}
+  },
+  "additionalProperties": false,
+  "$defs": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+}
