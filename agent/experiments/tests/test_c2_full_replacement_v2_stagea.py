@@ -16,6 +16,7 @@ import pytest
 
 import experiments.c2_full_replacement_evidence as v2_evidence
 import experiments.c2_full_replacement_finalizer as v2_finalizer
+from experiments.c2_full_replacement_evidence import thaw_evidence_value
 from experiments.c2_full_replacement_finalizer import (
     C2FullReplacementError,
     finalize_synthetic_to_path_for_testing,
@@ -856,6 +857,107 @@ def test_full_acquisition_coverage_and_stratified_subset_gate_publish() -> None:
         validate_synthetic_final_report_for_testing(report, fixture.policy)
 
 
+def test_publication_uses_immutable_evidence_not_a_self_hashed_report() -> None:
+    with _workspace("immutable-publication") as workspace:
+        fixture = _build_fixture(workspace)
+        finalized = _prepare(fixture)
+        try:
+            original = thaw_evidence_value(finalized.report)
+            with pytest.raises(TypeError):
+                finalized.report["status"] = "ADMITTED"
+            with pytest.raises(TypeError):
+                finalized.report["stratified_source_classifications"][0][
+                    "derived_public_stratum"
+                ] = "P5PLUS"
+            with pytest.raises(TypeError):
+                finalized.evidence.acquisition_dispositions[0]["final_disposition"] = (
+                    "STRATIFIED_SOURCE_CANONICAL"
+                )
+            with pytest.raises(TypeError):
+                finalized.policy.frozen_bindings["universe_file_sha256"] = "0" * 64
+
+            forged = thaw_evidence_value(finalized.report)
+            forged_classification = next(
+                item
+                for item in forged["stratified_source_classifications"]
+                if item["derived_public_stratum"] == "P3_4"
+            )
+            forged_classification["derived_public_stratum"] = "P5PLUS"
+            forged_classification["derived_code_label"] = "P=5+"
+            forged_classification["qualified_panel_counts"] = [5]
+            forged["stratified_source_classifications_sha256"] = sha256_json(
+                forged["stratified_source_classifications"]
+            )
+            forged["strata"] = [
+                {
+                    "p_disposition": "P1",
+                    "source_doi_count": 0,
+                    "independent_cluster_count": 0,
+                    "coverage_required": False,
+                    "coverage_met": True,
+                    "inference_eligible": False,
+                    "deficient": False,
+                },
+                {
+                    "p_disposition": "P2",
+                    "source_doi_count": 2,
+                    "independent_cluster_count": 2,
+                    "coverage_required": True,
+                    "coverage_met": True,
+                    "inference_eligible": False,
+                    "deficient": False,
+                },
+                {
+                    "p_disposition": "P3_4",
+                    "source_doi_count": 2,
+                    "independent_cluster_count": 2,
+                    "coverage_required": True,
+                    "coverage_met": True,
+                    "inference_eligible": False,
+                    "deficient": False,
+                },
+                {
+                    "p_disposition": "P5PLUS",
+                    "source_doi_count": 2,
+                    "independent_cluster_count": 2,
+                    "coverage_required": True,
+                    "coverage_met": True,
+                    "inference_eligible": False,
+                    "deficient": False,
+                },
+            ]
+            forged["deficient_strata"] = []
+            forged["status"] = "ADMITTED"
+            forged["claim_status"] = "SUPPORTED"
+            forged["decision"] = "NOT_RUN_NO_ANALYSIS_AUTHORIZED"
+            forged["final_report_hash"] = sha256_json(
+                {
+                    key: value
+                    for key, value in forged.items()
+                    if key != "final_report_hash"
+                }
+            )
+            validate_synthetic_final_report_for_testing(forged, finalized.policy)
+            with pytest.raises(C2FullReplacementError, match="validated full-replacement"):
+                write_full_replacement_report(
+                    forged,  # type: ignore[arg-type]
+                    fixture.output_root / "forged.json",
+                )
+
+            output_path = fixture.output_root / "evidence-derived.json"
+            assert write_full_replacement_report(finalized, output_path) == output_path
+            assert _read_json(output_path) == original
+            assert _read_json(output_path)["status"] == (
+                "BLOCKED_INSUFFICIENT_INDEPENDENT_P5PLUS"
+            )
+            assert any(
+                item["derived_public_stratum"] == "P3_4"
+                for item in _read_json(output_path)["stratified_source_classifications"]
+            )
+        finally:
+            finalized.evidence.close()
+
+
 def test_no_prefrozen_p_map_or_acquisition_p_fabrication_is_accepted() -> None:
     policy_data = _policy_data()
     policy_data["doi_p_cluster_map"] = []
@@ -987,7 +1089,7 @@ def test_multiple_same_stratum_cases_are_retained_as_one_doi_cluster() -> None:
         finalized = _prepare(fixture)
         try:
             classification = finalized.report["stratified_source_classifications"][0]
-            assert classification["qualified_panel_counts"] == [2, 2]
+            assert list(classification["qualified_panel_counts"]) == [2, 2]
             assert len(classification["canonical_case_ids"]) == 2
             p2 = finalized.report["strata"][1]
             assert p2["source_doi_count"] == 2
@@ -1102,15 +1204,15 @@ def test_evidence_and_output_trust_collision_and_no_replace_guards() -> None:
                 write_full_replacement_report(finalized, fixture.evidence_root / "final.json")
             with pytest.raises(C2FullReplacementError, match="non-containing"):
                 write_full_replacement_report(finalized, workspace / "ancestor.json")
-            hardlink = fixture.output_root / "hardlink.json"
-            os.link(fixture.manifest_path, hardlink)
-            with pytest.raises(C2FullReplacementError, match="aliases a validated evidence inode"):
-                write_full_replacement_report(finalized, hardlink)
             existing = fixture.output_root / "existing.json"
             existing.write_bytes(b"do-not-overwrite")
             with pytest.raises(C2FullReplacementError, match="already exists"):
                 write_full_replacement_report(finalized, existing)
             assert existing.read_bytes() == b"do-not-overwrite"
+            hardlink = fixture.output_root / "hardlink.json"
+            os.link(fixture.manifest_path, hardlink)
+            with pytest.raises(C2FullReplacementError, match="unsafe hard-link count"):
+                write_full_replacement_report(finalized, hardlink)
             assert fixture.manifest_path.read_bytes() == manifest_bytes
         finally:
             finalized.evidence.close()
@@ -1150,6 +1252,182 @@ def test_symlinked_untrusted_evidence_and_output_parents_are_rejected() -> None:
                 write_full_replacement_report(finalized, alias / "unsafe.json")
         finally:
             finalized.evidence.close()
+
+
+def test_evidence_leaf_and_intermediate_trust_boundaries_fail_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _workspace("writable-evidence-leaf") as workspace:
+        fixture = _build_fixture(workspace)
+        raw_path = fixture.evidence_root / _attempt(
+            fixture,
+            "001",
+            "initial",
+        )["raw_stream"]["path"]
+        os.chmod(raw_path, 0o666)
+        with pytest.raises(C2FullReplacementError, match="group/world writable"):
+            _prepare(fixture)
+
+    with _workspace("writable-evidence-intermediate") as workspace:
+        fixture = _build_fixture(workspace)
+        raw_path = fixture.evidence_root / _attempt(
+            fixture,
+            "001",
+            "initial",
+        )["raw_stream"]["path"]
+        os.chmod(raw_path.parent, 0o777)
+        with pytest.raises(C2FullReplacementError, match="group/world writable"):
+            _prepare(fixture)
+
+    with _workspace("hardlinked-evidence-leaf") as workspace:
+        fixture = _build_fixture(workspace)
+        raw_path = fixture.evidence_root / _attempt(
+            fixture,
+            "001",
+            "initial",
+        )["raw_stream"]["path"]
+        os.link(raw_path, workspace / "raw-alias.jsonl")
+        with pytest.raises(C2FullReplacementError, match="unsafe hard-link count"):
+            _prepare(fixture)
+
+    with _workspace("mocked-attacker-owner") as workspace:
+        fixture = _build_fixture(workspace)
+        original_validator = v2_evidence.validate_trusted_regular_file_descriptor
+
+        def reject_mocked_owner(
+            descriptor: int,
+            path: Path,
+            *,
+            label: str = "Trusted evidence artifact",
+        ) -> os.stat_result:
+            if path.name == "manifest.json":
+                raise v2_evidence.ProvenanceError(
+                    f"{label} has an unsafe owner: {path}"
+                )
+            return original_validator(descriptor, path, label=label)
+
+        monkeypatch.setattr(
+            v2_evidence,
+            "validate_trusted_regular_file_descriptor",
+            reject_mocked_owner,
+        )
+        with pytest.raises(C2FullReplacementError, match="unsafe owner"):
+            _prepare(fixture)
+
+
+def test_prepublication_evidence_revalidation_rejects_mutation_and_replacement() -> None:
+    with _workspace("evidence-leaf-mutation") as workspace:
+        fixture = _build_fixture(workspace)
+        finalized = _prepare(fixture)
+        try:
+            raw_path = fixture.evidence_root / _attempt(
+                fixture,
+                "001",
+                "initial",
+            )["raw_stream"]["path"]
+            raw_path.write_bytes(raw_path.read_bytes() + b"\n")
+            output = fixture.output_root / "mutated.json"
+            with pytest.raises(
+                C2FullReplacementError,
+                match="validated evidence artifact changed",
+            ):
+                write_full_replacement_report(finalized, output)
+            assert not output.exists()
+        finally:
+            finalized.evidence.close()
+
+    with _workspace("evidence-root-mutation") as workspace:
+        fixture = _build_fixture(workspace)
+        finalized = _prepare(fixture)
+        try:
+            (fixture.evidence_root / "attacker-root-marker").write_bytes(b"changed")
+            output = fixture.output_root / "root-mutated.json"
+            with pytest.raises(
+                C2FullReplacementError,
+                match="evidence root metadata changed",
+            ):
+                write_full_replacement_report(finalized, output)
+            assert not output.exists()
+        finally:
+            finalized.evidence.close()
+
+    with _workspace("evidence-leaf-replacement") as workspace:
+        fixture = _build_fixture(workspace)
+        finalized = _prepare(fixture)
+        try:
+            raw_path = fixture.evidence_root / _attempt(
+                fixture,
+                "001",
+                "initial",
+            )["raw_stream"]["path"]
+            original_bytes = raw_path.read_bytes()
+            raw_path.rename(workspace / "replaced-raw.jsonl")
+            raw_path.write_bytes(original_bytes)
+            output = fixture.output_root / "replaced.json"
+            with pytest.raises(
+                C2FullReplacementError,
+                match="validated evidence artifact changed",
+            ):
+                write_full_replacement_report(finalized, output)
+            assert not output.exists()
+        finally:
+            finalized.evidence.close()
+
+    with _workspace("evidence-directory-mutation") as workspace:
+        fixture = _build_fixture(workspace)
+        finalized = _prepare(fixture)
+        try:
+            raw_path = fixture.evidence_root / _attempt(
+                fixture,
+                "001",
+                "initial",
+            )["raw_stream"]["path"]
+            (raw_path.parent / "attacker-marker").write_bytes(b"changed")
+            output = fixture.output_root / "directory-mutated.json"
+            with pytest.raises(
+                C2FullReplacementError,
+                match="validated evidence artifact changed",
+            ):
+                write_full_replacement_report(finalized, output)
+            assert not output.exists()
+        finally:
+            finalized.evidence.close()
+
+
+def test_evidence_artifact_directory_and_leaf_reject_mutating_acl(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _workspace("artifact-acl") as workspace:
+        fixture = _build_fixture(workspace)
+        raw_path = fixture.evidence_root / _attempt(
+            fixture,
+            "001",
+            "initial",
+        )["raw_stream"]["path"]
+        directory_descriptor = os.open(
+            raw_path.parent,
+            os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+        )
+        file_descriptor = os.open(raw_path, os.O_RDONLY | os.O_NOFOLLOW)
+        monkeypatch.setattr(
+            v2_evidence._models,
+            "_trusted_acl_allows_foreign_mutation",
+            lambda _descriptor: True,
+        )
+        try:
+            with pytest.raises(v2_evidence.ProvenanceError, match="mutating ACL"):
+                v2_evidence.validate_trusted_directory_descriptor(
+                    directory_descriptor,
+                    raw_path.parent,
+                )
+            with pytest.raises(v2_evidence.ProvenanceError, match="mutating ACL"):
+                v2_evidence.validate_trusted_regular_file_descriptor(
+                    file_descriptor,
+                    raw_path,
+                )
+        finally:
+            os.close(file_descriptor)
+            os.close(directory_descriptor)
 
 
 def test_link_race_unsupported_and_staging_reuse_preserve_unrelated_files(
@@ -1382,7 +1660,7 @@ def test_final_report_rejects_a_forged_source_cluster_alias() -> None:
         fixture = _build_fixture(workspace)
         finalized = _prepare(fixture)
         try:
-            forged = json.loads(json.dumps(finalized.report))
+            forged = thaw_evidence_value(finalized.report)
             forged["stratified_source_classifications"][0]["cluster_id"] = (
                 "10.9000/forged-cluster"
             )
