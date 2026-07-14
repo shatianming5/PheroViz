@@ -390,7 +390,7 @@ def test_compile_pinned_resource_and_runtime_manifest_are_active() -> None:
     entry = code_attestation.load_compile_pinned_source_extension_code_attestation()
     runtime = code_attestation.load_verified_source_extension_runtime_attestation()
     assert entry.registry_id == (
-        "8f6c28ec04f117fed35aa6d02b1c62f6f43e2c86f26200d3cd7e1a15b051d48b"
+        "a20badcba3df39d876a29868f921e22cc8b917c2a5be718e995a250833822f14"
     )
     assert runtime.code_blob_set_sha256 == entry.canonical_attested_blob_set_sha256
     assert len(runtime.code_blobs) == 13
@@ -442,3 +442,27 @@ def test_declared_manifest_attestation_commit_contains_only_exact_manifest() -> 
         ],
         check=True,
     )
+    manifest = json.loads(committed)
+    for blob in manifest["attested_paths"]:
+        relative_path = blob["relative_path"]
+        observed_object_id = subprocess.check_output(
+            [
+                "git",
+                "-C",
+                str(repository),
+                "rev-parse",
+                f"{entry.extension_implementation_commit_full}:{relative_path}",
+            ],
+            text=True,
+        ).strip()
+        observed_payload = subprocess.check_output(
+            [
+                "git",
+                "-C",
+                str(repository),
+                "show",
+                f"{entry.extension_implementation_commit_full}:{relative_path}",
+            ]
+        )
+        assert observed_object_id == blob["git_blob_object_id"]
+        assert hashlib.sha256(observed_payload).hexdigest() == blob["sha256"]
