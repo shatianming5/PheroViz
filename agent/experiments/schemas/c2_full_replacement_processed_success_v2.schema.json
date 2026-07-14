@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "c2_full_replacement_processed_success_v2.schema.json",
+  "title": "C2 V2 processed-success artifact",
+  "type": "object",
+  "required": [
+    "artifact_type",
+    "chunk_id",
+    "attempt_id",
+    "records"
+  ],
+  "properties": {
+    "artifact_type": {
+      "const": "c2_v2_processed_success"
+    },
+    "chunk_id": {
+      "type": "string",
+      "pattern": "^[0-9]{3}$"
+    },
+    "attempt_id": {
+      "enum": [
+        "initial",
+        "retry1",
+        "retry2"
+      ]
+    },
+    "records": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/record"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "record": {
+      "type": "object",
+      "required": [
+        "global_ordinal",
+        "local_ordinal",
+        "doi_id"
+      ],
+      "properties": {
+        "global_ordinal": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "local_ordinal": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "doi_id": {
+          "type": "string",
+          "pattern": "^10\\.[0-9]{4,9}/\\S+$"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

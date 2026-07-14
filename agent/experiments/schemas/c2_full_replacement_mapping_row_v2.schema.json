@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "c2_full_replacement_mapping_row_v2.schema.json",
+  "title": "C2 V2 canonical mapping row",
+  "type": "object",
+  "required": [
+    "global_ordinal",
+    "local_ordinal",
+    "doi_id",
+    "p_disposition",
+    "independent_cluster_id"
+  ],
+  "properties": {
+    "global_ordinal": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "local_ordinal": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "doi_id": {
+      "type": "string",
+      "pattern": "^10\\.[0-9]{4,9}/\\S+$"
+    },
+    "p_disposition": {
+      "enum": [
+        "P1",
+        "P2",
+        "P3_4",
+        "P5PLUS"
+      ]
+    },
+    "independent_cluster_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    }
+  },
+  "additionalProperties": false
+}
