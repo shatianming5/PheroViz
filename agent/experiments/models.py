@@ -265,7 +265,6 @@ def write_json_atomic_to_target(
     )
     descriptor = -1
     temporary_name = ""
-    staging_owned = False
     try:
         for _ in range(128):
             temporary_name = (
@@ -281,7 +280,6 @@ def write_json_atomic_to_target(
                     0o600,
                     dir_fd=target.parent_fd,
                 )
-                staging_owned = True
                 break
             except FileExistsError:
                 continue
@@ -301,7 +299,6 @@ def write_json_atomic_to_target(
             src_dir_fd=target.parent_fd,
             dst_dir_fd=target.parent_fd,
         )
-        staging_owned = False
         try:
             os.fsync(target.parent_fd)
         except OSError:
@@ -312,11 +309,8 @@ def write_json_atomic_to_target(
                 os.close(descriptor)
             except OSError:
                 pass
-        if staging_owned:
-            try:
-                os.unlink(temporary_name, dir_fd=target.parent_fd)
-            except OSError:
-                pass
+        # A failed rename may have allowed another writer to reuse this name.
+        # Never unlink by staging pathname after a failed publication attempt.
 
 
 def read_json(path: Path) -> Dict[str, Any]:

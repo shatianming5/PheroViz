@@ -723,7 +723,7 @@ def test_atomic_writer_fails_closed_without_descriptor_primitives(
         assert not output_path.exists()
 
 
-def test_atomic_writer_cleans_random_staging_after_replace_failure(
+def test_atomic_writer_leaves_private_staging_after_rename_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     with _workspace("staging-cleanup") as workspace:
@@ -742,7 +742,48 @@ def test_atomic_writer_cleans_random_staging_after_replace_failure(
         with pytest.raises(OSError, match="synthetic rename failure"):
             write_json_atomic(output_path, {"kind": "failed-output"})
 
-        assert not list(workspace.glob(".final-report.json.*.tmp"))
+        staging_paths = list(workspace.glob(".final-report.json.*.tmp"))
+        assert len(staging_paths) == 1
+        assert staging_paths[0].stat().st_mode & 0o077 == 0
+        assert not output_path.exists()
+
+
+def test_atomic_writer_preserves_reused_staging_name_after_failed_rename(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _workspace("failed-staging-name-reuse") as workspace:
+        output_path = workspace / "final-report.json"
+        reused_names: list[str] = []
+
+        def _fail_rename_after_reuse(
+            source: str,
+            destination: str,
+            *,
+            src_dir_fd: int | None = None,
+            dst_dir_fd: int | None = None,
+        ) -> None:
+            os.unlink(source, dir_fd=src_dir_fd)
+            descriptor = os.open(
+                source,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                0o600,
+                dir_fd=src_dir_fd,
+            )
+            with os.fdopen(descriptor, "wb") as handle:
+                handle.write(b"unrelated")
+            reused_names.append(source)
+            raise OSError("synthetic rename failure after reuse")
+
+        monkeypatch.setattr(
+            experiment_models.os,
+            "rename",
+            _fail_rename_after_reuse,
+        )
+        with pytest.raises(OSError, match="synthetic rename failure after reuse"):
+            write_json_atomic(output_path, {"kind": "failed-output"})
+
+        assert reused_names
+        assert (workspace / reused_names[0]).read_bytes() == b"unrelated"
         assert not output_path.exists()
 
 
