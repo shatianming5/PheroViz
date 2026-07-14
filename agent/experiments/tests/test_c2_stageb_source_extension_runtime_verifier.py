@@ -579,6 +579,62 @@ def test_implicit_runtime_evaluation_routes_fail_closed(
 
 
 @pytest.mark.parametrize(
+    "source",
+    [
+        (
+            b"from pydoc import importfile\n"
+            b"print(next(map(importfile, ['agent/experiments/aggregate.py'])))\n"
+        ),
+        (
+            b"from pydoc import importfile as loader\n"
+            b"print(next(filter(loader, ['agent/experiments/aggregate.py'])))\n"
+        ),
+        (
+            b"from pydoc import importfile\n"
+            b"print(sorted(['agent/experiments/aggregate.py'], key=importfile))\n"
+        ),
+        (
+            b"from pydoc import importfile\n"
+            b"loader = importfile\n"
+            b"print(next(map(loader, ['agent/experiments/aggregate.py'])))\n"
+        ),
+        (
+            b"from pydoc import importfile\n"
+            b"print(min(['agent/experiments/aggregate.py'], key=importfile))\n"
+        ),
+    ],
+)
+def test_higher_order_callback_loading_paths_fail_closed(source: bytes) -> None:
+    fixture = _fixture()
+    callback_files = _replace_runtime_bytes(
+        fixture.runtime_files,
+        "agent/experiments/cli.py",
+        source,
+    )
+
+    with pytest.raises(
+        C2FullReplacementPolicyError,
+        match="callback|nonstatic|reflective",
+    ):
+        _compile_runtime_closure(callback_files)
+
+
+def test_static_callable_accepts_only_harmless_static_arguments() -> None:
+    fixture = _fixture()
+    safe_files = _replace_runtime_bytes(
+        fixture.runtime_files,
+        "agent/experiments/cli.py",
+        b"print('static-literal')\n",
+    )
+
+    closure = _compile_runtime_closure(safe_files)
+    assert any(
+        item.runtime_path == "agent/experiments/cli.py"
+        for item in closure.bindings
+    )
+
+
+@pytest.mark.parametrize(
     ("source", "expected_imports"),
     [
         (
@@ -1036,5 +1092,6 @@ def test_required_test_matrix_is_explicit_and_closed() -> None:
         "deny-by-default-static-call-targets-are-required",
         "closed-module-attribute-call-allowlist-is-enforced",
         "implicit-runtime-evaluation-routes-are-rejected",
+        "higher-order-callback-dispatch-is-rejected",
         "test-only-fixture-is-not-a-production-input",
     )

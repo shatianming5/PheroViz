@@ -169,3 +169,6 @@ Decorators, dynamic class bases/metaclasses, comprehensions/generators,
 candidate defaults/annotations, lambdas, and context/async execution forms are
 also blocked because they can execute candidate-provided runtime semantics
 without an explicit call target.
+Higher-order callback and iterable-dispatch APIs are blocked, and every
+argument to an allowed callable must be a harmless static value; candidate
+callables, callback registration, and deferred evaluator surfaces fail closed.

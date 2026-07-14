@@ -68,6 +68,19 @@ _DYNAMIC_IMPORT_ALIAS_KINDS = frozenset(
     }
 )
 _DYNAMIC_IMPORT_ATTRIBUTE_NAMES = frozenset({"__import__", "import_module"})
+_CALLBACK_DISPATCH_CALLABLE_NAMES = frozenset(
+    {
+        "all",
+        "any",
+        "filter",
+        "map",
+        "max",
+        "min",
+        "next",
+        "reduce",
+        "sorted",
+    }
+)
 _REFLECTIVE_OR_EXECUTABLE_CALLABLE_NAMES = frozenset(
     {
         "compile",
@@ -97,13 +110,12 @@ _REFLECTIVE_OR_EXECUTABLE_CALLABLE_NAMES = frozenset(
         "run_path",
         "spec_from_file_location",
     }
+    | _CALLBACK_DISPATCH_CALLABLE_NAMES
 )
 _REFLECTIVE_NAMESPACE_ATTRIBUTE_NAMES = frozenset({"__dict__", "__builtins__"})
 _KNOWN_STATIC_BUILTIN_CALLABLE_NAMES = frozenset(
     {
         "abs",
-        "all",
-        "any",
         "ascii",
         "bin",
         "bool",
@@ -117,7 +129,6 @@ _KNOWN_STATIC_BUILTIN_CALLABLE_NAMES = frozenset(
         "dir",
         "divmod",
         "enumerate",
-        "filter",
         "float",
         "format",
         "frozenset",
@@ -127,14 +138,8 @@ _KNOWN_STATIC_BUILTIN_CALLABLE_NAMES = frozenset(
         "int",
         "isinstance",
         "issubclass",
-        "iter",
         "len",
-        "list",
-        "map",
-        "max",
         "memoryview",
-        "min",
-        "next",
         "object",
         "oct",
         "ord",
@@ -143,18 +148,12 @@ _KNOWN_STATIC_BUILTIN_CALLABLE_NAMES = frozenset(
         "property",
         "range",
         "repr",
-        "reversed",
         "round",
-        "set",
         "slice",
-        "sorted",
         "staticmethod",
         "str",
-        "sum",
         "super",
-        "tuple",
         "type",
-        "zip",
     }
 )
 # This closed list is reviewed with the fixed runtime roster. It is never
@@ -221,6 +220,7 @@ SOURCE_EXTENSION_RUNTIME_VERIFIER_TEST_MATRIX = (
     "deny-by-default-static-call-targets-are-required",
     "closed-module-attribute-call-allowlist-is-enforced",
     "implicit-runtime-evaluation-routes-are-rejected",
+    "higher-order-callback-dispatch-is-rejected",
     "test-only-fixture-is-not-a-production-input",
 )
 
@@ -1167,6 +1167,42 @@ def _reject_unsafe_attribute_evaluation(
             )
 
 
+def _is_harmless_static_value(
+    value: ast.expr,
+    aliases: dict[tuple[str, ...], str],
+) -> bool:
+    if isinstance(value, ast.Constant):
+        return True
+    if isinstance(value, ast.Name):
+        return _alias_kind_for_path((value.id,), aliases) == _ALIAS_STATIC_VALUE
+    if isinstance(value, (ast.List, ast.Tuple)):
+        return all(
+            _is_harmless_static_value(element, aliases)
+            for element in value.elts
+        )
+    if isinstance(value, ast.Dict):
+        return all(
+            key is not None
+            and _is_harmless_static_value(key, aliases)
+            and _is_harmless_static_value(item, aliases)
+            for key, item in zip(value.keys, value.values, strict=True)
+        )
+    return False
+
+
+def _reject_unsafe_call_arguments(
+    node: ast.Call,
+    aliases: dict[tuple[str, ...], str],
+    runtime_path: str,
+) -> None:
+    values = (*node.args, *(keyword.value for keyword in node.keywords))
+    if not all(_is_harmless_static_value(value, aliases) for value in values):
+        raise C2StageBSourceExtensionRuntimeVerifierError(
+            "runtime fixture closure forbids callable-valued or nonstatic "
+            f"arguments: {runtime_path}"
+        )
+
+
 def _reject_nonstatic_call_targets(tree: ast.AST, runtime_path: str) -> None:
     _reject_reflective_namespace_syntax(tree, runtime_path)
     _reject_implicit_runtime_execution(tree, runtime_path)
@@ -1197,6 +1233,7 @@ def _reject_nonstatic_call_targets(tree: ast.AST, runtime_path: str) -> None:
                 "allowed non-dynamic callable: "
                 f"{runtime_path}"
             )
+        _reject_unsafe_call_arguments(node, aliases, runtime_path)
 
 
 def _parse_static_imports(
