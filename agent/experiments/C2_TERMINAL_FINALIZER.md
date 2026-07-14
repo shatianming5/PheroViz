@@ -14,6 +14,8 @@ hash, DOI-list hash, per-chunk totals, and clean full commit. It never accepts
 a live output root. Report paths are relative to the manifest, non-symlinked,
 and fail on missing or stale files. The report and manifest file digests in the
 final output are computed from the exact bytes parsed and validated in one read.
+The output path must not resolve to the manifest or any sealed chunk report;
+relative paths and symlink aliases are rejected before writing.
 
 Chunks `009`–`012` must be replacement roots and must explicitly exclude their
 superseded root IDs. Every DOI needs three terminal attempts and complete,

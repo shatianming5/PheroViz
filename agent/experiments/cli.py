@@ -7,10 +7,7 @@ from pathlib import Path
 from typing import Sequence
 
 from .aggregate import AggregationError, aggregate_runs
-from .c2_terminal_finalizer import (
-    finalize_manifest as finalize_c2_terminal_manifest,
-    write_final_report as write_c2_terminal_final_report,
-)
+from .c2_terminal_finalizer import finalize_to_path as finalize_c2_to_path
 from .decision_report import (
     build_decision_report,
     write_decision_report,
@@ -441,8 +438,7 @@ def _provenance_stage_command(args: argparse.Namespace) -> int:
 
 
 def _c2_terminal_finalize_command(args: argparse.Namespace) -> int:
-    report = finalize_c2_terminal_manifest(args.manifest)
-    path = write_c2_terminal_final_report(report, args.out)
+    report, path = finalize_c2_to_path(args.manifest, args.out)
     print(
         json.dumps(
             {

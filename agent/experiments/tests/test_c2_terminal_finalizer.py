@@ -17,7 +17,10 @@ from experiments.c2_terminal_finalizer import (
     TERMINAL_OUTCOME_STATUSES,
     C2AdmissionError,
     finalize_manifest,
+    finalize_to_path,
+    prepare_finalization,
     validate_final_report,
+    write_final_report,
 )
 from experiments.cli import main as cli_main
 from experiments.models import sha256_file, sha256_json
@@ -423,6 +426,69 @@ def test_final_report_hashes_the_exact_manifest_and_report_bytes_read(
         )
 
 
+def test_chunk_digest_and_validation_use_one_buffer_after_digest_capture(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _workspace("chunk-digest-capture") as workspace:
+        manifest_path, _, report_paths = _build_admission(workspace)
+        report_path = report_paths["013"]
+        original_bytes = report_path.read_bytes()
+        original_report_hash = _read_json(report_path)["report_hash"]
+        replacement = _read_json(report_path)
+        replacement["execution"]["outcomes"][0]["terminal_status"] = "DOWNLOADED"
+        _seal_report(replacement)
+        replacement_report_hash = replacement["report_hash"]
+        replacement_bytes = (
+            json.dumps(replacement, indent=2, sort_keys=True, allow_nan=False) + "\n"
+        ).encode("utf-8")
+        assert replacement_report_hash != original_report_hash
+
+        target_path = report_path.resolve()
+        original_hash_bytes = c2_terminal_finalizer._sha256_bytes
+        swapped = False
+
+        def _swap_target_once() -> None:
+            nonlocal swapped
+            if not swapped:
+                target_path.write_bytes(replacement_bytes)
+                swapped = True
+
+        def _digest_then_swap(payload: bytes) -> str:
+            digest = original_hash_bytes(payload)
+            if payload == original_bytes:
+                _swap_target_once()
+            return digest
+
+        def _legacy_digest_then_swap(path: Path) -> str:
+            digest = sha256_file(path)
+            if path.resolve() == target_path:
+                _swap_target_once()
+            return digest
+
+        monkeypatch.setattr(
+            c2_terminal_finalizer,
+            "_sha256_bytes",
+            _digest_then_swap,
+        )
+        monkeypatch.setattr(
+            c2_terminal_finalizer,
+            "sha256_file",
+            _legacy_digest_then_swap,
+            raising=False,
+        )
+        final_report = c2_terminal_finalizer.finalize_manifest(manifest_path)
+
+        report_binding = next(
+            item for item in final_report["chunks"] if item["chunk_id"] == "013"
+        )
+        assert swapped is True
+        assert report_binding["report_file_sha256"] == hashlib.sha256(
+            original_bytes
+        ).hexdigest()
+        assert report_binding["report_hash"] == original_report_hash
+        assert report_path.read_bytes() == replacement_bytes
+
+
 def test_admits_complete_sealed_roster_and_emits_terminal_only_report(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -457,6 +523,57 @@ def test_admits_complete_sealed_roster_and_emits_terminal_only_report(
         )
         assert _read_json(output_path) == report
         assert '"status": "ADMITTED"' in capsys.readouterr().out
+
+
+def test_cli_rejects_relative_manifest_output_collision(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with _workspace("manifest-output-collision") as workspace:
+        manifest_path, manifest, _ = _build_admission(workspace)
+        manifest_bytes = manifest_path.read_bytes()
+        monkeypatch.chdir(workspace)
+
+        assert (
+            cli_main(
+                [
+                    "c2-terminal-finalize",
+                    "admission-manifest.json",
+                    "--out",
+                    "./admission-manifest.json",
+                ]
+            )
+            == 2
+        )
+        assert "aliases an admitted input path" in capsys.readouterr().err
+        assert manifest_path.read_bytes() == manifest_bytes
+        assert _read_json(manifest_path)["manifest_hash"] == manifest["manifest_hash"]
+
+
+def test_library_rejects_symlink_alias_to_chunk_report() -> None:
+    with _workspace("chunk-output-collision") as workspace:
+        manifest_path, _, report_paths = _build_admission(workspace)
+        finalized = prepare_finalization(manifest_path)
+        report_path = report_paths["013"]
+        report_bytes = report_path.read_bytes()
+        output_alias = workspace / "chunk-report-output.json"
+        output_alias.symlink_to(report_path)
+
+        with pytest.raises(C2AdmissionError, match="aliases an admitted input path"):
+            write_final_report(finalized, output_alias)
+
+        assert report_path.read_bytes() == report_bytes
+
+
+def test_library_writes_a_noncolliding_output_path() -> None:
+    with _workspace("noncolliding-output") as workspace:
+        manifest_path, _, _ = _build_admission(workspace)
+        output_path = workspace / "final" / "final-report.json"
+
+        report, written_path = finalize_to_path(manifest_path, output_path)
+
+        assert written_path == output_path
+        assert _read_json(output_path) == report
 
 
 def test_p5plus_deficiency_is_explicitly_blocked_without_analysis() -> None:

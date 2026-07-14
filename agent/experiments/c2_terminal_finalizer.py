@@ -8,6 +8,7 @@ import json
 import re
 import sys
 from collections import defaultdict
+from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -47,6 +48,14 @@ _BLOCKED_STATUS_BY_STRATUM = {
 
 class C2AdmissionError(ProvenanceError):
     """Raised when terminal C2 evidence cannot be admitted safely."""
+
+
+@dataclass(frozen=True)
+class FinalizedAdmission:
+    """A validated report paired with every file admitted as input evidence."""
+
+    report: dict[str, Any]
+    admitted_input_paths: tuple[Path, ...]
 
 
 def _reject_json_constant(value: str) -> None:
@@ -517,8 +526,8 @@ def validate_final_report(report: Mapping[str, Any]) -> None:
     _validate_final_report(report)
 
 
-def finalize_manifest(manifest_path: Path) -> dict[str, Any]:
-    """Build a terminal-only C2 report from a sealed-report admission manifest."""
+def prepare_finalization(manifest_path: Path) -> FinalizedAdmission:
+    """Validate sealed inputs and retain their resolved paths for safe output."""
 
     if manifest_path.is_symlink():
         raise C2AdmissionError("Admission manifest must not be a symlink")
@@ -544,6 +553,7 @@ def finalize_manifest(manifest_path: Path) -> dict[str, Any]:
     assignments: list[dict[str, str]] = []
     final_chunks: list[dict[str, Any]] = []
     seen_report_files: set[Path] = set()
+    admitted_input_paths = [resolved_manifest]
     for entry in entries:
         chunk_id = entry["chunk_id"]
         report_path = _resolve_report_path(
@@ -554,6 +564,7 @@ def finalize_manifest(manifest_path: Path) -> dict[str, Any]:
         if report_path in seen_report_files:
             raise C2AdmissionError("Admission manifest resolves multiple chunks to one report")
         seen_report_files.add(report_path)
+        admitted_input_paths.append(report_path)
         report, actual_file_sha256 = _read_json_object(
             report_path,
             f"chunk {chunk_id} sealed report",
@@ -645,15 +656,76 @@ def finalize_manifest(manifest_path: Path) -> dict[str, Any]:
     }
     report["final_report_hash"] = sha256_json(report)
     _validate_final_report(report)
-    return report
+    return FinalizedAdmission(
+        report=report,
+        admitted_input_paths=tuple(admitted_input_paths),
+    )
 
 
-def write_final_report(report: Mapping[str, Any], output_path: Path) -> Path:
-    """Write a validated report without opening a data or output root."""
+def finalize_manifest(manifest_path: Path) -> dict[str, Any]:
+    """Build a terminal-only report without writing an output file."""
 
-    _validate_final_report(report)
-    write_json_atomic(output_path, report)
+    return prepare_finalization(manifest_path).report
+
+
+def _resolve_output_path(path: Path) -> Path:
+    try:
+        return path.expanduser().resolve(strict=False)
+    except (OSError, RuntimeError) as exc:
+        raise C2AdmissionError(f"Cannot resolve final report output path: {path}") from exc
+
+
+def _reject_output_input_collision(
+    output_path: Path,
+    admitted_input_paths: Sequence[Path],
+) -> None:
+    resolved_output = _resolve_output_path(output_path)
+    for input_path in admitted_input_paths:
+        try:
+            resolved_input = input_path.resolve(strict=True)
+        except (OSError, RuntimeError) as exc:
+            raise C2AdmissionError(
+                f"Admitted input path became unavailable: {input_path}"
+            ) from exc
+        try:
+            aliases_input = resolved_output == resolved_input or (
+                resolved_output.exists()
+                and resolved_output.samefile(resolved_input)
+            )
+        except OSError as exc:
+            raise C2AdmissionError(
+                f"Cannot compare final report output path: {output_path}"
+            ) from exc
+        if aliases_input:
+            raise C2AdmissionError(
+                "Final report output path aliases an admitted input path"
+            )
+
+
+def write_final_report(
+    finalized: FinalizedAdmission,
+    output_path: Path,
+) -> Path:
+    """Write a validated report only when its output cannot overwrite evidence."""
+
+    if not isinstance(finalized, FinalizedAdmission):
+        raise C2AdmissionError(
+            "write_final_report requires a FinalizedAdmission from prepare_finalization"
+        )
+    _validate_final_report(finalized.report)
+    _reject_output_input_collision(output_path, finalized.admitted_input_paths)
+    write_json_atomic(output_path, finalized.report)
     return output_path
+
+
+def finalize_to_path(
+    manifest_path: Path,
+    output_path: Path,
+) -> tuple[dict[str, Any], Path]:
+    """Finalize a manifest and safely write its report."""
+
+    finalized = prepare_finalization(manifest_path)
+    return finalized.report, write_final_report(finalized, output_path)
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -668,8 +740,7 @@ def _build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     try:
-        report = finalize_manifest(args.manifest)
-        output_path = write_final_report(report, args.out)
+        report, output_path = finalize_to_path(args.manifest, args.out)
     except C2AdmissionError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
