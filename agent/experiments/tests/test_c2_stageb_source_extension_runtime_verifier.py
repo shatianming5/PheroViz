@@ -372,7 +372,10 @@ def test_dynamic_import_aliases_are_rejected_from_runtime_closure(
         source,
     )
 
-    with pytest.raises(C2FullReplacementPolicyError, match="dynamic imports"):
+    with pytest.raises(
+        C2FullReplacementPolicyError,
+        match="dynamic imports|reflective|namespace",
+    ):
         _compile_runtime_closure(alias_files)
 
 
@@ -388,7 +391,7 @@ def test_unproven_alias_call_target_is_rejected_from_runtime_closure() -> None:
 
     with pytest.raises(
         C2FullReplacementPolicyError,
-        match="cannot be proven non-dynamic",
+        match="reflective or executable",
     ):
         _compile_runtime_closure(unknown_alias_files)
 
@@ -426,9 +429,117 @@ def test_indirect_dynamic_alias_call_targets_fail_closed(
 
     with pytest.raises(
         C2FullReplacementPolicyError,
-        match="cannot be proven non-dynamic",
+        match="dynamic imports|unbound|namespace",
     ):
         _compile_runtime_closure(indirect_alias_files)
+
+
+@pytest.mark.parametrize(
+    ("source", "match"),
+    [
+        (
+            (
+                b"from importlib import import_module as imp\n"
+                b"imp.__call__('.aggregate', package=__package__)\n"
+            ),
+            "dynamic imports",
+        ),
+        (
+            (
+                b"from builtins import __import__ as imp\n"
+                b"nested = imp\n"
+                b"nested.__call__('.aggregate')\n"
+            ),
+            "dynamic imports",
+        ),
+        (
+            (
+                b"import importlib as importer\n"
+                b"globals()['imp'] = importer.import_module\n"
+                b"imp('.aggregate', package=__package__)\n"
+            ),
+            "namespace or mapping mutation",
+        ),
+        (
+            (
+                b"namespace['imp'] = callable_value\n"
+                b"namespace['imp']('.aggregate')\n"
+            ),
+            "namespace or mapping mutation",
+        ),
+        (
+            (
+                b"holder.__dict__['imp'] = callable_value\n"
+                b"holder.imp('.aggregate')\n"
+            ),
+            "reflective namespace access|namespace or mapping mutation",
+        ),
+        (
+            b"__builtins__['__import__']('.aggregate')\n",
+            "reflective namespace access",
+        ),
+        (b"getattr(target, 'callable')()\n", "reflective or executable"),
+        (b"setattr(target, 'callable', value)\n", "reflective or executable"),
+        (b"delattr(target, 'callable')\n", "reflective or executable"),
+        (b"globals()\n", "reflective or executable"),
+        (b"locals()\n", "reflective or executable"),
+        (b"vars()\n", "reflective or executable"),
+        (b"exec('pass')\n", "reflective or executable"),
+        (b"eval('1')\n", "reflective or executable"),
+        (b"compile('1', '<fixture>', 'eval')\n", "reflective or executable"),
+        (b"unbound_callable()\n", "unbound or not a statically allowed"),
+        (
+            b"unknown_callable.__call__()\n",
+            "unbound or not a statically allowed",
+        ),
+    ],
+)
+def test_deny_by_default_rejects_dynamic_reflection_and_unknown_calls(
+    source: bytes,
+    match: str,
+) -> None:
+    fixture = _fixture()
+    prohibited_files = _replace_runtime_bytes(
+        fixture.runtime_files,
+        "agent/experiments/cli.py",
+        source,
+    )
+
+    with pytest.raises(C2FullReplacementPolicyError, match=match):
+        _compile_runtime_closure(prohibited_files)
+
+
+@pytest.mark.parametrize(
+    ("source", "expected_imports"),
+    [
+        (
+            b"from . import models\nmodels.canonical_json({})\n",
+            (".models",),
+        ),
+        (
+            b"from .models import canonical_json\ncanonical_json({})\n",
+            (".models",),
+        ),
+    ],
+)
+def test_explicit_static_local_module_call_is_allowed(
+    source: bytes,
+    expected_imports: tuple[str, ...],
+) -> None:
+    fixture = _fixture()
+    static_files = _replace_runtime_bytes(
+        fixture.runtime_files,
+        "agent/experiments/cli.py",
+        source,
+    )
+
+    closure = _compile_runtime_closure(static_files)
+    cli_binding = next(
+        item
+        for item in closure.bindings
+        if item.runtime_path == "agent/experiments/cli.py"
+    )
+    assert cli_binding.direct_imports == expected_imports
 
 
 def test_absent_production_resource_fails_before_registry_or_fixture_access(
@@ -723,5 +834,6 @@ def test_required_test_matrix_is_explicit_and_closed() -> None:
         "unrostered-or-unresolved-local-import-is-rejected",
         "duplicate-or-cyclic-local-import-graph-is-rejected",
         "dynamic-import-aliases-and-unknown-targets-are-rejected",
+        "deny-by-default-static-call-targets-are-required",
         "test-only-fixture-is-not-a-production-input",
     )

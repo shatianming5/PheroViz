@@ -10,7 +10,8 @@ typed comparison boundary a later reviewed adapter must use:
   runtime byte/import-closure digest;
 * the compile-pinned code-attestation registry supplies the independently
   reviewed implementation/attestation and manifest/blob-set bindings; and
-* a runtime adapter proves byte and static-import closure against both.
+* a runtime adapter proves byte and deny-by-default static-import closure
+  against both.
 
 There is intentionally no deployment-lock resource, production adapter,
 candidate selector, or admission route here.  The explicitly named
@@ -48,12 +49,15 @@ _COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 _RUNTIME_PACKAGE_PATH = ("agent", "experiments")
 _RUNTIME_PRIMARY_PACKAGE = "experiments"
 _RUNTIME_ALTERNATE_PACKAGE = "agent.experiments"
-_ALIAS_SAFE = "safe"
+_ALIAS_STATIC_CALLABLE = "static-callable"
+_ALIAS_STATIC_MODULE = "static-module"
+_ALIAS_STATIC_VALUE = "static-value"
 _ALIAS_UNKNOWN = "unknown"
 _ALIAS_IMPORTLIB_MODULE = "importlib-module"
 _ALIAS_BUILTINS_MODULE = "builtins-module"
 _ALIAS_IMPORTLIB_CALLABLE = "importlib-import-module"
 _ALIAS_BUILTINS_CALLABLE = "builtins-dunder-import"
+_ALIAS_PROHIBITED_CALLABLE = "prohibited-callable"
 _DYNAMIC_IMPORT_ALIAS_KINDS = frozenset(
     {
         _ALIAS_IMPORTLIB_MODULE,
@@ -63,6 +67,78 @@ _DYNAMIC_IMPORT_ALIAS_KINDS = frozenset(
     }
 )
 _DYNAMIC_IMPORT_ATTRIBUTE_NAMES = frozenset({"__import__", "import_module"})
+_REFLECTIVE_OR_EXECUTABLE_CALLABLE_NAMES = frozenset(
+    {
+        "compile",
+        "delattr",
+        "eval",
+        "exec",
+        "getattr",
+        "globals",
+        "locals",
+        "setattr",
+        "vars",
+    }
+)
+_REFLECTIVE_NAMESPACE_ATTRIBUTE_NAMES = frozenset({"__dict__", "__builtins__"})
+_KNOWN_STATIC_BUILTIN_CALLABLE_NAMES = frozenset(
+    {
+        "abs",
+        "all",
+        "any",
+        "ascii",
+        "bin",
+        "bool",
+        "bytearray",
+        "bytes",
+        "callable",
+        "chr",
+        "classmethod",
+        "complex",
+        "dict",
+        "dir",
+        "divmod",
+        "enumerate",
+        "filter",
+        "float",
+        "format",
+        "frozenset",
+        "hash",
+        "hex",
+        "id",
+        "int",
+        "isinstance",
+        "issubclass",
+        "iter",
+        "len",
+        "list",
+        "map",
+        "max",
+        "memoryview",
+        "min",
+        "next",
+        "object",
+        "oct",
+        "ord",
+        "pow",
+        "print",
+        "property",
+        "range",
+        "repr",
+        "reversed",
+        "round",
+        "set",
+        "slice",
+        "sorted",
+        "staticmethod",
+        "str",
+        "sum",
+        "super",
+        "tuple",
+        "type",
+        "zip",
+    }
+)
 
 SOURCE_EXTENSION_RUNTIME_VERIFIER_TEST_MATRIX = (
     "absence-fails-before-candidate-access",
@@ -72,6 +148,7 @@ SOURCE_EXTENSION_RUNTIME_VERIFIER_TEST_MATRIX = (
     "unrostered-or-unresolved-local-import-is-rejected",
     "duplicate-or-cyclic-local-import-graph-is-rejected",
     "dynamic-import-aliases-and-unknown-targets-are-rejected",
+    "deny-by-default-static-call-targets-are-required",
     "test-only-fixture-is-not-a-production-input",
 )
 
@@ -465,24 +542,6 @@ def _assignment_alias_paths(
     return ()
 
 
-def _static_setattr_assignment(
-    value: ast.Call,
-) -> tuple[tuple[str, ...], ast.expr] | None:
-    if (
-        not isinstance(value.func, ast.Name)
-        or value.func.id != "setattr"
-        or len(value.args) < 3
-        or not isinstance(value.args[1], ast.Constant)
-        or not isinstance(value.args[1].value, str)
-        or not value.args[1].value.isidentifier()
-    ):
-        return None
-    parent = _alias_path(value.args[0])
-    if parent is None:
-        return None
-    return (*parent, value.args[1].value), value.args[2]
-
-
 def _class_assignment_alias_paths(
     class_name: str,
     target: ast.expr | ast.expr_context,
@@ -533,7 +592,7 @@ def _import_module_alias_kind(module_name: str, binding_name: str) -> str:
         )
     ):
         return _ALIAS_BUILTINS_MODULE
-    return _ALIAS_SAFE
+    return _ALIAS_STATIC_MODULE
 
 
 def _from_import_alias_kind(
@@ -544,10 +603,20 @@ def _from_import_alias_kind(
     if relative_level == 0 and module_name == "importlib":
         if imported_name == "import_module":
             return _ALIAS_IMPORTLIB_CALLABLE
+        if imported_name in _REFLECTIVE_OR_EXECUTABLE_CALLABLE_NAMES:
+            return _ALIAS_PROHIBITED_CALLABLE
     if relative_level == 0 and module_name == "builtins":
         if imported_name == "__import__":
             return _ALIAS_BUILTINS_CALLABLE
-    return _ALIAS_SAFE
+        if imported_name in _REFLECTIVE_OR_EXECUTABLE_CALLABLE_NAMES:
+            return _ALIAS_PROHIBITED_CALLABLE
+    if imported_name in _DYNAMIC_IMPORT_ATTRIBUTE_NAMES:
+        return _ALIAS_IMPORTLIB_CALLABLE
+    if imported_name in _REFLECTIVE_OR_EXECUTABLE_CALLABLE_NAMES:
+        return _ALIAS_PROHIBITED_CALLABLE
+    if relative_level and module_name is None:
+        return _ALIAS_STATIC_MODULE
+    return _ALIAS_STATIC_CALLABLE
 
 
 def _alias_kind_for_path(
@@ -560,20 +629,32 @@ def _alias_kind_for_path(
     if len(path) == 1:
         return None
     parent_kind = _alias_kind_for_path(path[:-1], aliases)
-    if parent_kind == _ALIAS_IMPORTLIB_MODULE:
+    attribute_name = path[-1]
+    if attribute_name in _REFLECTIVE_NAMESPACE_ATTRIBUTE_NAMES:
+        return _ALIAS_PROHIBITED_CALLABLE
+    if attribute_name in _DYNAMIC_IMPORT_ATTRIBUTE_NAMES:
+        return _ALIAS_IMPORTLIB_CALLABLE
+    if attribute_name in _REFLECTIVE_OR_EXECUTABLE_CALLABLE_NAMES:
+        return _ALIAS_PROHIBITED_CALLABLE
+    if parent_kind in {
+        _ALIAS_IMPORTLIB_MODULE,
+        _ALIAS_BUILTINS_MODULE,
+        _ALIAS_IMPORTLIB_CALLABLE,
+        _ALIAS_BUILTINS_CALLABLE,
+    }:
+        return _ALIAS_IMPORTLIB_CALLABLE
+    if parent_kind == _ALIAS_PROHIBITED_CALLABLE:
+        return _ALIAS_PROHIBITED_CALLABLE
+    if parent_kind == _ALIAS_STATIC_MODULE:
+        return _ALIAS_STATIC_CALLABLE
+    if parent_kind == _ALIAS_STATIC_CALLABLE:
         return (
-            _ALIAS_IMPORTLIB_CALLABLE
-            if path[-1] == "import_module"
+            _ALIAS_STATIC_CALLABLE
+            if attribute_name == "__call__"
             else _ALIAS_UNKNOWN
         )
-    if parent_kind == _ALIAS_BUILTINS_MODULE:
-        return (
-            _ALIAS_BUILTINS_CALLABLE
-            if path[-1] == "__import__"
-            else _ALIAS_UNKNOWN
-        )
-    if parent_kind in {_ALIAS_SAFE, _ALIAS_UNKNOWN}:
-        return parent_kind
+    if parent_kind in {_ALIAS_STATIC_VALUE, _ALIAS_UNKNOWN}:
+        return _ALIAS_UNKNOWN
     return None
 
 
@@ -589,23 +670,7 @@ def _alias_kind_for_static_getattr(
         or not isinstance(value.args[1].value, str)
     ):
         return None
-    attribute_name = value.args[1].value
-    parent_kind = _alias_kind_for_expression(value.args[0], aliases)
-    if parent_kind == _ALIAS_IMPORTLIB_MODULE:
-        return (
-            _ALIAS_IMPORTLIB_CALLABLE
-            if attribute_name == "import_module"
-            else _ALIAS_UNKNOWN
-        )
-    if parent_kind == _ALIAS_BUILTINS_MODULE:
-        return (
-            _ALIAS_BUILTINS_CALLABLE
-            if attribute_name == "__import__"
-            else _ALIAS_UNKNOWN
-        )
-    if attribute_name in _DYNAMIC_IMPORT_ATTRIBUTE_NAMES:
-        return _ALIAS_UNKNOWN
-    return parent_kind
+    return _ALIAS_PROHIBITED_CALLABLE
 
 
 def _alias_kind_for_expression(
@@ -617,8 +682,10 @@ def _alias_kind_for_expression(
         return _alias_kind_for_path(path, aliases)
     if isinstance(value, ast.Call):
         return _alias_kind_for_static_getattr(value, aliases) or _ALIAS_UNKNOWN
-    if isinstance(value, (ast.Constant, ast.Lambda)):
-        return _ALIAS_SAFE
+    if isinstance(value, ast.Lambda):
+        return _ALIAS_STATIC_CALLABLE
+    if isinstance(value, ast.Constant):
+        return _ALIAS_STATIC_VALUE
     if isinstance(value, (ast.Subscript, ast.List, ast.Set, ast.Tuple)):
         return _ALIAS_UNKNOWN
     return None
@@ -631,10 +698,21 @@ def _assignment_alias_kind(
     return _alias_kind_for_expression(value, aliases) or _ALIAS_UNKNOWN
 
 
-def _collect_dynamic_import_aliases(
+def _collect_static_alias_kinds(
     tree: ast.AST,
 ) -> dict[tuple[str, ...], str]:
-    aliases: dict[tuple[str, ...], str] = {}
+    aliases: dict[tuple[str, ...], str] = {
+        (name,): _ALIAS_STATIC_CALLABLE
+        for name in _KNOWN_STATIC_BUILTIN_CALLABLE_NAMES
+    }
+    aliases.update(
+        {
+            (name,): _ALIAS_PROHIBITED_CALLABLE
+            for name in _REFLECTIVE_OR_EXECUTABLE_CALLABLE_NAMES
+        }
+    )
+    aliases[("__import__",)] = _ALIAS_BUILTINS_CALLABLE
+    aliases[("import_module",)] = _ALIAS_IMPORTLIB_CALLABLE
     assignments: list[tuple[tuple[str, ...], ast.expr | None]] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
@@ -660,9 +738,9 @@ def _collect_dynamic_import_aliases(
                     ),
                 )
         elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            _record_alias_kind(aliases, (node.name,), _ALIAS_SAFE)
+            _record_alias_kind(aliases, (node.name,), _ALIAS_STATIC_CALLABLE)
         elif isinstance(node, ast.ClassDef):
-            _record_alias_kind(aliases, (node.name,), _ALIAS_SAFE)
+            _record_alias_kind(aliases, (node.name,), _ALIAS_STATIC_CALLABLE)
             for statement in node.body:
                 if isinstance(statement, ast.Assign):
                     for target in statement.targets:
@@ -720,11 +798,6 @@ def _collect_dynamic_import_aliases(
             assignments.extend(
                 (path, None) for path in _assignment_alias_paths(node.target)
             )
-        elif isinstance(node, ast.Call):
-            setattr_assignment = _static_setattr_assignment(node)
-            if setattr_assignment is not None:
-                assignments.append(setattr_assignment)
-
     while True:
         changed = False
         for path, value in assignments:
@@ -737,29 +810,104 @@ def _collect_dynamic_import_aliases(
             return aliases
 
 
-def _reject_dynamic_import_alias_calls(tree: ast.AST, runtime_path: str) -> None:
-    aliases = _collect_dynamic_import_aliases(tree)
+def _contains_subscript_target(target: ast.expr | ast.expr_context) -> bool:
+    if isinstance(target, ast.Subscript):
+        return True
+    if isinstance(target, (ast.Tuple, ast.List)):
+        return any(_contains_subscript_target(element) for element in target.elts)
+    return False
+
+
+def _reject_reflective_namespace_syntax(tree: ast.AST, runtime_path: str) -> None:
     for node in ast.walk(tree):
-        if not isinstance(node, ast.Call):
-            continue
-        target_path = _alias_path(node.func)
+        if isinstance(node, ast.Name) and node.id == "__builtins__":
+            raise C2StageBSourceExtensionRuntimeVerifierError(
+                "runtime fixture closure forbids reflective namespace access: "
+                f"{runtime_path}"
+            )
         if (
-            target_path is not None
-            and target_path[-1] in _DYNAMIC_IMPORT_ATTRIBUTE_NAMES
+            isinstance(node, ast.Attribute)
+            and node.attr in _REFLECTIVE_NAMESPACE_ATTRIBUTE_NAMES
         ):
+            raise C2StageBSourceExtensionRuntimeVerifierError(
+                "runtime fixture closure forbids reflective namespace access: "
+                f"{runtime_path}"
+            )
+        if (
+            isinstance(node, ast.Attribute)
+            and isinstance(node.ctx, (ast.Store, ast.Del))
+        ):
+            raise C2StageBSourceExtensionRuntimeVerifierError(
+                "runtime fixture closure forbids namespace or attribute mutation: "
+                f"{runtime_path}"
+            )
+        if isinstance(node, ast.Assign):
+            targets = node.targets
+        elif isinstance(node, (ast.AnnAssign, ast.AugAssign)):
+            targets = (node.target,)
+        elif isinstance(node, ast.Delete):
+            targets = node.targets
+        else:
+            continue
+        if any(_contains_subscript_target(target) for target in targets):
+            raise C2StageBSourceExtensionRuntimeVerifierError(
+                "runtime fixture closure forbids namespace or mapping mutation: "
+                f"{runtime_path}"
+            )
+
+
+def _reject_dynamic_or_reflective_alias_references(
+    tree: ast.AST,
+    aliases: dict[tuple[str, ...], str],
+    runtime_path: str,
+) -> None:
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.Name, ast.Attribute)):
+            continue
+        if not isinstance(node.ctx, ast.Load):
+            continue
+        path = _alias_path(node)
+        if path is None:
+            continue
+        kind = _alias_kind_for_path(path, aliases)
+        if kind in _DYNAMIC_IMPORT_ALIAS_KINDS:
             raise C2StageBSourceExtensionRuntimeVerifierError(
                 "runtime fixture import closure forbids dynamic imports: "
                 f"{runtime_path}"
             )
+        if kind == _ALIAS_PROHIBITED_CALLABLE:
+            raise C2StageBSourceExtensionRuntimeVerifierError(
+                "runtime fixture closure forbids reflective or executable "
+                f"callables: {runtime_path}"
+            )
+
+
+def _reject_nonstatic_call_targets(tree: ast.AST, runtime_path: str) -> None:
+    _reject_reflective_namespace_syntax(tree, runtime_path)
+    aliases = _collect_static_alias_kinds(tree)
+    _reject_dynamic_or_reflective_alias_references(
+        tree,
+        aliases,
+        runtime_path,
+    )
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
         target_kind = _alias_kind_for_expression(node.func, aliases)
         if target_kind in _DYNAMIC_IMPORT_ALIAS_KINDS:
             raise C2StageBSourceExtensionRuntimeVerifierError(
                 "runtime fixture import closure forbids dynamic imports: "
                 f"{runtime_path}"
             )
-        if target_kind == _ALIAS_UNKNOWN:
+        if target_kind == _ALIAS_PROHIBITED_CALLABLE:
             raise C2StageBSourceExtensionRuntimeVerifierError(
-                "runtime fixture call target cannot be proven non-dynamic: "
+                "runtime fixture closure forbids reflective or executable "
+                f"callables: {runtime_path}"
+            )
+        if target_kind != _ALIAS_STATIC_CALLABLE:
+            raise C2StageBSourceExtensionRuntimeVerifierError(
+                "runtime fixture call target is unbound or not a statically "
+                "allowed non-dynamic callable: "
                 f"{runtime_path}"
             )
 
@@ -775,7 +923,7 @@ def _parse_static_imports(
         raise C2StageBSourceExtensionRuntimeVerifierError(
             f"runtime fixture Python bytes are not valid UTF-8 source: {runtime_path}"
         ) from exc
-    _reject_dynamic_import_alias_calls(tree, runtime_path)
+    _reject_nonstatic_call_targets(tree, runtime_path)
     imports: list[_StaticImport] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):

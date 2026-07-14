@@ -158,3 +158,7 @@ traversing, or unrostered local dependencies fail closed.
 It tracks statically identifiable aliases of `importlib.import_module` and
 `builtins.__import__`, and rejects alias call targets that cannot be proven
 non-dynamic.
+Its closure policy is deny-by-default: every call target must resolve to an
+explicit static non-dynamic callable. Namespace/mapping mutation, reflection,
+`__dict__`/`__builtins__`, and executable loaders are blocking constructs, not
+exceptions to be admitted later.
