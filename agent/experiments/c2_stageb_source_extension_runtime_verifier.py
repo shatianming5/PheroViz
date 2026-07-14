@@ -24,6 +24,7 @@ import hashlib
 import hmac
 import re
 from dataclasses import dataclass
+from pathlib import PurePosixPath
 from typing import Any, Sequence
 
 from .c2_stageb_source_extension_code_attestation import (
@@ -44,12 +45,17 @@ _SOURCE_EXTENSION_RUNTIME_VERIFIER_ROUTE_APPROVED = False
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
+_RUNTIME_PACKAGE_PATH = ("agent", "experiments")
+_RUNTIME_PRIMARY_PACKAGE = "experiments"
+_RUNTIME_ALTERNATE_PACKAGE = "agent.experiments"
 
 SOURCE_EXTENSION_RUNTIME_VERIFIER_TEST_MATRIX = (
     "absence-fails-before-candidate-access",
     "public-selector-injection-is-not-an-input",
     "dynamic-head-or-parent-identity-is-rejected",
     "malformed-fixed-path-role-roster-is-rejected",
+    "unrostered-or-unresolved-local-import-is-rejected",
+    "duplicate-or-cyclic-local-import-graph-is-rejected",
     "test-only-fixture-is-not-a-production-input",
 )
 
@@ -93,12 +99,13 @@ class SourceExtensionRuntimeTestFixture:
 
 @dataclass(frozen=True, slots=True)
 class SourceExtensionRuntimeByteImportBinding:
-    """The byte hash and static direct-import set for one runtime roster entry."""
+    """The byte hash and recursive static imports for one runtime roster entry."""
 
     runtime_path: str
     role: str
     byte_sha256: str
     direct_imports: tuple[str, ...]
+    resolved_project_local_dependencies: tuple[str, ...]
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -106,6 +113,9 @@ class SourceExtensionRuntimeByteImportBinding:
             "role": self.role,
             "byte_sha256": self.byte_sha256,
             "direct_imports": list(self.direct_imports),
+            "resolved_project_local_dependencies": list(
+                self.resolved_project_local_dependencies
+            ),
         }
 
 
@@ -122,6 +132,17 @@ class SourceExtensionRuntimeByteImportClosure:
                 binding.to_dict() for binding in self.bindings
             ]
         }
+
+
+@dataclass(frozen=True, slots=True)
+class _StaticImport:
+    """One statically parsed import statement or direct import target."""
+
+    module: str | None
+    relative_level: int
+    imported_names: tuple[str, ...]
+    direct_imports: tuple[str, ...]
+    is_from_import: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -320,9 +341,94 @@ def _validate_fixture_files(
     return tuple(parsed)
 
 
-def _static_direct_imports(runtime_path: str, runtime_bytes: bytes) -> tuple[str, ...]:
-    if not runtime_path.endswith(".py"):
-        return ()
+def _require_canonical_repo_relative_path(value: Any, label: str) -> str:
+    if not isinstance(value, str) or not value or "\\" in value:
+        raise C2StageBSourceExtensionRuntimeVerifierError(
+            f"{label} must be a nonempty canonical repository-relative POSIX path"
+        )
+    path = PurePosixPath(value)
+    if (
+        path.is_absolute()
+        or str(path) != value
+        or any(part in {"", ".", ".."} for part in value.split("/"))
+    ):
+        raise C2StageBSourceExtensionRuntimeVerifierError(
+            f"{label} must not contain traversal, aliases, or an absolute path"
+        )
+    return value
+
+
+def _require_module_name(value: str, label: str) -> str:
+    if not value or any(not part.isidentifier() for part in value.split(".")):
+        raise C2StageBSourceExtensionRuntimeVerifierError(
+            f"{label} is not a statically resolvable Python module name"
+        )
+    return value
+
+
+def _runtime_module_names(runtime_path: str) -> tuple[str, str]:
+    path = _require_canonical_repo_relative_path(runtime_path, "runtime path")
+    parts = PurePosixPath(path).parts
+    if (
+        len(parts) < 3
+        or parts[:2] != _RUNTIME_PACKAGE_PATH
+        or not path.endswith(".py")
+    ):
+        raise C2StageBSourceExtensionRuntimeVerifierError(
+            "runtime Python path must be under agent/experiments and end in .py"
+        )
+    stem = parts[-1][:-3]
+    module_parts = list(parts[2:-1])
+    if stem != "__init__":
+        module_parts.append(stem)
+    if any(not part.isidentifier() for part in module_parts):
+        raise C2StageBSourceExtensionRuntimeVerifierError(
+            f"runtime path cannot map to a static Python module: {runtime_path}"
+        )
+    suffix = ".".join(module_parts)
+    primary = (
+        _RUNTIME_PRIMARY_PACKAGE
+        if not suffix
+        else f"{_RUNTIME_PRIMARY_PACKAGE}.{suffix}"
+    )
+    alternate = (
+        _RUNTIME_ALTERNATE_PACKAGE
+        if not suffix
+        else f"{_RUNTIME_ALTERNATE_PACKAGE}.{suffix}"
+    )
+    return primary, alternate
+
+
+def _build_runtime_module_index(
+    runtime_files: Sequence[SourceExtensionRuntimeFixtureFile],
+) -> tuple[dict[str, str], dict[str, str], dict[str, int]]:
+    module_to_path: dict[str, str] = {}
+    primary_module_by_path: dict[str, str] = {}
+    roster_index = {
+        runtime_file.runtime_path: index
+        for index, runtime_file in enumerate(runtime_files)
+    }
+    for runtime_file in runtime_files:
+        if not runtime_file.runtime_path.endswith(".py"):
+            continue
+        primary, alternate = _runtime_module_names(runtime_file.runtime_path)
+        primary_module_by_path[runtime_file.runtime_path] = primary
+        for module_name in (primary, alternate):
+            existing_path = module_to_path.get(module_name)
+            if existing_path is not None:
+                raise C2StageBSourceExtensionRuntimeVerifierError(
+                    "runtime import closure has a duplicate local module mapping: "
+                    f"{module_name} maps to both {existing_path} and "
+                    f"{runtime_file.runtime_path}"
+                )
+            module_to_path[module_name] = runtime_file.runtime_path
+    return module_to_path, primary_module_by_path, roster_index
+
+
+def _parse_static_imports(
+    runtime_path: str,
+    runtime_bytes: bytes,
+) -> tuple[_StaticImport, ...]:
     try:
         source = runtime_bytes.decode("utf-8")
         tree = ast.parse(source, filename=runtime_path, mode="exec")
@@ -330,17 +436,62 @@ def _static_direct_imports(runtime_path: str, runtime_bytes: bytes) -> tuple[str
         raise C2StageBSourceExtensionRuntimeVerifierError(
             f"runtime fixture Python bytes are not valid UTF-8 source: {runtime_path}"
         ) from exc
-    imports: set[str] = set()
+    imports: list[_StaticImport] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
-            imports.update(alias.name for alias in node.names)
+            for alias in node.names:
+                module_name = _require_module_name(
+                    alias.name,
+                    f"absolute import in {runtime_path}",
+                )
+                imports.append(
+                    _StaticImport(
+                        module=module_name,
+                        relative_level=0,
+                        imported_names=(),
+                        direct_imports=(module_name,),
+                        is_from_import=False,
+                    )
+                )
         elif isinstance(node, ast.ImportFrom):
             if any(alias.name == "*" for alias in node.names):
                 raise C2StageBSourceExtensionRuntimeVerifierError(
                     "runtime fixture import closure forbids wildcard imports: "
                     f"{runtime_path}"
                 )
-            imports.add(f"{'.' * node.level}{node.module or ''}")
+            imported_names = tuple(alias.name for alias in node.names)
+            if any(not name.isidentifier() for name in imported_names):
+                raise C2StageBSourceExtensionRuntimeVerifierError(
+                    "runtime fixture import closure has an unresolved alias import: "
+                    f"{runtime_path}"
+                )
+            module_name = (
+                None
+                if node.module is None
+                else _require_module_name(
+                    node.module,
+                    f"from-import module in {runtime_path}",
+                )
+            )
+            if node.level == 0 and module_name is None:
+                raise C2StageBSourceExtensionRuntimeVerifierError(
+                    f"runtime fixture import has no static target: {runtime_path}"
+                )
+            prefix = "." * node.level
+            direct_imports = (
+                tuple(f"{prefix}{name}" for name in imported_names)
+                if module_name is None
+                else (f"{prefix}{module_name}",)
+            )
+            imports.append(
+                _StaticImport(
+                    module=module_name,
+                    relative_level=node.level,
+                    imported_names=imported_names,
+                    direct_imports=direct_imports,
+                    is_from_import=True,
+                )
+            )
         elif isinstance(node, ast.Call):
             if isinstance(node.func, ast.Name) and node.func.id == "__import__":
                 raise C2StageBSourceExtensionRuntimeVerifierError(
@@ -349,13 +500,160 @@ def _static_direct_imports(runtime_path: str, runtime_bytes: bytes) -> tuple[str
                 )
             if (
                 isinstance(node.func, ast.Attribute)
-                and node.func.attr == "import_module"
+                and node.func.attr in {"__import__", "import_module"}
             ):
                 raise C2StageBSourceExtensionRuntimeVerifierError(
                     "runtime fixture import closure forbids dynamic imports: "
                     f"{runtime_path}"
                 )
-    return tuple(sorted(imports))
+    return tuple(imports)
+
+
+def _relative_import_base(
+    importer_module: str,
+    relative_level: int,
+    importer_path: str,
+) -> str:
+    package_parts = importer_module.split(".")[:-1]
+    if relative_level < 1 or relative_level > len(package_parts):
+        raise C2StageBSourceExtensionRuntimeVerifierError(
+            "runtime fixture relative import has traversal or no static package base: "
+            f"{importer_path}"
+        )
+    return ".".join(package_parts[: len(package_parts) - relative_level + 1])
+
+
+def _is_project_local_module(module_name: str) -> bool:
+    return (
+        module_name == _RUNTIME_PRIMARY_PACKAGE
+        or module_name.startswith(f"{_RUNTIME_PRIMARY_PACKAGE}.")
+        or module_name == "agent"
+        or module_name.startswith("agent.")
+    )
+
+
+def _resolve_local_module_path(
+    module_name: str,
+    module_to_path: dict[str, str],
+    importer_path: str,
+) -> str:
+    path = module_to_path.get(module_name)
+    if path is None:
+        raise C2StageBSourceExtensionRuntimeVerifierError(
+            "runtime fixture import resolves to an unrostered project-local "
+            f"dependency: {module_name} from {importer_path}"
+        )
+    return _require_canonical_repo_relative_path(
+        path,
+        "resolved project-local dependency",
+    )
+
+
+def _resolve_static_local_dependencies(
+    importer_path: str,
+    importer_module: str,
+    imports: Sequence[_StaticImport],
+    module_to_path: dict[str, str],
+    roster_index: dict[str, int],
+) -> tuple[str, ...]:
+    dependencies: list[str] = []
+    for static_import in imports:
+        if static_import.relative_level:
+            base = _relative_import_base(
+                importer_module,
+                static_import.relative_level,
+                importer_path,
+            )
+            if static_import.module is None:
+                for imported_name in static_import.imported_names:
+                    dependencies.append(
+                        _resolve_local_module_path(
+                            f"{base}.{imported_name}",
+                            module_to_path,
+                            importer_path,
+                        )
+                    )
+            else:
+                dependencies.append(
+                    _resolve_local_module_path(
+                        f"{base}.{static_import.module}",
+                        module_to_path,
+                        importer_path,
+                    )
+                )
+            continue
+
+        module_name = static_import.module
+        if module_name is None or not _is_project_local_module(module_name):
+            continue
+        if (
+            static_import.is_from_import
+            and module_name
+            in {_RUNTIME_PRIMARY_PACKAGE, _RUNTIME_ALTERNATE_PACKAGE}
+        ):
+            for imported_name in static_import.imported_names:
+                dependencies.append(
+                    _resolve_local_module_path(
+                        f"{module_name}.{imported_name}",
+                        module_to_path,
+                        importer_path,
+                    )
+                )
+        else:
+            dependencies.append(
+                _resolve_local_module_path(
+                    module_name,
+                    module_to_path,
+                    importer_path,
+                )
+            )
+    if len(dependencies) != len(set(dependencies)):
+        raise C2StageBSourceExtensionRuntimeVerifierError(
+            "runtime fixture import closure has a duplicate local dependency: "
+            f"{importer_path}"
+        )
+    return tuple(sorted(dependencies, key=roster_index.__getitem__))
+
+
+def _resolve_recursive_local_import_closures(
+    graph: dict[str, tuple[str, ...]],
+    roster_index: dict[str, int],
+) -> dict[str, tuple[str, ...]]:
+    completed: dict[str, tuple[str, ...]] = {}
+    active: list[str] = []
+
+    def visit(runtime_path: str) -> tuple[str, ...]:
+        if runtime_path in active:
+            cycle = (*active[active.index(runtime_path) :], runtime_path)
+            raise C2StageBSourceExtensionRuntimeVerifierError(
+                "runtime fixture import closure has a local dependency cycle: "
+                f"{' -> '.join(cycle)}"
+            )
+        if runtime_path in completed:
+            return completed[runtime_path]
+        active.append(runtime_path)
+        transitive_dependencies: list[str] = []
+        for dependency in graph[runtime_path]:
+            if dependency not in graph:
+                raise C2StageBSourceExtensionRuntimeVerifierError(
+                    "runtime fixture import closure resolved a non-Python local "
+                    f"dependency: {dependency}"
+                )
+            transitive_dependencies.append(dependency)
+            transitive_dependencies.extend(visit(dependency))
+        active.pop()
+        closure = tuple(
+            sorted(
+                set(transitive_dependencies),
+                key=roster_index.__getitem__,
+            )
+        )
+        completed[runtime_path] = closure
+        return closure
+
+    for runtime_path in graph:
+        visit(runtime_path)
+    return completed
 
 
 def _canonical_attested_blob_set_sha256(
@@ -380,14 +678,56 @@ def _canonical_attested_blob_set_sha256(
 def _compile_runtime_byte_import_closure(
     runtime_files: Sequence[SourceExtensionRuntimeFixtureFile],
 ) -> SourceExtensionRuntimeByteImportClosure:
+    (
+        module_to_path,
+        primary_module_by_path,
+        roster_index,
+    ) = _build_runtime_module_index(runtime_files)
+    parsed_imports_by_path: dict[str, tuple[_StaticImport, ...]] = {}
+    local_dependencies_by_path: dict[str, tuple[str, ...]] = {}
+    for runtime_file in runtime_files:
+        if not runtime_file.runtime_path.endswith(".py"):
+            continue
+        imports = _parse_static_imports(
+            runtime_file.runtime_path,
+            runtime_file.runtime_bytes,
+        )
+        parsed_imports_by_path[runtime_file.runtime_path] = imports
+        local_dependencies_by_path[runtime_file.runtime_path] = (
+            _resolve_static_local_dependencies(
+                runtime_file.runtime_path,
+                primary_module_by_path[runtime_file.runtime_path],
+                imports,
+                module_to_path,
+                roster_index,
+            )
+        )
+    recursive_local_dependencies_by_path = _resolve_recursive_local_import_closures(
+        local_dependencies_by_path,
+        roster_index,
+    )
     bindings = tuple(
         SourceExtensionRuntimeByteImportBinding(
             runtime_path=runtime_file.runtime_path,
             role=runtime_file.role,
             byte_sha256=hashlib.sha256(runtime_file.runtime_bytes).hexdigest(),
-            direct_imports=_static_direct_imports(
-                runtime_file.runtime_path,
-                runtime_file.runtime_bytes,
+            direct_imports=tuple(
+                sorted(
+                    {
+                        direct_import
+                        for static_import in parsed_imports_by_path.get(
+                            runtime_file.runtime_path,
+                            (),
+                        )
+                        for direct_import in static_import.direct_imports
+                    }
+                )
+            ),
+            resolved_project_local_dependencies=(
+                recursive_local_dependencies_by_path.get(
+                    runtime_file.runtime_path,
+                    (),
+                )
             ),
         )
         for runtime_file in runtime_files

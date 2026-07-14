@@ -152,3 +152,6 @@ in-memory interface defines the later lock/registry comparison for the two
 commit identities, manifest and canonical blob-set digests, fixed ordered
 path/role roster, and runtime byte/import closure. It is not a source root,
 evidence reader, signed lock, or admission route.
+The test-only closure resolves static project-local imports recursively to
+canonical repository-relative paths; unresolved, dynamic, duplicate, cyclic,
+traversing, or unrostered local dependencies fail closed.

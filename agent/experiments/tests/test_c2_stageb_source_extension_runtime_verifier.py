@@ -36,10 +36,18 @@ def _entry_bytes(entry: dict[str, Any]) -> bytes:
 
 
 def _runtime_files() -> tuple[runtime_verifier.SourceExtensionRuntimeFixtureFile, ...]:
+    python_bytes_by_path = {
+        "agent/experiments/c2_remediation_root_finalizer.py": (
+            b"from . import c2_source_bearing_extension\n"
+        ),
+        "agent/experiments/c2_source_bearing_extension.py": b"from . import models\n",
+        "agent/experiments/cli.py": b"from . import models\n",
+        "agent/experiments/models.py": b"import json\n",
+    }
     files: list[runtime_verifier.SourceExtensionRuntimeFixtureFile] = []
     for path, role in code_attestation.SOURCE_EXTENSION_RUNTIME_PATH_ROLES:
         if path.endswith(".py"):
-            runtime_bytes = b"import json\nfrom . import models\n"
+            runtime_bytes = python_bytes_by_path[path]
         else:
             runtime_bytes = json.dumps(
                 {"fixture_schema_path": path},
@@ -54,6 +62,23 @@ def _runtime_files() -> tuple[runtime_verifier.SourceExtensionRuntimeFixtureFile
             )
         )
     return tuple(files)
+
+
+def _replace_runtime_bytes(
+    files: tuple[runtime_verifier.SourceExtensionRuntimeFixtureFile, ...],
+    runtime_path: str,
+    runtime_bytes: bytes,
+) -> tuple[runtime_verifier.SourceExtensionRuntimeFixtureFile, ...]:
+    replaced = False
+    updated: list[runtime_verifier.SourceExtensionRuntimeFixtureFile] = []
+    for runtime_file in files:
+        if runtime_file.runtime_path == runtime_path:
+            updated.append(replace(runtime_file, runtime_bytes=runtime_bytes))
+            replaced = True
+        else:
+            updated.append(runtime_file)
+    assert replaced
+    return tuple(updated)
 
 
 def _fixture(
@@ -106,15 +131,21 @@ def _compile_registry(
     )
 
 
+def _compile_runtime_closure(
+    runtime_files: tuple[runtime_verifier.SourceExtensionRuntimeFixtureFile, ...],
+) -> runtime_verifier.SourceExtensionRuntimeByteImportClosure:
+    compiler = getattr(
+        runtime_verifier,
+        "compile_source_extension_runtime_byte_import_closure_for_testing",
+    )
+    return compiler(runtime_files)
+
+
 def _lock(
     registry: code_attestation.SourceExtensionCodeAttestationRegistryEntry,
     fixture: runtime_verifier.SourceExtensionRuntimeTestFixture,
 ) -> runtime_verifier.DeploymentPinnedSourceExtensionRuntimeLock:
-    closure_compiler = getattr(
-        runtime_verifier,
-        "compile_source_extension_runtime_byte_import_closure_for_testing",
-    )
-    closure = closure_compiler(fixture.runtime_files)
+    closure = _compile_runtime_closure(fixture.runtime_files)
     return runtime_verifier.DeploymentPinnedSourceExtensionRuntimeLock(
         expected_code_attestation_registry_id_sha256=registry.registry_id_sha256,
         expected_extension_implementation_commit_full=(
@@ -163,8 +194,84 @@ def test_test_only_typed_interface_binds_registry_manifest_blobset_and_closure(
     assert tuple(
         (entry.runtime_path, entry.role) for entry in binding.covered_runtime_paths
     ) == code_attestation.SOURCE_EXTENSION_RUNTIME_PATH_ROLES
+    closure = _compile_runtime_closure(fixture.runtime_files)
+    local_dependencies = {
+        item.runtime_path: item.resolved_project_local_dependencies
+        for item in closure.bindings
+    }
+    assert local_dependencies[
+        "agent/experiments/c2_remediation_root_finalizer.py"
+    ] == (
+        "agent/experiments/c2_source_bearing_extension.py",
+        "agent/experiments/models.py",
+    )
+    assert local_dependencies["agent/experiments/c2_source_bearing_extension.py"] == (
+        "agent/experiments/models.py",
+    )
     assert "admitted" not in binding.to_dict()
     assert "evidence" not in binding.to_dict()
+
+
+def test_unrostered_relative_alias_import_is_rejected_from_runtime_closure() -> None:
+    fixture = _fixture()
+    unrostered_files = _replace_runtime_bytes(
+        fixture.runtime_files,
+        "agent/experiments/cli.py",
+        b"from . import aggregate as aggregate_module\n",
+    )
+
+    with pytest.raises(
+        C2FullReplacementPolicyError,
+        match="unrostered project-local dependency",
+    ):
+        _compile_runtime_closure(unrostered_files)
+
+
+def test_nested_local_import_cycle_is_rejected_from_runtime_closure() -> None:
+    fixture = _fixture()
+    cyclic_files = _replace_runtime_bytes(
+        fixture.runtime_files,
+        "agent/experiments/c2_source_bearing_extension.py",
+        b"from . import c2_remediation_root_finalizer\n",
+    )
+
+    with pytest.raises(C2FullReplacementPolicyError, match="local dependency cycle"):
+        _compile_runtime_closure(cyclic_files)
+
+
+def test_duplicate_local_import_and_relative_traversal_are_rejected() -> None:
+    fixture = _fixture()
+    duplicate_files = _replace_runtime_bytes(
+        fixture.runtime_files,
+        "agent/experiments/cli.py",
+        b"from . import models\nfrom .models import Model\n",
+    )
+    with pytest.raises(
+        C2FullReplacementPolicyError,
+        match="duplicate local dependency",
+    ):
+        _compile_runtime_closure(duplicate_files)
+
+    traversal_files = _replace_runtime_bytes(
+        fixture.runtime_files,
+        "agent/experiments/cli.py",
+        b"from .. import models\n",
+    )
+    with pytest.raises(C2FullReplacementPolicyError, match="traversal"):
+        _compile_runtime_closure(traversal_files)
+
+
+def test_dynamic_import_is_rejected_from_runtime_closure() -> None:
+    fixture = _fixture()
+    dynamic_files = _replace_runtime_bytes(
+        fixture.runtime_files,
+        "agent/experiments/cli.py",
+        b"import importlib\n"
+        b"importlib.import_module('.aggregate', package=__package__)\n",
+    )
+
+    with pytest.raises(C2FullReplacementPolicyError, match="dynamic imports"):
+        _compile_runtime_closure(dynamic_files)
 
 
 def test_absent_production_resource_fails_before_registry_or_fixture_access(
@@ -456,5 +563,7 @@ def test_required_test_matrix_is_explicit_and_closed() -> None:
         "public-selector-injection-is-not-an-input",
         "dynamic-head-or-parent-identity-is-rejected",
         "malformed-fixed-path-role-roster-is-rejected",
+        "unrostered-or-unresolved-local-import-is-rejected",
+        "duplicate-or-cyclic-local-import-graph-is-rejected",
         "test-only-fixture-is-not-a-production-input",
     )
