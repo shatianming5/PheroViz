@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -142,16 +143,6 @@ def _make_fixture(
         "FROZEN_FREEZE_SUMMARY_HASH",
         str(summary["summary_hash"]),
     )
-    monkeypatch.setattr(
-        finalizer,
-        "_verify_worktree",
-        lambda _: {
-            "commit": finalizer.FROZEN_CODE_COMMIT,
-            "tree": "synthetic-clean-tree",
-            "dirty": False,
-        },
-    )
-
     raw_root = workspace / "raw"
     raw_root.mkdir(mode=0o700)
     (raw_root / "accepted.jsonl").write_bytes(source_bytes)
@@ -310,11 +301,12 @@ def _make_fixture(
 
     provenance_dir = raw_root / "content" / "_provenance"
     provenance_dir.mkdir(parents=True)
+    source_bearing_article_id = source_records[0]["article_url"].rsplit("/", 1)[-1]
     for record in source_records:
         article_id = record["article_url"].rsplit("/", 1)[-1]
         status = final_statuses[article_id]
         has_source_bearing_download = (
-            downloaded_mode != "none" and article_id == "article-1"
+            downloaded_mode != "none" and article_id == source_bearing_article_id
         )
         provenance: dict[str, Any] = {
             "doi": record["doi"],
@@ -388,8 +380,30 @@ def _make_fixture(
             }
         },
     )
-    worktree = workspace / "code-worktree"
-    worktree.mkdir(mode=0o700)
+    worktree = workspace / "frozen-acquisition-worktree"
+    repository = Path(__file__).resolve().parents[2]
+    subprocess.run(
+        ["git", "clone", "--shared", "--no-checkout", str(repository), str(worktree)],
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(worktree),
+            "checkout",
+            "--detach",
+            finalizer.FROZEN_CODE_COMMIT,
+        ],
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    worktree.chmod(0o700)
     return {
         "raw_root": raw_root,
         "target_root": target_parent / finalizer.expected_target_root_name(chunk_id),
@@ -431,6 +445,24 @@ def test_static_partition_covers_the_frozen_2463_record_universe() -> None:
     }
     with pytest.raises(finalizer.C2RemediationError, match="not authorized"):
         finalizer.expected_target_root_name("009")
+
+
+def test_secure_target_refuses_every_write_after_atomic_publication() -> None:
+    with experiment_workspace("c2-remediation-postpublish-write-guard") as workspace:
+        parent = workspace / "output"
+        parent.mkdir(mode=0o700)
+        target_path = parent / finalizer.expected_target_root_name("001")
+        target = finalizer._create_target_root(target_path)
+        try:
+            target.write_bytes("control/before_publish.json", b"{}")
+            target.publish()
+            with pytest.raises(finalizer.C2RemediationError, match="after publication"):
+                target.write_bytes("control/forbidden.json", b"{}")
+            with pytest.raises(finalizer.C2RemediationError, match="after publication"):
+                target.mkdir("forbidden")
+            assert target.read_bytes("control/before_publish.json") == b"{}"
+        finally:
+            target.close()
 
 
 @pytest.mark.parametrize(("chunk_id", "expected_records"), [("001", 200), ("013", 63)])

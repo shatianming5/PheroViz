@@ -30,6 +30,12 @@ from .models import (
     open_secure_output_target,
     sha256_file,
 )
+from .c2_source_bearing_extension import (
+    SourceBearingExtensionError,
+    build_source_bearing_extension,
+    validate_source_bearing_extension,
+    validate_source_evidence_descriptor_v2,
+)
 
 
 class C2RemediationError(ProvenanceError):
@@ -352,6 +358,8 @@ class _SourceEvidence:
     descriptor_path: str
     descriptor_sha256: str
     descriptor_bytes: int
+    schema_version: str
+    descriptor: Mapping[str, Any]
     source_paths: tuple[Mapping[str, Any], ...]
 
 
@@ -680,6 +688,11 @@ class _SecureTargetRoot:
         *,
         create: bool,
     ) -> tuple[int, str]:
+        if create:
+            _require(
+                not self._published,
+                "refusing to create or modify artifacts after publication",
+            )
         path = _ensure_relative(relative, f"target {relative}")
         current_fd = os.dup(self._root_fd)
         flags = (
@@ -769,6 +782,7 @@ class _SecureTargetRoot:
                 os.close(descriptor)
 
     def write_bytes(self, relative: str, payload: bytes) -> str:
+        _require(not self._published, "refusing to write artifacts after publication")
         parent_fd, leaf_name = self._open_parent(relative, create=True)
         descriptor = -1
         try:
@@ -815,6 +829,7 @@ class _SecureTargetRoot:
         return _sha256_bytes(self.read_bytes(relative))
 
     def mkdir(self, relative: str) -> None:
+        _require(not self._published, "refusing to create artifacts after publication")
         parent_fd, leaf_name = self._open_parent(relative, create=True)
         try:
             try:
@@ -1753,15 +1768,10 @@ def _validate_download_source_evidence(
         raw_root=reader.root,
         label=f"source evidence descriptor {article_id}",
     )
+    schema_version = descriptor.get("schema_version")
     _require(
-        descriptor.get("schema_version") == "c2-source-evidence-v1",
+        schema_version in {"c2-source-evidence-v1", "c2-source-evidence-v2"},
         f"source evidence descriptor schema mismatch: {article_id}",
-    )
-    _require(
-        descriptor.get("doi") == doi
-        and descriptor.get("article_id") == article_id
-        and descriptor.get("provenance_path") == provenance_path,
-        f"source evidence descriptor provenance linkage mismatch: {article_id}",
     )
     _require(
         isinstance(descriptor.get("descriptor_hash"), str)
@@ -1769,11 +1779,32 @@ def _validate_download_source_evidence(
         == descriptor["descriptor_hash"],
         f"source evidence descriptor semantic hash mismatch: {article_id}",
     )
-    sources = descriptor.get("sources")
-    _require(
-        isinstance(sources, list) and sources,
-        f"source evidence descriptor has no source files: {article_id}",
-    )
+    if schema_version == "c2-source-evidence-v2":
+        try:
+            sources = list(
+                validate_source_evidence_descriptor_v2(
+                    descriptor,
+                    article_id=article_id,
+                    doi_id=doi,
+                    provenance_relative_path=provenance_path,
+                )
+            )
+        except SourceBearingExtensionError as exc:
+            raise C2RemediationError(
+                f"source evidence V2 descriptor is invalid: {article_id}"
+            ) from exc
+    else:
+        _require(
+            descriptor.get("doi") == doi
+            and descriptor.get("article_id") == article_id
+            and descriptor.get("provenance_path") == provenance_path,
+            f"source evidence descriptor provenance linkage mismatch: {article_id}",
+        )
+        sources = descriptor.get("sources")
+        _require(
+            isinstance(sources, list) and sources,
+            f"source evidence descriptor has no source files: {article_id}",
+        )
     expected_prefix = f"content/_sources/{article_id}/"
     source_paths: list[Mapping[str, Any]] = []
     seen_paths: set[str] = set()
@@ -1820,6 +1851,8 @@ def _validate_download_source_evidence(
         descriptor_path=expected_descriptor_path,
         descriptor_sha256=evidence["descriptor_sha256"],
         descriptor_bytes=evidence["descriptor_bytes"],
+        schema_version=str(schema_version),
+        descriptor=descriptor,
         source_paths=tuple(source_paths),
     )
 
@@ -2237,6 +2270,7 @@ def finalize_remediation_root(
     frozen_universe: Path,
     freeze_summary: Path,
     worktree: Path,
+    source_bearing_v2: bool = False,
 ) -> dict[str, Any]:
     """Seal one fresh remediation root from independently acquired raw evidence."""
 
@@ -2553,7 +2587,8 @@ def finalize_remediation_root(
             for row in terminal_rows
             if provenance[row["article_id"]]["source_evidence"] is not None
         ]
-        if source_bearing_rows:
+        source_extension: Any | None = None
+        if source_bearing_rows and not source_bearing_v2:
             blocked = {
                 "schema_version": "c2-source-classification-block-v1",
                 "status": "NOT_SEALABLE_SOURCE_CLASSIFICATION_BUILDER_REQUIRED",
@@ -2571,6 +2606,37 @@ def finalize_remediation_root(
             raise C2RemediationError(
                 "source-bearing terminal rows require an approved canonical/P builder"
             )
+        if source_bearing_rows:
+            try:
+                source_extension = build_source_bearing_extension(
+                    root=target,
+                    raw_reader=raw_reader,
+                    records=records,
+                    provenance=provenance,
+                    terminal_rows=terminal_rows,
+                    partition_records=partition.records,
+                    source_chunk_sha256=partition.source_sha256,
+                )
+            except SourceBearingExtensionError as exc:
+                blocked = {
+                    "schema_version": "c2-source-classification-block-v1",
+                    "status": "NOT_SEALABLE_SOURCE_EXTENSION_STAGEB_POLICY_REQUIRED",
+                    "reason": (
+                        "source-bearing V2 execution requires a compile-pinned, "
+                        "package-internal Stage-B production policy/code-registry "
+                        "commitment; candidate worktree and manifest identities "
+                        "cannot supply one"
+                    ),
+                    "terminal_outcomes_sha256": target.sha256(terminal_path),
+                    "terminal_summary_sha256": target.sha256(terminal_summary_path),
+                    "source_bearing_rows": source_bearing_rows,
+                }
+                _seal(blocked, "block_hash")
+                _write_json(target, "control/source_classification_blocked.json", blocked)
+                raise C2RemediationError(
+                    "source-bearing V2 canonical/P construction is not sealable: "
+                    f"{exc}"
+                ) from exc
 
         manifest_rows = [
             {
@@ -2623,85 +2689,100 @@ def finalize_remediation_root(
             ),
         )
 
-        empty_sha = _sha256_bytes(b"")
-        _write_bytes(target, "cases_v1/candidates.jsonl", b"")
-        _write_bytes(target, "cases_v1/ambiguous.jsonl", b"")
-        cases = {
-            "schema_version": "2.0",
-            "articles_total": partition.records,
-            "candidates": 0,
-            "ambiguous": 0,
-            "eligible_for_experiment": 0,
-            "llm_calls": 0,
-            "candidates_sha256": empty_sha,
-            "ambiguous_sha256": empty_sha,
-            "reason": "fresh remediation empty-case policy; no model-generated case selection",
-        }
-        _seal(cases, "summary_hash")
-        cases_path = _write_json(target, "cases_v1/summary.json", cases)
-        _write_bytes(target, "proposals_v1/proposed.jsonl", b"")
-        _write_bytes(target, "proposals_v1/rejected.jsonl", b"")
-        proposals = {
-            "schema_version": "2.0",
-            "input_candidates_sha256": empty_sha,
-            "input_count": 0,
-            "proposals_total": 0,
-            "single_proposals": 0,
-            "multi_panel_proposals": 0,
-            "rejected": 0,
-            "eligible_for_experiment": 0,
-            "llm_calls": 0,
-        }
-        _seal(proposals, "summary_hash")
-        proposals_path = _write_json(target, "proposals_v1/summary.json", proposals)
-        review = {
-            "schema_version": "2.0",
-            "status": "SKIPPED_NO_PROPOSALS",
-            "proposals": 0,
-            "reviews": 0,
-            "models_invoked": [],
-            "secret_hits": [],
-            "api_or_infra_failures": [],
-        }
-        _seal(review, "summary_hash")
-        review_path = _write_json(target, "control/review_validation.json", review)
-        canonical = {
-            "schema_version": "2.0",
-            "status": "CANONICAL_EMPTY_NO_PROPOSALS",
-            "input_proposals_sha256": empty_sha,
-            "input_candidates_sha256": empty_sha,
-            "input_count": 0,
-            "accepted_single": 0,
-            "accepted_multi": 0,
-            "derivation_run": False,
-            "reason": "zero deterministic proposals",
-        }
-        _seal(canonical, "summary_hash")
-        canonical_path = _write_json(
-            target,
-            "canonical_v1/canonical_summary.json",
-            canonical,
-        )
-        p_summary = {
-            "schema_version": "2.0",
-            "status": "CANONICAL_EMPTY_NO_PROPOSALS",
-            "chunk": int(chunk_id),
-            "input_proposals": 0,
-            "canonical_summary_sha256": target.sha256(canonical_path),
-            "canonical_summary_hash": canonical["summary_hash"],
-            "reason": "no canonical accepted cases",
-        }
-        _seal(p_summary, "summary_hash")
-        p_path = _write_json(target, "p_evidence_v1/p_summary.json", p_summary)
-        benchmark = {
-            "schema_version": "2.0",
-            "status": "NOT_EMITTED_NO_REVIEWED_CASES",
-            "assembly_run": False,
-            "eligible_cases": 0,
-            "canonical_summary_sha256": target.sha256(canonical_path),
-            "p_summary_sha256": target.sha256(p_path),
-        }
-        _write_json(target, "control/sealed_benchmark_status.json", benchmark)
+        if source_extension is None:
+            empty_sha = _sha256_bytes(b"")
+            _write_bytes(target, "cases_v1/candidates.jsonl", b"")
+            _write_bytes(target, "cases_v1/ambiguous.jsonl", b"")
+            cases = {
+                "schema_version": "2.0",
+                "articles_total": partition.records,
+                "candidates": 0,
+                "ambiguous": 0,
+                "eligible_for_experiment": 0,
+                "llm_calls": 0,
+                "candidates_sha256": empty_sha,
+                "ambiguous_sha256": empty_sha,
+                "reason": "fresh remediation empty-case policy; no model-generated case selection",
+            }
+            _seal(cases, "summary_hash")
+            cases_path = _write_json(target, "cases_v1/summary.json", cases)
+            _write_bytes(target, "proposals_v1/proposed.jsonl", b"")
+            _write_bytes(target, "proposals_v1/rejected.jsonl", b"")
+            proposals = {
+                "schema_version": "2.0",
+                "input_candidates_sha256": empty_sha,
+                "input_count": 0,
+                "proposals_total": 0,
+                "single_proposals": 0,
+                "multi_panel_proposals": 0,
+                "rejected": 0,
+                "eligible_for_experiment": 0,
+                "llm_calls": 0,
+            }
+            _seal(proposals, "summary_hash")
+            proposals_path = _write_json(target, "proposals_v1/summary.json", proposals)
+            review = {
+                "schema_version": "2.0",
+                "status": "SKIPPED_NO_PROPOSALS",
+                "proposals": 0,
+                "reviews": 0,
+                "models_invoked": [],
+                "secret_hits": [],
+                "api_or_infra_failures": [],
+            }
+            _seal(review, "summary_hash")
+            review_path = _write_json(target, "control/review_validation.json", review)
+            canonical = {
+                "schema_version": "2.0",
+                "status": "CANONICAL_EMPTY_NO_PROPOSALS",
+                "input_proposals_sha256": empty_sha,
+                "input_candidates_sha256": empty_sha,
+                "input_count": 0,
+                "accepted_single": 0,
+                "accepted_multi": 0,
+                "derivation_run": False,
+                "reason": "zero deterministic proposals",
+            }
+            _seal(canonical, "summary_hash")
+            canonical_path = _write_json(
+                target,
+                "canonical_v1/canonical_summary.json",
+                canonical,
+            )
+            p_summary = {
+                "schema_version": "2.0",
+                "status": "CANONICAL_EMPTY_NO_PROPOSALS",
+                "chunk": int(chunk_id),
+                "input_proposals": 0,
+                "canonical_summary_sha256": target.sha256(canonical_path),
+                "canonical_summary_hash": canonical["summary_hash"],
+                "reason": "no canonical accepted cases",
+            }
+            _seal(p_summary, "summary_hash")
+            p_path = _write_json(target, "p_evidence_v1/p_summary.json", p_summary)
+            benchmark = {
+                "schema_version": "2.0",
+                "status": "NOT_EMITTED_NO_REVIEWED_CASES",
+                "assembly_run": False,
+                "eligible_cases": 0,
+                "canonical_summary_sha256": target.sha256(canonical_path),
+                "p_summary_sha256": target.sha256(p_path),
+            }
+            _write_json(target, "control/sealed_benchmark_status.json", benchmark)
+        else:
+            _write_json(
+                target,
+                "control/sealed_benchmark_status.json",
+                {
+                    "schema_version": "c2-source-bearing-benchmark-status-v2",
+                    "status": "NOT_EMITTED_SOURCE_CLASSIFICATION_ONLY",
+                    "assembly_run": False,
+                    "eligible_cases": source_extension.canonical["case_count"],
+                    "source_bearing_extension_validation_sha256": (
+                        source_extension.extension_validation["sha256"]
+                    ),
+                },
+            )
 
         preservation_after = (
             None
@@ -2727,6 +2808,29 @@ def finalize_remediation_root(
             postfinal_code == code,
             "clean frozen code binding changed during finalization",
         )
+        source_extension_replay: Mapping[str, Any] | None = None
+        if source_extension is not None:
+            try:
+                source_extension_replay = validate_source_bearing_extension(
+                    target,
+                    partition_records=partition.records,
+                    source_chunk_sha256=partition.source_sha256,
+                )
+                stored_extension_validation = _read_json_bytes(
+                    target.read_bytes(
+                        "control/v2/source_bearing_extension_validation.json"
+                    ),
+                    "source-bearing extension validation",
+                )
+                _require(
+                    stored_extension_validation == source_extension_replay,
+                    "source-bearing extension replay differs from staged validation",
+                )
+            except SourceBearingExtensionError as exc:
+                raise C2RemediationError(
+                    "source-bearing extension failed prepublication replay: "
+                    f"{exc}"
+                ) from exc
         preseal = {
             "schema_version": "2.0",
             "status": "PASS",
@@ -2751,6 +2855,11 @@ def finalize_remediation_root(
             "code_before": code,
             "code_after": postfinal_code,
         }
+        if source_extension_replay is not None:
+            preseal["gates"]["source_bearing_extension_replayed"] = True
+            preseal["source_bearing_extension_validation_hash"] = (
+                source_extension_replay["validation_hash"]
+            )
         _seal(preseal, "validation_hash")
         preseal_path = _write_json(target, "control/preseal_validation.json", preseal)
         target.verify_staging_identity()
@@ -2796,18 +2905,60 @@ def finalize_remediation_root(
             ),
         )
         target.verify_staging_identity()
-        target.publish()
+
+        if source_extension is None:
+            report_status = "SEALED_COMPLETE_ATTEMPT_EVIDENCE_NO_CASES"
+            report_cases: Mapping[str, Any] = {
+                "summary_file_sha256": target.sha256(cases_path),
+                "summary_hash": cases["summary_hash"],
+                "candidates": 0,
+                "ambiguous": 0,
+            }
+            report_proposals: Mapping[str, Any] = {
+                "summary_file_sha256": target.sha256(proposals_path),
+                "summary_hash": proposals["summary_hash"],
+                "proposals": 0,
+                "rejected": 0,
+            }
+            report_canonical: Mapping[str, Any] = {
+                "summary_file_sha256": target.sha256(canonical_path),
+                "summary_hash": canonical["summary_hash"],
+                "status": canonical["status"],
+            }
+            report_p: Mapping[str, Any] = {
+                "summary_file_sha256": target.sha256(p_path),
+                "summary_hash": p_summary["summary_hash"],
+                "status": p_summary["status"],
+            }
+            report_review: Mapping[str, Any] = {
+                "validation_file_sha256": target.sha256(review_path),
+                "summary_hash": review["summary_hash"],
+                "status": review["status"],
+            }
+            source_extension_trust: Mapping[str, Any] = {}
+        else:
+            report_status = "SEALED_COMPLETE_ATTEMPT_EVIDENCE_SOURCE_V2"
+            report_cases = dict(source_extension.cases)
+            report_proposals = dict(source_extension.proposals)
+            report_canonical = dict(source_extension.canonical)
+            report_p = dict(source_extension.p_evidence)
+            report_review = dict(source_extension.review)
+            source_extension_trust = {
+                "source_bearing_extension_validation": dict(
+                    source_extension.extension_validation
+                )
+            }
 
         report = {
             "sealed_report_version": "3.0",
-            "status": "SEALED_COMPLETE_ATTEMPT_EVIDENCE_NO_CASES",
+            "status": report_status,
             "root": str(target.path),
             "publication": {
                 "method": (
                     "descriptor-relative atomic no-replace directory rename "
                     "(renameatx_np RENAME_EXCL or renameat2 RENAME_NOREPLACE)"
                 ),
-                "canonical_target_identity_verified": True,
+                "canonical_target_identity_postpublication_check": "REQUIRED",
                 "staging_parent": (
                     "pre-existing descriptor-validated owner/ACL-safe parent"
                 ),
@@ -2868,33 +3019,11 @@ def finalize_remediation_root(
                 ],
             },
             "corpus_manifest": manifest_summary,
-            "cases": {
-                "summary_file_sha256": target.sha256(cases_path),
-                "summary_hash": cases["summary_hash"],
-                "candidates": 0,
-                "ambiguous": 0,
-            },
-            "proposals": {
-                "summary_file_sha256": target.sha256(proposals_path),
-                "summary_hash": proposals["summary_hash"],
-                "proposals": 0,
-                "rejected": 0,
-            },
-            "canonical": {
-                "summary_file_sha256": target.sha256(canonical_path),
-                "summary_hash": canonical["summary_hash"],
-                "status": canonical["status"],
-            },
-            "p_strata": {
-                "summary_file_sha256": target.sha256(p_path),
-                "summary_hash": p_summary["summary_hash"],
-                "status": p_summary["status"],
-            },
-            "review": {
-                "validation_file_sha256": target.sha256(review_path),
-                "summary_hash": review["summary_hash"],
-                "status": review["status"],
-            },
+            "cases": report_cases,
+            "proposals": report_proposals,
+            "canonical": report_canonical,
+            "p_strata": report_p,
+            "review": report_review,
             "trust_chain": {
                 "raw_source_manifest_sha256": target.sha256(
                     "control/v2/raw_source_manifest.json"
@@ -2924,6 +3053,7 @@ def finalize_remediation_root(
                 "artifact_hashes": {
                     entry["path"]: entry["sha256"] for entry in artifact_entries
                 },
+                **source_extension_trust,
             },
         }
         _seal(report, "report_hash")
@@ -2987,7 +3117,6 @@ def finalize_remediation_root(
                 "relative_provenance_paths": True,
                 "descriptor_bound_provenance_relocation": True,
                 "no_early_or_partial_selection": True,
-                "empty_case_chain": True,
                 "root_inventory": True,
                 "artifact_manifest": True,
                 "cross_links": True,
@@ -2999,6 +3128,16 @@ def finalize_remediation_root(
                 "private_trusted_staging_parent": True,
             },
         }
+        if source_extension is None:
+            validation["gates"]["empty_case_chain"] = True
+        else:
+            validation["gates"]["source_bearing_v2_chain"] = True
+            validation["source_bearing_extension_validation_sha256"] = (
+                source_extension.extension_validation["sha256"]
+            )
+            validation["source_bearing_extension_validation_hash"] = (
+                source_extension.extension_validation["validation_hash"]
+            )
         _seal(validation, "validation_hash")
         validation_path = _write_json(
             target,
@@ -3011,6 +3150,35 @@ def finalize_remediation_root(
             "generated report checksum mismatch",
         )
         _require(target.read_bytes(validation_path), "generated validation is missing")
+        # All extension and report artifacts are complete at this point.  The
+        # only remaining state transition is the native no-replace publication.
+        # Replay the source-bearing chain again after every final staging write;
+        # all subsequent operations are descriptor-rooted reads/checks.
+        if source_extension is not None:
+            try:
+                prepublish_extension_replay = validate_source_bearing_extension(
+                    target,
+                    partition_records=partition.records,
+                    source_chunk_sha256=partition.source_sha256,
+                )
+                _require(
+                    prepublish_extension_replay == source_extension_replay
+                    and prepublish_extension_replay
+                    == _read_json_bytes(
+                        target.read_bytes(
+                            "control/v2/source_bearing_extension_validation.json"
+                        ),
+                        "source-bearing extension validation",
+                    ),
+                    "source-bearing extension changed before publication",
+                )
+            except SourceBearingExtensionError as exc:
+                raise C2RemediationError(
+                    "source-bearing extension failed immediate prepublication replay: "
+                    f"{exc}"
+                ) from exc
+        target.verify_staging_identity()
+        target.publish()
         target.verify_published_identity()
         return {
             "chunk_id": chunk_id,

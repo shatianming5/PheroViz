@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "c2_v2_fd_format_classifier_config_v1.schema.json",
+  "title": "C2 V2 FD format classifier configuration",
+  "type": "object",
+  "required": ["schema_version", "format_classifier_id", "format_classifier_version", "format_classifier_code_sha256", "zip_v1_parser_id", "zip_v1_parser_version", "zip_v1_parser_code_sha256", "xlsx_profile_parser_id", "xlsx_profile_parser_version", "xlsx_profile_parser_code_sha256", "noncontainer_parser_registry_id", "noncontainer_parser_registry_version", "noncontainer_parser_registry_hash", "format_detection_rule_id", "format_detection_rule_version", "format_detection_rule_hash", "format_error_enum_version", "format_error_enum_hash", "maximum_container_depth", "maximum_archive_member_bytes", "maximum_archive_container_compressed_bytes", "maximum_archive_container_uncompressed_bytes", "maximum_archive_run_compressed_bytes", "maximum_archive_run_uncompressed_bytes", "schema_hashes", "closed_schema_registry_hash", "review_mode", "review_protocol_hash", "config_hash"],
+  "properties": {
+    "schema_version": {"const": "c2_v2_fd_format_classifier_config_v1"},
+    "format_classifier_id": {"type": "string"},
+    "format_classifier_version": {"type": "string"},
+    "format_classifier_code_sha256": {"$ref": "#/$defs/sha256"},
+    "zip_v1_parser_id": {"type": "string"},
+    "zip_v1_parser_version": {"type": "string"},
+    "zip_v1_parser_code_sha256": {"$ref": "#/$defs/sha256"},
+    "xlsx_profile_parser_id": {"type": "string"},
+    "xlsx_profile_parser_version": {"type": "string"},
+    "xlsx_profile_parser_code_sha256": {"$ref": "#/$defs/sha256"},
+    "noncontainer_parser_registry_id": {"type": "string"},
+    "noncontainer_parser_registry_version": {"type": "string"},
+    "noncontainer_parser_registry_hash": {"$ref": "#/$defs/sha256"},
+    "format_detection_rule_id": {"type": "string"},
+    "format_detection_rule_version": {"type": "string"},
+    "format_detection_rule_hash": {"$ref": "#/$defs/sha256"},
+    "format_error_enum_version": {"type": "string"},
+    "format_error_enum_hash": {"$ref": "#/$defs/sha256"},
+    "maximum_container_depth": {"type": "integer", "minimum": 0},
+    "maximum_archive_member_bytes": {"type": "integer", "minimum": 1},
+    "maximum_archive_container_compressed_bytes": {"type": "integer", "minimum": 1},
+    "maximum_archive_container_uncompressed_bytes": {"type": "integer", "minimum": 1},
+    "maximum_archive_run_compressed_bytes": {"type": "integer", "minimum": 1},
+    "maximum_archive_run_uncompressed_bytes": {"type": "integer", "minimum": 1},
+    "schema_hashes": {
+      "type": "object",
+      "required": [
+        "c2_v2_fd_format_classifier_config_v1.schema.json",
+        "c2_v2_detected_format_v1.schema.json",
+        "c2_v2_container_accounting_index_v1.schema.json",
+        "c2_v2_consumable_source_unit_v1.schema.json",
+        "c2_v2_downstream_consumption_v1.schema.json",
+        "c2_v2_candidate_set_input_v1.schema.json",
+        "c2_v2_consumption_bijection_validation_v1.schema.json"
+      ],
+      "properties": {
+        "c2_v2_fd_format_classifier_config_v1.schema.json": {"$ref": "#/$defs/sha256"},
+        "c2_v2_detected_format_v1.schema.json": {"$ref": "#/$defs/sha256"},
+        "c2_v2_container_accounting_index_v1.schema.json": {"$ref": "#/$defs/sha256"},
+        "c2_v2_consumable_source_unit_v1.schema.json": {"$ref": "#/$defs/sha256"},
+        "c2_v2_downstream_consumption_v1.schema.json": {"$ref": "#/$defs/sha256"},
+        "c2_v2_candidate_set_input_v1.schema.json": {"$ref": "#/$defs/sha256"},
+        "c2_v2_consumption_bijection_validation_v1.schema.json": {"$ref": "#/$defs/sha256"}
+      },
+      "additionalProperties": false
+    },
+    "closed_schema_registry_hash": {"$ref": "#/$defs/sha256"},
+    "review_mode": {"const": "C2_V2_STRUCTURAL_REVIEW_V1"},
+    "review_protocol_hash": {"$ref": "#/$defs/sha256"},
+    "config_hash": {"$ref": "#/$defs/sha256"}
+  },
+  "additionalProperties": false,
+  "$defs": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+}

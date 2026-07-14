@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "c2_v2_downstream_consumption_v1.schema.json",
+  "title": "C2 V2 downstream consumption record",
+  "type": "object",
+  "required": ["schema_version", "unit_id", "unit_hash", "parent_doi_id", "origin_record_hash", "container_node_id_or_null", "consumption_link_hash", "candidate_input_id_or_null", "candidate_input_record_hash_or_null", "consumption_disposition", "reason_code", "source_only_exclusion_record_hash_or_null", "record_hash"],
+  "properties": {
+    "schema_version": {"const": "c2_v2_downstream_consumption_v1"},
+    "unit_id": {"type": "string"},
+    "unit_hash": {"$ref": "#/$defs/sha256"},
+    "parent_doi_id": {"type": "string"},
+    "origin_record_hash": {"$ref": "#/$defs/sha256"},
+    "container_node_id_or_null": {"type": ["string", "null"]},
+    "consumption_link_hash": {"$ref": "#/$defs/sha256"},
+    "candidate_input_id_or_null": {"type": ["string", "null"]},
+    "candidate_input_record_hash_or_null": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "consumption_disposition": {"enum": ["CANDIDATE_SET_INPUT", "SOURCE_ONLY_EXCLUSION", "REJECTION"]},
+    "reason_code": {"type": "string"},
+    "source_only_exclusion_record_hash_or_null": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "record_hash": {"$ref": "#/$defs/sha256"}
+  },
+  "additionalProperties": false,
+  "$defs": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+}

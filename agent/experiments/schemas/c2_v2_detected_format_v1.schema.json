@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "c2_v2_detected_format_v1.schema.json",
+  "title": "C2 V2 FD-detected format record",
+  "type": "object",
+  "required": ["schema_version", "origin_record_hash", "parent_doi_id", "frozen_input_ordinal", "verified_relative_path", "verified_file_sha256", "verified_bytes", "container_format", "content_profile", "container_node_id_or_null", "format_classifier_id", "format_classifier_version", "format_classifier_code_sha256", "format_detection_rule_hash", "format_hash"],
+  "properties": {
+    "schema_version": {"const": "c2_v2_detected_format_v1"},
+    "origin_record_hash": {"$ref": "#/$defs/sha256"},
+    "parent_doi_id": {"type": "string"},
+    "frozen_input_ordinal": {"type": "integer", "minimum": 1},
+    "verified_relative_path": {"type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.?/).+"},
+    "verified_file_sha256": {"$ref": "#/$defs/sha256"},
+    "verified_bytes": {"type": "integer", "minimum": 1},
+    "container_format": {"enum": ["NONE", "ZIP_V1"]},
+    "content_profile": {"enum": ["CSV_V1", "XLSX_V1", "GENERIC_ZIP_V1", "OTHER_REGISTERED_V1"]},
+    "container_node_id_or_null": {"type": ["string", "null"]},
+    "format_classifier_id": {"type": "string"},
+    "format_classifier_version": {"type": "string"},
+    "format_classifier_code_sha256": {"$ref": "#/$defs/sha256"},
+    "format_detection_rule_hash": {"$ref": "#/$defs/sha256"},
+    "format_hash": {"$ref": "#/$defs/sha256"}
+  },
+  "additionalProperties": false,
+  "$defs": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+}

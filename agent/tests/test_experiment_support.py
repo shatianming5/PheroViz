@@ -24,7 +24,9 @@ from experiments.providers import (
 
 @contextmanager
 def experiment_workspace(label: str) -> Iterator[Path]:
-    parent = Path(__file__).resolve().parent / ".experiment_test_work"
+    # Keep generated targets outside the checked-out code root: secure-finalizer
+    # tests must exercise the real attested worktree without nesting outputs in it.
+    parent = Path(__file__).resolve().parents[3] / ".experiment_test_work"
     path = parent / f"{label}-{uuid.uuid4().hex}"
     path.mkdir(parents=True)
     try:

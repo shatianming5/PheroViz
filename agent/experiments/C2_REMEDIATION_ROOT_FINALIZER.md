@@ -18,7 +18,8 @@ python -m experiments c2-remediation-root-finalize 013 \
   --source-chunk /absolute/chunks/chunk_013.jsonl \
   --frozen-universe /absolute/universe.jsonl \
   --freeze-summary /absolute/freeze_summary.json \
-  --worktree /absolute/clean-ca98442-worktree
+  --worktree /absolute/clean-ca98442-worktree \
+  --source-bearing-v2
 ```
 
 The finalizer statically binds chunks `001`–`012` to 200 records and `013` to
@@ -38,6 +39,9 @@ logs, zero exits, final provenance, and a hash-sealed
 records. The config must pin the established strict CC-BY/input-sort/postfetch
 limits and one positive worker count for all three passes. The execution
 evidence must attest the one-fresh-root cap and no active retained pipeline.
+The raw acquisition/downloader binding always remains the frozen acquisition
+commit `ca98442b9e805110089b03083cb240e19b58d4a2`; no source-extension
+authorization can replace it or claim that extension code acquired raw data.
 `downloaded` is derived only from a processed-success ID absent from
 `_skipped.txt`; it is forbidden in skipped maps. The output recomputes
 raw-attestation entries and retry2 terminal rows, then emits relative
@@ -56,11 +60,34 @@ exactly the terminal provenance files and those referenced descriptors/source
 files; unreferenced source artifacts fail before target creation.
 
 The finalizer emits the empty canonical/P chain only when every terminal row is
-source-less. If any source-bearing row exists, it emits exhaustive acquisition
-evidence and `control/source_classification_blocked.json`, then fails with
+source-less. The default remains fail-closed for any source-bearing row:
+it emits exhaustive acquisition evidence and
+`control/source_classification_blocked.json`, then fails with
 `NOT_SEALABLE_SOURCE_CLASSIFICATION_BUILDER_REQUIRED`; it never fabricates an
-empty canonical/P or sealed-report chain. A separately approved deterministic
-canonical/P builder is required before such a root can be sealed.
+empty canonical/P or sealed-report chain.
+
+`--source-bearing-v2` is an explicit opt-in for the deterministic V2 extension.
+Every source-bearing descriptor must then be the closed
+`c2-source-evidence-v2` form with typed assets, exact declared format tuples,
+and descriptor-bound candidate hints. The extension classifies bytes from
+retained FDs before checking declared role/format; it fully accounts every ZIP
+(including XLSX and nested containers), writes each derived member, proves the
+member-to-consumption/candidate bijection, runs only
+`C2_V2_STRUCTURAL_REVIEW_V1` (no model), recomputes panels/P from all retained
+canonical cases, and independently replays the chain during staging and again
+immediately before atomic publication. Missing,
+legacy, malformed, or ambiguous evidence fails closed. A byte-valid table with
+no deterministic source mapping receives an explicit, hash-bound source-only
+exclusion; it never falls back to an empty chain.
+
+The current source branch has no compile-pinned, package-internal Stage-B
+production policy/code-registry commitment. Consequently, a source-bearing V2
+root fails closed with
+`NOT_SEALABLE_SOURCE_EXTENSION_STAGEB_POLICY_REQUIRED` before it reads any
+candidate worktree, parent commit, manifest, or runtime attestation. A future
+production route must consume only
+`c2_stageb_source_extension_code_attestation.load_compile_pinned_source_extension_code_attestation`;
+test-only Git/blob anchors are not a production trust boundary.
 
 The canonical target leaf is never created directly. Its pre-existing direct
 parent is the private staging parent: it is opened by a retained no-follow FD
@@ -89,7 +116,10 @@ first no-follow FD open.
 The generated preservation ledger records protected old-root contracts and
 retained `009`/`010`/`012` exclusions. For a chunk with a protected-root
 contract, the finalizer recomputes its compact inventory and sealed-report hash
-before target creation, before report publication, and after publication in a
-postseal verification record; any mismatch fails closed.
+before target creation and again during prepublication sealing; any mismatch
+fails closed. All reports, inventories, sidecars, and validation records are
+written and descriptor-revalidated in private staging before the atomic rename.
+After publication it performs only read-only inode/identity checks and never
+writes into the published root.
 This finalizer intentionally does not implement the Final3 production P-policy
 map or admission aggregation.
