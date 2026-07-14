@@ -31,12 +31,10 @@ from .models import (
     sha256_file,
 )
 from .c2_source_bearing_extension import (
-    SourceExtensionCodeAttestation,
     SourceBearingExtensionError,
     build_source_bearing_extension,
     validate_source_bearing_extension,
     validate_source_evidence_descriptor_v2,
-    verify_source_extension_code_attestation,
 )
 
 
@@ -1110,49 +1108,6 @@ def _verify_worktree(worktree: Path) -> dict[str, Any]:
     _require(commit == FROZEN_CODE_COMMIT, "worktree commit is not the frozen acquisition commit")
     _require(not status.strip(), "worktree is dirty")
     return {"commit": commit, "tree": tree, "dirty": False}
-
-
-def _verify_source_extension_worktree(
-    worktree: Path,
-) -> tuple[dict[str, Any], SourceExtensionCodeAttestation]:
-    """Bind V2 source execution to a reviewed implementation/attestation pair."""
-
-    trusted_worktree = _verify_trusted_existing_root(worktree, "worktree")
-    attestation = verify_source_extension_code_attestation(
-        trusted_worktree,
-        loaded_finalizer_path=Path(__file__),
-    )
-    try:
-        tree = subprocess.check_output(
-            [
-                "git",
-                "-C",
-                str(trusted_worktree),
-                "rev-parse",
-                f"{attestation.attestation_commit_full}^{{tree}}",
-            ],
-            text=True,
-        ).strip()
-    except (OSError, subprocess.CalledProcessError) as exc:
-        raise C2RemediationError(
-            "cannot establish source extension attestation tree"
-        ) from exc
-    return (
-        {
-            "commit": attestation.attestation_commit_full,
-            "tree": tree,
-            "dirty": False,
-            "source_extension_code_attestation": {
-                "approved_implementation_commit_full": (
-                    attestation.approved_implementation_commit_full
-                ),
-                "attestation_commit_full": attestation.attestation_commit_full,
-                "manifest_sha256": attestation.manifest_sha256,
-                "attested_code_blobs_sha256": attestation.code_blob_set_sha256,
-            },
-        },
-        attestation,
-    )
 
 
 def _verify_frozen_inputs(
@@ -2362,13 +2317,7 @@ def finalize_remediation_root(
         frozen_universe,
         freeze_summary,
     )
-    source_extension_code_attestation: SourceExtensionCodeAttestation | None = None
-    if source_bearing_v2:
-        code, source_extension_code_attestation = _verify_source_extension_worktree(
-            worktree
-        )
-    else:
-        code = _verify_worktree(worktree)
+    code = _verify_worktree(worktree)
     (
         raw_bytes,
         _events,
@@ -2658,10 +2607,6 @@ def finalize_remediation_root(
                 "source-bearing terminal rows require an approved canonical/P builder"
             )
         if source_bearing_rows:
-            _require(
-                source_extension_code_attestation is not None,
-                "source extension code attestation is unavailable",
-            )
             try:
                 source_extension = build_source_bearing_extension(
                     root=target,
@@ -2671,9 +2616,23 @@ def finalize_remediation_root(
                     terminal_rows=terminal_rows,
                     partition_records=partition.records,
                     source_chunk_sha256=partition.source_sha256,
-                    code_attestation=source_extension_code_attestation,
                 )
             except SourceBearingExtensionError as exc:
+                blocked = {
+                    "schema_version": "c2-source-classification-block-v1",
+                    "status": "NOT_SEALABLE_SOURCE_EXTENSION_STAGEB_POLICY_REQUIRED",
+                    "reason": (
+                        "source-bearing V2 execution requires a compile-pinned, "
+                        "package-internal Stage-B production policy/code-registry "
+                        "commitment; candidate worktree and manifest identities "
+                        "cannot supply one"
+                    ),
+                    "terminal_outcomes_sha256": target.sha256(terminal_path),
+                    "terminal_summary_sha256": target.sha256(terminal_summary_path),
+                    "source_bearing_rows": source_bearing_rows,
+                }
+                _seal(blocked, "block_hash")
+                _write_json(target, "control/source_classification_blocked.json", blocked)
                 raise C2RemediationError(
                     "source-bearing V2 canonical/P construction is not sealable: "
                     f"{exc}"
@@ -2844,16 +2803,7 @@ def finalize_remediation_root(
             preservation_ledger,
         )
         secret_scan_path, secret_scan = _write_secret_scan(target)
-        if source_extension_code_attestation is None:
-            postfinal_code = _verify_worktree(worktree)
-        else:
-            postfinal_code, postfinal_attestation = _verify_source_extension_worktree(
-                worktree
-            )
-            _require(
-                postfinal_attestation == source_extension_code_attestation,
-                "source extension code attestation changed during finalization",
-            )
+        postfinal_code = _verify_worktree(worktree)
         _require(
             postfinal_code == code,
             "clean frozen code binding changed during finalization",
@@ -2865,7 +2815,6 @@ def finalize_remediation_root(
                     target,
                     partition_records=partition.records,
                     source_chunk_sha256=partition.source_sha256,
-                    code_attestation=source_extension_code_attestation,
                 )
                 stored_extension_validation = _read_json_bytes(
                     target.read_bytes(
@@ -3114,16 +3063,7 @@ def finalize_remediation_root(
             "sealed_report_v1/sealed_report.sha256",
             f"{target.sha256(report_path)}  sealed_report.json\n".encode("utf-8"),
         )
-        if source_extension_code_attestation is None:
-            postseal_code = _verify_worktree(worktree)
-        else:
-            postseal_code, postseal_attestation = _verify_source_extension_worktree(
-                worktree
-            )
-            _require(
-                postseal_attestation == source_extension_code_attestation,
-                "source extension code attestation changed after report sealing",
-            )
+        postseal_code = _verify_worktree(worktree)
         _require(
             postseal_code == code,
             "clean frozen code binding changed after report publication",
@@ -3220,7 +3160,6 @@ def finalize_remediation_root(
                     target,
                     partition_records=partition.records,
                     source_chunk_sha256=partition.source_sha256,
-                    code_attestation=source_extension_code_attestation,
                 )
                 _require(
                     prepublish_extension_replay == source_extension_replay

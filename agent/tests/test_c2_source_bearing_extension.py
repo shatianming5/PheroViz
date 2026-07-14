@@ -16,10 +16,15 @@ from experiments import c2_remediation_root_finalizer as finalizer
 from experiments.c2_source_bearing_extension import (
     SourceBearingExtensionError,
     build_source_bearing_extension,
+    build_source_bearing_extension_for_testing,
     validate_source_bearing_extension,
-    verify_source_extension_code_attestation,
+    validate_source_bearing_extension_for_testing,
+    verify_source_extension_code_attestation_for_testing,
 )
-from tests.test_c2_remediation_root_finalizer import _make_fixture
+from tests.test_c2_remediation_root_finalizer import (
+    _make_fixture,
+    _private_staging_root,
+)
 from tests.test_experiment_support import experiment_workspace
 
 
@@ -264,7 +269,7 @@ def _build(
     root, reader, records, provenance, terminal_rows = _source_root(
         source_assets=source_assets
     )
-    result = build_source_bearing_extension(
+    result = build_source_bearing_extension_for_testing(
         root=root,
         raw_reader=reader,
         records=records,
@@ -281,6 +286,45 @@ def _records(root: _MemoryRoot, path: str) -> list[dict[str, Any]]:
         json.loads(line)
         for line in root.read_bytes(path).decode("utf-8").splitlines()
     ]
+
+
+def _test_only_attestation_payload(repository: Path, commit: str) -> bytes:
+    paths = (
+        "agent/experiments/c2_remediation_root_finalizer.py",
+        "agent/experiments/c2_source_bearing_extension.py",
+        "agent/experiments/cli.py",
+        "agent/experiments/models.py",
+        "agent/experiments/schemas/c2_v2_candidate_set_input_v1.schema.json",
+        "agent/experiments/schemas/c2_v2_consumable_source_unit_v1.schema.json",
+        "agent/experiments/schemas/c2_v2_consumption_bijection_validation_v1.schema.json",
+        "agent/experiments/schemas/c2_v2_container_accounting_index_v1.schema.json",
+        "agent/experiments/schemas/c2_v2_detected_format_v1.schema.json",
+        "agent/experiments/schemas/c2_v2_downstream_consumption_v1.schema.json",
+        "agent/experiments/schemas/c2_v2_fd_format_classifier_config_v1.schema.json",
+    )
+    entries = []
+    for relative in paths:
+        blob = subprocess.check_output(
+            ["git", "-C", str(repository), "rev-parse", f"{commit}:{relative}"],
+            text=True,
+        ).strip()
+        payload = subprocess.check_output(
+            ["git", "-C", str(repository), "show", f"{commit}:{relative}"]
+        )
+        entries.append(
+            {
+                "relative_path": relative,
+                "git_blob_object_id": blob,
+                "sha256": _sha256(payload),
+            }
+        )
+    return _canonical(
+        {
+            "schema_version": "c2_source_bearing_extension_test_attestation_v1",
+            "approved_implementation_commit_full": commit,
+            "attested_paths": entries,
+        }
+    ) + b"\n"
 
 
 def test_required_v2_schemas_are_closed_and_meta_schema_valid() -> None:
@@ -300,13 +344,13 @@ def test_required_v2_schemas_are_closed_and_meta_schema_valid() -> None:
         assert schema["additionalProperties"] is False
 
 
-def test_code_attestation_rejects_wrong_commit_blob_and_runtime_path() -> None:
+def test_test_only_code_attestation_rejects_wrong_commit_blob_and_runtime_path() -> None:
     repository = Path(__file__).resolve().parents[2]
     current_commit = subprocess.check_output(
         ["git", "-C", str(repository), "rev-parse", "HEAD"],
         text=True,
     ).strip()
-    attestation = verify_source_extension_code_attestation(repository)
+    attestation = verify_source_extension_code_attestation_for_testing(repository)
     assert attestation.attestation_commit_full == current_commit
     assert {
         blob.relative_path for blob in attestation.code_blobs
@@ -334,13 +378,13 @@ def test_code_attestation_rejects_wrong_commit_blob_and_runtime_path() -> None:
         )
         extension_path = clone / "agent/experiments/c2_source_bearing_extension.py"
         finalizer_path = clone / "agent/experiments/c2_remediation_root_finalizer.py"
-        verify_source_extension_code_attestation(
+        verify_source_extension_code_attestation_for_testing(
             clone,
             loaded_extension_path=extension_path,
             loaded_finalizer_path=finalizer_path,
         )
         with pytest.raises(SourceBearingExtensionError, match="loaded runtime path"):
-            verify_source_extension_code_attestation(
+            verify_source_extension_code_attestation_for_testing(
                 clone,
                 loaded_extension_path=extension_path,
                 loaded_finalizer_path=Path(__file__),
@@ -362,11 +406,11 @@ def test_code_attestation_rejects_wrong_commit_blob_and_runtime_path() -> None:
         source_manifest = json.loads(
             (
                 repository
-                / "agent/experiments/c2_source_bearing_extension_code_attestation.json"
+                / "agent/tests/fixtures/c2_source_bearing_extension_test_attestation.json"
             ).read_text(encoding="utf-8")
         )
         source_manifest["attested_paths"][0]["sha256"] = "0" * 64
-        (clone / "agent/experiments/c2_source_bearing_extension_code_attestation.json").write_bytes(
+        (clone / "agent/tests/fixtures/c2_source_bearing_extension_test_attestation.json").write_bytes(
             _canonical(source_manifest) + b"\n"
         )
         subprocess.run(
@@ -403,7 +447,7 @@ def test_code_attestation_rejects_wrong_commit_blob_and_runtime_path() -> None:
                 "-C",
                 str(clone),
                 "add",
-                "agent/experiments/c2_source_bearing_extension_code_attestation.json",
+                "agent/tests/fixtures/c2_source_bearing_extension_test_attestation.json",
             ],
             check=True,
             stdout=subprocess.PIPE,
@@ -418,7 +462,7 @@ def test_code_attestation_rejects_wrong_commit_blob_and_runtime_path() -> None:
             text=True,
         )
         with pytest.raises(SourceBearingExtensionError, match="attested blob mismatch"):
-            verify_source_extension_code_attestation(
+            verify_source_extension_code_attestation_for_testing(
                 clone,
                 loaded_extension_path=extension_path,
                 loaded_finalizer_path=finalizer_path,
@@ -441,7 +485,7 @@ def test_code_attestation_rejects_wrong_commit_blob_and_runtime_path() -> None:
             SourceBearingExtensionError,
             match="attestation commit",
         ):
-            verify_source_extension_code_attestation(
+            verify_source_extension_code_attestation_for_testing(
                 clone,
                 loaded_extension_path=extension_path,
                 loaded_finalizer_path=finalizer_path,
@@ -455,11 +499,152 @@ def test_code_attestation_rejects_wrong_commit_blob_and_runtime_path() -> None:
         )
         extension_path.write_bytes(extension_path.read_bytes() + b"\n# forged\n")
         with pytest.raises(SourceBearingExtensionError, match="worktree is dirty"):
-            verify_source_extension_code_attestation(
+            verify_source_extension_code_attestation_for_testing(
                 clone,
                 loaded_extension_path=extension_path,
                 loaded_finalizer_path=finalizer_path,
             )
+
+        malicious_clone = workspace / "malicious-test-only-clone"
+        subprocess.run(
+            [
+                "git",
+                "clone",
+                "--no-local",
+                "--no-checkout",
+                str(repository),
+                str(malicious_clone),
+            ],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(malicious_clone),
+                "checkout",
+                "--detach",
+                attestation.approved_implementation_commit_full,
+            ],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        for key, value in (
+            ("user.email", "attestation-test@example.test"),
+            ("user.name", "Attestation Test"),
+        ):
+            subprocess.run(
+                ["git", "-C", str(malicious_clone), "config", key, value],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+        malicious_extension = (
+            malicious_clone / "agent/experiments/c2_source_bearing_extension.py"
+        )
+        malicious_extension.write_bytes(
+            malicious_extension.read_bytes() + b"\n# malicious test-only implementation\n"
+        )
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(malicious_clone),
+                "add",
+                "agent/experiments/c2_source_bearing_extension.py",
+            ],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(malicious_clone), "commit", "-m", "malicious implementation"],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        malicious_implementation = subprocess.check_output(
+            ["git", "-C", str(malicious_clone), "rev-parse", "HEAD"],
+            text=True,
+        ).strip()
+        malicious_manifest = (
+            malicious_clone
+            / "agent/tests/fixtures/c2_source_bearing_extension_test_attestation.json"
+        )
+        malicious_manifest.parent.mkdir(parents=True, exist_ok=True)
+        malicious_manifest.write_bytes(
+            _test_only_attestation_payload(
+                malicious_clone,
+                malicious_implementation,
+            )
+        )
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(malicious_clone),
+                "add",
+                "agent/tests/fixtures/c2_source_bearing_extension_test_attestation.json",
+            ],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(malicious_clone), "commit", "-m", "matching manifest"],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        matching_test_only = verify_source_extension_code_attestation_for_testing(
+            malicious_clone,
+            loaded_extension_path=malicious_extension,
+            loaded_finalizer_path=(
+                malicious_clone
+                / "agent/experiments/c2_remediation_root_finalizer.py"
+            ),
+        )
+        assert (
+            matching_test_only.approved_implementation_commit_full
+            == malicious_implementation
+        )
+
+
+def test_production_extension_routes_fail_before_candidate_attestation() -> None:
+    root = _MemoryRoot()
+    with pytest.raises(
+        SourceBearingExtensionError,
+        match="STAGEB_POLICY_REQUIRED",
+    ):
+        build_source_bearing_extension(
+            root=root,
+            raw_reader=object(),
+            records=(),
+            provenance={},
+            terminal_rows=(),
+            partition_records=0,
+            source_chunk_sha256="a" * 64,
+        )
+    with pytest.raises(
+        SourceBearingExtensionError,
+        match="STAGEB_POLICY_REQUIRED",
+    ):
+        validate_source_bearing_extension(
+            root,
+            partition_records=0,
+            source_chunk_sha256="a" * 64,
+        )
+    assert root.payloads == {}
 
 
 def test_csv_pipeline_replays_without_models_and_retains_single_case() -> None:
@@ -497,7 +682,7 @@ def test_csv_pipeline_replays_without_models_and_retains_single_case() -> None:
     }
     assert classification["doi_id"] == classification["cluster_id"]
     assert classification["derived_code_label"] == "P=1"
-    replay = validate_source_bearing_extension(
+    replay = validate_source_bearing_extension_for_testing(
         root, partition_records=1, source_chunk_sha256="a" * 64
     )
     assert replay["status"] == "PASS"
@@ -547,7 +732,7 @@ def test_generic_zip_is_fd_accounted_and_every_member_is_consumed() -> None:
     assert len(derived) == 4
     assert len(consumption) == 4
     assert result.canonical["case_count"] == 1
-    assert validate_source_bearing_extension(
+    assert validate_source_bearing_extension_for_testing(
         root, partition_records=1, source_chunk_sha256="a" * 64
     )["status"] == "PASS"
 
@@ -777,21 +962,21 @@ def test_consumption_review_and_raw_byte_tampering_are_rejected() -> None:
     consumption_path = "cases_v2/downstream_consumption.jsonl"
     root.payloads[consumption_path] = b""
     with pytest.raises(SourceBearingExtensionError, match="CONSUMPTION_BIJECTION"):
-        validate_source_bearing_extension(
+        validate_source_bearing_extension_for_testing(
             root, partition_records=1, source_chunk_sha256="a" * 64
         )
 
     root, _ = _build(_bound_assets())
     root.payloads["review_v2/structural_outcomes.jsonl"] = b""
     with pytest.raises(SourceBearingExtensionError, match="review coverage"):
-        validate_source_bearing_extension(
+        validate_source_bearing_extension_for_testing(
             root, partition_records=1, source_chunk_sha256="a" * 64
         )
 
     root, _ = _build(_bound_assets())
     root.payloads["content/_sources/article-1/table.bin"] = b"panel,value\nforged,9\n"
     with pytest.raises(SourceBearingExtensionError, match="raw source asset bytes changed"):
-        validate_source_bearing_extension(
+        validate_source_bearing_extension_for_testing(
             root, partition_records=1, source_chunk_sha256="a" * 64
         )
 
@@ -811,7 +996,7 @@ def test_v2_opt_in_keeps_a_zero_source_root_on_the_empty_chain(
         assert not (paths["target_root"] / "canonical_v2").exists()
 
 
-def test_v2_processes_prior_attempt_source_without_assigning_terminal_p(
+def test_v2_opt_in_blocks_prior_attempt_source_without_stage_b_policy(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     with experiment_workspace("c2-source-bearing-prior-download") as workspace:
@@ -823,24 +1008,27 @@ def test_v2_processes_prior_attempt_source_without_assigning_terminal_p(
             downloaded_attempt="initial",
         )
         _upgrade_raw_source_descriptor_v2(paths["raw_root"])
-        finalizer.finalize_remediation_root(
-            chunk_id="001",
-            source_bearing_v2=True,
-            **paths,
-        )
-        dispositions = [
-            json.loads(line)
-            for line in (
-                paths["target_root"] / "p_evidence_v2/acquisition_dispositions.jsonl"
+        with pytest.raises(
+            finalizer.C2RemediationError,
+            match="STAGEB_POLICY_REQUIRED",
+        ):
+            finalizer.finalize_remediation_root(
+                chunk_id="001",
+                source_bearing_v2=True,
+                **paths,
             )
-            .read_text(encoding="utf-8")
-            .splitlines()
-        ]
-        assert dispositions[0]["final_disposition"] == "NON_STRATIFIED_NO_SOURCE_DATA"
-        assert (
-            paths["target_root"] / "p_evidence_v2/source_classifications.jsonl"
-        ).read_text(encoding="utf-8") == ""
-        assert (paths["target_root"] / "canonical_v2/cases.jsonl").is_file()
+        assert not paths["target_root"].exists()
+        staging = _private_staging_root(paths)
+        blocked = json.loads(
+            (staging / "control/source_classification_blocked.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        assert blocked["status"] == (
+            "NOT_SEALABLE_SOURCE_EXTENSION_STAGEB_POLICY_REQUIRED"
+        )
+        assert not (staging / "canonical_v2").exists()
+        assert not (staging / "p_evidence_v2").exists()
 
 
 def _upgrade_raw_source_descriptor_v2(raw_root: Path) -> None:
@@ -912,11 +1100,10 @@ def _upgrade_raw_source_descriptor_v2(raw_root: Path) -> None:
     provenance_path.write_bytes(json.dumps(provenance, sort_keys=True).encode("utf-8"))
 
 
-@pytest.mark.parametrize(("chunk_id", "expected_records"), [("001", 200), ("013", 63)])
-def test_finalizer_seals_v2_source_bearing_200_and_63_roots(
+@pytest.mark.parametrize("chunk_id", ["001", "013"])
+def test_finalizer_blocks_source_bearing_roots_without_stage_b_policy(
     monkeypatch: pytest.MonkeyPatch,
     chunk_id: str,
-    expected_records: int,
 ) -> None:
     with experiment_workspace(f"c2-source-bearing-{chunk_id}") as workspace:
         paths = _make_fixture(
@@ -926,25 +1113,21 @@ def test_finalizer_seals_v2_source_bearing_200_and_63_roots(
             downloaded_mode="source",
         )
         _upgrade_raw_source_descriptor_v2(paths["raw_root"])
-        result = finalizer.finalize_remediation_root(
-            chunk_id=chunk_id,
-            source_bearing_v2=True,
-            **paths,
-        )
+        with pytest.raises(
+            finalizer.C2RemediationError,
+            match="STAGEB_POLICY_REQUIRED",
+        ):
+            finalizer.finalize_remediation_root(
+                chunk_id=chunk_id,
+                source_bearing_v2=True,
+                **paths,
+            )
 
-        target = paths["target_root"]
-        assert result["status"] == "SEALED_COMPLETE_ATTEMPT_EVIDENCE_SOURCE_V2"
-        assert len(
-            (target / "p_evidence_v2/acquisition_dispositions.jsonl")
-            .read_text(encoding="utf-8")
-            .splitlines()
-        ) == expected_records
-        assert (
-            json.loads(
-                (target / "control/v2/source_bearing_extension_validation.json").read_text(
-                    encoding="utf-8"
-                )
-            )["status"]
-            == "PASS"
-        )
-        assert not (target / "control/source_classification_blocked.json").exists()
+        assert not paths["target_root"].exists()
+        staging = _private_staging_root(paths)
+        assert json.loads(
+            (staging / "control/source_classification_blocked.json").read_text(
+                encoding="utf-8"
+            )
+        )["status"] == "NOT_SEALABLE_SOURCE_EXTENSION_STAGEB_POLICY_REQUIRED"
+        assert not (staging / "canonical_v2").exists()
