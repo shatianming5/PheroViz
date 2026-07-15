@@ -1376,6 +1376,17 @@ def _validate_formal_artifact_manifest(
             if relative.startswith("sealed_report_v1/")
         }
         _require(
+            excluded
+            == {
+                "sealed_report_v1/artifact_manifest.json",
+                "sealed_report_v1/artifact_manifest.sha256",
+                "sealed_report_v1/sealed_report.json",
+                "sealed_report_v1/sealed_report.sha256",
+                "sealed_report_v1/validation.json",
+            },
+            "legacy sealed-report artifact roster differs",
+        )
+        _require(
             manifest.get("root_name") == binding.root_name,
             "legacy formal-manifest root name differs",
         )

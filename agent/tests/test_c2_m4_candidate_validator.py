@@ -582,6 +582,10 @@ def _build_root(
         _write_forensic_formal_manifest(root)
         _write_native_inventory(root, profile)
     else:
+        _write_json(
+            root / "sealed_report_v1/validation.json",
+            {"status": "synthetic-read-only-validation"},
+        )
         _write_native_inventory(root, profile)
         _write_legacy_formal_manifest(root)
 
@@ -958,6 +962,40 @@ def test_nested_unmanifested_artifact_is_rejected_after_repinning(
         with pytest.raises(
             validator.C2M4CandidateValidationError,
             match="does not close the observed evidence scope",
+        ):
+            validator.validate_fixed_m4_candidates(root_base)
+
+
+def test_legacy_sealed_directory_rejects_extra_artifact_after_repinning(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with experiment_workspace("c2-m4-legacy-sealed-injection") as workspace:
+        root_base = workspace / "outputs"
+        root_base.mkdir(mode=0o700)
+        binding = _build_root(
+            root_base,
+            chunk_id="012",
+            profile="LEGACY_COMPACT_ACQUISITION_ONLY",
+        )
+        root = root_base / binding.root_name
+        (root / "sealed_report_v1/unbound-source.bin").write_bytes(
+            b"unbound source"
+        )
+        with validator._DescriptorSnapshotter(root) as snapshotter:
+            snapshot = snapshotter.snapshot()
+        binding = replace(
+            binding,
+            snapshot=M4SnapshotBinding(
+                file_count=snapshot.file_count,
+                total_bytes=snapshot.total_bytes,
+                canonical_bytes=snapshot.canonical_bytes,
+                sha256=snapshot.sha256,
+            ),
+        )
+        _install_fake_fixed_state(monkeypatch, (binding,))
+        with pytest.raises(
+            validator.C2M4CandidateValidationError,
+            match="legacy sealed-report artifact roster differs",
         ):
             validator.validate_fixed_m4_candidates(root_base)
 
