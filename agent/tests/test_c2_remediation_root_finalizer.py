@@ -26,6 +26,11 @@ def _exercise_guarded_remediation_paths(
     )
     monkeypatch.setattr(
         finalizer,
+        "require_test_only_finalizer_gate",
+        lambda: None,
+    )
+    monkeypatch.setattr(
+        finalizer,
         "_require_owner_remediation_policy_for_chunk",
         lambda _chunk_id, _partition: (
             SimpleNamespace(authorization_id_sha256="test-authorization"),
@@ -510,19 +515,10 @@ def _make_fixture(
 
 
 def _finalize(paths: dict[str, Path], chunk_id: str) -> dict[str, Any]:
-    return finalizer.finalize_remediation_root(
+    return finalizer.finalize_remediation_root_for_testing(
         chunk_id=chunk_id,
         **paths,
     )
-
-
-def _private_staging_root(paths: dict[str, Path]) -> Path:
-    target = paths["target_root"]
-    roots = sorted(
-        target.parent.glob(f".{target.name}.c2-remediation-staging-*")
-    )
-    assert len(roots) == 1
-    return roots[0]
 
 
 def test_static_partition_covers_the_frozen_2463_record_universe() -> None:
@@ -621,8 +617,12 @@ def test_finalizes_exact_200_and_63_roots(
         validation = json.loads(
             (target / "sealed_report_v1/validation.json").read_text(encoding="utf-8")
         )
-        assert validation["gates"]["atomic_no_replace_publication"] is True
-        assert validation["gates"]["canonical_target_identity"] is True
+        assert validation["gates"]["atomic_no_replace_publication_ready"] is True
+        assert validation["gates"]["canonical_target_absence_prechecked"] is True
+        assert result["publication"] == {
+            "status": "PUBLISHED_ATOMIC_NO_REPLACE",
+            "canonical_target_identity_verified": True,
+        }
         assert validation["gates"]["private_trusted_staging_parent"] is True
         report_payload = json.loads(report.read_text(encoding="utf-8"))
         assert report_payload["execution_authorization"] == {
@@ -640,6 +640,26 @@ def test_finalizes_exact_200_and_63_roots(
         assert report_payload["publication"]["threat_boundary"].endswith(
             "malicious same-EUID filesystem control is out of scope"
         )
+
+
+def test_public_finalizer_rejects_legacy_config_schema(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with experiment_workspace("c2-remediation-public-m5-only") as workspace:
+        paths = _make_fixture(workspace, monkeypatch, chunk_id="001")
+        monkeypatch.setattr(
+            finalizer,
+            "_require_active_m5_adapter_attestation",
+            lambda: SimpleNamespace(),
+        )
+
+        with pytest.raises(
+            finalizer.C2RemediationError,
+            match="M5 acquisition config schema is not closed",
+        ):
+            finalizer.finalize_remediation_root(chunk_id="001", **paths)
+
+        assert not paths["target_root"].exists()
 
 
 def test_rejects_source_hash_mismatch_before_creating_target(
@@ -786,8 +806,9 @@ def test_atomic_publish_rejects_target_replacement_without_accepting_attacker(
             "attacker-owned\n"
         )
         assert {path.name for path in target.iterdir()} == {"attacker-marker"}
-        staging = _private_staging_root(paths)
-        assert (staging / "control/preseal_validation.json").is_file()
+        assert not list(
+            target.parent.glob(f".{target.name}.c2-remediation-staging-*")
+        )
 
 
 def test_atomic_publish_binds_canonical_leaf_to_staging_inode(
@@ -818,7 +839,7 @@ def test_atomic_publish_binds_canonical_leaf_to_staging_inode(
         assert paths["target_root"].is_dir()
 
 
-def test_unsupported_native_publication_retains_private_staging(
+def test_unsupported_native_publication_removes_private_staging(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     with experiment_workspace("c2-remediation-unsupported-publication") as workspace:
@@ -833,8 +854,11 @@ def test_unsupported_native_publication_retains_private_staging(
             _finalize(paths, "001")
 
         assert not paths["target_root"].exists()
-        staging = _private_staging_root(paths)
-        assert (staging / "sealed_report_v1/artifact_manifest.json").is_file()
+        assert not list(
+            paths["target_root"].parent.glob(
+                f".{paths['target_root'].name}.c2-remediation-staging-*"
+            )
+        )
 
 
 def test_rejects_symlinked_provenance_before_creating_target(
@@ -911,37 +935,11 @@ def test_blocks_source_bearing_terminal_before_empty_canonical_p_seal(
             _finalize(paths, "001")
 
         assert not paths["target_root"].exists()
-        target = _private_staging_root(paths)
-        blocked = json.loads(
-            (target / "control/source_classification_blocked.json").read_text(
-                encoding="utf-8"
+        assert not list(
+            paths["target_root"].parent.glob(
+                f".{paths['target_root'].name}.c2-remediation-staging-*"
             )
         )
-        assert blocked["status"] == (
-            "NOT_SEALABLE_SOURCE_CLASSIFICATION_BUILDER_REQUIRED"
-        )
-        terminal = json.loads(
-            (target / "control/terminal_outcomes.jsonl").read_text(
-                encoding="utf-8"
-            ).splitlines()[0]
-        )
-        assert terminal["acquisition_disposition"] == "SOURCE_BEARING_DOWNLOAD"
-        assert terminal["source_classification_state"] == (
-            "BLOCKED_CANONICAL_P_BUILDER_REQUIRED"
-        )
-        terminal_summary = json.loads(
-            (target / "control/postfetch_terminal_summary.json").read_text(
-                encoding="utf-8"
-            )
-        )
-        assert terminal_summary["source_classification"] == {
-            "source_bearing_terminal_records": 1,
-            "source_less_terminal_records": 199,
-            "empty_chain_authorized": False,
-        }
-        assert not (target / "canonical_v1").exists()
-        assert not (target / "p_evidence_v1").exists()
-        assert not (target / "sealed_report_v1").exists()
 
 
 def test_blocks_prior_attempt_source_bearing_record_before_empty_seal(
@@ -960,18 +958,11 @@ def test_blocks_prior_attempt_source_bearing_record_before_empty_seal(
             _finalize(paths, "001")
 
         assert not paths["target_root"].exists()
-        staging = _private_staging_root(paths)
-        terminal = json.loads(
-            (staging / "control/terminal_outcomes.jsonl").read_text(
-                encoding="utf-8"
-            ).splitlines()[0]
+        assert not list(
+            paths["target_root"].parent.glob(
+                f".{paths['target_root'].name}.c2-remediation-staging-*"
+            )
         )
-        assert terminal["terminal_status"] == "no-source-data"
-        assert terminal["acquisition_disposition"] == (
-            "SOURCE_BEARING_PRIOR_ATTEMPT_DOWNLOAD_RETRY2_NO_SOURCE_DATA"
-        )
-        assert not (staging / "canonical_v1").exists()
-        assert not (staging / "sealed_report_v1").exists()
 
 
 def test_rejects_unreferenced_source_artifact_before_target_creation(
@@ -1183,13 +1174,11 @@ def test_blocks_generated_root_when_secret_scan_hits(
         with pytest.raises(finalizer.C2RemediationError, match="secret scan"):
             _finalize(paths, "001")
         assert not paths["target_root"].exists()
-        staging = _private_staging_root(paths)
-        scan = json.loads(
-            (staging / "control/secret_scan.json").read_text(
-                encoding="utf-8"
+        assert not list(
+            paths["target_root"].parent.glob(
+                f".{paths['target_root'].name}.c2-remediation-staging-*"
             )
         )
-        assert scan["status"] == "BLOCKED_SECRET_HIT"
 
 
 def test_cli_wires_the_dedicated_remediation_finalizer(

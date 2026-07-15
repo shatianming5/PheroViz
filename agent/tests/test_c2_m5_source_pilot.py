@@ -725,6 +725,11 @@ print(f"synthetic guarded acquisition covered {len(article_ids)} records")
         ],
     )
     monkeypatch.setattr(pilot, "verify_adapter_attestation", lambda: attestation)
+    monkeypatch.setattr(
+        finalizer,
+        "_require_active_m5_adapter_attestation",
+        lambda: attestation,
+    )
     monkeypatch.setattr(pilot, "_verify_downloader_worktree", lambda _: downloader)
     partition = finalizer.FrozenPartition(
         chunk_id="001",
@@ -776,6 +781,18 @@ print(f"synthetic guarded acquisition covered {len(article_ids)} records")
             "commit": pilot.FROZEN_DOWNLOADER_COMMIT,
             "tree": downloader.tree,
             "dirty": False,
+            "script_blob": downloader.script_blob,
+            "script_sha256": pilot.FROZEN_DOWNLOADER_SHA256,
+            "runtime_bundle": [
+                {
+                    "relative_path": relative,
+                    "bytes": len(payload),
+                    "sha256": pilot._sha256(payload),
+                }
+                for relative, payload in sorted(
+                    downloader.runtime_files.items()
+                )
+            ],
         },
     )
     test_source_attestation = SimpleNamespace(
@@ -1675,7 +1692,14 @@ def test_finalizer_rejects_impossible_m5_budget_and_hint_claims() -> None:
             "assets": [
                 {
                     "asset_id": "source",
+                    "relative_path": "content/_sources/article-1/source.csv",
+                    "sha256": "c" * 64,
                     "bytes": 8,
+                    "doi": "10.1038/article-1",
+                    "declared_asset_kind": "source_data",
+                    "declared_format_tuple": ["NONE", "CSV_V1"],
+                    "candidate_hints": [],
+                    "first_attempt": "initial",
                 }
             ],
         }
@@ -1692,6 +1716,7 @@ def test_finalizer_rejects_impossible_m5_budget_and_hint_claims() -> None:
             attempt="initial",
             receipt=receipt,
             processed_ids={"article-1"},
+            expected_dois={"article-1": "10.1038/article-1"},
             expected_attempted_records=200,
             network_budget={"request_count": 0, "response_bytes": 0},
         )
@@ -1711,6 +1736,26 @@ def test_finalizer_rejects_impossible_m5_budget_and_hint_claims() -> None:
             "per_attempt_wall_timeout_seconds": 3 * 60 * 60,
         },
     }
+    active_attestation = SimpleNamespace(
+        implementation_commit="1" * 40,
+        attestation_commit="2" * 40,
+        manifest_sha256="3" * 64,
+        externally_pinned_bootstrap_sha256="4" * 64,
+        externally_pinned_python_sha256="5" * 64,
+        externally_pinned_python_library_sha256="6" * 64,
+        path_sha256={"adapter": "7" * 64},
+        dependency_binding={"runtime_inventory_sha256": "8" * 64},
+    )
+    with pytest.raises(
+        finalizer.C2RemediationError,
+        match="active runtime trust binding",
+    ):
+        finalizer._validate_m5_execution_trust(
+            execution_evidence,
+            binding={"summary_hash": "9" * 64},
+            attestation=active_attestation,
+        )
+
     source_evidence = finalizer._SourceEvidence(
         descriptor_path="content/_source_evidence/article-1.json",
         descriptor_sha256="b" * 64,
@@ -1721,10 +1766,12 @@ def test_finalizer_rejects_impossible_m5_budget_and_hint_claims() -> None:
                 {
                     "asset_id": "source",
                     "relative_path": "content/_sources/article-1/source.csv",
-                    "sha256": "c" * 64,
+                    "sha256": "d" * 64,
                     "bytes": 8,
+                    "doi": "10.1038/article-1",
                     "declared_asset_kind": "source_data",
-                    "candidate_hints": [{"panel_id": "forged"}],
+                    "declared_format_tuple": ["NONE", "CSV_V1"],
+                    "candidate_hints": [],
                 }
             ]
         },
@@ -1732,11 +1779,29 @@ def test_finalizer_rejects_impossible_m5_budget_and_hint_claims() -> None:
     )
     with pytest.raises(
         finalizer.C2RemediationError,
-        match="candidate hints",
+        match="differs from its acquisition receipt",
     ):
         finalizer._validate_m5_snapshot_source_qualification(
             execution_evidence,
-            {"article-1": {"source_evidence": source_evidence}},
+            {
+                "article-1": {
+                    "source_evidence": source_evidence,
+                    "value": {"retained_assets": []},
+                }
+            },
+            {
+                ("article-1", "source"): {
+                    "asset_id": "source",
+                    "relative_path": "content/_sources/article-1/source.csv",
+                    "sha256": "c" * 64,
+                    "bytes": 8,
+                    "doi": "10.1038/article-1",
+                    "declared_asset_kind": "source_data",
+                    "declared_format_tuple": ["NONE", "CSV_V1"],
+                    "candidate_hints": [],
+                    "first_attempt": "initial",
+                }
+            },
         )
 
 

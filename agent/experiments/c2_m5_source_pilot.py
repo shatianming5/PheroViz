@@ -2204,6 +2204,7 @@ def validate_source_pilot(
         attestation_entries,
         binding,
         execution_evidence,
+        _retained_harvest_assets,
         reader,
     ) = finalizer._validate_raw_root(
         raw_root,
@@ -2211,6 +2212,7 @@ def validate_source_pilot(
         records,
         partition=partition,
         code=code,
+        require_m5=True,
     )
     try:
         config_path = "control/acquisition_config.json"

@@ -48,6 +48,11 @@ def _exercise_guarded_remediation_calls(
     )
     monkeypatch.setattr(
         finalizer,
+        "require_test_only_finalizer_gate",
+        lambda: None,
+    )
+    monkeypatch.setattr(
+        finalizer,
         "_require_owner_remediation_policy_for_chunk",
         lambda _chunk_id, _partition: (
             SimpleNamespace(authorization_id_sha256="test-authorization"),
@@ -1689,7 +1694,7 @@ def test_v2_opt_in_keeps_a_zero_source_root_on_the_empty_chain(
 ) -> None:
     with experiment_workspace("c2-source-bearing-zero-source") as workspace:
         paths = _make_fixture(workspace, monkeypatch, chunk_id="001")
-        result = finalizer.finalize_remediation_root(
+        result = finalizer.finalize_remediation_root_for_testing(
             chunk_id="001",
             source_bearing_v2=True,
             **paths,
@@ -1711,7 +1716,7 @@ def test_v2_opt_in_seals_prior_attempt_source_under_fixed_stage_b_policy(
             downloaded_attempt="initial",
         )
         _upgrade_raw_source_descriptor_v2(paths["raw_root"])
-        result = finalizer.finalize_remediation_root(
+        result = finalizer.finalize_remediation_root_for_testing(
             chunk_id="001",
             source_bearing_v2=True,
             **paths,
@@ -1773,7 +1778,7 @@ def test_exact_63_prior_attempt_source_is_fully_accounted(
             downloaded_attempt="initial",
         )
         _upgrade_raw_source_descriptor_v2(paths["raw_root"])
-        result = finalizer.finalize_remediation_root(
+        result = finalizer.finalize_remediation_root_for_testing(
             chunk_id="013",
             source_bearing_v2=True,
             **paths,
@@ -1821,7 +1826,7 @@ def test_stage_b_execution_keeps_raw_acquisition_binding_separate(
             ).strip()
             == finalizer.FROZEN_CODE_COMMIT
         )
-        result = finalizer.finalize_remediation_root(
+        result = finalizer.finalize_remediation_root_for_testing(
             chunk_id="001",
             source_bearing_v2=True,
             **paths,
@@ -1931,7 +1936,7 @@ def test_finalizer_seals_source_bearing_roots_with_fixed_stage_b_policy(
             downloaded_mode="source",
         )
         _upgrade_raw_source_descriptor_v2(paths["raw_root"])
-        result = finalizer.finalize_remediation_root(
+        result = finalizer.finalize_remediation_root_for_testing(
             chunk_id=chunk_id,
             source_bearing_v2=True,
             **paths,

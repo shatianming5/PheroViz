@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 from .c2_m1_trust_boundary import (
+    require_external_m1_trust_lock as require_test_only_finalizer_gate,
     require_owner_authorized_c2_execution as require_external_m1_trust_lock,
 )
 from .c2_owner_remediation_execution_policy import (
@@ -65,6 +66,10 @@ FROZEN_FREEZE_SUMMARY_HASH = (
 _GIT_OBJECT_RE = re.compile(r"^[0-9a-f]{40}$")
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 FROZEN_CODE_COMMIT = "ca98442b9e805110089b03083cb240e19b58d4a2"
+FROZEN_DOWNLOADER_RELATIVE = "nature_download/nature_all_in_one.py"
+FROZEN_DOWNLOADER_SHA256 = (
+    "ce9f0fc6843d7d6eaccdb7a25a64d4dce0a730865098414991a26c909094145e"
+)
 STATUS_VALUES = frozenset(
     {"downloaded", "no-source-data", "no-figures", "fetch-error"}
 )
@@ -818,6 +823,37 @@ class _SecureTargetRoot:
                 os.close(descriptor)
                 setattr(self, attribute, -1)
 
+    @classmethod
+    def _remove_tree_contents(cls, directory_fd: int) -> None:
+        os.fchmod(directory_fd, 0o700)
+        for name in sorted(os.listdir(directory_fd)):
+            metadata = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
+            if stat.S_ISDIR(metadata.st_mode):
+                child_fd = os.open(
+                    name,
+                    os.O_RDONLY
+                    | os.O_DIRECTORY
+                    | os.O_NOFOLLOW
+                    | getattr(os, "O_CLOEXEC", 0),
+                    dir_fd=directory_fd,
+                )
+                try:
+                    cls._remove_tree_contents(child_fd)
+                finally:
+                    os.close(child_fd)
+                os.rmdir(name, dir_fd=directory_fd)
+            else:
+                os.unlink(name, dir_fd=directory_fd)
+        os.fsync(directory_fd)
+
+    def discard_unpublished(self) -> None:
+        require_external_m1_trust_lock()
+        _require(not self._published, "refusing to discard a published root")
+        self.verify_staging_identity()
+        self._remove_tree_contents(self._root_fd)
+        os.rmdir(self._staging_name, dir_fd=self._parent_fd)
+        os.fsync(self._parent_fd)
+
     def _open_parent(
         self,
         relative: str | Path,
@@ -1486,16 +1522,81 @@ def _verify_worktree(worktree: Path) -> dict[str, Any]:
             text=True,
             env=git_environment,
         ).strip()
+        script_blob = subprocess.check_output(
+            [
+                *git_command,
+                "rev-parse",
+                f"HEAD:{FROZEN_DOWNLOADER_RELATIVE}",
+            ],
+            text=True,
+            env=git_environment,
+        ).strip()
+        script_payload = subprocess.check_output(
+            [
+                *git_command,
+                "show",
+                f"HEAD:{FROZEN_DOWNLOADER_RELATIVE}",
+            ],
+            env=git_environment,
+        )
+        corpus_paths = subprocess.check_output(
+            [
+                *git_command,
+                "ls-tree",
+                "-r",
+                "--name-only",
+                "HEAD",
+                "--",
+                "nature_download/corpus",
+            ],
+            text=True,
+            env=git_environment,
+        ).splitlines()
     except (OSError, subprocess.CalledProcessError) as exc:
         raise C2RemediationError("cannot establish clean worktree binding") from exc
     _require(commit == FROZEN_CODE_COMMIT, "worktree commit is not the frozen acquisition commit")
+    _require(
+        _sha256_bytes(script_payload) == FROZEN_DOWNLOADER_SHA256,
+        "frozen downloader script hash mismatch",
+    )
     _verify_filter_free_worktree(
         worktree,
         git_command,
         git_environment,
         commit,
     )
-    return {"commit": commit, "tree": tree, "dirty": False}
+    try:
+        runtime_payloads = {"frozen_downloader.py": script_payload}
+        for relative in sorted(corpus_paths):
+            if not relative.endswith(".py"):
+                continue
+            runtime_payloads[relative.removeprefix("nature_download/")] = (
+                subprocess.check_output(
+                    [*git_command, "show", f"HEAD:{relative}"],
+                    env=git_environment,
+                )
+            )
+        runtime_bundle = [
+            {
+                "relative_path": relative,
+                "bytes": len(payload),
+                "sha256": _sha256_bytes(payload),
+            }
+            for relative, payload in sorted(runtime_payloads.items())
+        ]
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise C2RemediationError(
+            "cannot verify frozen downloader runtime bundle"
+        ) from exc
+    _require(runtime_bundle, "frozen downloader runtime bundle is empty")
+    return {
+        "commit": commit,
+        "tree": tree,
+        "dirty": False,
+        "script_blob": script_blob,
+        "script_sha256": _sha256_bytes(script_payload),
+        "runtime_bundle": runtime_bundle,
+    }
 
 
 def _verify_frozen_inputs(
@@ -1886,6 +1987,7 @@ def _validate_pre_download_controls(
     *,
     partition: FrozenPartition,
     code: Mapping[str, Any],
+    m5_attestation: Any | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     config = _read_json_bytes(
         raw_bytes["control/acquisition_config.json"],
@@ -1896,6 +1998,22 @@ def _validate_pre_download_controls(
         and _sha256_json(_json_without(config, "config_hash")) == config["config_hash"],
         "raw acquisition config hash mismatch",
     )
+    if m5_attestation is not None:
+        _require(
+            set(config)
+            == {
+                "schema_version",
+                "attempts",
+                "no_model_calls",
+                "no_early_stop",
+                "outcome_independent",
+                "arguments",
+                "config_hash",
+            }
+            and config.get("schema_version")
+            == "c2-m5-source-pilot-acquisition-config-v1",
+            "M5 acquisition config schema is not closed",
+        )
     _require(config.get("attempts") == list(ATTEMPTS), "raw acquisition config attempts mismatch")
     _require(config.get("no_model_calls") is True, "raw acquisition config permits model calls")
     _require(config.get("no_early_stop") is True, "raw acquisition config permits early stop")
@@ -1972,6 +2090,41 @@ def _validate_pre_download_controls(
         ),
         "raw pre-download binding selection rule mismatch",
     )
+    if m5_attestation is not None:
+        expected_launch_binding = {
+            "bootstrap_sha256": (
+                m5_attestation.externally_pinned_bootstrap_sha256
+            ),
+            "python_executable_sha256": (
+                m5_attestation.externally_pinned_python_sha256
+            ),
+            "python_runtime_library_sha256": (
+                m5_attestation.externally_pinned_python_library_sha256
+            ),
+            "attestation_commit": m5_attestation.attestation_commit,
+            "manifest_sha256": m5_attestation.manifest_sha256,
+        }
+        expected_m5_fields = {
+            "schema_version": "c2-m5-source-pilot-pre-download-binding-v1",
+            "adapter_implementation_commit": m5_attestation.implementation_commit,
+            "adapter_attestation_commit": m5_attestation.attestation_commit,
+            "adapter_attestation_manifest_sha256": (
+                m5_attestation.manifest_sha256
+            ),
+            "external_launch_binding": expected_launch_binding,
+            "adapter_path_sha256": dict(
+                sorted(m5_attestation.path_sha256.items())
+            ),
+            "python_dependency_binding": m5_attestation.dependency_binding,
+            "downloader_tree": code["tree"],
+            "downloader_script_blob": code["script_blob"],
+            "downloader_script_sha256": code["script_sha256"],
+            "downloader_runtime_bundle": code["runtime_bundle"],
+        }
+        _require(
+            all(binding.get(key) == value for key, value in expected_m5_fields.items()),
+            "M5 pre-download runtime binding differs from active trusted bytes",
+        )
     return config, binding
 
 
@@ -2033,23 +2186,157 @@ def _validate_execution_evidence(
     return evidence
 
 
-def _is_m5_execution_evidence(evidence: Mapping[str, Any]) -> bool:
-    adapter = evidence.get("adapter")
-    network_guard = evidence.get("network_guard")
-    return (
-        isinstance(adapter, dict)
-        and isinstance(network_guard, dict)
-        and network_guard.get("status") == "ENFORCED"
-        and network_guard.get("trust_environment") is False
-        and network_guard.get("https_only") is True
-        and network_guard.get("public_ip_only") is True
-        and network_guard.get("redirects_validated") is True
-        and network_guard.get("per_response_byte_cap") == 256 * 1024 * 1024
-        and network_guard.get("per_attempt_request_cap") == 10_000
-        and network_guard.get("per_attempt_response_byte_cap")
-        == 8 * 1024 * 1024 * 1024
-        and network_guard.get("per_attempt_wall_timeout_seconds")
-        == 3 * 60 * 60
+def _require_active_m5_adapter_attestation() -> Any:
+    try:
+        from c2_m5_bootstrap_attestation import (
+            C2M5BootstrapAttestationError,
+            require_active_adapter_attestation,
+        )
+    except ImportError as exc:
+        raise C2RemediationError("M5 adapter attestation runtime is unavailable") from exc
+    try:
+        return require_active_adapter_attestation()
+    except C2M5BootstrapAttestationError as exc:
+        raise C2RemediationError("M5 adapter attestation is not active") from exc
+
+
+def _expected_m5_adapter_record(attestation: Any) -> dict[str, Any]:
+    return {
+        "implementation_commit": attestation.implementation_commit,
+        "attestation_commit": attestation.attestation_commit,
+        "manifest_sha256": attestation.manifest_sha256,
+        "externally_pinned_bootstrap_sha256": (
+            attestation.externally_pinned_bootstrap_sha256
+        ),
+        "externally_pinned_python_sha256": (
+            attestation.externally_pinned_python_sha256
+        ),
+        "externally_pinned_python_library_sha256": (
+            attestation.externally_pinned_python_library_sha256
+        ),
+        "path_sha256": dict(sorted(attestation.path_sha256.items())),
+        "python_dependency_binding": attestation.dependency_binding,
+    }
+
+
+def _validate_m5_execution_trust(
+    evidence: Mapping[str, Any],
+    *,
+    binding: Mapping[str, Any],
+    attestation: Any,
+) -> None:
+    expected_network_guard = {
+        "status": "ENFORCED",
+        "trust_environment": False,
+        "https_only": True,
+        "public_ip_only": True,
+        "redirects_validated": True,
+        "per_response_byte_cap": 256 * 1024 * 1024,
+        "per_attempt_request_cap": 10_000,
+        "per_attempt_response_byte_cap": 8 * 1024 * 1024 * 1024,
+        "per_attempt_wall_timeout_seconds": 3 * 60 * 60,
+    }
+    _require(
+        evidence.get("adapter") == _expected_m5_adapter_record(attestation)
+        and evidence.get("network_guard") == expected_network_guard
+        and evidence.get("pre_download_binding_hash") == binding["summary_hash"],
+        "M5 execution evidence differs from the active runtime trust binding",
+    )
+    tests = evidence.get("tests")
+    _require(
+        isinstance(tests, list)
+        and len(tests) == 5
+        and {
+            test.get("command")
+            for test in tests
+            if isinstance(test, dict)
+        }
+        == {
+            "c2-m5-adapter-self-attestation",
+            "c2-m5-frozen-input-byte-bindings",
+            "c2-m5-frozen-downloader-worktree",
+            "c2-m5-three-attempt-strict-partition",
+            "c2-m5-three-attempt-source-harvest",
+        },
+        "M5 execution evidence test roster is not closed",
+    )
+    by_command = {test["command"]: test for test in tests}
+    expected_hashes = {
+        "c2-m5-adapter-self-attestation": _sha256_json(
+            {
+                "implementation": attestation.implementation_commit,
+                "attestation": attestation.attestation_commit,
+                "manifest": attestation.manifest_sha256,
+            }
+        ),
+        "c2-m5-frozen-input-byte-bindings": _sha256_json(
+            {
+                "chunk": FROZEN_PARTITIONS["001"].source_sha256,
+                "universe": FROZEN_UNIVERSE_SHA256,
+                "freeze_summary": FROZEN_FREEZE_SUMMARY_SHA256,
+            }
+        ),
+        "c2-m5-frozen-downloader-worktree": _sha256_json(
+            {
+                "commit": binding["code_commit"],
+                "tree": binding["downloader_tree"],
+                "script": binding["downloader_script_sha256"],
+                "runtime_bundle": [
+                    {
+                        "relative_path": item["relative_path"],
+                        "sha256": item["sha256"],
+                    }
+                    for item in binding["downloader_runtime_bundle"]
+                ],
+            }
+        ),
+    }
+    _require(
+        all(
+            by_command[command].get("exit_code") == 0
+            and by_command[command].get("output_sha256") == digest
+            for command, digest in expected_hashes.items()
+        ),
+        "M5 execution evidence fixed trust checks mismatch",
+    )
+
+
+def _validate_m5_dynamic_execution_checks(
+    evidence: Mapping[str, Any],
+    *,
+    statuses_by_attempt: Mapping[str, Mapping[str, str]],
+    harvest_by_attempt: Mapping[str, Mapping[str, Any]],
+) -> None:
+    tests = evidence["tests"]
+    by_command = {test["command"]: test for test in tests}
+    expected = {
+        "c2-m5-three-attempt-strict-partition": _sha256_json(
+            {
+                attempt: Counter(statuses_by_attempt[attempt].values())
+                for attempt in ATTEMPTS
+            }
+        ),
+        "c2-m5-three-attempt-source-harvest": _sha256_json(
+            {
+                attempt: {
+                    "harvest_hash": _sha256_json(harvest_by_attempt[attempt]),
+                    "source_articles": len(harvest_by_attempt[attempt]),
+                    "source_assets_observed": sum(
+                        len(value["assets"])
+                        for value in harvest_by_attempt[attempt].values()
+                    ),
+                }
+                for attempt in ATTEMPTS
+            }
+        ),
+    }
+    _require(
+        all(
+            by_command[command].get("exit_code") == 0
+            and by_command[command].get("output_sha256") == digest
+            for command, digest in expected.items()
+        ),
+        "M5 execution evidence dynamic checks mismatch",
     )
 
 
@@ -2058,9 +2345,10 @@ def _validate_m5_network_harvest_binding(
     attempt: str,
     receipt: Mapping[str, Any],
     processed_ids: set[str],
+    expected_dois: Mapping[str, str],
     expected_attempted_records: int,
     network_budget: Mapping[str, Any],
-) -> None:
+) -> dict[tuple[str, str], dict[str, Any]]:
     _require(
         receipt.get("schema_version") == "c2-v2-raw-attempt-receipt-v2",
         f"{attempt} M5 receipt must use the closed V2 schema",
@@ -2071,6 +2359,27 @@ def _validate_m5_network_harvest_binding(
         f"{attempt} M5 source harvest differs from downloaded statuses",
     )
     harvested_bytes = 0
+    normalized_assets: dict[tuple[str, str], dict[str, Any]] = {}
+    expected_asset_fields = {
+        "asset_id",
+        "relative_path",
+        "sha256",
+        "bytes",
+        "doi",
+        "declared_asset_kind",
+        "declared_format_tuple",
+        "candidate_hints",
+        "first_attempt",
+    }
+    allowed_formats = {
+        "source_data": {
+            ("NONE", "CSV_V1"),
+            ("ZIP_V1", "XLSX_V1"),
+        },
+        "source_archive": {("ZIP_V1", "GENERIC_ZIP_V1")},
+        "figure": {("NONE", "OTHER_REGISTERED_V1")},
+        "caption": {("NONE", "OTHER_REGISTERED_V1")},
+    }
     for article_id, raw_entry in harvest.items():
         _require(
             isinstance(raw_entry, dict)
@@ -2103,22 +2412,56 @@ def _validate_m5_network_harvest_binding(
         )
         seen_assets: set[str] = set()
         for asset in assets:
+            declared_format = (
+                tuple(asset.get("declared_format_tuple", ()))
+                if isinstance(asset, dict)
+                else ()
+            )
             _require(
                 isinstance(asset, dict)
+                and set(asset) == expected_asset_fields
                 and isinstance(asset.get("asset_id"), str)
                 and asset["asset_id"] not in seen_assets
+                and isinstance(asset.get("relative_path"), str)
+                and asset["relative_path"].startswith(
+                    f"content/_sources/{article_id}/"
+                )
+                and _is_sha256(asset.get("sha256"))
                 and isinstance(asset.get("bytes"), int)
                 and not isinstance(asset["bytes"], bool)
-                and asset["bytes"] > 0,
+                and asset["bytes"] > 0
+                and asset.get("doi") == expected_dois[article_id]
+                and asset.get("declared_asset_kind") in allowed_formats
+                and declared_format
+                in allowed_formats[asset["declared_asset_kind"]]
+                and asset.get("candidate_hints") == []
+                and asset.get("first_attempt") in ATTEMPTS
+                and ATTEMPTS.index(asset["first_attempt"])
+                <= ATTEMPTS.index(attempt),
                 f"{attempt} M5 source harvest asset is invalid: {article_id}",
             )
             seen_assets.add(asset["asset_id"])
             harvested_bytes += asset["bytes"]
+            normalized_assets[(article_id, asset["asset_id"])] = dict(asset)
+        observed_kind_counts = Counter(
+            asset["declared_asset_kind"] for asset in assets
+        )
+        _require(
+            counts
+            == (
+                observed_kind_counts["source_data"]
+                + observed_kind_counts["source_archive"],
+                observed_kind_counts["figure"],
+                observed_kind_counts["caption"],
+            ),
+            f"{attempt} M5 source harvest kind counts mismatch: {article_id}",
+        )
     _require(
         network_budget["request_count"] >= expected_attempted_records
         and network_budget["response_bytes"] >= harvested_bytes,
         f"{attempt} M5 network budget cannot explain its acquisition harvest",
     )
+    return normalized_assets
 
 
 def _validate_raw_root_from_reader(
@@ -2128,6 +2471,7 @@ def _validate_raw_root_from_reader(
     *,
     partition: FrozenPartition,
     code: Mapping[str, Any],
+    require_m5: bool,
 ) -> tuple[
     dict[str, bytes],
     dict[str, list[dict[str, Any]]],
@@ -2135,6 +2479,7 @@ def _validate_raw_root_from_reader(
     list[dict[str, Any]],
     dict[str, Any],
     dict[str, Any],
+    dict[tuple[str, str], dict[str, Any]],
     _RawRootReader,
 ]:
     require_external_m1_trust_lock()
@@ -2146,7 +2491,10 @@ def _validate_raw_root_from_reader(
         reader.files_under_root("raw root")
     )
     expected_ids = {_article_id(record) for record in records}
-    expected_dois = {_normalized_doi(record) for record in records}
+    expected_doi_by_id = {
+        _article_id(record): _normalized_doi(record) for record in records
+    }
+    expected_dois = set(expected_doi_by_id.values())
     input_line_hashes = [
         _sha256_bytes(line)
         for line in source_bytes.splitlines()
@@ -2164,22 +2512,26 @@ def _validate_raw_root_from_reader(
         observed_raw_files,
     )
     _require(raw_bytes["accepted.jsonl"] == source_bytes, "raw accepted bytes differ from source")
+    m5_attestation = (
+        _require_active_m5_adapter_attestation() if require_m5 else None
+    )
     config, binding = _validate_pre_download_controls(
         raw_bytes,
         partition=partition,
         code=code,
+        m5_attestation=m5_attestation,
     )
     execution_evidence = _validate_execution_evidence(raw_bytes, code)
-    is_m5_execution = (
-        config.get("schema_version")
-        == "c2-m5-source-pilot-acquisition-config-v1"
-    )
-    if is_m5_execution:
+    if require_m5:
         _require(
             binding.get("schema_version")
-            == "c2-m5-source-pilot-pre-download-binding-v1"
-            and _is_m5_execution_evidence(execution_evidence),
+            == "c2-m5-source-pilot-pre-download-binding-v1",
             "M5 raw root is missing its fixed execution trust evidence",
+        )
+        _validate_m5_execution_trust(
+            execution_evidence,
+            binding=binding,
+            attestation=m5_attestation,
         )
     for label, value in (
         ("raw acquisition config", config),
@@ -2194,6 +2546,8 @@ def _validate_raw_root_from_reader(
 
     events_by_attempt: dict[str, list[dict[str, Any]]] = {}
     statuses_by_attempt: dict[str, dict[str, str]] = {}
+    harvest_by_attempt: dict[str, Mapping[str, Any]] = {}
+    retained_harvest_assets: dict[tuple[str, str], dict[str, Any]] = {}
     attestation_entries: list[dict[str, Any]] = []
     previous_attempt_end: int | None = None
     for attempt in ATTEMPTS:
@@ -2317,14 +2671,23 @@ def _validate_raw_root_from_reader(
             attempt=attempt,
             expected_hashes=hashes,
         )
-        if is_m5_execution:
-            _validate_m5_network_harvest_binding(
+        if require_m5:
+            attempt_assets = _validate_m5_network_harvest_binding(
                 attempt=attempt,
                 receipt=receipt,
                 processed_ids=processed_set,
+                expected_dois=expected_doi_by_id,
                 expected_attempted_records=len(operational_processed),
                 network_budget=network_budget,
             )
+            harvest_by_attempt[attempt] = receipt["source_harvest"]
+            for key, asset in attempt_assets.items():
+                previous = retained_harvest_assets.get(key)
+                _require(
+                    previous is None or previous == asset,
+                    f"{attempt} M5 retained asset changed across attempts: {key}",
+                )
+                retained_harvest_assets[key] = asset
         _reject_absolute_path_values(
             receipt,
             raw_root=reader.root,
@@ -2402,6 +2765,12 @@ def _validate_raw_root_from_reader(
                 }
             )
     _require(len(expected_dois) == len(records), "raw root DOI validation failed")
+    if require_m5:
+        _validate_m5_dynamic_execution_checks(
+            execution_evidence,
+            statuses_by_attempt=statuses_by_attempt,
+            harvest_by_attempt=harvest_by_attempt,
+        )
     return (
         raw_bytes,
         events_by_attempt,
@@ -2409,6 +2778,7 @@ def _validate_raw_root_from_reader(
         attestation_entries,
         binding,
         execution_evidence,
+        retained_harvest_assets,
         reader,
     )
 
@@ -2420,6 +2790,7 @@ def _validate_raw_root(
     *,
     partition: FrozenPartition,
     code: Mapping[str, Any],
+    require_m5: bool,
 ) -> tuple[
     dict[str, bytes],
     dict[str, list[dict[str, Any]]],
@@ -2427,6 +2798,7 @@ def _validate_raw_root(
     list[dict[str, Any]],
     dict[str, Any],
     dict[str, Any],
+    dict[tuple[str, str], dict[str, Any]],
     _RawRootReader,
 ]:
     require_external_m1_trust_lock()
@@ -2438,6 +2810,7 @@ def _validate_raw_root(
             records,
             partition=partition,
             code=code,
+            require_m5=require_m5,
         )
     except Exception:
         reader.close()
@@ -2661,12 +3034,12 @@ def _read_provenance(
 def _validate_m5_snapshot_source_qualification(
     execution_evidence: Mapping[str, Any],
     provenance: Mapping[str, Mapping[str, Any]],
-) -> dict[str, Any] | None:
-    if not _is_m5_execution_evidence(execution_evidence):
-        return None
+    retained_harvest_assets: Mapping[tuple[str, str], Mapping[str, Any]],
+) -> dict[str, Any]:
     entries: list[dict[str, Any]] = []
     total_source_assets = 0
     total_source_bytes = 0
+    qualified_asset_keys: set[tuple[str, str]] = set()
     for article_id, provenance_entry in sorted(provenance.items()):
         source_evidence = provenance_entry["source_evidence"]
         if source_evidence is None:
@@ -2682,11 +3055,21 @@ def _validate_m5_snapshot_source_qualification(
         )
         source_assets: list[dict[str, Any]] = []
         for asset in assets:
+            asset_id = asset.get("asset_id") if isinstance(asset, dict) else None
+            retained = retained_harvest_assets.get((article_id, asset_id))
             _require(
                 isinstance(asset, dict)
+                and retained is not None
+                and asset
+                == {
+                    key: value
+                    for key, value in retained.items()
+                    if key != "first_attempt"
+                }
                 and asset.get("candidate_hints") == [],
-                f"M5 source evidence contains candidate hints: {article_id}",
+                f"M5 source evidence differs from its acquisition receipt: {article_id}",
             )
+            qualified_asset_keys.add((article_id, asset_id))
             if asset.get("declared_asset_kind") not in {
                 "source_data",
                 "source_archive",
@@ -2707,6 +3090,31 @@ def _validate_m5_snapshot_source_qualification(
             f"M5 source-bearing article lacks a source asset: {article_id}",
         )
         total_source_assets += len(source_assets)
+        expected_retained_assets = sorted(
+            (
+                {
+                    "asset_id": asset["asset_id"],
+                    "sha256": asset["sha256"],
+                    "bytes": asset["bytes"],
+                    "first_attempt": asset["first_attempt"],
+                }
+                for (observed_article_id, _), asset in retained_harvest_assets.items()
+                if observed_article_id == article_id
+            ),
+            key=lambda item: item["asset_id"],
+        )
+        observed_retained_assets = provenance_entry["value"].get("retained_assets")
+        _require(
+            isinstance(observed_retained_assets, list)
+            and sorted(
+                observed_retained_assets,
+                key=lambda item: item.get("asset_id", "")
+                if isinstance(item, dict)
+                else "",
+            )
+            == expected_retained_assets,
+            f"M5 provenance retained assets differ from receipts: {article_id}",
+        )
         entries.append(
             {
                 "article_id": article_id,
@@ -2718,6 +3126,10 @@ def _validate_m5_snapshot_source_qualification(
     _require(
         entries and total_source_assets > 0 and total_source_bytes > 0,
         "M5_SOURCE_BEARING_REQUIRED: finalized snapshot has no source evidence",
+    )
+    _require(
+        qualified_asset_keys == set(retained_harvest_assets),
+        "M5 finalized source descriptors differ from the acquisition harvest",
     )
     return _seal(
         {
@@ -3070,7 +3482,7 @@ def _preservation_ledger(
     return _seal(ledger, "ledger_hash")
 
 
-def finalize_remediation_root(
+def _finalize_remediation_root(
     *,
     chunk_id: str,
     raw_root: Path,
@@ -3080,6 +3492,7 @@ def finalize_remediation_root(
     freeze_summary: Path,
     worktree: Path,
     source_bearing_v2: bool = False,
+    require_m5: bool,
 ) -> dict[str, Any]:
     """Seal one fresh remediation root from independently acquired raw evidence."""
 
@@ -3138,6 +3551,7 @@ def finalize_remediation_root(
         attestation_entries,
         binding,
         execution_evidence,
+        retained_harvest_assets,
         raw_reader,
     ) = _validate_raw_root(
         raw_root,
@@ -3145,6 +3559,7 @@ def finalize_remediation_root(
         records,
         partition=partition,
         code=code,
+        require_m5=require_m5,
     )
     try:
         provenance = _read_provenance(
@@ -3152,9 +3567,14 @@ def finalize_remediation_root(
             records,
             statuses_by_attempt,
         )
-        m5_source_qualification = _validate_m5_snapshot_source_qualification(
-            execution_evidence,
-            provenance,
+        m5_source_qualification = (
+            _validate_m5_snapshot_source_qualification(
+                execution_evidence,
+                provenance,
+                retained_harvest_assets,
+            )
+            if require_m5
+            else None
         )
         content_files = _validate_content_closure(raw_reader, provenance)
         _verify_raw_inventory_reads(raw_reader)
@@ -3979,8 +4399,8 @@ def finalize_remediation_root(
                 "execution_evidence": True,
                 "generated_secret_scan": True,
                 "postseal_old_root_preservation": True,
-                "atomic_no_replace_publication": True,
-                "canonical_target_identity": True,
+                "atomic_no_replace_publication_ready": True,
+                "canonical_target_absence_prechecked": True,
                 "private_trusted_staging_parent": True,
             },
         }
@@ -4043,12 +4463,69 @@ def finalize_remediation_root(
             "sealed_report_sha256": target.sha256(report_path),
             "report_hash": report["report_hash"],
             "status": report["status"],
+            "publication": {
+                "status": "PUBLISHED_ATOMIC_NO_REPLACE",
+                "canonical_target_identity_verified": True,
+            },
         }
     except Exception:
-        # Never clean up an incomplete staging/published root by pathname.
-        # A later invocation rejects any canonical target rather than overwriting it.
+        if target is not None and not target.published:
+            target.discard_unpublished()
         raise
     finally:
         if target is not None:
             target.close()
         raw_reader.close()
+
+
+def finalize_remediation_root(
+    *,
+    chunk_id: str,
+    raw_root: Path,
+    target_root: Path,
+    source_chunk: Path,
+    frozen_universe: Path,
+    freeze_summary: Path,
+    worktree: Path,
+    source_bearing_v2: bool = False,
+) -> dict[str, Any]:
+    """Seal one M5 root only after validating the active adapter trust closure."""
+
+    return _finalize_remediation_root(
+        chunk_id=chunk_id,
+        raw_root=raw_root,
+        target_root=target_root,
+        source_chunk=source_chunk,
+        frozen_universe=frozen_universe,
+        freeze_summary=freeze_summary,
+        worktree=worktree,
+        source_bearing_v2=source_bearing_v2,
+        require_m5=True,
+    )
+
+
+def finalize_remediation_root_for_testing(
+    *,
+    chunk_id: str,
+    raw_root: Path,
+    target_root: Path,
+    source_chunk: Path,
+    frozen_universe: Path,
+    freeze_summary: Path,
+    worktree: Path,
+    source_bearing_v2: bool = False,
+) -> dict[str, Any]:
+    """Exercise legacy synthetic fixtures behind the deny-by-default test gate."""
+
+    require_test_only_finalizer_gate()
+    return _finalize_remediation_root(
+        chunk_id=chunk_id,
+        raw_root=raw_root,
+        target_root=target_root,
+        source_chunk=source_chunk,
+        frozen_universe=frozen_universe,
+        freeze_summary=freeze_summary,
+        worktree=worktree,
+        source_bearing_v2=source_bearing_v2,
+        require_m5=False,
+    )
