@@ -270,37 +270,97 @@ def _frozen_records(source_bytes: bytes) -> list[FrozenRecord]:
 
 def _read_stable_regular(path: Path, label: str, *, max_bytes: int | None = None) -> bytes:
     _require(path.is_absolute(), f"{label} path must be absolute")
-    before = path.lstat()
     _require(
-        stat.S_ISREG(before.st_mode)
-        and not path.is_symlink()
-        and before.st_nlink == 1
-        and before.st_uid == os.geteuid(),
-        f"{label} is not a private regular file",
+        all(component not in {"", ".", ".."} for component in path.parts[1:]),
+        f"{label} path is unsafe",
     )
-    if max_bytes is not None:
-        _require(0 < before.st_size <= max_bytes, f"{label} exceeds its byte budget")
-    with path.open("rb") as handle:
-        payload = handle.read()
-    after = path.lstat()
-    _require(
-        (
-            before.st_dev,
-            before.st_ino,
-            before.st_size,
-            before.st_mtime_ns,
-            before.st_ctime_ns,
+    directory_descriptor = -1
+    file_descriptor = -1
+    try:
+        directory_descriptor = os.open(
+            path.anchor,
+            os.O_RDONLY
+            | os.O_DIRECTORY
+            | os.O_NOFOLLOW
+            | getattr(os, "O_CLOEXEC", 0),
         )
+        for component in path.parts[1:-1]:
+            next_descriptor = os.open(
+                component,
+                os.O_RDONLY
+                | os.O_DIRECTORY
+                | os.O_NOFOLLOW
+                | getattr(os, "O_CLOEXEC", 0),
+                dir_fd=directory_descriptor,
+            )
+            os.close(directory_descriptor)
+            directory_descriptor = next_descriptor
+        file_descriptor = os.open(
+            path.name,
+            os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0),
+            dir_fd=directory_descriptor,
+        )
+        before = os.fstat(file_descriptor)
+        _require(
+            stat.S_ISREG(before.st_mode)
+            and before.st_nlink == 1
+            and before.st_uid == os.geteuid(),
+            f"{label} is not a private regular file",
+        )
+        if max_bytes is not None:
+            _require(
+                0 < before.st_size <= max_bytes,
+                f"{label} exceeds its byte budget",
+            )
+        payload = bytearray()
+        while len(payload) <= before.st_size:
+            block = os.read(
+                file_descriptor,
+                min(1024 * 1024, before.st_size - len(payload) + 1),
+            )
+            if not block:
+                break
+            payload.extend(block)
+        after = os.fstat(file_descriptor)
+        current = os.stat(
+            path.name,
+            dir_fd=directory_descriptor,
+            follow_symlinks=False,
+        )
+    except OSError as exc:
+        raise C2M5SourcePilotError(f"{label} could not be opened safely") from exc
+    finally:
+        if file_descriptor >= 0:
+            os.close(file_descriptor)
+        if directory_descriptor >= 0:
+            os.close(directory_descriptor)
+    identity = (
+        before.st_dev,
+        before.st_ino,
+        before.st_size,
+        before.st_mtime_ns,
+        before.st_ctime_ns,
+    )
+    _require(
+        identity
         == (
             after.st_dev,
             after.st_ino,
             after.st_size,
             after.st_mtime_ns,
             after.st_ctime_ns,
-        ),
+        )
+        == (
+            current.st_dev,
+            current.st_ino,
+            current.st_size,
+            current.st_mtime_ns,
+            current.st_ctime_ns,
+        )
+        and len(payload) == before.st_size,
         f"{label} changed while being read",
     )
-    return payload
+    return bytes(payload)
 
 
 def _verify_frozen_paths(
@@ -697,36 +757,40 @@ def _run_bounded_process(
         deadline = time.monotonic() + timeout_seconds
         total = 0
         forced_code: int | None = None
+        pipe_open = True
         try:
             while True:
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     forced_code = 124
                     break
-                ready = selector.select(timeout=min(1.0, remaining))
-                if not ready:
-                    if process.poll() is None:
-                        continue
+                ready = (
+                    selector.select(timeout=min(0.1, remaining))
+                    if pipe_open
+                    else ()
+                )
+                if ready:
+                    chunk = os.read(process.stdout.fileno(), 64 * 1024)
+                    if not chunk:
+                        selector.unregister(process.stdout)
+                        pipe_open = False
+                    elif total + len(chunk) > MAX_POSTFETCH_LOG_BYTES:
+                        retained = MAX_POSTFETCH_LOG_BYTES - total
+                        if retained > 0:
+                            log.write(chunk[:retained])
+                        total = MAX_POSTFETCH_LOG_BYTES
+                        forced_code = 125
+                        break
+                    else:
+                        log.write(chunk)
+                        total += len(chunk)
                     continue
-                chunk = os.read(process.stdout.fileno(), 64 * 1024)
-                if not chunk:
+                if process.poll() is not None:
                     break
-                if total + len(chunk) > MAX_POSTFETCH_LOG_BYTES:
-                    retained = MAX_POSTFETCH_LOG_BYTES - total
-                    if retained > 0:
-                        log.write(chunk[:retained])
-                    total = MAX_POSTFETCH_LOG_BYTES
-                    forced_code = 125
-                    break
-                log.write(chunk)
-                total += len(chunk)
+                if not pipe_open:
+                    time.sleep(min(0.05, remaining))
             if forced_code is not None:
-                if process.poll() is None:
-                    try:
-                        os.killpg(process.pid, signal.SIGKILL)
-                    except ProcessLookupError:
-                        pass
-                process.wait()
+                _terminate_process_group(process)
                 marker = (
                     b"\nM5 attempt exceeded its fixed wall timeout\n"
                     if forced_code == 124
@@ -738,13 +802,9 @@ def _run_bounded_process(
                 return_code = forced_code
             else:
                 return_code = process.wait()
+                _terminate_process_group(process)
         except BaseException:
-            if process.poll() is None:
-                try:
-                    os.killpg(process.pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
-                process.wait()
+            _terminate_process_group(process)
             raise
         finally:
             selector.close()
@@ -752,6 +812,59 @@ def _run_bounded_process(
         log.flush()
         os.fsync(log.fileno())
     return return_code
+
+
+def _process_group_members(group_id: int) -> tuple[int, ...]:
+    try:
+        completed = subprocess.run(
+            ["/bin/ps", "-axo", "pid=,pgid=,uid="],
+            check=True,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            env={
+                "PATH": "/usr/bin:/bin",
+                "HOME": "/var/empty",
+                "LANG": "C",
+                "LC_ALL": "C",
+            },
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise C2M5SourcePilotError("attempt process group could not be inspected") from exc
+    members: list[int] = []
+    for raw_line in completed.stdout.splitlines():
+        pieces = raw_line.split()
+        _require(len(pieces) == 3, "attempt process table is malformed")
+        try:
+            process_id, observed_group, owner = map(int, pieces)
+        except ValueError as exc:
+            raise C2M5SourcePilotError("attempt process table is malformed") from exc
+        if observed_group != group_id:
+            continue
+        _require(owner == os.geteuid(), "attempt process group has an unsafe owner")
+        members.append(process_id)
+    return tuple(sorted(members))
+
+
+def _terminate_process_group(process: subprocess.Popen[bytes]) -> None:
+    members = _process_group_members(process.pid)
+    if process.poll() is None or members:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+    process.wait()
+    deadline = time.monotonic() + 2.0
+    while True:
+        members = _process_group_members(process.pid)
+        if not members:
+            return
+        _require(
+            time.monotonic() < deadline,
+            f"attempt process group retained active pids: {list(members)}",
+        )
+        time.sleep(0.01)
 
 
 def _run_attempt_subprocess(
@@ -1060,9 +1173,6 @@ def _harvest_download(
         source_root,
         f"source_data {record.article_id}",
     )
-    source_count = 0
-    figure_count = 0
-    caption_count = 0
     observed_assets: dict[str, dict[str, Any]] = {}
     for path in _iter_regular_files(source_root, f"source_data {record.article_id}"):
         payload = _read_stable_regular(
@@ -1081,8 +1191,10 @@ def _harvest_download(
             **asset.descriptor_value(),
             "first_attempt": asset.first_attempt,
         }
-        source_count += 1
-    _require(source_count > 0, f"downloaded article has no retained source asset: {record.article_id}")
+    _require(
+        observed_assets,
+        f"downloaded article has no retained source asset: {record.article_id}",
+    )
 
     figures_root = article_root / "figures"
     try:
@@ -1118,14 +1230,15 @@ def _harvest_download(
                 **asset.descriptor_value(),
                 "first_attempt": asset.first_attempt,
             }
-            if declared_kind == "caption":
-                caption_count += 1
-            else:
-                figure_count += 1
+    kind_counts = Counter(
+        asset["declared_asset_kind"] for asset in observed_assets.values()
+    )
     return {
-        "source_assets_observed": source_count,
-        "figure_assets_observed": figure_count,
-        "caption_assets_observed": caption_count,
+        "source_assets_observed": (
+            kind_counts["source_data"] + kind_counts["source_archive"]
+        ),
+        "figure_assets_observed": kind_counts["figure"],
+        "caption_assets_observed": kind_counts["caption"],
         "assets": [
             observed_assets[asset_id] for asset_id in sorted(observed_assets)
         ],

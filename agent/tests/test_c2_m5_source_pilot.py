@@ -352,6 +352,7 @@ def test_skipped_figure_zip_does_not_consume_retained_archive_budget(
     source.mkdir(parents=True)
     figures.mkdir()
     (source / "table.csv").write_bytes(b"a,b\n1,2\n")
+    (source / "table-copy.csv").write_bytes(b"a,b\n1,2\n")
     (figures / "not-context.zip").write_bytes(
         _zip_payload("ignored.csv", b"a,b\n" + b"1,2\n" * 6)
     )
@@ -450,6 +451,22 @@ def test_harvest_rejects_symlinked_article_parent(tmp_path: Path) -> None:
             record=record,
             attempt="initial",
             registry=registry,
+        )
+
+
+def test_stable_reader_rejects_symlinked_parent_component(tmp_path: Path) -> None:
+    real_parent = tmp_path / "real"
+    real_parent.mkdir()
+    target = real_parent / "source.csv"
+    target.write_bytes(b"a,b\n1,2\n")
+    linked_parent = tmp_path / "linked"
+    linked_parent.symlink_to(real_parent, target_is_directory=True)
+
+    with pytest.raises(pilot.C2M5SourcePilotError, match="opened safely"):
+        pilot._read_stable_regular(
+            linked_parent / target.name,
+            "symlinked-parent source",
+            max_bytes=1024,
         )
 
 
@@ -982,6 +999,53 @@ def test_attempt_process_enforces_log_and_wall_limits(
     assert timeout_exit == 124
     assert time.monotonic() - started < 3
     assert (timeout_workspace / "postfetch.log").stat().st_size <= 32
+
+    closed_output_workspace = tmp_path / "closed-output"
+    closed_output_workspace.mkdir()
+    started = time.monotonic()
+    closed_output_exit = pilot._run_bounded_process(
+        command=[
+            sys.executable,
+            "-I",
+            "-S",
+            "-B",
+            "-c",
+            "import os,time; os.close(1); os.close(2); time.sleep(10)",
+        ],
+        workspace=closed_output_workspace,
+        environment={"PATH": "/usr/bin:/bin"},
+        timeout_seconds=0.1,
+    )
+
+    assert closed_output_exit == 124
+    assert time.monotonic() - started < 3
+
+    descendant_workspace = tmp_path / "descendant"
+    descendant_workspace.mkdir()
+    descendant_exit = pilot._run_bounded_process(
+        command=[
+            sys.executable,
+            "-I",
+            "-S",
+            "-B",
+            "-c",
+            (
+                "import pathlib,subprocess,sys; "
+                "child=subprocess.Popen([sys.executable,'-I','-S','-B','-c',"
+                "'import time; time.sleep(30)'],"
+                "stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL); "
+                "pathlib.Path('child.pid').write_text(str(child.pid))"
+            ),
+        ],
+        workspace=descendant_workspace,
+        environment={"PATH": "/usr/bin:/bin"},
+        timeout_seconds=5,
+    )
+
+    assert descendant_exit == 0
+    child_pid = int((descendant_workspace / "child.pid").read_text())
+    with pytest.raises(ProcessLookupError):
+        os.kill(child_pid, 0)
 
 
 def test_dependency_snapshot_is_vendored_pinned_and_closed(tmp_path: Path) -> None:
