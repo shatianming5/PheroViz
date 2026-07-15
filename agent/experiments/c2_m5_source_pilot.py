@@ -721,10 +721,11 @@ def _run_bounded_process(
                 log.write(chunk)
                 total += len(chunk)
             if forced_code is not None:
-                try:
-                    os.killpg(process.pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
+                if process.poll() is None:
+                    try:
+                        os.killpg(process.pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
                 process.wait()
                 marker = (
                     b"\nM5 attempt exceeded its fixed wall timeout\n"
