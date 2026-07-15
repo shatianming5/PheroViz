@@ -1,0 +1,6 @@
+"""Compiled pin for the fixed C2 M4 candidate-validation bindings."""
+
+M4_CANDIDATE_VALIDATION_BINDINGS_RESOURCE_SHA256 = (
+    "b8b76f08ef02ff58258e21a24acf98da884f4ca381775975bd27fc4fcfab3b07"
+)
+M4_CANDIDATE_VALIDATION_BINDINGS_ROUTE_APPROVED = True
