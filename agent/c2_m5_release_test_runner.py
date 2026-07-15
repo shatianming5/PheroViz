@@ -254,12 +254,22 @@ def _verified_production_attestation_module() -> Tuple[types.ModuleType, bytes]:
         == runner_payload,
         "M5 release verifier differs from HEAD",
     )
-    module = types.ModuleType("c2_m5_release_verified_attestation")
-    module.__file__ = str(helper_path)
-    exec(
-        compile(helper_payload, str(helper_path), "exec"),
-        module.__dict__,
+    module_name = "c2_m5_release_verified_attestation"
+    _require(
+        module_name not in sys.modules,
+        "M5 verified helper module is already loaded",
     )
+    module = types.ModuleType(module_name)
+    module.__file__ = str(helper_path)
+    sys.modules[module_name] = module
+    try:
+        exec(
+            compile(helper_payload, str(helper_path), "exec"),
+            module.__dict__,
+        )
+    except Exception:
+        del sys.modules[module_name]
+        raise
     module._verify_filter_free_clean_tree(_REPOSITORY, head)
     return module, runner_payload
 
