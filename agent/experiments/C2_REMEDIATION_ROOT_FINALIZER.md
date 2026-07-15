@@ -223,12 +223,13 @@ Verify each one-file attestation commit with `git diff-tree --no-commit-id
   "$PYTHON" -I -S -B "$PWD/c2_m5_release_test_runner.py"
 ```
 
-The release runner verifies the native Python/stdlib binding and both
-hash-bound dependency archives before creating its own mode-0700 temporary
-root. It disables ambient pytest plugins, uses only the fixed test roster, and
-kills the complete test process group at the fixed timeout. Bare `pytest`,
-ambient `PYTHONPATH`, user/site packages, and unpinned plugins are not release
-evidence.
+The release runner verifies the native Python/stdlib binding, the externally
+pinned live M5 manifest, and both hash-bound dependency archives before
+creating its own mode-0700 temporary root below a fully checked root/user-owned,
+non-group/world-writable ancestor chain. It disables ambient pytest plugins,
+uses only the fixed test roster, and kills the complete test process group at
+the fixed timeout. Bare `pytest`, ambient `PYTHONPATH`, user/site packages, and
+unpinned plugins are not release evidence.
 
 The M5 bootstrap rechecks the manifest-only topology, all Git blobs, the exact
 root-owned Apple CPython 3.9.6 executable/runtime-library/micro/SOABI/native

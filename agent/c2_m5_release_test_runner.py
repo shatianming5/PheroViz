@@ -227,6 +227,27 @@ def _release_pin(name: str, length: int) -> str:
     return value
 
 
+def _trusted_temporary_parent() -> Path:
+    parent = _REPOSITORY.parent
+    current = Path(parent.anchor)
+    for component in parent.parts[1:]:
+        current = current / component
+        try:
+            metadata = current.lstat()
+        except OSError as exc:
+            raise M5ReleaseTestError(
+                f"M5 release temporary ancestor is unavailable: {current}"
+            ) from exc
+        _require(
+            stat.S_ISDIR(metadata.st_mode)
+            and not stat.S_ISLNK(metadata.st_mode)
+            and metadata.st_uid in {0, os.geteuid()}
+            and metadata.st_mode & 0o022 == 0,
+            f"M5 release temporary ancestor is unsafe: {current}",
+        )
+    return parent
+
+
 def _verified_production_attestation_module() -> Tuple[types.ModuleType, bytes]:
     head = _git(("rev-parse", "HEAD"), "M5 release HEAD").decode("ascii").strip()
     _require(
@@ -525,7 +546,10 @@ def _run() -> int:
         test_archive_payload,
         production_manifest["python"],
     )
-    with tempfile.TemporaryDirectory(prefix="c2-m5-release-") as temporary:
+    with tempfile.TemporaryDirectory(
+        prefix="c2-m5-release-",
+        dir=str(_trusted_temporary_parent()),
+    ) as temporary:
         temporary_root = Path(temporary)
         temporary_root.chmod(0o700)
         temporary_metadata = temporary_root.lstat()
