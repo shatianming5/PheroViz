@@ -1030,6 +1030,70 @@ def test_zip_preflight_reuses_one_member_reader(
         )
 
 
+def test_zip_preflight_rejects_non_source_and_unaccounted_bytes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for archive in (
+        _zip({}),
+        _zip({"__MACOSX/._metadata": b"resource-only"}),
+        _zip({"notes.txt": b"not tabular source data"}),
+    ):
+        with pytest.raises(
+            SourceBearingExtensionError,
+            match="ARCHIVE_NO_SUBSTANTIVE_SOURCE",
+        ):
+            source_extension.validate_v2_source_asset_payload(archive)
+
+    valid = _zip({"table.csv": b"panel,value\na,1\n"})
+    eocd = valid.rfind(b"PK\x05\x06")
+    assert eocd >= 0
+    central_offset = struct.unpack_from("<I", valid, eocd + 16)[0]
+    gap = b"hidden-gap"
+    with_gap = bytearray(valid[:central_offset] + gap + valid[central_offset:])
+    struct.pack_into(
+        "<I",
+        with_gap,
+        eocd + len(gap) + 16,
+        central_offset + len(gap),
+    )
+    with pytest.raises(
+        SourceBearingExtensionError,
+        match="ZIP_PHYSICAL_COVERAGE",
+    ):
+        source_extension.validate_v2_source_asset_payload(bytes(with_gap))
+
+    monkeypatch.setattr(source_extension, "MAX_ARCHIVE_MEMBER_BYTES", 10)
+    with pytest.raises(
+        SourceBearingExtensionError,
+        match="ZIP_MEMBER_TOO_LARGE",
+    ):
+        source_extension.validate_v2_source_asset_payload(
+            _zip(
+                {
+                    "table.csv": b"a,b\n1,2\n",
+                    "__MACOSX/._metadata": b"oversized-resource",
+                }
+            )
+        )
+
+
+def test_xlsx_rejects_contradictory_xml_encoding() -> None:
+    workbook = _xlsx()
+    with zipfile.ZipFile(io.BytesIO(workbook)) as archive:
+        members = {
+            info.filename: archive.read(info)
+            for info in archive.infolist()
+            if not info.is_dir()
+        }
+    members["[Content_Types].xml"] = (
+        b'<?xml version="1.0" encoding="UTF-16"?>'
+        + members["[Content_Types].xml"]
+    )
+
+    with pytest.raises(SourceBearingExtensionError):
+        source_extension.validate_v2_source_asset_payload(_zip(members))
+
+
 def test_generic_zip_is_fd_accounted_and_every_member_is_consumed() -> None:
     archive = _zip(
         {

@@ -297,7 +297,10 @@ def _read_stable_regular(path: Path, label: str, *, max_bytes: int | None = None
             directory_descriptor = next_descriptor
         file_descriptor = os.open(
             path.name,
-            os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0),
+            os.O_RDONLY
+            | os.O_NONBLOCK
+            | os.O_NOFOLLOW
+            | getattr(os, "O_CLOEXEC", 0),
             dir_fd=directory_descriptor,
         )
         before = os.fstat(file_descriptor)

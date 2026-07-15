@@ -1716,10 +1716,24 @@ def _parse_zip_v1(payload: bytes) -> _ZipInfo:
         total_uncompressed_bytes <= MAX_ARCHIVE_CONTAINER_UNCOMPRESSED_BYTES,
         "REJECT_ZIP_CONTAINER_UNCOMPRESSED_LIMIT",
     )
-    for (_, previous_end), (next_start, _) in zip(
-        sorted(local_ranges), sorted(local_ranges)[1:], strict=False
-    ):
-        _require(previous_end <= next_start, "REJECT_ZIP_LOCAL_OVERLAP")
+    ordered_ranges = sorted(local_ranges)
+    if ordered_ranges:
+        _require(
+            ordered_ranges[0][0] == 0
+            and ordered_ranges[-1][1] == central_offset,
+            "REJECT_ZIP_PHYSICAL_COVERAGE",
+        )
+        for (_, previous_end), (next_start, _) in zip(
+            ordered_ranges,
+            ordered_ranges[1:],
+            strict=False,
+        ):
+            _require(
+                previous_end == next_start,
+                "REJECT_ZIP_PHYSICAL_COVERAGE",
+            )
+    else:
+        _require(central_offset == 0, "REJECT_ZIP_PHYSICAL_COVERAGE")
     return _ZipInfo(
         entries=tuple(entries),
         central_directory_sha256=_sha256(central),
@@ -1847,7 +1861,7 @@ def _parse_ooxml_xml(payload: bytes) -> ElementTree.Element | None:
     if "\x00" in text or "<!doctype" in normalized or "<!entity" in normalized:
         return None
     try:
-        return ElementTree.fromstring(text)
+        return ElementTree.fromstring(payload)
     except ElementTree.ParseError:
         return None
 
@@ -2208,20 +2222,21 @@ def _preflight_detected_source_asset(
     archive_budget: _ArchiveRunBudget,
     *,
     depth: int,
-) -> None:
+) -> bool:
     archive_budget.check_deadline()
     _require(depth <= MAX_CONTAINER_DEPTH, "REJECT_CONTAINER_DEPTH")
     if detected.container_format != "ZIP_V1":
-        return
+        return detected.content_profile == "CSV_V1"
     archive = detected.zip_info
     _require(archive is not None, "REJECT_ZIP_PARSER_FAILURE")
     member_reader = _ZipMemberReader(payload, archive_budget)
     if detected.content_profile == "XLSX_V1":
         for entry in archive.entries:
             archive_budget.check_deadline()
-            if not entry.is_directory and not entry.is_resource_fork:
+            if not entry.is_directory:
                 _read_zip_member(payload, entry, member_reader)
-        return
+        return True
+    substantive_source = False
     for entry in archive.entries:
         archive_budget.check_deadline()
         if entry.is_directory:
@@ -2230,12 +2245,20 @@ def _preflight_detected_source_asset(
         if entry.is_resource_fork:
             continue
         child = _detect_format(member_payload, archive_budget=archive_budget)
-        _preflight_detected_source_asset(
-            member_payload,
-            child,
-            archive_budget,
-            depth=depth + 1,
+        substantive_source = (
+            _preflight_detected_source_asset(
+                member_payload,
+                child,
+                archive_budget,
+                depth=depth + 1,
+            )
+            or substantive_source
         )
+    _require(
+        substantive_source,
+        "REJECT_ARCHIVE_NO_SUBSTANTIVE_SOURCE",
+    )
+    return True
 
 
 def validate_v2_source_asset_payload(
@@ -2999,6 +3022,10 @@ class _Builder:
                         reason="DIRECTORY_ENTRY",
                     )
                 )
+            else:
+                _read_zip_member(payload, central, member_reader)
+            if central.is_directory:
+                pass
             elif central.is_resource_fork:
                 entry["disposition"] = "SOURCE_ONLY_EXCLUSION"
                 entry["source_only_exclusion_reason_or_null"] = "RESOURCE_FORK"
@@ -3011,7 +3038,6 @@ class _Builder:
                     )
                 )
             else:
-                _read_zip_member(payload, central, member_reader)
                 entry["disposition"] = "SOURCE_ONLY_EXCLUSION"
                 entry["source_only_exclusion_reason_or_null"] = "XLSX_PACKAGE_COMPONENT"
                 entry["archive_source_only_disposition_record_hash_or_null"] = (

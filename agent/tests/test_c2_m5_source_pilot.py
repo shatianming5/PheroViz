@@ -470,6 +470,21 @@ def test_stable_reader_rejects_symlinked_parent_component(tmp_path: Path) -> Non
         )
 
 
+def test_stable_reader_rejects_fifo_without_blocking(tmp_path: Path) -> None:
+    fifo = tmp_path / "source.fifo"
+    os.mkfifo(fifo)
+    started = time.monotonic()
+
+    with pytest.raises(pilot.C2M5SourcePilotError, match="private regular"):
+        pilot._read_stable_regular(
+            fifo,
+            "fifo source",
+            max_bytes=1024,
+        )
+
+    assert time.monotonic() - started < 1
+
+
 def test_prior_attempt_source_survives_source_less_retry2() -> None:
     records = [_record(1), _record(2)]
     writes: dict[str, bytes] = {}
