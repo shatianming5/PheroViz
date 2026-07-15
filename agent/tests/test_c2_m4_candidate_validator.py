@@ -109,11 +109,67 @@ def _full_tree_fingerprint(root: Path) -> list[tuple[Any, ...]]:
     return sorted(rows)
 
 
+def _write_forensic_formal_manifest(root: Path) -> None:
+    excluded = {
+        "control/artifact_manifest_v1.json",
+        "root_inventory.json",
+        "root_inventory.sha256",
+        "sealed_report_v1/sealed_report.json",
+        "sealed_report_v1/sealed_report.sha256",
+    }
+    rows = [
+        row
+        for row in _snapshot_rows(root)
+        if row[0] not in excluded
+        and not row[0].startswith("pre_acquisition_aborted_v1/")
+    ]
+    manifest = {
+        "schema_version": "1.0",
+        "manifest_type": "c2_rerun2_formal_artifact_manifest",
+        "root_id": root.name,
+        "excluded_prefixes": [
+            ".pipeline_worktree/",
+            "pre_acquisition_aborted_v1/",
+        ],
+        "entries": [
+            {"path": path, "size_bytes": size, "sha256": digest}
+            for path, size, digest in rows
+        ],
+    }
+    _seal(manifest, "summary_hash")
+    _write_json(root / "control/artifact_manifest_v1.json", manifest)
+
+
+def _write_legacy_formal_manifest(root: Path) -> None:
+    rows = [
+        row
+        for row in _snapshot_rows(root)
+        if not row[0].startswith("sealed_report_v1/")
+    ]
+    manifest = {
+        "schema_version": "1.0",
+        "root_name": root.name,
+        "excludes": [".pipeline_worktree/", "sealed_report_v1/"],
+        "files": [
+            {"path": path, "bytes": size, "sha256": digest}
+            for path, size, digest in rows
+        ],
+        "artifact_count": len(rows),
+        "total_bytes": sum(size for _, size, _ in rows),
+    }
+    _seal(manifest, "manifest_hash")
+    path = root / "sealed_report_v1/artifact_manifest.json"
+    _write_json(path, manifest)
+    (root / "sealed_report_v1/artifact_manifest.sha256").write_text(
+        f"{_sha256(path.read_bytes())}  artifact_manifest.json\n",
+        encoding="ascii",
+    )
+
+
 def _write_native_inventory(root: Path, profile: str) -> None:
     if profile == "RERUN2_FORENSIC_ACQUISITION_V2":
         manifest_path = root / "control/artifact_manifest_v1.json"
-        if not manifest_path.exists():
-            _write_json(manifest_path, {"synthetic": True})
+        assert manifest_path.exists()
         excluded = {"root_inventory.json", "root_inventory.sha256"}
         rows = [row for row in _snapshot_rows(root) if row[0] not in excluded]
         inventory: dict[str, Any] = {
@@ -522,7 +578,12 @@ def _build_root(
         f"{_sha256(sealed_path.read_bytes())}  sealed_report.json\n",
         encoding="ascii",
     )
-    _write_native_inventory(root, profile)
+    if profile == "RERUN2_FORENSIC_ACQUISITION_V2":
+        _write_forensic_formal_manifest(root)
+        _write_native_inventory(root, profile)
+    else:
+        _write_native_inventory(root, profile)
+        _write_legacy_formal_manifest(root)
 
     with validator._DescriptorSnapshotter(root) as snapshotter:
         snapshot = snapshotter.snapshot()
@@ -790,6 +851,7 @@ def test_source_path_is_rejected_even_when_snapshot_pin_is_updated(
         source = root / "content/_sources/article-1/source.json"
         source.parent.mkdir(parents=True)
         source.write_text('{"source":true}\n', encoding="utf-8")
+        _write_forensic_formal_manifest(root)
         _write_native_inventory(
             root,
             "RERUN2_FORENSIC_ACQUISITION_V2",
@@ -855,7 +917,47 @@ def test_arbitrary_artifact_is_rejected_after_repinning(
         _install_fake_fixed_state(monkeypatch, (binding,))
         with pytest.raises(
             validator.C2M4CandidateValidationError,
-            match="unsupported artifact path",
+            match="does not close the observed evidence scope",
+        ):
+            validator.validate_fixed_m4_candidates(root_base)
+
+
+def test_nested_unmanifested_artifact_is_rejected_after_repinning(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with experiment_workspace("c2-m4-nested-injection") as workspace:
+        root_base = workspace / "outputs"
+        root_base.mkdir(mode=0o700)
+        binding = _build_root(
+            root_base,
+            chunk_id="009",
+            profile="RERUN2_FORENSIC_ACQUISITION_V2",
+        )
+        root = root_base / binding.root_name
+        (root / "control/unbound-source.bin").write_bytes(b"unbound source")
+        _write_native_inventory(root, "RERUN2_FORENSIC_ACQUISITION_V2")
+        with validator._DescriptorSnapshotter(root) as snapshotter:
+            snapshot = snapshotter.snapshot()
+        binding = replace(
+            binding,
+            snapshot=M4SnapshotBinding(
+                file_count=snapshot.file_count,
+                total_bytes=snapshot.total_bytes,
+                canonical_bytes=snapshot.canonical_bytes,
+                sha256=snapshot.sha256,
+            ),
+            artifacts=replace(
+                binding.artifacts,
+                inventory_sha256=snapshot.digest(
+                    "root_inventory.json",
+                    "inventory",
+                ),
+            ),
+        )
+        _install_fake_fixed_state(monkeypatch, (binding,))
+        with pytest.raises(
+            validator.C2M4CandidateValidationError,
+            match="does not close the observed evidence scope",
         ):
             validator.validate_fixed_m4_candidates(root_base)
 

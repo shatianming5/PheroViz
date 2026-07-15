@@ -1304,6 +1304,123 @@ def _validate_inventory(
     }
 
 
+def _validate_formal_artifact_manifest(
+    snapshot: _RootSnapshot,
+    binding: M4CandidateBinding,
+) -> dict[str, Any]:
+    forensic = binding.format_profile == "RERUN2_FORENSIC_ACQUISITION_V2"
+    path = (
+        "control/artifact_manifest_v1.json"
+        if forensic
+        else "sealed_report_v1/artifact_manifest.json"
+    )
+    payload = snapshot.read(path, "formal artifact manifest")
+    manifest = _json_object(payload, "formal artifact manifest")
+    semantic_field = "summary_hash" if forensic else "manifest_hash"
+    semantic_hash = _semantic_hash(
+        manifest,
+        semantic_field,
+        "formal artifact manifest",
+    )
+    raw_entries = manifest.get("entries" if forensic else "files")
+    _require(isinstance(raw_entries, list), "formal manifest entries are invalid")
+    declared: dict[str, tuple[int, str]] = {}
+    for index, entry in enumerate(raw_entries):
+        _require(isinstance(entry, dict), "formal manifest entry is invalid")
+        relative = _safe_relative(
+            entry.get("path"),
+            f"formal manifest entry {index}.path",
+        )
+        size = _integer(
+            entry.get("size_bytes" if forensic else "bytes"),
+            f"formal manifest entry {index}.size",
+        )
+        digest = _string(
+            entry.get("sha256"),
+            f"formal manifest entry {index}.sha256",
+        )
+        _require(relative not in declared, "formal manifest repeats a path")
+        declared[relative] = (size, digest)
+
+    if forensic:
+        excluded = {
+            "control/artifact_manifest_v1.json",
+            "root_inventory.json",
+            "root_inventory.sha256",
+            "sealed_report_v1/sealed_report.json",
+            "sealed_report_v1/sealed_report.sha256",
+        }
+        excluded.update(
+            relative
+            for relative in snapshot.files
+            if relative.startswith("pre_acquisition_aborted_v1/")
+        )
+        _require(
+            manifest.get("manifest_type")
+            == "c2_rerun2_formal_artifact_manifest",
+            "forensic formal-manifest type differs",
+        )
+        _require(
+            manifest.get("root_id") == binding.root_name,
+            "forensic formal-manifest root ID differs",
+        )
+        _require(
+            manifest.get("excluded_prefixes")
+            == [f"{EXCLUDED_TREE}/", "pre_acquisition_aborted_v1/"],
+            "forensic formal-manifest exclusions differ",
+        )
+    else:
+        excluded = {
+            relative
+            for relative in snapshot.files
+            if relative.startswith("sealed_report_v1/")
+        }
+        _require(
+            manifest.get("root_name") == binding.root_name,
+            "legacy formal-manifest root name differs",
+        )
+        _require(
+            manifest.get("excludes")
+            == [f"{EXCLUDED_TREE}/", "sealed_report_v1/"],
+            "legacy formal-manifest exclusions differ",
+        )
+        _require(
+            manifest.get("artifact_count") == len(declared),
+            "legacy formal-manifest artifact count differs",
+        )
+        _require(
+            manifest.get("total_bytes")
+            == sum(size for size, _ in declared.values()),
+            "legacy formal-manifest total bytes differ",
+        )
+        _validate_sidecar(
+            snapshot.read(
+                "sealed_report_v1/artifact_manifest.sha256",
+                "formal-manifest sidecar",
+            ),
+            _sha256(payload),
+            "artifact_manifest.json",
+            "formal-manifest sidecar",
+        )
+
+    expected = {
+        relative: (artifact.size, artifact.sha256)
+        for relative, artifact in snapshot.files.items()
+        if relative not in excluded
+    }
+    _require(
+        declared == expected,
+        "formal artifact manifest does not close the observed evidence scope",
+    )
+    return {
+        "path": path,
+        "sha256": _sha256(payload),
+        "semantic_hash": semantic_hash,
+        "entry_count": len(declared),
+        "coverage": "EXACT_PROFILE_FORMAL_MANIFEST_MATCH",
+    }
+
+
 def _validate_sidecar(
     payload: bytes,
     expected_sha256: str,
@@ -1618,6 +1735,7 @@ def _validate_candidate(
         rows_by_attempt,
     )
     inventory = _validate_inventory(snapshot, binding)
+    formal_manifest = _validate_formal_artifact_manifest(snapshot, binding)
     sealed_report = _validate_sealed_report(
         snapshot,
         binding,
@@ -1675,6 +1793,7 @@ def _validate_candidate(
         "ordered_acquisition_dispositions": dispositions,
         "ordered_acquisition_dispositions_sha256": disposition_hash,
         "native_inventory": inventory,
+        "formal_artifact_manifest": formal_manifest,
         "legacy_sealed_report": sealed_report,
         "source_observation": source_observation,
         "legacy_canonical_p_handling": (
