@@ -112,10 +112,10 @@ retry2 is source-less.
 ```bash
 cd agent
 export LANG=C LC_ALL=C
-export C2_M5_EXPECTED_ATTESTATION_COMMIT=__M5_ATTESTATION_COMMIT__
-export C2_M5_EXPECTED_MANIFEST_SHA256=__M5_MANIFEST_SHA256__
-export C2_M5_EXPECTED_BOOTSTRAP_SHA256=__M5_BOOTSTRAP_SHA256__
-export C2_M5_EXPECTED_RELEASE_RUNNER_SHA256=__M5_RELEASE_RUNNER_SHA256__
+export C2_M5_EXPECTED_ATTESTATION_COMMIT=d5cb3c6d2e7c7fb4a2f71dea563a863728ebb8a0
+export C2_M5_EXPECTED_MANIFEST_SHA256=5d0fe206b1912fb58879cac42f0367981e63b966bfeec89c1d71de03fa83bb5e
+export C2_M5_EXPECTED_BOOTSTRAP_SHA256=fd04918b1782dc884ea60b856139f025d4b01c34fa04475f2c916ed4f843ca01
+export C2_M5_EXPECTED_RELEASE_RUNNER_SHA256=164aaa874b1ac8e7c479d29e4a458c8e30ba25f8e2e92927f888ae861dd8ee66
 export C2_M5_EXPECTED_PYTHON_SHA256=4b42b1a117605cafc8607b67b0892a609c2cd125012dd56288abeed8c89cdfb1
 export C2_M5_EXPECTED_PYTHON_LIBRARY_SHA256=0432398c0d1b2ff35a741b2758dccfb08d9f1aad39abac2c4da9cfcc84e6d225
 PYTHON=/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9
@@ -232,9 +232,9 @@ worktree file with Git blob framing; it does not invoke checkout-controlled
 clean/smudge filters. It rejects `__pycache__`, `.pyc`, `.pyo`, `.pytest_cache`,
 or any other tracked, untracked, or ignored extra. Run tests with
 `PYTHONDONTWRITEBYTECODE=1` and remove test/cache artifacts before production;
-never place the raw or sealed roots inside this checkout. Replace the four
-remaining `__M5_*__` placeholders only with values published by the reviewed
-release; the externally checked CPython digest must also match that release.
+never place the raw or sealed roots inside this checkout. The four M5 pins above
+are fixed by the reviewed final release; the externally checked CPython digest
+must also match that release.
 
 The release topology is part of the trust contract:
 
