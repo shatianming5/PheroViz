@@ -996,7 +996,7 @@ def test_attempt_process_enforces_log_and_wall_limits(
     overflow_workspace.mkdir()
     monkeypatch.setattr(pilot, "MAX_POSTFETCH_LOG_BYTES", 32)
 
-    overflow_exit = pilot._run_bounded_process(
+    overflow_exit, overflow_retained = pilot._run_bounded_process(
         command=[
             sys.executable,
             "-I",
@@ -1011,12 +1011,13 @@ def test_attempt_process_enforces_log_and_wall_limits(
     )
 
     assert overflow_exit == 125
+    assert overflow_retained == ()
     assert (overflow_workspace / "postfetch.log").stat().st_size == 32
 
     timeout_workspace = tmp_path / "timeout"
     timeout_workspace.mkdir()
     started = time.monotonic()
-    timeout_exit = pilot._run_bounded_process(
+    timeout_exit, timeout_retained = pilot._run_bounded_process(
         command=[
             sys.executable,
             "-I",
@@ -1031,13 +1032,14 @@ def test_attempt_process_enforces_log_and_wall_limits(
     )
 
     assert timeout_exit == 124
+    assert timeout_retained == ()
     assert time.monotonic() - started < 3
     assert (timeout_workspace / "postfetch.log").stat().st_size <= 32
 
     closed_output_workspace = tmp_path / "closed-output"
     closed_output_workspace.mkdir()
     started = time.monotonic()
-    closed_output_exit = pilot._run_bounded_process(
+    closed_output_exit, closed_output_retained = pilot._run_bounded_process(
         command=[
             sys.executable,
             "-I",
@@ -1052,11 +1054,12 @@ def test_attempt_process_enforces_log_and_wall_limits(
     )
 
     assert closed_output_exit == 124
+    assert closed_output_retained == ()
     assert time.monotonic() - started < 3
 
     descendant_workspace = tmp_path / "descendant"
     descendant_workspace.mkdir()
-    descendant_exit = pilot._run_bounded_process(
+    descendant_exit, descendant_retained = pilot._run_bounded_process(
         command=[
             sys.executable,
             "-I",
@@ -1077,9 +1080,724 @@ def test_attempt_process_enforces_log_and_wall_limits(
     )
 
     assert descendant_exit == 0
+    assert descendant_retained == ()
     child_pid = int((descendant_workspace / "child.pid").read_text())
     with pytest.raises(ProcessLookupError):
         os.kill(child_pid, 0)
+
+
+def test_attempt_status_completion_drains_log_tail(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    selector_factory = pilot.selectors.DefaultSelector
+
+    class StatusFirstSelector:
+        def __init__(self) -> None:
+            self._selector = selector_factory()
+
+        def register(self, *args: object) -> object:
+            return self._selector.register(*args)
+
+        def unregister(self, *args: object) -> object:
+            return self._selector.unregister(*args)
+
+        def select(self, *args: object, **kwargs: object) -> object:
+            ready = self._selector.select(*args, **kwargs)
+            status = [
+                event for event in ready if event[0].data == "status"
+            ]
+            return status or ready
+
+        def close(self) -> None:
+            self._selector.close()
+
+    monkeypatch.setattr(
+        pilot.selectors,
+        "DefaultSelector",
+        StatusFirstSelector,
+    )
+    workspace = tmp_path / "tail"
+    workspace.mkdir()
+    exit_code, retained = pilot._run_bounded_process(
+        command=[
+            sys.executable,
+            "-I",
+            "-S",
+            "-B",
+            "-c",
+            "import os; os.write(1, b'tail')",
+        ],
+        workspace=workspace,
+        environment={"PATH": "/usr/bin:/bin"},
+        timeout_seconds=5,
+    )
+
+    assert exit_code == 0
+    assert retained == ()
+    assert (workspace / "postfetch.log").read_bytes() == b"tail"
+
+    monkeypatch.setattr(pilot, "MAX_POSTFETCH_LOG_BYTES", 3)
+    overflow = tmp_path / "tail-overflow"
+    overflow.mkdir()
+    exit_code, retained = pilot._run_bounded_process(
+        command=[
+            sys.executable,
+            "-I",
+            "-S",
+            "-B",
+            "-c",
+            "import os; os.write(1, b'tail')",
+        ],
+        workspace=overflow,
+        environment={"PATH": "/usr/bin:/bin"},
+        timeout_seconds=5,
+    )
+
+    assert exit_code == 125
+    assert retained == ()
+    assert (overflow / "postfetch.log").read_bytes() == b"tai"
+
+
+def test_attempt_process_cleans_group_when_selector_setup_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace = tmp_path / "selector-failure"
+    workspace.mkdir()
+    observed: dict[str, subprocess.Popen[bytes]] = {}
+    real_popen = pilot.subprocess.Popen
+
+    def capture_popen(*args: object, **kwargs: object) -> subprocess.Popen[bytes]:
+        process = real_popen(*args, **kwargs)
+        if kwargs.get("start_new_session", False):
+            observed["process"] = process
+        return process
+
+    class BrokenSelector:
+        def register(self, *_: object) -> None:
+            raise RuntimeError("selector setup failed")
+
+        def close(self) -> None:
+            pass
+
+    monkeypatch.setattr(pilot.subprocess, "Popen", capture_popen)
+    monkeypatch.setattr(pilot.selectors, "DefaultSelector", BrokenSelector)
+    process: subprocess.Popen[bytes] | None = None
+    try:
+        with pytest.raises(RuntimeError, match="selector setup failed"):
+            pilot._run_bounded_process(
+                command=[
+                    sys.executable,
+                    "-I",
+                    "-S",
+                    "-B",
+                    "-c",
+                    "import time; time.sleep(60)",
+                ],
+                workspace=workspace,
+                environment={"PATH": "/usr/bin:/bin"},
+                timeout_seconds=5,
+            )
+        process = observed["process"]
+        with pytest.raises(ProcessLookupError):
+            os.killpg(process.pid, 0)
+    finally:
+        process = observed.get("process", process)
+        if process is not None and process.poll() is None:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            process.wait()
+
+
+def test_attempt_supervisor_rejects_early_exit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace = tmp_path / "early-supervisor-exit"
+    workspace.mkdir()
+    monkeypatch.setattr(
+        pilot,
+        "_ATTEMPT_PROCESS_SUPERVISOR",
+        (
+            "import os,sys; fd=int(sys.argv[1]); "
+            "os.write(fd,b'R0\\n'); os.close(fd)"
+        ),
+    )
+
+    with pytest.raises(pilot.C2M5SourcePilotError) as raised:
+        pilot._run_bounded_process(
+            command=[sys.executable, "-I", "-S", "-B", "-c", "pass"],
+            workspace=workspace,
+            environment={"PATH": "/usr/bin:/bin"},
+            timeout_seconds=5,
+        )
+    observed: BaseException | None = raised.value
+    messages: list[str] = []
+    while observed is not None:
+        messages.append(str(observed))
+        observed = observed.__cause__
+    assert any(
+        "supervisor exited before group cleanup" in message
+        for message in messages
+    )
+
+
+def test_attempt_supervisor_spawn_signal_reaps_worker(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace = tmp_path / "spawn-signal"
+    workspace.mkdir()
+    observed: dict[str, subprocess.Popen[bytes]] = {}
+    real_popen = pilot.subprocess.Popen
+
+    def capture_popen(*args: object, **kwargs: object) -> subprocess.Popen[bytes]:
+        process = real_popen(*args, **kwargs)
+        if kwargs.get("start_new_session", False):
+            observed["process"] = process
+        return process
+
+    monkeypatch.setattr(pilot.subprocess, "Popen", capture_popen)
+    with pytest.raises(
+        pilot.C2M5SourcePilotError,
+        match="status is malformed",
+    ):
+        pilot._run_bounded_process(
+            command=[
+                sys.executable,
+                "-I",
+                "-S",
+                "-B",
+                "-c",
+                (
+                    "import os,signal,time; "
+                    "os.kill(os.getppid(),signal.SIGTERM); "
+                    "time.sleep(60)"
+                ),
+            ],
+            workspace=workspace,
+            environment={"PATH": "/usr/bin:/bin"},
+            timeout_seconds=5,
+        )
+
+    process = observed["process"]
+    assert process.returncode == -signal.SIGKILL
+    with pytest.raises(ProcessLookupError):
+        os.killpg(process.pid, 0)
+
+
+@pytest.mark.parametrize(
+    "signum",
+    [signal.SIGHUP, signal.SIGINT, signal.SIGTERM],
+)
+def test_attempt_process_cleans_group_on_signal(
+    tmp_path: Path,
+    signum: int,
+) -> None:
+    state_path = tmp_path / f"attempt-{signum}.state"
+    workspace = tmp_path / f"attempt-{signum}"
+    workspace.mkdir()
+    agent_root = Path(__file__).resolve().parents[1]
+    child_code = (
+        "import os,pathlib,signal,time; "
+        "blocked=signal.pthread_sigmask(signal.SIG_BLOCK, []); "
+        f"pathlib.Path({str(state_path)!r}).write_text("
+        "f'{os.getpid()} {os.getpgrp()} ' + "
+        "(','.join(str(int(value)) for value in sorted(blocked)) or '-')); "
+        "time.sleep(60)"
+    )
+    wrapper_code = f"""
+import pathlib
+import sys
+sys.path.insert(0, {str(agent_root)!r})
+from experiments import c2_m5_source_pilot as pilot
+try:
+    pilot._run_bounded_process(
+        command=[sys.executable, "-I", "-S", "-B", "-c", {child_code!r}],
+        workspace=pathlib.Path({str(workspace)!r}),
+        environment={{"PATH": "/usr/bin:/bin"}},
+        timeout_seconds=30,
+    )
+except pilot.C2M5SourcePilotError as exc:
+    raise SystemExit(17 if "signal" in str(exc) else 18)
+raise SystemExit(19)
+"""
+    wrapper = subprocess.Popen(
+        [sys.executable, "-I", "-S", "-B", "-c", wrapper_code],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    child_pid: int | None = None
+    child_group: int | None = None
+    try:
+        deadline = time.monotonic() + 5
+        while child_pid is None:
+            if wrapper.poll() is not None:
+                stdout, stderr = wrapper.communicate()
+                raise AssertionError(
+                    f"attempt wrapper exited early: {stdout!r} {stderr!r}"
+                )
+            try:
+                pieces = state_path.read_text(encoding="ascii").split()
+                child_pid = int(pieces[0])
+                child_group = int(pieces[1])
+                blocked = {
+                    int(value)
+                    for value in pieces[2].split(",")
+                    if value != "-"
+                }
+            except (FileNotFoundError, ValueError, IndexError):
+                child_pid = None
+            if time.monotonic() >= deadline:
+                raise AssertionError("attempt child did not publish its state")
+            if child_pid is None:
+                time.sleep(0.01)
+        assert not blocked.intersection(pilot._WATCHED_SIGNALS)
+        os.kill(wrapper.pid, signum)
+        wrapper.wait(timeout=10)
+        stdout, stderr = wrapper.communicate()
+        assert wrapper.returncode == 17, (stdout, stderr)
+        with pytest.raises(ProcessLookupError):
+            os.kill(child_pid, 0)
+        assert child_group is not None
+        with pytest.raises(ProcessLookupError):
+            os.killpg(child_group, 0)
+    finally:
+        if child_group is not None:
+            try:
+                os.killpg(child_group, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        if wrapper.poll() is None:
+            wrapper.kill()
+            wrapper.wait()
+
+
+def test_attempt_spawn_failure_restores_signal_state(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace = tmp_path / "spawn-failure"
+    workspace.mkdir()
+    original_handlers = {
+        signum: signal.getsignal(signum)
+        for signum in pilot._WATCHED_SIGNALS
+    }
+    original_mask = signal.pthread_sigmask(signal.SIG_BLOCK, [])
+
+    def fail_spawn(*_: object, **__: object) -> subprocess.Popen[bytes]:
+        raise OSError("fixed attempt spawn failure")
+
+    monkeypatch.setattr(pilot.subprocess, "Popen", fail_spawn)
+    with pytest.raises(OSError, match="fixed attempt spawn failure"):
+        pilot._run_bounded_process(
+            command=[sys.executable, "-I", "-S", "-B", "-c", "pass"],
+            workspace=workspace,
+            environment={"PATH": "/usr/bin:/bin"},
+            timeout_seconds=5,
+        )
+
+    assert {
+        signum: signal.getsignal(signum)
+        for signum in pilot._WATCHED_SIGNALS
+    } == original_handlers
+    assert signal.pthread_sigmask(signal.SIG_BLOCK, []) == original_mask
+
+
+def test_attempt_census_failure_still_kills_and_reaps(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    events: list[object] = []
+
+    class FakeProcess:
+        pid = 701
+
+        @staticmethod
+        def poll() -> None:
+            return None
+
+        @staticmethod
+        def kill() -> None:
+            events.append(("kill", 701))
+
+        @staticmethod
+        def wait(timeout: float) -> int:
+            events.append(("wait", timeout))
+            return -signal.SIGKILL
+
+    monkeypatch.setattr(
+        pilot.os,
+        "killpg",
+        lambda group_id, signum: events.append(
+            ("killpg", group_id, signum)
+        ),
+    )
+    monkeypatch.setattr(
+        pilot,
+        "_process_group_members",
+        lambda _group_id: (_ for _ in ()).throw(
+            pilot.C2M5SourcePilotError("fixed attempt census failure")
+        ),
+    )
+
+    with pytest.raises(
+        pilot.C2M5SourcePilotError,
+        match="fixed attempt census failure",
+    ):
+        pilot._terminate_process_group(FakeProcess())
+
+    assert ("killpg", 701, signal.SIGKILL) in events
+    assert ("wait", 2.0) in events
+
+
+def test_acquisition_lease_initialization_is_transactional(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    attestation = SimpleNamespace(attestation_commit="a" * 40)
+    monkeypatch.setattr(
+        pilot.os,
+        "fsync",
+        lambda _descriptor: (_ for _ in ()).throw(
+            OSError("fixed lease fsync failure")
+        ),
+    )
+
+    with pytest.raises(OSError, match="fixed lease fsync failure"):
+        pilot._ExclusiveLease(tmp_path, attestation)
+
+    assert not (tmp_path / pilot.LOCK_NAME).exists()
+
+
+def test_acquisition_lease_short_write_is_transactional(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    attestation = SimpleNamespace(attestation_commit="a" * 40)
+    monkeypatch.setattr(pilot.os, "write", lambda _descriptor, payload: len(payload) - 1)
+
+    with pytest.raises(
+        pilot.C2M5SourcePilotError,
+        match="lease write was incomplete",
+    ):
+        pilot._ExclusiveLease(tmp_path, attestation)
+
+    assert not (tmp_path / pilot.LOCK_NAME).exists()
+
+
+def test_unverified_process_cleanup_preserves_lease(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace = tmp_path / "unverified-process-cleanup"
+    workspace.mkdir()
+    attestation = SimpleNamespace(attestation_commit="a" * 40)
+    lease = pilot._ExclusiveLease(tmp_path, attestation)
+    cleanup = pilot._ExecutionCleanup(lambda: None, [], lease)
+    real_terminate = pilot._terminate_process_group
+
+    def fail_after_termination(
+        process: subprocess.Popen[bytes],
+    ) -> tuple[int, ...]:
+        real_terminate(process)
+        raise pilot.C2M5SourcePilotError(
+            "fixed post-termination census failure"
+        )
+
+    monkeypatch.setattr(
+        pilot,
+        "_terminate_process_group",
+        fail_after_termination,
+    )
+    lease_path = tmp_path / pilot.LOCK_NAME
+    try:
+        with pytest.raises(
+            pilot.C2M5SourcePilotError,
+            match="post-termination census failure",
+        ):
+            with lease:
+                with cleanup:
+                    pilot._run_bounded_process(
+                        command=[
+                            sys.executable,
+                            "-I",
+                            "-S",
+                            "-B",
+                            "-c",
+                            "pass",
+                        ],
+                        workspace=workspace,
+                        environment={"PATH": "/usr/bin:/bin"},
+                        timeout_seconds=5,
+                        _cleanup_failure=cleanup.inhibit_lease_release,
+                    )
+        assert lease_path.exists()
+        assert lease._descriptor == -1
+    finally:
+        if lease._descriptor != -1:
+            os.close(lease._descriptor)
+        lease_path.unlink(missing_ok=True)
+
+
+def test_acquisition_lease_cleanup_preserves_primary_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    attestation = SimpleNamespace(attestation_commit="a" * 40)
+    lease = pilot._ExclusiveLease(tmp_path, attestation)
+    lease.authorize_release()
+    real_close = lease.close
+
+    def fail_close() -> None:
+        raise OSError("fixed lease close failure")
+
+    monkeypatch.setattr(lease, "close", fail_close)
+    try:
+        with pytest.raises(ValueError, match="fixed primary failure") as raised:
+            with lease:
+                raise ValueError("fixed primary failure")
+        assert isinstance(raised.value.__cause__, OSError)
+    finally:
+        monkeypatch.setattr(lease, "close", real_close)
+        real_close()
+
+
+def test_staging_cleanup_finishes_before_lease_release(
+    tmp_path: Path,
+) -> None:
+    attestation = SimpleNamespace(attestation_commit="a" * 40)
+    lease_path = tmp_path / pilot.LOCK_NAME
+    events: list[str] = []
+
+    class FakeRoot:
+        published = False
+
+        @staticmethod
+        def discard_unpublished() -> None:
+            assert lease_path.exists()
+            events.append("discard")
+
+        @staticmethod
+        def close() -> None:
+            assert lease_path.exists()
+            events.append("close")
+
+    root = FakeRoot()
+    lease = pilot._ExclusiveLease(tmp_path, attestation)
+    with pytest.raises(ValueError, match="fixed execution failure"):
+        with lease:
+            with pilot._ExecutionCleanup(lambda: root, [], lease):
+                raise ValueError("fixed execution failure")
+
+    assert events == ["discard", "close"]
+    assert not lease_path.exists()
+
+
+def test_pre_staging_signal_releases_clean_lease(
+    tmp_path: Path,
+) -> None:
+    attestation = SimpleNamespace(attestation_commit="a" * 40)
+    supervisor = pilot._SourcePilotSignalSupervisor()
+    supervisor._record(signal.SIGTERM, None)
+    lease = pilot._ExclusiveLease(tmp_path, attestation)
+    cleanup = pilot._ExecutionCleanup(lambda: None, [], lease)
+    raised_error: BaseException = RuntimeError("signal test cleanup")
+    try:
+        with pytest.raises(
+            pilot.C2M5SourcePilotError,
+            match="interrupted by signal",
+        ) as raised:
+            with lease:
+                with cleanup:
+                    supervisor.checkpoint()
+        raised_error = raised.value
+        assert not (tmp_path / pilot.LOCK_NAME).exists()
+    finally:
+        supervisor.finish(raised_error)
+
+
+def test_staging_cleanup_failure_preserves_lease(
+    tmp_path: Path,
+) -> None:
+    attestation = SimpleNamespace(attestation_commit="a" * 40)
+    lease_path = tmp_path / pilot.LOCK_NAME
+
+    class FakeRoot:
+        published = False
+
+        @staticmethod
+        def discard_unpublished() -> None:
+            raise OSError("fixed staging discard failure")
+
+        @staticmethod
+        def close() -> None:
+            pass
+
+    lease = pilot._ExclusiveLease(tmp_path, attestation)
+    try:
+        with pytest.raises(ValueError, match="fixed execution failure") as raised:
+            with lease:
+                with pilot._ExecutionCleanup(
+                    lambda: FakeRoot(),
+                    [],
+                    lease,
+                ):
+                    raise ValueError("fixed execution failure")
+        assert isinstance(raised.value.__cause__, OSError)
+        assert lease_path.exists()
+        assert lease._descriptor == -1
+    finally:
+        if lease._descriptor != -1:
+            os.close(lease._descriptor)
+        lease_path.unlink(missing_ok=True)
+
+
+def test_target_root_creation_failure_discards_unreturned_staging(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    raw_root = tmp_path / pilot.EXPECTED_RAW_ROOT
+    attestation = SimpleNamespace(attestation_commit="a" * 40)
+    staging_name = (
+        f".{raw_root.name}.c2-remediation-staging-"
+        f"{'b' * 32}"
+    )
+
+    class Guard:
+        def __init__(self) -> None:
+            self.parent_fd = os.open(
+                tmp_path,
+                os.O_RDONLY | os.O_DIRECTORY,
+            )
+            self.leaf_name = raw_root.name
+
+        def close(self) -> None:
+            if self.parent_fd != -1:
+                os.close(self.parent_fd)
+                self.parent_fd = -1
+
+    guard = Guard()
+    monkeypatch.setattr(
+        finalizer,
+        "_open_private_staging_parent",
+        lambda _raw_root: guard,
+    )
+
+    def fail_after_mkdir(_raw_root: Path) -> None:
+        staging = tmp_path / staging_name
+        staging.mkdir(mode=0o700)
+        (staging / "partial").write_bytes(b"partial")
+        raise OSError("fixed post-mkdir creation failure")
+
+    monkeypatch.setattr(finalizer, "_create_target_root", fail_after_mkdir)
+    lease = pilot._ExclusiveLease(tmp_path, attestation)
+    cleanup = pilot._ExecutionCleanup(lambda: None, [], lease)
+
+    with pytest.raises(OSError, match="fixed post-mkdir creation failure"):
+        with lease:
+            with cleanup:
+                pilot._create_target_root_transactionally(
+                    finalizer=finalizer,
+                    raw_root=raw_root,
+                    cleanup=cleanup,
+                )
+
+    assert not (tmp_path / staging_name).exists()
+    assert not (tmp_path / pilot.LOCK_NAME).exists()
+
+
+def test_preexisting_staging_preserves_fail_closed_lease(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    raw_root = tmp_path / pilot.EXPECTED_RAW_ROOT
+    attestation = SimpleNamespace(attestation_commit="a" * 40)
+    staging = tmp_path / (
+        f".{raw_root.name}.c2-remediation-staging-"
+        f"{'c' * 32}"
+    )
+    staging.mkdir(mode=0o700)
+
+    class Guard:
+        def __init__(self) -> None:
+            self.parent_fd = os.open(
+                tmp_path,
+                os.O_RDONLY | os.O_DIRECTORY,
+            )
+            self.leaf_name = raw_root.name
+
+        def close(self) -> None:
+            if self.parent_fd != -1:
+                os.close(self.parent_fd)
+                self.parent_fd = -1
+
+    monkeypatch.setattr(
+        finalizer,
+        "_open_private_staging_parent",
+        lambda _raw_root: Guard(),
+    )
+    lease = pilot._ExclusiveLease(tmp_path, attestation)
+    cleanup = pilot._ExecutionCleanup(lambda: None, [], lease)
+    lease_path = tmp_path / pilot.LOCK_NAME
+    try:
+        with pytest.raises(
+            pilot.C2M5SourcePilotError,
+            match="pre-existing M5 source-pilot staging root",
+        ):
+            with lease:
+                with cleanup:
+                    pilot._create_target_root_transactionally(
+                        finalizer=finalizer,
+                        raw_root=raw_root,
+                        cleanup=cleanup,
+                    )
+        assert staging.exists()
+        assert lease_path.exists()
+    finally:
+        lease_path.unlink(missing_ok=True)
+        staging.rmdir()
+
+
+def test_publication_commit_is_signal_atomic() -> None:
+    supervisor = pilot._SourcePilotSignalSupervisor()
+    published: list[bool] = []
+    try:
+        def publish() -> None:
+            os.kill(os.getpid(), signal.SIGTERM)
+            published.append(True)
+
+        supervisor.commit_publication(publish)
+        assert published == [True]
+        assert supervisor.publication_committed is True
+        assert supervisor.interrupted_signal == signal.SIGTERM
+        supervisor.checkpoint()
+    finally:
+        supervisor.finish(None)
+
+
+def test_publication_commit_rejects_preexisting_signal() -> None:
+    supervisor = pilot._SourcePilotSignalSupervisor()
+    published: list[bool] = []
+    raised_error: BaseException = RuntimeError("signal test cleanup")
+    try:
+        supervisor._record(signal.SIGTERM, None)
+        with pytest.raises(
+            pilot.C2M5SourcePilotError,
+            match="interrupted by signal",
+        ) as raised:
+            supervisor.commit_publication(
+                lambda: published.append(True)
+            )
+        raised_error = raised.value
+        assert published == []
+        assert supervisor.publication_committed is False
+    finally:
+        supervisor.finish(raised_error)
 
 
 def test_dependency_snapshot_is_vendored_pinned_and_closed(tmp_path: Path) -> None:
@@ -1445,6 +2163,42 @@ def test_m5_release_manifest_covers_transitive_test_imports() -> None:
     }.issubset(m5_attestation.REQUIRED_ATTESTED_PATHS)
 
 
+def test_release_process_topology_rejects_unapproved_session_control() -> None:
+    repository = Path(__file__).resolve().parents[2]
+    relative_paths = (
+        "agent/c2_m5_release_test_runner.py",
+        "agent/experiments/c2_m5_source_pilot.py",
+        "agent/tests/test_c2_m5_source_pilot.py",
+    )
+    payloads = {
+        relative: (repository / relative).read_bytes()
+        for relative in relative_paths
+    }
+    release_runner._verify_release_process_topology(payloads)
+
+    payloads["agent/unapproved.py"] = (
+        b"import os\nos." + b"set" + b"sid()\n"
+    )
+    with pytest.raises(
+        release_runner.M5ReleaseTestError,
+        match="forbidden session control",
+    ):
+        release_runner._verify_release_process_topology(payloads)
+
+    payloads = {
+        relative: (repository / relative).read_bytes()
+        for relative in relative_paths
+    }
+    payloads["agent/bypass.py"] = (
+        b"process = _ORIGINAL_" + b"POPEN(['x'])\n"
+    )
+    with pytest.raises(
+        release_runner.M5ReleaseTestError,
+        match="bypasses containment",
+    ):
+        release_runner._verify_release_process_topology(payloads)
+
+
 def test_release_runner_refuses_without_external_runner_digest() -> None:
     runner = (
         Path(__file__).resolve().parents[1] / "c2_m5_release_test_runner.py"
@@ -1630,33 +2384,808 @@ def test_release_runner_kills_descendants_after_leader_exit(
     tmp_path: Path,
 ) -> None:
     child_pid_path = tmp_path / "child.pid"
-    leader = subprocess.Popen(
-        [
-            sys.executable,
-            "-I",
-            "-S",
-            "-B",
-            "-c",
-            (
-                "import pathlib,subprocess,sys; "
-                "child=subprocess.Popen("
-                "[sys.executable,'-I','-S','-B','-c',"
-                "'import time; time.sleep(60)']); "
-                f"pathlib.Path({str(child_pid_path)!r}).write_text(str(child.pid))"
-            ),
-        ],
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        start_new_session=True,
+    leader: subprocess.Popen[bytes] | None = None
+    child_pid: int | None = None
+    try:
+        leader = subprocess.Popen(
+            [
+                sys.executable,
+                "-I",
+                "-S",
+                "-B",
+                "-c",
+                (
+                    "import pathlib,subprocess,sys; "
+                    "child=subprocess.Popen("
+                    "[sys.executable,'-I','-S','-B','-c',"
+                    "'import time; time.sleep(60)']); "
+                    f"pathlib.Path({str(child_pid_path)!r}).write_text("
+                    "str(child.pid))"
+                ),
+            ],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+        assert leader.wait(timeout=5) == 0
+        child_pid = int(child_pid_path.read_text(encoding="utf-8"))
+
+        release_runner._terminate_process_group(leader)
+
+        with pytest.raises(ProcessLookupError):
+            os.kill(child_pid, 0)
+    finally:
+        if leader is not None:
+            release_runner._terminate_process_group(leader)
+
+
+def test_release_containment_keeps_nested_group_in_test_session() -> None:
+    process: subprocess.Popen[str] | None = None
+    try:
+        process = subprocess.Popen(
+            [
+                sys.executable,
+                "-I",
+                "-S",
+                "-B",
+                "-c",
+                (
+                    "import os; "
+                    "print(os.getpid(), os.getpgid(0), os.getsid(0))"
+                ),
+            ],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            start_new_session=True,
+        )
+        stdout, stderr = process.communicate(timeout=5)
+        assert process.returncode == 0, stderr
+        process_id, group_id, session_id = map(int, stdout.split())
+        assert process_id == group_id == process.pid
+        expected_session = int(
+            os.environ.get(
+                release_runner._RELEASE_TEST_SESSION_ENV,
+                str(process.pid),
+            )
+        )
+        assert session_id == expected_session
+        if release_runner._RELEASE_TEST_CONTAINMENT_INSTALLED:
+            registry_path = Path(
+                os.environ[release_runner._RELEASE_TEST_REGISTRY_ENV]
+            )
+            registrations = {
+                tuple(map(int, line.split()))
+                for line in registry_path.read_text(
+                    encoding="ascii"
+                ).splitlines()
+            }
+            group_registrations = {
+                registration
+                for registration in registrations
+                if registration[0] == process.pid
+            }
+            assert (process.pid, process.pid) in group_registrations
+            assert any(
+                anchor_pid != process.pid
+                for _, anchor_pid in group_registrations
+            )
+            assert release_runner._CONTAINED_EXEC_TRAMPOLINE.index(
+                "os.read(release_fd"
+            ) < release_runner._CONTAINED_EXEC_TRAMPOLINE.index(
+                "os.setpgid"
+            )
+    finally:
+        if process is not None and process.poll() is None:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            process.wait()
+
+
+def test_release_root_rejects_ambient_session_capabilities(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry_path = tmp_path / "groups.log"
+    registry_path.write_bytes(b"")
+    registry_path.chmod(0o600)
+    registry = release_runner._open_test_session_registry(registry_path)
+    completion_pipe = os.pipe()
+    monkeypatch.setenv(
+        release_runner._RELEASE_TEST_SESSION_ENV,
+        str(os.getsid(0)),
     )
-    assert leader.wait(timeout=5) == 0
-    child_pid = int(child_pid_path.read_text(encoding="utf-8"))
+    monkeypatch.setenv(
+        release_runner._RELEASE_TEST_REGISTRY_ENV,
+        str(registry_path),
+    )
+    try:
+        with pytest.raises(
+            release_runner.M5ReleaseTestError,
+            match="rejects ambient capabilities",
+        ):
+            release_runner._run_release_child(
+                [sys.executable, "-I", "-S", "-B", "-c", "pass"],
+                cwd=tmp_path,
+                environment={"PATH": "/usr/bin:/bin"},
+                _completion_pipe=completion_pipe,
+                _session_registry=registry,
+            )
+    finally:
+        os.close(registry.descriptor)
 
-    release_runner._terminate_process_group(leader)
 
-    with pytest.raises(ProcessLookupError):
-        os.kill(child_pid, 0)
+def test_release_root_session_is_process_nonreentrant(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry_path = tmp_path / "groups.log"
+    registry_path.write_bytes(b"")
+    registry_path.chmod(0o600)
+    registry = release_runner._open_test_session_registry(registry_path)
+    completion_pipe = os.pipe()
+    monkeypatch.setattr(
+        release_runner,
+        "_RELEASE_TEST_CONTAINMENT_INSTALLED",
+        True,
+    )
+    for name in (
+        release_runner._RELEASE_TEST_SESSION_ENV,
+        release_runner._RELEASE_TEST_REGISTRY_ENV,
+        release_runner._RELEASE_TEST_REGISTRY_DEVICE_ENV,
+        release_runner._RELEASE_TEST_REGISTRY_INODE_ENV,
+    ):
+        monkeypatch.delenv(name, raising=False)
+    try:
+        with pytest.raises(
+            release_runner.M5ReleaseTestError,
+            match="rejects ambient capabilities",
+        ):
+            release_runner._run_release_child(
+                [sys.executable, "-I", "-S", "-B", "-c", "pass"],
+                cwd=tmp_path,
+                environment={"PATH": "/usr/bin:/bin"},
+                _completion_pipe=completion_pipe,
+                _session_registry=registry,
+            )
+    finally:
+        os.close(registry.descriptor)
+
+
+def test_unacknowledged_contained_process_is_stopped_before_group_kill(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    events: list[tuple[object, ...]] = []
+    censuses = iter(
+        (
+            ((701, 600, "R"),),
+            ((701, 701, "T"), (702, 701, "T")),
+            ((701, 701, "Z"), (702, 701, "Z")),
+        )
+    )
+
+    class FakeProcess:
+        pid = 701
+
+        @staticmethod
+        def kill() -> None:
+            events.append(("kill", 701))
+
+        @staticmethod
+        def wait(timeout: float) -> int:
+            events.append(("wait", timeout))
+            return -signal.SIGKILL
+
+    monkeypatch.setattr(
+        release_runner,
+        "_owned_test_session_members",
+        lambda _session_id: next(censuses),
+    )
+    monkeypatch.setattr(
+        release_runner.os,
+        "kill",
+        lambda process_id, signum: events.append(
+            ("signal", process_id, signum)
+        ),
+    )
+    monkeypatch.setattr(
+        release_runner.os,
+        "killpg",
+        lambda group_id, signum: events.append(
+            ("killpg", group_id, signum)
+        ),
+    )
+    monkeypatch.setattr(release_runner.time, "sleep", lambda _seconds: None)
+
+    release_runner._terminate_unacknowledged_process(FakeProcess(), 600)
+
+    assert events == [
+        ("signal", 701, signal.SIGSTOP),
+        ("killpg", 701, signal.SIGKILL),
+        ("kill", 701),
+        ("wait", release_runner._PROCESS_GROUP_CLEANUP_SECONDS),
+    ]
+
+
+def test_pending_registration_precedes_contained_group_release(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    writes: list[tuple[int, bytes]] = []
+
+    def record_write(descriptor: int, payload: bytes) -> int:
+        writes.append((descriptor, payload))
+        return len(payload)
+
+    monkeypatch.setattr(release_runner.os, "write", record_write)
+    release_runner._register_and_release_contained_group(11, 12, 701)
+
+    assert writes == [
+        (11, b"701 701\n"),
+        (12, b"1"),
+    ]
+
+
+def test_contained_spawn_uses_installation_pinned_registry(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pinned_path = tmp_path / "pinned.log"
+    rebound_path = tmp_path / "rebound.log"
+    for path in (pinned_path, rebound_path):
+        path.write_bytes(b"")
+        path.chmod(0o600)
+    pinned = pinned_path.stat()
+    rebound = rebound_path.stat()
+    monkeypatch.setattr(
+        release_runner,
+        "_RELEASE_TEST_CONTAINMENT_INSTALLED",
+        True,
+    )
+    monkeypatch.setattr(
+        release_runner,
+        "_RELEASE_TEST_PINNED_REGISTRY",
+        (pinned_path, pinned.st_dev, pinned.st_ino),
+    )
+    monkeypatch.setenv(
+        release_runner._RELEASE_TEST_REGISTRY_ENV,
+        str(rebound_path),
+    )
+    monkeypatch.setenv(
+        release_runner._RELEASE_TEST_REGISTRY_DEVICE_ENV,
+        str(rebound.st_dev),
+    )
+    monkeypatch.setenv(
+        release_runner._RELEASE_TEST_REGISTRY_INODE_ENV,
+        str(rebound.st_ino),
+    )
+
+    assert release_runner._contained_release_test_registry_binding() == (
+        pinned_path,
+        pinned.st_dev,
+        pinned.st_ino,
+    )
+
+
+def test_unacknowledged_contained_anchor_cannot_survive(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry_path = tmp_path / "groups.log"
+    registry_path.write_bytes(b"")
+    registry_path.chmod(0o600)
+    registry = release_runner._open_test_session_registry(registry_path)
+    state_path = tmp_path / "unacknowledged-pids"
+    session_id = os.getsid(0)
+    for name, value in (
+        (release_runner._RELEASE_TEST_SESSION_ENV, str(session_id)),
+        (release_runner._RELEASE_TEST_REGISTRY_ENV, str(registry.path)),
+        (
+            release_runner._RELEASE_TEST_REGISTRY_DEVICE_ENV,
+            str(registry.device),
+        ),
+        (
+            release_runner._RELEASE_TEST_REGISTRY_INODE_ENV,
+            str(registry.inode),
+        ),
+    ):
+        monkeypatch.setenv(name, value)
+    monkeypatch.setattr(
+        release_runner,
+        "_CONTAINED_SPAWN_TIMEOUT_SECONDS",
+        0.5,
+    )
+    monkeypatch.setattr(
+        release_runner,
+        "_CONTAINED_EXEC_TRAMPOLINE",
+        """\
+import os
+import signal
+import sys
+
+ready_fd = int(sys.argv[1])
+registry_fd = int(sys.argv[2])
+release_fd = int(sys.argv[3])
+state_path = sys.argv[4]
+if os.read(release_fd, 1) != b"1":
+    raise SystemExit(2)
+os.close(release_fd)
+os.setpgid(0, 0)
+anchor_pid = os.fork()
+if anchor_pid == 0:
+    os.close(ready_fd)
+    os.close(registry_fd)
+    while True:
+        signal.pause()
+with open(state_path, "w", encoding="ascii") as stream:
+    stream.write(f"{os.getpid()} {anchor_pid}\\n")
+    stream.flush()
+    os.fsync(stream.fileno())
+while True:
+    signal.pause()
+""",
+    )
+    try:
+        with pytest.raises(
+            release_runner.M5ReleaseTestError,
+            match="did not acknowledge",
+        ):
+            release_runner._start_contained_popen(
+                getattr(release_runner, "_ORIGINAL_" + "POPEN"),
+                ([str(state_path)],),
+                {
+                    "env": dict(os.environ),
+                    "stdin": subprocess.DEVNULL,
+                },
+            )
+        leader_pid, anchor_pid = map(
+            int,
+            state_path.read_text(encoding="ascii").split(),
+        )
+        assert leader_pid != anchor_pid
+        assert not [
+            (process_id, state)
+            for process_id, group_id, state in (
+                release_runner._owned_test_session_members(session_id)
+            )
+            if group_id == leader_pid and state[:1] != "Z"
+        ]
+    finally:
+        os.close(registry.descriptor)
+
+
+def test_release_completion_requires_trusted_supervisor_eof(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry_path = tmp_path / "groups.log"
+    registry_path.write_bytes(b"")
+    registry_path.chmod(0o600)
+    contained = release_runner._RELEASE_TEST_CONTAINMENT_INSTALLED
+    if not contained:
+        for name in (
+            release_runner._RELEASE_TEST_SESSION_ENV,
+            release_runner._RELEASE_TEST_REGISTRY_ENV,
+            release_runner._RELEASE_TEST_REGISTRY_DEVICE_ENV,
+            release_runner._RELEASE_TEST_REGISTRY_INODE_ENV,
+        ):
+            monkeypatch.delenv(name, raising=False)
+
+    def run_completion(child_code: str, timeout: float = 5) -> int:
+        registry = release_runner._open_test_session_registry(registry_path)
+        read_fd, write_fd = os.pipe()
+        monkeypatch.setattr(
+            release_runner,
+            "_TEST_TIMEOUT_SECONDS",
+            timeout,
+        )
+        try:
+            return release_runner._run_release_child(
+                [
+                    sys.executable,
+                    "-I",
+                    "-S",
+                    "-B",
+                    "-c",
+                    child_code,
+                    str(write_fd),
+                ],
+                cwd=tmp_path,
+                environment={"PATH": "/usr/bin:/bin"},
+                _completion_pipe=(read_fd, write_fd),
+                _session_registry=None if contained else registry,
+            )
+        finally:
+            os.close(registry.descriptor)
+
+    valid = (
+        "import os,signal,sys; fd=int(sys.argv[1]); "
+        "os.write(fd,b'0\\n'); os.close(fd); signal.pause()"
+    )
+    assert run_completion(valid) == 0
+
+    trailing = (
+        "import os,signal,sys,time; fd=int(sys.argv[1]); "
+        "os.write(fd,b'0\\n'); time.sleep(0.05); "
+        "os.write(fd,b'junk'); os.close(fd); signal.pause()"
+    )
+    with pytest.raises(
+        release_runner.M5ReleaseTestError,
+        match="completion status is malformed",
+    ):
+        run_completion(trailing)
+
+    for payload, message in (
+        (b"", "malformed"),
+        (b"0", "malformed"),
+        (b"256\n", "invalid"),
+        (b"12345678901234567\n", "oversized"),
+    ):
+        invalid = (
+            "import os,signal,sys; fd=int(sys.argv[1]); "
+            f"os.write(fd,{payload!r}); os.close(fd); signal.pause()"
+        )
+        with pytest.raises(
+            release_runner.M5ReleaseTestError,
+            match=message,
+        ):
+            run_completion(invalid)
+
+    held_open = (
+        "import os,signal,sys; fd=int(sys.argv[1]); "
+        "os.write(fd,b'0\\n'); signal.pause()"
+    )
+    with pytest.raises(
+        release_runner.M5ReleaseTestError,
+        match="fixed timeout",
+    ):
+        run_completion(held_open, timeout=0.1)
+
+
+def test_pytest_worker_cannot_inherit_completion_descriptor(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry_path = tmp_path / "groups.log"
+    registry_path.write_bytes(b"")
+    registry_path.chmod(0o600)
+    contained = release_runner._RELEASE_TEST_CONTAINMENT_INSTALLED
+    if not contained:
+        for name in (
+            release_runner._RELEASE_TEST_SESSION_ENV,
+            release_runner._RELEASE_TEST_REGISTRY_ENV,
+            release_runner._RELEASE_TEST_REGISTRY_DEVICE_ENV,
+            release_runner._RELEASE_TEST_REGISTRY_INODE_ENV,
+        ):
+            monkeypatch.delenv(name, raising=False)
+    registry = release_runner._open_test_session_registry(registry_path)
+    read_fd, write_fd = os.pipe()
+    worker_code = (
+        "import os,sys; fd=int(sys.argv[1]); "
+        "\ntry: os.fstat(fd)\n"
+        "except OSError: raise SystemExit(0)\n"
+        "raise SystemExit(9)"
+    )
+    try:
+        result = release_runner._run_release_child(
+            [
+                sys.executable,
+                "-I",
+                "-S",
+                "-B",
+                "-c",
+                release_runner._PYTEST_SESSION_SUPERVISOR,
+                str(write_fd),
+                worker_code,
+                str(write_fd),
+            ],
+            cwd=tmp_path,
+            environment={
+                "PATH": "/usr/bin:/bin",
+                release_runner._RELEASE_TEST_REGISTRY_ENV: str(
+                    registry_path
+                ),
+                release_runner._RELEASE_TEST_REGISTRY_DEVICE_ENV: str(
+                    registry.device
+                ),
+                release_runner._RELEASE_TEST_REGISTRY_INODE_ENV: str(
+                    registry.inode
+                ),
+            },
+            _completion_pipe=(read_fd, write_fd),
+            _session_registry=None if contained else registry,
+        )
+    finally:
+        os.close(registry.descriptor)
+    assert result == 0
+
+
+def test_release_registry_is_pinned_and_nonblocking(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry_path = tmp_path / "groups.log"
+    registry_path.write_bytes(b"")
+    registry_path.chmod(0o600)
+    registry = release_runner._open_test_session_registry(registry_path)
+    registry_path.unlink()
+    os.mkfifo(registry_path, 0o600)
+    try:
+        registrations, invalid = release_runner._registered_test_groups(
+            registry,
+            os.getsid(0),
+        )
+        assert registrations == set()
+        assert invalid
+    finally:
+        os.close(registry.descriptor)
+        registry_path.unlink()
+
+    registry_path.write_bytes(b"")
+    registry_path.chmod(0o600)
+    original = release_runner._open_test_session_registry(registry_path)
+    monkeypatch.setenv(
+        release_runner._RELEASE_TEST_REGISTRY_ENV,
+        str(registry_path),
+    )
+    monkeypatch.setenv(
+        release_runner._RELEASE_TEST_REGISTRY_DEVICE_ENV,
+        str(original.device),
+    )
+    monkeypatch.setenv(
+        release_runner._RELEASE_TEST_REGISTRY_INODE_ENV,
+        str(original.inode),
+    )
+    registry_path.unlink()
+    registry_path.write_bytes(b"")
+    registry_path.chmod(0o600)
+    try:
+        with pytest.raises(
+            release_runner.M5ReleaseTestError,
+            match="identity changed",
+        ):
+            release_runner._open_release_test_registry_for_append()
+    finally:
+        os.close(original.descriptor)
+
+
+def test_registered_group_cleanup_attempts_every_target(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registrations = {(301, 302), (401, 402), (501, 502)}
+    group_by_anchor = {anchor: group for group, anchor in registrations}
+    attempted: list[int] = []
+    monkeypatch.setattr(
+        release_runner.os,
+        "getsid",
+        lambda _process_id: 101,
+    )
+    monkeypatch.setattr(
+        release_runner.os,
+        "getpgid",
+        lambda process_id: group_by_anchor[process_id],
+    )
+
+    def fail_first(group_id: int, _signum: int) -> None:
+        attempted.append(group_id)
+        if group_id == 301:
+            raise PermissionError("fixed first-group failure")
+
+    monkeypatch.setattr(release_runner.os, "killpg", fail_first)
+
+    invalid, errors = release_runner._signal_registered_groups(
+        registrations,
+        101,
+        signal.SIGKILL,
+    )
+
+    assert not invalid
+    assert attempted == [301, 401, 501]
+    assert len(errors) == 1
+
+
+def test_release_runner_terminates_every_test_session_group(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    signaled: list[tuple[set[tuple[int, int]], int]] = []
+    waited: list[float] = []
+    direct_signals: list[tuple[int, int]] = []
+    registry_path = tmp_path / "groups.log"
+    registry_path.write_bytes(b"")
+    registry_path.chmod(0o600)
+    registry = release_runner._open_test_session_registry(registry_path)
+
+    class FakeProcess:
+        pid = 101
+
+        @staticmethod
+        def poll() -> None:
+            return None
+
+        @staticmethod
+        def kill() -> None:
+            direct_signals.append((101, signal.SIGKILL))
+
+        @staticmethod
+        def wait(timeout: float) -> int:
+            waited.append(timeout)
+            return -signal.SIGKILL
+
+    monkeypatch.setattr(
+        release_runner,
+        "_freeze_test_session",
+        lambda _process, _registry, _deadline: (
+            ((101, 101, "T"), (304, 303, "T"), (306, 305, "T")),
+            {(303, 304), (305, 306)},
+            [],
+        ),
+    )
+    monkeypatch.setattr(
+        release_runner,
+        "_registered_test_groups",
+        lambda _registry, _session_id: (
+            {(303, 304), (305, 306)},
+            False,
+        ),
+    )
+    monkeypatch.setattr(
+        release_runner,
+        "_signal_registered_groups",
+        lambda registrations, _session_id, signum: (
+            signaled.append((set(registrations), signum)) or False,
+            [],
+        ),
+    )
+    monkeypatch.setattr(
+        release_runner,
+        "_owned_test_session_members",
+        lambda _session_id: ((101, 101, "T"),),
+    )
+    monkeypatch.setattr(
+        release_runner.os,
+        "getsid",
+        lambda _process_id: 101,
+    )
+    monkeypatch.setattr(
+        release_runner.os,
+        "getpgid",
+        lambda _process_id: 101,
+    )
+    monkeypatch.setattr(
+        release_runner.os,
+        "kill",
+        lambda process_id, signum: direct_signals.append(
+            (process_id, signum)
+        ),
+    )
+    monkeypatch.setattr(
+        release_runner.os,
+        "killpg",
+        lambda group_id, signum: direct_signals.append(
+            (-group_id, signum)
+        ),
+    )
+
+    try:
+        release_runner._terminate_test_session(FakeProcess(), registry)
+    finally:
+        os.close(registry.descriptor)
+
+    assert len(signaled) == 3
+    assert all(
+        registrations == {(303, 304), (305, 306)}
+        and signum == signal.SIGKILL
+        for registrations, signum in signaled
+    )
+    assert waited == [release_runner._PROCESS_GROUP_CLEANUP_SECONDS]
+    assert (-101, signal.SIGKILL) in direct_signals
+    assert (101, signal.SIGKILL) in direct_signals
+
+
+def test_release_session_census_failure_still_finalizes_leader(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry_path = tmp_path / "groups.log"
+    registry_path.write_bytes(b"")
+    registry_path.chmod(0o600)
+    registry = release_runner._open_test_session_registry(registry_path)
+    registered_killed: list[tuple[set[tuple[int, int]], int]] = []
+    direct_signals: list[tuple[int, int]] = []
+    waited: list[float] = []
+
+    class FakeProcess:
+        pid = 401
+
+        @staticmethod
+        def poll() -> None:
+            return None
+
+        @staticmethod
+        def kill() -> None:
+            direct_signals.append((401, signal.SIGKILL))
+
+        @staticmethod
+        def wait(timeout: float) -> int:
+            waited.append(timeout)
+            return -signal.SIGKILL
+
+    def fail_census(_session_id: int) -> tuple[tuple[int, int, str], ...]:
+        raise release_runner.M5ReleaseTestError("fixed census failure")
+
+    monkeypatch.setattr(
+        release_runner,
+        "_registered_test_groups",
+        lambda _registry, _session_id: ({(503, 504)}, False),
+    )
+    monkeypatch.setattr(
+        release_runner,
+        "_signal_registered_groups",
+        lambda registrations, _session_id, signum: (
+            registered_killed.append(
+                (set(registrations), signum)
+            )
+            or False,
+            [],
+        ),
+    )
+    monkeypatch.setattr(
+        release_runner,
+        "_freeze_test_session",
+        lambda *_: (_ for _ in ()).throw(
+            release_runner.M5ReleaseTestError("fixed census failure")
+        ),
+    )
+    monkeypatch.setattr(
+        release_runner,
+        "_owned_test_session_members",
+        fail_census,
+    )
+    monkeypatch.setattr(
+        release_runner.os,
+        "getsid",
+        lambda _process_id: 401,
+    )
+    monkeypatch.setattr(
+        release_runner.os,
+        "getpgid",
+        lambda _process_id: 401,
+    )
+    monkeypatch.setattr(
+        release_runner.os,
+        "kill",
+        lambda process_id, signum: direct_signals.append(
+            (process_id, signum)
+        ),
+    )
+    monkeypatch.setattr(
+        release_runner.os,
+        "killpg",
+        lambda group_id, signum: direct_signals.append(
+            (-group_id, signum)
+        ),
+    )
+
+    try:
+        with pytest.raises(
+            release_runner.M5ReleaseTestError,
+            match="fixed census failure",
+        ):
+            release_runner._terminate_test_session(FakeProcess(), registry)
+    finally:
+        os.close(registry.descriptor)
+
+    assert registered_killed == [
+        ({(503, 504)}, signal.SIGKILL),
+        ({(503, 504)}, signal.SIGKILL),
+    ]
+    assert (-401, signal.SIGKILL) in direct_signals
+    assert (401, signal.SIGKILL) in direct_signals
+    assert waited == [release_runner._PROCESS_GROUP_CLEANUP_SECONDS]
 
 
 def test_release_runner_cleans_process_group_on_sigterm(tmp_path: Path) -> None:
@@ -1686,7 +3215,10 @@ real_popen = runner.subprocess.Popen
 def observed_popen(*args, **kwargs):
     process = real_popen(*args, **kwargs)
     try:
-        pathlib.Path({str(leader_pid_path)!r}).write_text(str(process.pid))
+        with pathlib.Path({str(leader_pid_path)!r}).open("x") as handle:
+            handle.write(str(process.pid))
+        return process
+    except FileExistsError:
         return process
     except BaseException:
         try:
@@ -1830,7 +3362,10 @@ real_popen = runner.subprocess.Popen
 def observed_popen(*args, **kwargs):
     process = real_popen(*args, **kwargs)
     try:
-        pathlib.Path({str(leader_pid_path)!r}).write_text(str(process.pid))
+        with pathlib.Path({str(leader_pid_path)!r}).open("x") as handle:
+            handle.write(str(process.pid))
+        return process
+    except FileExistsError:
         return process
     except BaseException:
         try:
@@ -1843,6 +3378,8 @@ runner.subprocess.Popen = observed_popen
 real_exc_info = sys.exc_info
 signal_sent = False
 class RunnerSys:
+    def __getattr__(self, name):
+        return getattr(sys, name)
     @staticmethod
     def exc_info():
         global signal_sent
@@ -1961,14 +3498,16 @@ def original_handler(*_):
 signal.signal(signal.SIGTERM, original_handler)
 real_mask = signal.pthread_sigmask
 mask_calls = 0
+signal_injected = False
 class SignalProxy:
     def __getattr__(self, name):
         return getattr(signal, name)
     def pthread_sigmask(self, operation, signals):
-        global mask_calls
+        global mask_calls, signal_injected
         mask_calls += 1
         result = real_mask(operation, signals)
         if mask_calls == 5:
+            signal_injected = True
             os.kill(os.getpid(), signal.SIGTERM)
         return result
 runner.signal = SignalProxy()
@@ -1988,7 +3527,7 @@ try:
     )
 except OSError as exc:
     raise SystemExit(
-        17 if str(exc) == "fixed spawn failure" and mask_calls == 4 else 18
+        17 if str(exc) == "fixed spawn failure" and signal_injected else 18
     )
 except RuntimeError:
     raise SystemExit(19)
@@ -2004,6 +3543,101 @@ raise SystemExit(20)
         timeout=15,
     )
     assert completed.returncode == 17, (completed.stdout, completed.stderr)
+
+
+def test_release_signal_supervisor_covers_workspace_cleanup(
+    tmp_path: Path,
+) -> None:
+    workspace = tmp_path / "supervised-workspace"
+    agent_root = Path(__file__).resolve().parents[1]
+    wrapper_code = f"""
+import os
+import pathlib
+import shutil
+import signal
+import sys
+sys.path.insert(0, {str(agent_root)!r})
+import c2_m5_release_test_runner as runner
+workspace = pathlib.Path({str(workspace)!r})
+def operation(_supervisor):
+    workspace.mkdir()
+    try:
+        return 0
+    finally:
+        os.kill(os.getpid(), signal.SIGTERM)
+        shutil.rmtree(workspace)
+try:
+    runner._run_with_signal_supervision(operation)
+except runner.M5ReleaseTestError as exc:
+    raise SystemExit(
+        17 if "signal" in str(exc) and not workspace.exists() else 18
+    )
+raise SystemExit(19)
+"""
+    completed = subprocess.run(
+        [sys.executable, "-I", "-S", "-B", "-c", wrapper_code],
+        check=False,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        timeout=15,
+    )
+    assert completed.returncode == 17, (completed.stdout, completed.stderr)
+    assert not workspace.exists()
+
+
+@pytest.mark.parametrize(
+    "module_name,error_name",
+    (
+        ("c2_m5_release_test_runner", "M5ReleaseTestError"),
+        (
+            "experiments.c2_m5_source_pilot",
+            "C2M5SourcePilotError",
+        ),
+    ),
+)
+def test_signal_supervisors_restore_state_after_interruption(
+    module_name: str,
+    error_name: str,
+) -> None:
+    agent_root = Path(__file__).resolve().parents[1]
+    wrapper_code = f"""
+import importlib
+import os
+import signal
+import sys
+sys.path.insert(0, {str(agent_root)!r})
+module = importlib.import_module({module_name!r})
+watched = module._WATCHED_SIGNALS
+handlers = {{signum: signal.getsignal(signum) for signum in watched}}
+mask = signal.pthread_sigmask(signal.SIG_BLOCK, [])
+def operation(supervisor):
+    os.kill(os.getpid(), signal.SIGTERM)
+    supervisor.checkpoint()
+try:
+    module._run_with_signal_supervision(operation)
+except getattr(module, {error_name!r}) as exc:
+    restored = (
+        {{signum: signal.getsignal(signum) for signum in watched}} == handlers
+        and signal.pthread_sigmask(signal.SIG_BLOCK, []) == mask
+    )
+    raise SystemExit(17 if "signal" in str(exc) and restored else 18)
+raise SystemExit(19)
+"""
+    completed = subprocess.run(
+        [sys.executable, "-I", "-S", "-B", "-c", wrapper_code],
+        check=False,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        timeout=15,
+    )
+    assert completed.returncode == 17, (
+        completed.stdout,
+        completed.stderr,
+    )
 
 
 @pytest.mark.skipif(sys.platform != "darwin", reason="Darwin ACL regression")
@@ -2136,7 +3770,7 @@ def test_materialized_downloader_runs_behind_network_guard(tmp_path: Path) -> No
     ).read_bytes()
     _, dependency_payloads, _, _ = _dependency_closure()
 
-    exit_code = pilot._run_attempt_subprocess(
+    exit_code, retained_active_pids = pilot._run_attempt_subprocess(
         downloader=binding,
         workspace=workspace,
         workers=1,
@@ -2149,6 +3783,7 @@ def test_materialized_downloader_runs_behind_network_guard(tmp_path: Path) -> No
     )
 
     assert exit_code == 0
+    assert retained_active_pids == ()
     assert (workspace / "postfetch.log").read_text().strip() == "guarded runtime bundle"
     assert (workspace / "frozen_downloader.py").read_bytes() == script
     assert not list(workspace.rglob("*.pyc"))
@@ -2317,10 +3952,12 @@ def test_execution_evidence_hash_and_non_admission() -> None:
         downloader=downloader,
         binding={"summary_hash": "1" * 64},
         attempts=attempts,
+        retained_active_pids=(),
     )
 
     assert evidence["status"] == "PASS"
     assert evidence["network_guard"]["trust_environment"] is False
+    assert evidence["concurrency"]["retained_active_pids"] == []
     assert evidence["evidence_hash"] == pilot._sha256_json(
         {key: value for key, value in evidence.items() if key != "evidence_hash"}
     )

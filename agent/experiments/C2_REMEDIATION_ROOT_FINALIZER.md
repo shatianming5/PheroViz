@@ -112,10 +112,10 @@ retry2 is source-less.
 ```bash
 cd agent
 export LANG=C LC_ALL=C
-export C2_M5_EXPECTED_ATTESTATION_COMMIT=d5cb3c6d2e7c7fb4a2f71dea563a863728ebb8a0
-export C2_M5_EXPECTED_MANIFEST_SHA256=5d0fe206b1912fb58879cac42f0367981e63b966bfeec89c1d71de03fa83bb5e
-export C2_M5_EXPECTED_BOOTSTRAP_SHA256=fd04918b1782dc884ea60b856139f025d4b01c34fa04475f2c916ed4f843ca01
-export C2_M5_EXPECTED_RELEASE_RUNNER_SHA256=164aaa874b1ac8e7c479d29e4a458c8e30ba25f8e2e92927f888ae861dd8ee66
+export C2_M5_EXPECTED_ATTESTATION_COMMIT=__M5_ATTESTATION_COMMIT__
+export C2_M5_EXPECTED_MANIFEST_SHA256=__M5_MANIFEST_SHA256__
+export C2_M5_EXPECTED_BOOTSTRAP_SHA256=__M5_BOOTSTRAP_SHA256__
+export C2_M5_EXPECTED_RELEASE_RUNNER_SHA256=__M5_RELEASE_RUNNER_SHA256__
 export C2_M5_EXPECTED_PYTHON_SHA256=4b42b1a117605cafc8607b67b0892a609c2cd125012dd56288abeed8c89cdfb1
 export C2_M5_EXPECTED_PYTHON_LIBRARY_SHA256=0432398c0d1b2ff35a741b2758dccfb08d9f1aad39abac2c4da9cfcc84e6d225
 PYTHON=/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9
@@ -232,9 +232,9 @@ worktree file with Git blob framing; it does not invoke checkout-controlled
 clean/smudge filters. It rejects `__pycache__`, `.pyc`, `.pyo`, `.pytest_cache`,
 or any other tracked, untracked, or ignored extra. Run tests with
 `PYTHONDONTWRITEBYTECODE=1` and remove test/cache artifacts before production;
-never place the raw or sealed roots inside this checkout. The four M5 pins above
-are fixed by the reviewed final release; the externally checked CPython digest
-must also match that release.
+never place the raw or sealed roots inside this checkout. Replace the four
+remaining `__M5_*__` placeholders only with values published by the reviewed
+release; the externally checked CPython digest must also match that release.
 
 The release topology is part of the trust contract:
 
@@ -327,11 +327,50 @@ creating its own ACL-checked mode-0700 temporary root. It materializes all test
 and application sources from the authenticated manifest into a private source
 snapshot; the checkout is never on the child import path. It disables ambient
 pytest plugins and conftests, fixes the config/rootdir, uses only the fixed test
-roster, and kills the complete test process group on normal exit, interruption,
-or timeout. Before Python starts, the shell gate rejects unsafe ownership,
-write bits, symlinks, or mutating Darwin ACLs across the fixed executable,
-runtime library, stdlib, and their ancestry. Bare `pytest`, ambient `PYTHONPATH`,
-user/site packages, and unpinned plugins are not release evidence.
+roster, and rejects unreviewed session-control topology before execution. A
+trusted in-session supervisor, which never imports pytest or test code, alone
+owns the completion writer. It waits for the exact worker, emits one bounded
+status frame, closes the writer, and remains the unreaped SID leader; the outer
+runner accepts status only after EOF and leader-identity verification. Every
+approved nested spawn uses the registry binding pinned when containment is
+installed and remains in the leader group until its parent appends a pending
+registration and explicitly releases it to create the new PGID; the trampoline
+then adds a live anchor before target execution.
+Root-session mode is process-nonreentrant after containment installation.
+Cleanup freezes two identical stopped-state censuses, rereads the pinned
+descriptor, attempts every independently validated anchored group, verifies
+only the trusted supervisor remains, and then kills and reaps that exact child.
+Any registry, census, signal, cleanup, or survivor error makes release fail.
+
+This is deterministic cleanup for the hash-attested process topology, not a
+sandbox for hostile same-UID code. Unapproved session creation, daemonization,
+native process control, or registry bypass is an attestation violation and
+requires a new implementation anchor and review. The contract does not claim
+containment across hostile same-UID interference, outer `SIGKILL` or fatal
+runtime crash, reboot, or kernel failure; those require a VM or a separately
+provisioned UID. A record-only HUP/INT/TERM supervisor remains active across
+attestation, setup, tests, post-test verification, and mode-0700 temporary-root
+cleanup. The acquisition adapter applies the same record-only lifecycle before
+lease creation and before each downloader spawn, and restores the caller's
+handlers and exact signal mask on every exit. It blocks TERM while assigning the
+spawned worker, then handles cleanup requests record-only. A trusted live group
+leader waits the exact downloader worker and reports status through a
+non-inherited pipe;
+cleanup first asks that leader to reap the worker, kills the still-pinned group,
+drains captured output through EOF under the fixed byte cap, and only then
+reaps the leader. Unpublished staging is discarded and closed while the
+exclusive acquisition lease is still held; a failed or unverifiable rollback
+or process cleanup leaves that lease in place and blocks a later writer.
+Target-root construction
+also removes any staging directory created before its constructor can return.
+Publication blocks lifecycle signals around one commit point: a signal observed
+before that point aborts and rolls back, while one arriving after the point
+commits and returns the complete non-admissive root. Evidence records the
+verified retained PID set rather than assuming it is empty. Before Python
+starts, the shell gate rejects unsafe
+ownership, write bits, symlinks, or mutating Darwin ACLs across the fixed
+executable, runtime library, stdlib, and their ancestry. Bare `pytest`, ambient
+`PYTHONPATH`, user/site packages, and unpinned plugins are not release evidence.
 
 The M5 bootstrap rechecks the manifest-only topology, all Git blobs, the exact
 root-owned Apple CPython 3.9.6 executable/runtime-library/micro/SOABI/native

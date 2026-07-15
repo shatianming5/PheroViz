@@ -88,11 +88,177 @@ _SECRET_PATTERNS = (
     re.compile(rb"AKIA[0-9A-Z]{16}"),
     re.compile(rb"(?:ANTHROPIC|OPENAI|GITHUB)_(?:AUTH_)?TOKEN\s*="),
 )
+_WATCHED_SIGNALS = (signal.SIGHUP, signal.SIGINT, signal.SIGTERM)
+_ATTEMPT_PROCESS_SUPERVISOR = """\
+import os
+import signal
+import subprocess
+import sys
+
+status_fd = int(sys.argv[1])
+command = sys.argv[2:]
+os.set_inheritable(status_fd, False)
+worker = None
+status_open = True
+cleanup_requested = False
+
+def request_cleanup(_signum, _frame):
+    global cleanup_requested
+    cleanup_requested = True
+
+previous_mask = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGTERM})
+signal.signal(signal.SIGTERM, request_cleanup)
+try:
+    if os.write(status_fd, b"R") != 1:
+        raise SystemExit("M5 attempt supervisor readiness write was incomplete")
+    try:
+        worker = subprocess.Popen(
+            [
+                sys.executable,
+                "-I",
+                "-S",
+                "-B",
+                "-c",
+                (
+                    "import os,signal,sys;"
+                    "signal.pthread_sigmask("
+                    "signal.SIG_UNBLOCK,{signal.SIGTERM});"
+                    "os.execvpe(sys.argv[1],sys.argv[1:],os.environ)"
+                ),
+                *command,
+            ],
+            stdin=subprocess.DEVNULL,
+            close_fds=True,
+        )
+    finally:
+        signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
+    while not cleanup_requested:
+        try:
+            return_code = worker.wait(timeout=0.1)
+            break
+        except subprocess.TimeoutExpired:
+            pass
+    if not cleanup_requested:
+        if return_code < 0:
+            return_code = min(255, 128 - return_code)
+        status = f"{return_code}\\n".encode("ascii")
+        if os.write(status_fd, status) != len(status):
+            raise SystemExit("M5 attempt status write was incomplete")
+        os.close(status_fd)
+        status_open = False
+        while not cleanup_requested:
+            signal.pause()
+finally:
+    if worker is not None:
+        if worker.poll() is None:
+            worker.kill()
+        worker.wait()
+    if status_open:
+        os.close(status_fd)
+if cleanup_requested:
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+    while True:
+        signal.pause()
+"""
 
 
 def _require(condition: bool, message: str) -> None:
     if not condition:
         raise C2M5SourcePilotError(message)
+
+
+class _SourcePilotSignalSupervisor:
+    def __init__(self) -> None:
+        self.previous_mask = signal.pthread_sigmask(
+            signal.SIG_BLOCK,
+            _WATCHED_SIGNALS,
+        )
+        self.supervisor_mask = set(self.previous_mask).difference(
+            _WATCHED_SIGNALS
+        )
+        self.previous_handlers: dict[int, object] = {}
+        self.interrupted_signal: int | None = None
+        self.publication_committed = False
+        try:
+            for signum in _WATCHED_SIGNALS:
+                self.previous_handlers[signum] = signal.getsignal(signum)
+                signal.signal(signum, self._record)
+            signal.pthread_sigmask(
+                signal.SIG_SETMASK,
+                self.supervisor_mask,
+            )
+        except BaseException:
+            for signum, previous in self.previous_handlers.items():
+                signal.signal(signum, previous)
+            signal.pthread_sigmask(
+                signal.SIG_SETMASK,
+                self.previous_mask,
+            )
+            raise
+
+    def _record(self, signum: int, _frame: object) -> None:
+        if self.interrupted_signal is None:
+            self.interrupted_signal = signum
+
+    def checkpoint(self) -> None:
+        if (
+            self.interrupted_signal is not None
+            and not self.publication_committed
+        ):
+            raise C2M5SourcePilotError(
+                "M5 source pilot interrupted by signal "
+                f"{self.interrupted_signal}"
+            )
+
+    def block_for_cleanup(self) -> None:
+        signal.pthread_sigmask(signal.SIG_BLOCK, _WATCHED_SIGNALS)
+
+    def resume_after_cleanup(self) -> None:
+        signal.pthread_sigmask(
+            signal.SIG_SETMASK,
+            self.supervisor_mask,
+        )
+
+    def commit_publication(self, publish: Callable[[], None]) -> None:
+        _require(
+            not self.publication_committed,
+            "M5 source pilot publication is already committed",
+        )
+        self.block_for_cleanup()
+        try:
+            pending = set(signal.sigpending()).intersection(_WATCHED_SIGNALS)
+            if self.interrupted_signal is not None or pending:
+                if self.interrupted_signal is None:
+                    self.interrupted_signal = min(int(signum) for signum in pending)
+            else:
+                publish()
+                self.publication_committed = True
+        finally:
+            self.resume_after_cleanup()
+        self.checkpoint()
+
+    def finish(self, active_error: BaseException | None) -> None:
+        self.block_for_cleanup()
+        self.resume_after_cleanup()
+        self.block_for_cleanup()
+        for signum, previous in self.previous_handlers.items():
+            signal.signal(signum, previous)
+        signal.pthread_sigmask(
+            signal.SIG_SETMASK,
+            self.previous_mask,
+        )
+        if active_error is None:
+            self.checkpoint()
+
+
+def _run_with_signal_supervision(
+    operation: Callable[[_SourcePilotSignalSupervisor], Any],
+) -> Any:
+    supervisor = _SourcePilotSignalSupervisor()
+    try:
+        return operation(supervisor)
+    finally:
+        supervisor.finish(sys.exc_info()[1])
 
 
 def _sha256(payload: bytes) -> str:
@@ -184,7 +350,7 @@ def _git_text(repo: Path, arguments: Sequence[str], label: str) -> str:
             text=True,
             env=_GIT_ENVIRONMENT,
         )
-    except (OSError, subprocess.CalledProcessError) as exc:
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
         raise C2M5SourcePilotError(f"cannot establish {label}") from exc
     return completed.stdout.strip()
 
@@ -740,12 +906,48 @@ def _run_bounded_process(
     workspace: Path,
     environment: Mapping[str, str],
     timeout_seconds: float,
-) -> int:
+    _supervisor: _SourcePilotSignalSupervisor | None = None,
+    _cleanup_failure: Callable[[], None] | None = None,
+) -> tuple[int, tuple[int, ...]]:
+    if _supervisor is None:
+        return _run_with_signal_supervision(
+            lambda supervisor: _run_bounded_process(
+                command=command,
+                workspace=workspace,
+                environment=environment,
+                timeout_seconds=timeout_seconds,
+                _supervisor=supervisor,
+                _cleanup_failure=_cleanup_failure,
+            )
+        )
+    supervisor = _supervisor
     _require(timeout_seconds > 0, "attempt timeout must be positive")
     log_path = workspace / "postfetch.log"
-    with log_path.open("xb") as log:
+    log = None
+    process: subprocess.Popen[bytes] | None = None
+    selector: selectors.BaseSelector | None = None
+    status_pipe: tuple[int, int] | None = None
+    return_code: int | None = None
+    retained_active_pids: tuple[int, ...] = ()
+    total = 0
+    forced_code: int | None = None
+    supervisor_ready = False
+    try:
+        supervisor.checkpoint()
+        log = log_path.open("xb")
+        supervisor.checkpoint()
+        status_pipe = os.pipe()
         process = subprocess.Popen(
-            list(command),
+            [
+                sys.executable,
+                "-I",
+                "-S",
+                "-B",
+                "-c",
+                _ATTEMPT_PROCESS_SUPERVISOR,
+                str(status_pipe[1]),
+                *command,
+            ],
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -753,68 +955,187 @@ def _run_bounded_process(
             cwd=workspace,
             start_new_session=True,
             bufsize=0,
+            pass_fds=(status_pipe[1],),
         )
+        os.close(status_pipe[1])
+        status_pipe = (status_pipe[0], -1)
+        supervisor.checkpoint()
         _require(process.stdout is not None, "attempt log pipe is unavailable")
         selector = selectors.DefaultSelector()
-        selector.register(process.stdout, selectors.EVENT_READ)
+        selector.register(process.stdout, selectors.EVENT_READ, "log")
+        selector.register(status_pipe[0], selectors.EVENT_READ, "status")
         deadline = time.monotonic() + timeout_seconds
-        total = 0
-        forced_code: int | None = None
         pipe_open = True
-        try:
-            while True:
-                remaining = deadline - time.monotonic()
-                if remaining <= 0:
-                    forced_code = 124
+        status_payload = bytearray()
+        while True:
+            supervisor.checkpoint()
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                forced_code = 124
+                break
+            ready = selector.select(timeout=min(0.1, remaining))
+            for key, _ in ready:
+                if key.data == "status":
+                    block = os.read(status_pipe[0], 64)
+                    if block:
+                        if not supervisor_ready:
+                            _require(
+                                block.startswith(b"R"),
+                                "attempt process readiness is malformed",
+                            )
+                            supervisor_ready = True
+                            block = block[1:]
+                            if not block:
+                                continue
+                        status_payload.extend(block)
+                        _require(
+                            len(status_payload) <= 16,
+                            "attempt process status is oversized",
+                        )
+                        continue
+                    _require(
+                        status_payload.endswith(b"\n")
+                        and status_payload.count(b"\n") == 1
+                        and status_payload[:-1].isdigit(),
+                        "attempt process status is malformed",
+                    )
+                    return_code = int(status_payload[:-1])
+                    _require(
+                        0 <= return_code <= 255,
+                        "attempt process status is invalid",
+                    )
+                    try:
+                        identity_valid = os.getpgid(process.pid) == process.pid
+                    except (ProcessLookupError, PermissionError):
+                        identity_valid = False
+                    _require(
+                        identity_valid,
+                        "attempt process supervisor group identity changed",
+                    )
                     break
-                ready = (
-                    selector.select(timeout=min(0.1, remaining))
-                    if pipe_open
-                    else ()
-                )
-                if ready:
-                    chunk = os.read(process.stdout.fileno(), 64 * 1024)
+                chunk = os.read(process.stdout.fileno(), 64 * 1024)
+                if not chunk:
+                    selector.unregister(process.stdout)
+                    pipe_open = False
+                elif total + len(chunk) > MAX_POSTFETCH_LOG_BYTES:
+                    retained = MAX_POSTFETCH_LOG_BYTES - total
+                    if retained > 0:
+                        log.write(chunk[:retained])
+                    total = MAX_POSTFETCH_LOG_BYTES
+                    forced_code = 125
+                    break
+                else:
+                    log.write(chunk)
+                    total += len(chunk)
+            if return_code is not None or forced_code is not None:
+                break
+            if not pipe_open:
+                time.sleep(min(0.05, remaining))
+    finally:
+        active_error = sys.exc_info()[1]
+        supervisor.block_for_cleanup()
+        cleanup_errors: list[Exception] = []
+        if process is not None:
+            if (
+                supervisor_ready
+                and status_pipe is not None
+                and status_pipe[0] >= 0
+            ):
+                try:
+                    _request_attempt_supervisor_cleanup(
+                        process,
+                        status_pipe[0],
+                    )
+                except Exception as exc:
+                    cleanup_errors.append(exc)
+            try:
+                retained_active_pids = _terminate_process_group(process)
+            except Exception as exc:
+                cleanup_errors.append(exc)
+        if process is not None and process.stdout is not None and log is not None:
+            drain_deadline = time.monotonic() + 2.0
+            try:
+                os.set_blocking(process.stdout.fileno(), False)
+                while True:
+                    try:
+                        chunk = os.read(
+                            process.stdout.fileno(),
+                            64 * 1024,
+                        )
+                    except BlockingIOError:
+                        _require(
+                            time.monotonic() < drain_deadline,
+                            "attempt log pipe did not reach EOF after cleanup",
+                        )
+                        time.sleep(0.01)
+                        continue
                     if not chunk:
-                        selector.unregister(process.stdout)
-                        pipe_open = False
-                    elif total + len(chunk) > MAX_POSTFETCH_LOG_BYTES:
-                        retained = MAX_POSTFETCH_LOG_BYTES - total
-                        if retained > 0:
-                            log.write(chunk[:retained])
-                        total = MAX_POSTFETCH_LOG_BYTES
-                        forced_code = 125
                         break
-                    else:
-                        log.write(chunk)
-                        total += len(chunk)
+                    retained = min(
+                        len(chunk),
+                        MAX_POSTFETCH_LOG_BYTES - total,
+                    )
+                    if retained > 0:
+                        log.write(chunk[:retained])
+                        total += retained
+                    if retained != len(chunk) and forced_code is None:
+                        forced_code = 125
+            except Exception as exc:
+                cleanup_errors.append(exc)
+        if log is not None and forced_code is not None:
+            marker = (
+                b"\nM5 attempt exceeded its fixed wall timeout\n"
+                if forced_code == 124
+                else b"\nM5 attempt exceeded its fixed log byte limit\n"
+            )
+            available = MAX_POSTFETCH_LOG_BYTES - total
+            if available > 0:
+                log.write(marker[:available])
+            return_code = forced_code
+        if selector is not None:
+            try:
+                selector.close()
+            except Exception as exc:
+                cleanup_errors.append(exc)
+        if process is not None and process.stdout is not None:
+            try:
+                process.stdout.close()
+            except Exception as exc:
+                cleanup_errors.append(exc)
+        if status_pipe is not None:
+            for descriptor in status_pipe:
+                if descriptor < 0:
                     continue
-                if process.poll() is not None:
-                    break
-                if not pipe_open:
-                    time.sleep(min(0.05, remaining))
-            if forced_code is not None:
-                _terminate_process_group(process)
-                marker = (
-                    b"\nM5 attempt exceeded its fixed wall timeout\n"
-                    if forced_code == 124
-                    else b"\nM5 attempt exceeded its fixed log byte limit\n"
-                )
-                available = MAX_POSTFETCH_LOG_BYTES - total
-                if available > 0:
-                    log.write(marker[:available])
-                return_code = forced_code
-            else:
-                return_code = process.wait()
-                _terminate_process_group(process)
-        except BaseException:
-            _terminate_process_group(process)
-            raise
-        finally:
-            selector.close()
-            process.stdout.close()
-        log.flush()
-        os.fsync(log.fileno())
-    return return_code
+                try:
+                    os.close(descriptor)
+                except OSError as exc:
+                    cleanup_errors.append(exc)
+        if log is not None:
+            try:
+                log.flush()
+                os.fsync(log.fileno())
+            except Exception as exc:
+                cleanup_errors.append(exc)
+            try:
+                log.close()
+            except Exception as exc:
+                cleanup_errors.append(exc)
+        supervisor.resume_after_cleanup()
+        if cleanup_errors:
+            if _cleanup_failure is not None:
+                _cleanup_failure()
+            cleanup_error = cleanup_errors[0]
+            if active_error is not None:
+                raise active_error.with_traceback(
+                    active_error.__traceback__
+                ) from cleanup_error
+            if len(cleanup_errors) > 1:
+                raise cleanup_error from cleanup_errors[-1]
+            raise cleanup_error
+        if active_error is None:
+            supervisor.checkpoint()
+    _require(return_code is not None, "attempt process did not return a status")
+    return return_code, retained_active_pids
 
 
 def _process_group_members(group_id: int) -> tuple[int, ...]:
@@ -826,6 +1147,7 @@ def _process_group_members(group_id: int) -> tuple[int, ...]:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
+            timeout=2.0,
             env={
                 "PATH": "/usr/bin:/bin",
                 "HOME": "/var/empty",
@@ -833,7 +1155,11 @@ def _process_group_members(group_id: int) -> tuple[int, ...]:
                 "LC_ALL": "C",
             },
         )
-    except (OSError, subprocess.CalledProcessError) as exc:
+    except (
+        OSError,
+        subprocess.CalledProcessError,
+        subprocess.TimeoutExpired,
+    ) as exc:
         raise C2M5SourcePilotError("attempt process group could not be inspected") from exc
     members: list[int] = []
     for raw_line in completed.stdout.splitlines():
@@ -850,24 +1176,114 @@ def _process_group_members(group_id: int) -> tuple[int, ...]:
     return tuple(sorted(members))
 
 
-def _terminate_process_group(process: subprocess.Popen[bytes]) -> None:
-    members = _process_group_members(process.pid)
-    if process.poll() is None or members:
-        try:
-            os.killpg(process.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
-    process.wait()
+def _request_attempt_supervisor_cleanup(
+    process: subprocess.Popen[bytes],
+    status_fd: int,
+) -> None:
+    try:
+        os.kill(process.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        return
+    except OSError as exc:
+        raise C2M5SourcePilotError(
+            "attempt process supervisor could not be notified"
+        ) from exc
+    os.set_blocking(status_fd, False)
     deadline = time.monotonic() + 2.0
     while True:
-        members = _process_group_members(process.pid)
-        if not members:
+        try:
+            block = os.read(status_fd, 64)
+        except BlockingIOError:
+            _require(
+                time.monotonic() < deadline,
+                "attempt process supervisor did not acknowledge cleanup",
+            )
+            time.sleep(0.01)
+            continue
+        if not block:
             return
-        _require(
-            time.monotonic() < deadline,
-            f"attempt process group retained active pids: {list(members)}",
+
+
+def _terminate_process_group(
+    process: subprocess.Popen[bytes],
+) -> tuple[int, ...]:
+    errors: list[Exception] = []
+    permission_denied = False
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    except PermissionError:
+        permission_denied = True
+    except OSError as exc:
+        error = C2M5SourcePilotError(
+            "attempt process group could not be terminated"
         )
+        error.__cause__ = exc
+        errors.append(error)
+    deadline = time.monotonic() + 2.0
+    members: tuple[int, ...] = ()
+    while True:
+        try:
+            members = _process_group_members(process.pid)
+        except Exception as exc:
+            errors.append(exc)
+            break
+        remaining = tuple(
+            process_id
+            for process_id in members
+            if process_id != process.pid
+        )
+        if not remaining:
+            break
+        if time.monotonic() >= deadline:
+            errors.append(
+                C2M5SourcePilotError(
+                    f"attempt process group retained active pids: "
+                    f"{list(remaining)}"
+                )
+            )
+            break
         time.sleep(0.01)
+    if permission_denied and any(
+        process_id != process.pid for process_id in members
+    ):
+        errors.append(
+            C2M5SourcePilotError(
+                "attempt process group could not be terminated"
+            )
+        )
+    leader_return_code: int | None = None
+    try:
+        leader_return_code = process.wait(timeout=2.0)
+    except subprocess.TimeoutExpired:
+        try:
+            process.kill()
+            leader_return_code = process.wait(timeout=2.0)
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            error = C2M5SourcePilotError(
+                "attempt process leader could not be reaped"
+            )
+            error.__cause__ = exc
+            errors.append(error)
+    if (
+        leader_return_code is not None
+        and leader_return_code != -signal.SIGKILL
+    ):
+        errors.append(
+            C2M5SourcePilotError(
+                "attempt process supervisor exited before group cleanup"
+            )
+        )
+    if errors:
+        if len(errors) > 1:
+            raise errors[0] from errors[-1]
+        raise errors[0]
+    return tuple(
+        process_id
+        for process_id in members
+        if process_id != process.pid
+    )
 
 
 def _run_attempt_subprocess(
@@ -879,7 +1295,9 @@ def _run_attempt_subprocess(
     downloader_bootstrap_payload: bytes,
     dependency_payloads: Mapping[str, bytes],
     deadline_monotonic: float | None = None,
-) -> int:
+    _supervisor: _SourcePilotSignalSupervisor | None = None,
+    _cleanup_failure: Callable[[], None] | None = None,
+) -> tuple[int, tuple[int, ...]]:
     _materialize_downloader_bundle(workspace, downloader)
     _materialize_downloader_bootstrap(workspace, downloader_bootstrap_payload)
     _materialize_dependencies(workspace, dependency_payloads)
@@ -900,6 +1318,8 @@ def _run_attempt_subprocess(
         workspace=workspace,
         environment=_safe_subprocess_environment(workspace),
         timeout_seconds=timeout_seconds,
+        _supervisor=_supervisor,
+        _cleanup_failure=_cleanup_failure,
     )
 
 
@@ -1511,6 +1931,7 @@ class _ExclusiveLease:
         self.path = parent / LOCK_NAME
         self._descriptor = -1
         self._identity: tuple[int, int] | None = None
+        self._release_authorized = False
         try:
             self._descriptor = os.open(
                 self.path,
@@ -1525,24 +1946,58 @@ class _ExclusiveLease:
             raise C2M5SourcePilotError(
                 f"exclusive M5 acquisition lease already exists: {self.path}"
             ) from exc
-        metadata = os.fstat(self._descriptor)
-        self._identity = (metadata.st_dev, metadata.st_ino)
-        payload = _json_file_bytes(
-            {
-                "schema_version": "c2-m5-source-pilot-lease-v1",
-                "pid": os.getpid(),
-                "adapter_attestation_commit": attestation.attestation_commit,
-                "chunk": CHUNK_ID,
-            }
+        try:
+            metadata = os.fstat(self._descriptor)
+            self._identity = (metadata.st_dev, metadata.st_ino)
+            payload = _json_file_bytes(
+                {
+                    "schema_version": "c2-m5-source-pilot-lease-v1",
+                    "pid": os.getpid(),
+                    "adapter_attestation_commit": attestation.attestation_commit,
+                    "chunk": CHUNK_ID,
+                }
+            )
+            _require(
+                os.write(self._descriptor, payload) == len(payload),
+                "exclusive M5 acquisition lease write was incomplete",
+            )
+            os.fsync(self._descriptor)
+        except BaseException:
+            active_error = sys.exc_info()[1]
+            cleanup_error: Exception | None = None
+            try:
+                os.close(self._descriptor)
+                self._descriptor = -1
+                metadata = self.path.lstat()
+                _require(
+                    self._identity == (metadata.st_dev, metadata.st_ino)
+                    and stat.S_ISREG(metadata.st_mode)
+                    and not self.path.is_symlink(),
+                    "failed M5 acquisition lease identity changed",
+                )
+                self.path.unlink()
+            except Exception as exc:
+                cleanup_error = exc
+            if active_error is not None and cleanup_error is not None:
+                raise active_error.with_traceback(
+                    active_error.__traceback__
+                ) from cleanup_error
+            raise
+
+    def authorize_release(self) -> None:
+        _require(
+            self._descriptor != -1,
+            "closed M5 acquisition lease cannot be released",
         )
-        os.write(self._descriptor, payload)
-        os.fsync(self._descriptor)
+        self._release_authorized = True
 
     def close(self) -> None:
         if self._descriptor == -1:
             return
         os.close(self._descriptor)
         self._descriptor = -1
+        if not self._release_authorized:
+            return
         metadata = self.path.lstat()
         _require(
             self._identity == (metadata.st_dev, metadata.st_ino)
@@ -1556,7 +2011,204 @@ class _ExclusiveLease:
         return self
 
     def __exit__(self, exc_type: object, exc: object, traceback: object) -> None:
-        self.close()
+        try:
+            self.close()
+            _require(
+                self._release_authorized or isinstance(exc, BaseException),
+                "M5 acquisition lease release was not authorized",
+            )
+        except Exception as cleanup_error:
+            if isinstance(exc, BaseException):
+                raise exc.with_traceback(traceback) from cleanup_error
+            raise
+
+
+class _ExecutionCleanup:
+    def __init__(
+        self,
+        root: Callable[[], Any],
+        workspaces: list[Path],
+        lease: _ExclusiveLease,
+    ) -> None:
+        self._root = root
+        self._workspaces = workspaces
+        self._lease = lease
+        self._release_inhibited = False
+
+    def inhibit_lease_release(self) -> None:
+        self._release_inhibited = True
+
+    def __enter__(self) -> "_ExecutionCleanup":
+        return self
+
+    def __exit__(self, exc_type: object, exc: object, traceback: object) -> None:
+        cleanup_errors: list[Exception] = []
+        secure_root = self._root()
+        if secure_root is not None:
+            if not secure_root.published:
+                try:
+                    secure_root.discard_unpublished()
+                except Exception as cleanup_error:
+                    cleanup_errors.append(cleanup_error)
+            try:
+                secure_root.close()
+            except Exception as cleanup_error:
+                cleanup_errors.append(cleanup_error)
+        for workspace in self._workspaces:
+            try:
+                # Failed workspaces retain their real logs and operational evidence.
+                print(
+                    json.dumps(
+                        {
+                            "status": "FAILED_WORKSPACE_RETAINED",
+                            "path": str(workspace),
+                        },
+                        sort_keys=True,
+                    ),
+                    file=sys.stderr,
+                )
+            except Exception as cleanup_error:
+                cleanup_errors.append(cleanup_error)
+        if cleanup_errors:
+            cleanup_error = cleanup_errors[0]
+            if isinstance(exc, BaseException):
+                raise exc.with_traceback(traceback) from cleanup_error
+            if len(cleanup_errors) > 1:
+                raise cleanup_error from cleanup_errors[-1]
+            raise cleanup_error
+        if not self._release_inhibited:
+            self._lease.authorize_release()
+
+
+def _staging_entries(
+    parent_fd: int,
+    prefix: str,
+) -> dict[str, tuple[int, int]]:
+    entries: dict[str, tuple[int, int]] = {}
+    for name in os.listdir(parent_fd):
+        if not name.startswith(prefix):
+            continue
+        metadata = os.stat(
+            name,
+            dir_fd=parent_fd,
+            follow_symlinks=False,
+        )
+        _require(
+            stat.S_ISDIR(metadata.st_mode),
+            "M5 source-pilot staging entry is not a directory",
+        )
+        entries[name] = (metadata.st_dev, metadata.st_ino)
+    return entries
+
+
+def _discard_staging_entries(
+    finalizer: Any,
+    parent_fd: int,
+    entries: Mapping[str, tuple[int, int]],
+) -> None:
+    errors: list[Exception] = []
+    for name, identity in sorted(entries.items()):
+        root_fd = -1
+        try:
+            root_fd = os.open(
+                name,
+                os.O_RDONLY
+                | os.O_DIRECTORY
+                | os.O_NOFOLLOW
+                | getattr(os, "O_CLOEXEC", 0),
+                dir_fd=parent_fd,
+            )
+            metadata = os.fstat(root_fd)
+            _require(
+                stat.S_ISDIR(metadata.st_mode)
+                and (metadata.st_dev, metadata.st_ino) == identity,
+                "M5 source-pilot staging identity changed during rollback",
+            )
+            finalizer._SecureTargetRoot._remove_tree_contents(root_fd)
+            os.close(root_fd)
+            root_fd = -1
+            os.rmdir(name, dir_fd=parent_fd)
+        except Exception as exc:
+            errors.append(exc)
+        finally:
+            if root_fd != -1:
+                try:
+                    os.close(root_fd)
+                except Exception as exc:
+                    errors.append(exc)
+    try:
+        os.fsync(parent_fd)
+    except Exception as exc:
+        errors.append(exc)
+    if errors:
+        if len(errors) > 1:
+            raise errors[0] from errors[-1]
+        raise errors[0]
+
+
+def _create_target_root_transactionally(
+    *,
+    finalizer: Any,
+    raw_root: Path,
+    cleanup: _ExecutionCleanup,
+) -> Any:
+    guard = finalizer._open_private_staging_parent(raw_root)
+    prefix = f".{guard.leaf_name}.c2-remediation-staging-"
+    before: dict[str, tuple[int, int]] = {}
+    secure_root = None
+    try:
+        before = _staging_entries(guard.parent_fd, prefix)
+        if before:
+            cleanup.inhibit_lease_release()
+            raise C2M5SourcePilotError(
+                "pre-existing M5 source-pilot staging root blocks acquisition"
+            )
+        secure_root = finalizer._create_target_root(raw_root)
+        guard.close()
+        guard = None
+        return secure_root
+    except BaseException:
+        active_error = sys.exc_info()[1]
+        cleanup_errors: list[Exception] = []
+        if secure_root is not None:
+            try:
+                if not secure_root.published:
+                    secure_root.discard_unpublished()
+            except Exception as exc:
+                cleanup_errors.append(exc)
+            try:
+                secure_root.close()
+            except Exception as exc:
+                cleanup_errors.append(exc)
+        elif guard is not None:
+            try:
+                after = _staging_entries(guard.parent_fd, prefix)
+                created = {
+                    name: identity
+                    for name, identity in after.items()
+                    if name not in before
+                }
+                _discard_staging_entries(
+                    finalizer,
+                    guard.parent_fd,
+                    created,
+                )
+            except Exception as exc:
+                cleanup_errors.append(exc)
+        if guard is not None:
+            try:
+                guard.close()
+                guard = None
+            except Exception as exc:
+                cleanup_errors.append(exc)
+        if cleanup_errors:
+            cleanup.inhibit_lease_release()
+            if active_error is not None:
+                raise active_error.with_traceback(
+                    active_error.__traceback__
+                ) from cleanup_errors[0]
+            raise cleanup_errors[0]
+        raise
 
 
 def _secret_scan(files: Iterable[tuple[str, int, bytes]]) -> list[str]:
@@ -1575,6 +2227,7 @@ def _execution_evidence(
     downloader: DownloaderBinding,
     binding: Mapping[str, Any],
     attempts: Mapping[str, AttemptResult],
+    retained_active_pids: Sequence[int],
 ) -> dict[str, Any]:
     checks = [
         {
@@ -1658,7 +2311,9 @@ def _execution_evidence(
                 "status": "PASS",
                 "max_fresh_roots": 1,
                 "fresh_roots_active": 1,
-                "retained_active_pids": [],
+                "retained_active_pids": sorted(
+                    set(retained_active_pids)
+                ),
                 "lease_name": LOCK_NAME,
             },
             "tests": checks,
@@ -1718,6 +2373,30 @@ def execute_source_pilot(
 ) -> dict[str, Any]:
     """Run the fixed three-attempt acquisition and atomically publish its raw root."""
 
+    return _run_with_signal_supervision(
+        lambda supervisor: _execute_source_pilot(
+            raw_root=raw_root,
+            source_chunk=source_chunk,
+            frozen_universe=frozen_universe,
+            freeze_summary=freeze_summary,
+            worktree=worktree,
+            workers=workers,
+            supervisor=supervisor,
+        )
+    )
+
+
+def _execute_source_pilot(
+    *,
+    raw_root: Path,
+    source_chunk: Path,
+    frozen_universe: Path,
+    freeze_summary: Path,
+    worktree: Path,
+    workers: int,
+    supervisor: _SourcePilotSignalSupervisor,
+) -> dict[str, Any]:
+    supervisor.checkpoint()
     attestation = verify_adapter_attestation()
     _require(raw_root.is_absolute(), "raw root must be absolute")
     _require(
@@ -1767,13 +2446,25 @@ def execute_source_pilot(
     secure_root = None
     attempts: dict[str, AttemptResult] = {}
     workspaces: list[Path] = []
-    try:
-        with _ExclusiveLease(raw_root.parent, attestation):
+    retained_active_pids: set[int] = set()
+    with _ExclusiveLease(raw_root.parent, attestation) as lease:
+        cleanup = _ExecutionCleanup(
+            lambda: secure_root,
+            workspaces,
+            lease,
+        )
+        with cleanup:
+            supervisor.checkpoint()
             protected_before = finalizer._verify_protected_old_root(
                 raw_root.parent,
                 finalizer.OLD_ROOT_PRESERVATION[CHUNK_ID],
             )
-            secure_root = finalizer._create_target_root(raw_root)
+            secure_root = _create_target_root_transactionally(
+                finalizer=finalizer,
+                raw_root=raw_root,
+                cleanup=cleanup,
+            )
+            supervisor.checkpoint()
             secure_root.write_bytes("accepted.jsonl", source_bytes)
             secure_root.write_bytes(
                 "control/acquisition_config.json",
@@ -1790,6 +2481,7 @@ def execute_source_pilot(
             registry = AssetRegistry(secure_root.write_bytes)
             previous_end: int | None = None
             for attempt in ATTEMPTS:
+                supervisor.checkpoint()
                 workspace = _private_workspace(raw_root.parent, attempt)
                 workspaces.append(workspace)
                 (workspace / "accepted.jsonl").write_bytes(source_bytes)
@@ -1802,7 +2494,7 @@ def execute_source_pilot(
                     previous_end is None or start >= previous_end,
                     "attempt monotonic order is invalid",
                 )
-                exit_code = _run_attempt_subprocess(
+                exit_code, attempt_active_pids = _run_attempt_subprocess(
                     downloader=downloader,
                     workspace=workspace,
                     workers=workers,
@@ -1810,7 +2502,15 @@ def execute_source_pilot(
                     downloader_bootstrap_payload=downloader_bootstrap_payload,
                     dependency_payloads=attestation.dependency_payloads,
                     deadline_monotonic=deadline,
+                    _supervisor=supervisor,
+                    _cleanup_failure=cleanup.inhibit_lease_release,
                 )
+                retained_active_pids.update(attempt_active_pids)
+                _require(
+                    not attempt_active_pids,
+                    f"{attempt} retained active downloader processes",
+                )
+                supervisor.checkpoint()
                 _require(exit_code == 0, f"{attempt} downloader exited {exit_code}")
                 result = _attempt_artifacts(
                     attempt=attempt,
@@ -1832,6 +2532,7 @@ def execute_source_pilot(
                 previous_end = result.end_monotonic_ns
                 shutil.rmtree(workspace)
                 workspaces.remove(workspace)
+                supervisor.checkpoint()
 
             source_articles, source_assets = _write_terminal_provenance(
                 write_bytes=secure_root.write_bytes,
@@ -1856,6 +2557,7 @@ def execute_source_pilot(
                 downloader=downloader,
                 binding=binding,
                 attempts=attempts,
+                retained_active_pids=tuple(retained_active_pids),
             )
             secure_root.write_bytes(
                 "control/execution_evidence.json",
@@ -1889,8 +2591,10 @@ def execute_source_pilot(
             complete_files = tuple(secure_root.files())
             hits = _secret_scan(complete_files)
             _require(not hits, f"credential-like material found in raw evidence: {hits}")
+            supervisor.checkpoint()
             secure_root.harden_staging_read_only()
-            secure_root.publish()
+            supervisor.checkpoint()
+            supervisor.commit_publication(secure_root.publish)
             return {
                 "schema_version": "c2-m5-source-pilot-execution-report-v1",
                 "status": "RAW_ROOT_PUBLISHED_SOURCE_BEARING_NON_ADMISSIVE",
@@ -1912,21 +2616,6 @@ def execute_source_pilot(
                 "admission_authorized": False,
                 "publication_authorized": False,
             }
-    finally:
-        if secure_root is not None:
-            secure_root.close()
-        for workspace in workspaces:
-            # Failed workspaces retain their real logs and operational evidence.
-            print(
-                json.dumps(
-                    {
-                        "status": "FAILED_WORKSPACE_RETAINED",
-                        "path": str(workspace),
-                    },
-                    sort_keys=True,
-                ),
-                file=sys.stderr,
-            )
 
 
 def _read_attempt_harvest(
@@ -2261,6 +2950,7 @@ def validate_source_pilot(
             downloader=downloader,
             binding=expected_binding,
             attempts=evidence_attempts,
+            retained_active_pids=(),
         )
         _require(
             execution_evidence == expected_execution_evidence,
