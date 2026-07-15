@@ -1660,21 +1660,46 @@ def test_release_runner_kills_descendants_after_leader_exit(
 
 
 def test_release_runner_cleans_process_group_on_sigterm(tmp_path: Path) -> None:
-    child_pid_path = tmp_path / "signal-child.pid"
+    leader_pid_path = tmp_path / "signal-leader.pid"
+    process_state_path = tmp_path / "signal-process-state.txt"
     agent_root = Path(__file__).resolve().parents[1]
     child_code = (
-        "import pathlib,subprocess,sys,time; "
+        "import os,pathlib,signal,subprocess,sys,time; "
+        "blocked=signal.pthread_sigmask(signal.SIG_BLOCK, []); "
         "child=subprocess.Popen("
         "[sys.executable,'-I','-S','-B','-c',"
         "'import time; time.sleep(60)']); "
-        f"pathlib.Path({str(child_pid_path)!r}).write_text(str(child.pid)); "
+        f"pathlib.Path({str(process_state_path)!r}).write_text("
+        "f'{os.getpid()} {child.pid} ' + "
+        "','.join(str(int(value)) for value in sorted(blocked))); "
         "time.sleep(60)"
     )
     wrapper_code = f"""
+import os
 import pathlib
+import signal
 import sys
 sys.path.insert(0, {str(agent_root)!r})
 import c2_m5_release_test_runner as runner
+signal.signal(signal.SIGUSR1, lambda *_: sys.exit(20))
+real_popen = runner.subprocess.Popen
+def observed_popen(*args, **kwargs):
+    process = real_popen(*args, **kwargs)
+    try:
+        pathlib.Path({str(leader_pid_path)!r}).write_text(str(process.pid))
+        return process
+    except BaseException:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        process.wait()
+        raise
+runner.subprocess.Popen = observed_popen
+signal.pthread_sigmask(
+    signal.SIG_BLOCK,
+    (signal.SIGHUP, signal.SIGINT, signal.SIGTERM),
+)
 try:
     runner._run_release_child(
         [sys.executable, "-I", "-S", "-B", "-c", {child_code!r}],
@@ -1697,27 +1722,288 @@ raise SystemExit(19)
         stderr=subprocess.PIPE,
         text=True,
     )
-    deadline = time.monotonic() + 5
-    while not child_pid_path.exists():
-        if wrapper.poll() is not None:
-            stdout, stderr = wrapper.communicate()
-            raise AssertionError(
-                f"release wrapper exited early: {wrapper.returncode}: "
-                f"{stdout}\n{stderr}"
-            )
-        if time.monotonic() >= deadline:
-            wrapper.kill()
-            wrapper.wait()
-            raise AssertionError("release wrapper did not start its child")
-        time.sleep(0.01)
-    child_pid = int(child_pid_path.read_text(encoding="utf-8"))
+    leader_pid: int | None = None
+    child_pid: int | None = None
+    try:
+        deadline = time.monotonic() + 5
+        while child_pid is None:
+            try:
+                published_leader = int(
+                    leader_pid_path.read_text(encoding="ascii")
+                )
+                if leader_pid is None:
+                    leader_pid = published_leader
+                else:
+                    assert leader_pid == published_leader
+            except (FileNotFoundError, ValueError):
+                pass
+            if wrapper.poll() is not None:
+                raise AssertionError(
+                    f"release wrapper exited early: {wrapper.returncode}"
+                )
+            try:
+                pieces = process_state_path.read_text(
+                    encoding="utf-8"
+                ).split()
+                if len(pieces) >= 2:
+                    observed_leader, child_pid = map(int, pieces[:2])
+                    if leader_pid is None:
+                        leader_pid = observed_leader
+                    else:
+                        assert leader_pid == observed_leader
+                    blocked_signals = {
+                        int(value)
+                        for value in pieces[2].split(",")
+                        if value
+                    } if len(pieces) == 3 else set()
+                    break
+            except FileNotFoundError:
+                pass
+            if time.monotonic() >= deadline:
+                raise AssertionError("release wrapper did not start its child")
+            time.sleep(0.01)
 
-    os.kill(wrapper.pid, signal.SIGTERM)
-    stdout, stderr = wrapper.communicate(timeout=15)
+        assert leader_pid is not None
+        assert child_pid is not None
+        assert not blocked_signals.intersection(
+            {signal.SIGHUP, signal.SIGINT, signal.SIGTERM}
+        )
+        os.kill(wrapper.pid, signal.SIGTERM)
+        wrapper.wait(timeout=15)
+        stdout, stderr = wrapper.communicate(timeout=1)
 
-    assert wrapper.returncode == 17, (stdout, stderr)
-    with pytest.raises(ProcessLookupError):
-        os.kill(child_pid, 0)
+        assert wrapper.returncode == 17, (stdout, stderr)
+        with pytest.raises(ProcessLookupError):
+            os.killpg(leader_pid, 0)
+        with pytest.raises(ProcessLookupError):
+            os.kill(child_pid, 0)
+    finally:
+        if leader_pid is None:
+            try:
+                leader_pid = int(
+                    leader_pid_path.read_text(encoding="ascii")
+                )
+            except (FileNotFoundError, ValueError):
+                pass
+        if wrapper.poll() is None:
+            os.kill(wrapper.pid, signal.SIGUSR1)
+            try:
+                wrapper.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                if leader_pid is not None:
+                    try:
+                        os.killpg(leader_pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+                wrapper.kill()
+                wrapper.wait()
+        if leader_pid is not None:
+            try:
+                os.killpg(leader_pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+
+
+def test_release_runner_cleans_group_for_signal_at_cleanup_entry(
+    tmp_path: Path,
+) -> None:
+    leader_pid_path = tmp_path / "cleanup-entry-leader.pid"
+    process_state_path = tmp_path / "cleanup-entry-process-state.txt"
+    agent_root = Path(__file__).resolve().parents[1]
+    child_code = (
+        "import os,pathlib,subprocess,sys; "
+        "child=subprocess.Popen("
+        "[sys.executable,'-I','-S','-B','-c',"
+        "'import time; time.sleep(60)']); "
+        f"pathlib.Path({str(process_state_path)!r}).write_text("
+        "f'{os.getpid()} {child.pid}')"
+    )
+    wrapper_code = f"""
+import os
+import pathlib
+import signal
+import sys
+sys.path.insert(0, {str(agent_root)!r})
+import c2_m5_release_test_runner as runner
+signal.signal(signal.SIGUSR1, lambda *_: sys.exit(20))
+real_popen = runner.subprocess.Popen
+def observed_popen(*args, **kwargs):
+    process = real_popen(*args, **kwargs)
+    try:
+        pathlib.Path({str(leader_pid_path)!r}).write_text(str(process.pid))
+        return process
+    except BaseException:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        process.wait()
+        raise
+runner.subprocess.Popen = observed_popen
+real_exc_info = sys.exc_info
+signal_sent = False
+class RunnerSys:
+    @staticmethod
+    def exc_info():
+        global signal_sent
+        if not signal_sent:
+            signal_sent = True
+            os.kill(os.getpid(), signal.SIGTERM)
+        return real_exc_info()
+runner.sys = RunnerSys()
+try:
+    runner._run_release_child(
+        [sys.executable, "-I", "-S", "-B", "-c", {child_code!r}],
+        cwd=pathlib.Path({str(tmp_path)!r}),
+        environment={{
+            "PATH": "/usr/bin:/bin",
+            "HOME": "/var/empty",
+            "LANG": "C",
+            "LC_ALL": "C",
+        }},
+    )
+except runner.M5ReleaseTestError as exc:
+    raise SystemExit(17 if "signal" in str(exc) else 18)
+raise SystemExit(19)
+"""
+    wrapper = subprocess.Popen(
+        [sys.executable, "-I", "-S", "-B", "-c", wrapper_code],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    leader_pid: int | None = None
+    child_pid: int | None = None
+    try:
+        deadline = time.monotonic() + 5
+        while child_pid is None:
+            try:
+                published_leader = int(
+                    leader_pid_path.read_text(encoding="ascii")
+                )
+                if leader_pid is None:
+                    leader_pid = published_leader
+                else:
+                    assert leader_pid == published_leader
+            except (FileNotFoundError, ValueError):
+                pass
+            if wrapper.poll() is not None:
+                raise AssertionError(
+                    f"cleanup-entry wrapper exited early: {wrapper.returncode}"
+                )
+            try:
+                pieces = process_state_path.read_text(
+                    encoding="utf-8"
+                ).split()
+                if len(pieces) == 2:
+                    observed_leader, child_pid = map(int, pieces)
+                    if leader_pid is None:
+                        leader_pid = observed_leader
+                    else:
+                        assert leader_pid == observed_leader
+                    break
+            except FileNotFoundError:
+                pass
+            if time.monotonic() >= deadline:
+                raise AssertionError(
+                    "cleanup-entry child did not publish process state"
+                )
+            time.sleep(0.01)
+
+        assert leader_pid is not None
+        assert child_pid is not None
+        wrapper.wait(timeout=15)
+        assert wrapper.returncode == 17
+        with pytest.raises(ProcessLookupError):
+            os.killpg(leader_pid, 0)
+        with pytest.raises(ProcessLookupError):
+            os.kill(child_pid, 0)
+    finally:
+        if leader_pid is None:
+            try:
+                leader_pid = int(
+                    leader_pid_path.read_text(encoding="ascii")
+                )
+            except (FileNotFoundError, ValueError):
+                pass
+        if wrapper.poll() is None:
+            os.kill(wrapper.pid, signal.SIGUSR1)
+            try:
+                wrapper.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                if leader_pid is not None:
+                    try:
+                        os.killpg(leader_pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+                wrapper.kill()
+                wrapper.wait()
+        if leader_pid is not None:
+            try:
+                os.killpg(leader_pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+
+
+def test_release_runner_preserves_spawn_error_during_signal_restore(
+    tmp_path: Path,
+) -> None:
+    agent_root = Path(__file__).resolve().parents[1]
+    wrapper_code = f"""
+import os
+import pathlib
+import signal
+import sys
+sys.path.insert(0, {str(agent_root)!r})
+import c2_m5_release_test_runner as runner
+def original_handler(*_):
+    raise RuntimeError("original handler escaped")
+signal.signal(signal.SIGTERM, original_handler)
+real_mask = signal.pthread_sigmask
+mask_calls = 0
+class SignalProxy:
+    def __getattr__(self, name):
+        return getattr(signal, name)
+    def pthread_sigmask(self, operation, signals):
+        global mask_calls
+        mask_calls += 1
+        result = real_mask(operation, signals)
+        if mask_calls == 5:
+            os.kill(os.getpid(), signal.SIGTERM)
+        return result
+runner.signal = SignalProxy()
+def fail_spawn(*_, **__):
+    raise OSError("fixed spawn failure")
+runner.subprocess.Popen = fail_spawn
+try:
+    runner._run_release_child(
+        [sys.executable, "-I", "-S", "-B", "-c", "pass"],
+        cwd=pathlib.Path({str(tmp_path)!r}),
+        environment={{
+            "PATH": "/usr/bin:/bin",
+            "HOME": "/var/empty",
+            "LANG": "C",
+            "LC_ALL": "C",
+        }},
+    )
+except OSError as exc:
+    raise SystemExit(
+        17 if str(exc) == "fixed spawn failure" and mask_calls == 4 else 18
+    )
+except RuntimeError:
+    raise SystemExit(19)
+raise SystemExit(20)
+"""
+    completed = subprocess.run(
+        [sys.executable, "-I", "-S", "-B", "-c", wrapper_code],
+        check=False,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        timeout=15,
+    )
+    assert completed.returncode == 17, (completed.stdout, completed.stderr)
 
 
 @pytest.mark.skipif(sys.platform != "darwin", reason="Darwin ACL regression")

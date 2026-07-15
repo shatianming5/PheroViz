@@ -838,18 +838,25 @@ def _run_release_child(
 ) -> int:
     watched_signals = (signal.SIGHUP, signal.SIGINT, signal.SIGTERM)
     previous_mask = signal.pthread_sigmask(signal.SIG_BLOCK, watched_signals)
+    supervisor_mask = set(previous_mask).difference(watched_signals)
     previous_handlers: dict[int, object] = {}
     process: subprocess.Popen[bytes] | None = None
+    interrupted_signal: int | None = None
 
     def terminate_from_signal(signum: int, _frame: object) -> None:
-        raise M5ReleaseTestError(
-            f"M5 release tests interrupted by signal {signum}"
-        )
+        nonlocal interrupted_signal
+        if interrupted_signal is None:
+            interrupted_signal = signum
 
     try:
         for signum in watched_signals:
             previous_handlers[signum] = signal.getsignal(signum)
             signal.signal(signum, terminate_from_signal)
+        signal.pthread_sigmask(signal.SIG_SETMASK, supervisor_mask)
+        if interrupted_signal is not None:
+            raise M5ReleaseTestError(
+                f"M5 release tests interrupted by signal {interrupted_signal}"
+            )
         process = subprocess.Popen(
             command,
             cwd=cwd,
@@ -857,13 +864,32 @@ def _run_release_child(
             stdin=subprocess.DEVNULL,
             start_new_session=True,
         )
-        signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
-        try:
-            return process.wait(timeout=_TEST_TIMEOUT_SECONDS)
-        except subprocess.TimeoutExpired as exc:
+        if interrupted_signal is not None:
             raise M5ReleaseTestError(
-                "M5 release tests exceeded the fixed timeout"
-            ) from exc
+                f"M5 release tests interrupted by signal {interrupted_signal}"
+            )
+        deadline = time.monotonic() + _TEST_TIMEOUT_SECONDS
+        while True:
+            if interrupted_signal is not None:
+                raise M5ReleaseTestError(
+                    "M5 release tests interrupted by signal "
+                    f"{interrupted_signal}"
+                )
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise M5ReleaseTestError(
+                    "M5 release tests exceeded the fixed timeout"
+                )
+            try:
+                exit_code = process.wait(timeout=min(0.1, remaining))
+            except subprocess.TimeoutExpired:
+                continue
+            if interrupted_signal is not None:
+                raise M5ReleaseTestError(
+                    "M5 release tests interrupted by signal "
+                    f"{interrupted_signal}"
+                )
+            return exit_code
     finally:
         active_error = sys.exc_info()[1]
         signal.pthread_sigmask(signal.SIG_BLOCK, watched_signals)
@@ -873,15 +899,27 @@ def _run_release_child(
                 _terminate_process_group(process)
             except Exception as exc:
                 cleanup_error = exc
-        for signum, previous_handler in previous_handlers.items():
-            signal.signal(signum, previous_handler)
-        signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
+        signal.pthread_sigmask(signal.SIG_SETMASK, supervisor_mask)
+        if (
+            active_error is None
+            and cleanup_error is None
+            and interrupted_signal is None
+        ):
+            signal.pthread_sigmask(signal.SIG_BLOCK, watched_signals)
+            if interrupted_signal is None:
+                for signum, previous_handler in previous_handlers.items():
+                    signal.signal(signum, previous_handler)
+                signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
         if cleanup_error is not None:
             if active_error is not None:
                 raise active_error.with_traceback(
                     active_error.__traceback__
                 ) from cleanup_error
             raise cleanup_error
+        if active_error is None and interrupted_signal is not None:
+            raise M5ReleaseTestError(
+                f"M5 release tests interrupted by signal {interrupted_signal}"
+            )
 
 
 def _run() -> int:
