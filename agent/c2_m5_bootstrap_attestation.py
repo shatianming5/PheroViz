@@ -36,10 +36,15 @@ REQUIRED_ATTESTED_PATHS = frozenset(
         "agent/c2_m5_bootstrap_attestation.py",
         "agent/c2_m5_downloader_bootstrap.py",
         "agent/c2_m5_release_test_runner.py",
+        "agent/sample.xlsx",
         "agent/c2_m5_sitecustomize/sitecustomize.py",
         "agent/c2_m5_source_pilot_bootstrap.py",
         "agent/experiments/__init__.py",
+        "agent/experiments/aggregate.py",
+        "agent/experiments/c2_full_replacement_evidence.py",
+        "agent/experiments/c2_full_replacement_finalizer.py",
         "agent/experiments/c2_full_replacement_policy.py",
+        "agent/experiments/c2_full_replacement_stageb_policy.py",
         "agent/experiments/cli.py",
         "agent/experiments/c2_m1_trust_boundary.py",
         "agent/experiments/c2_m5_source_pilot.py",
@@ -51,7 +56,15 @@ REQUIRED_ATTESTED_PATHS = frozenset(
         "agent/experiments/c2_stageb_source_extension_code_attestation_pin.py",
         "agent/experiments/models.py",
         "agent/experiments/manifest.py",
+        "agent/experiments/decision_report.py",
+        "agent/experiments/harness.py",
+        "agent/experiments/matrix.py",
         "agent/experiments/providers.py",
+        "agent/experiments/production_statistics.py",
+        "agent/experiments/provenance_stage.py",
+        "agent/experiments/rejudge.py",
+        "agent/experiments/scheduler.py",
+        "agent/experiments/c2_terminal_finalizer.py",
         "agent/experiments/resources/c2_owner_execution_authorization_v1.json",
         "agent/experiments/resources/c2_owner_remediation_execution_policy_v1.json",
         DEPENDENCY_MANIFEST_RELATIVE,
@@ -74,6 +87,9 @@ REQUIRED_ATTESTED_PATHS = frozenset(
         "agent/tests/test_c2_remediation_root_finalizer.py",
         "agent/tests/test_c2_source_bearing_extension.py",
         "agent/tests/test_experiment_support.py",
+        "agent/tests/__init__.py",
+        "agent/tests/fixtures/c2_source_bearing_extension_test_attestation.json",
+        "agent/experiments/tests/__init__.py",
         "agent/experiments/tests/test_c2_stageb_source_extension_code_attestation.py",
     }
 )
@@ -165,6 +181,73 @@ def _canonical_bytes(value: object) -> bytes:
     ).encode("utf-8")
 
 
+def _require_no_git_grafts(repository: Path) -> None:
+    graft_value = _git_text(
+        repository,
+        ("rev-parse", "--git-path", "info/grafts"),
+        "M5 graft path",
+    )
+    graft_path = Path(graft_value)
+    if not graft_path.is_absolute():
+        graft_path = repository / graft_path
+    _require(
+        not os.path.lexists(graft_path),
+        "M5 repository graft metadata is forbidden",
+    )
+
+
+def _single_parent_commit(repository: Path, commit: str, label: str) -> str:
+    payload = _git_bytes(
+        repository,
+        ("cat-file", "commit", commit),
+        label,
+    )
+    raw_parents = [
+        line.removeprefix(b"parent ")
+        for line in payload.split(b"\n\n", 1)[0].splitlines()
+        if line.startswith(b"parent ")
+    ]
+    try:
+        parents = [parent.decode("ascii") for parent in raw_parents]
+    except UnicodeDecodeError as exc:
+        raise C2M5BootstrapAttestationError(
+            f"{label} has a malformed parent"
+        ) from exc
+    _require(
+        len(parents) == 1 and _COMMIT_RE.fullmatch(parents[0]) is not None,
+        f"{label} must have exactly one literal parent",
+    )
+    return parents[0]
+
+
+def _require_nonmutating_acl(path: Path, label: str) -> None:
+    if sys.platform != "darwin":
+        return
+    try:
+        completed = subprocess.run(
+            ["/bin/ls", "-lde", str(path)],
+            check=True,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            env={"PATH": "/usr/bin:/bin", "LANG": "C", "LC_ALL": "C"},
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise C2M5BootstrapAttestationError(
+            f"{label} ACL could not be verified"
+        ) from exc
+    acl_entries = [
+        line.strip()
+        for line in completed.stdout.splitlines()[1:]
+        if line.strip()
+    ]
+    _require(
+        all(" deny " in entry for entry in acl_entries),
+        f"{label} grants mutation through a Darwin ACL",
+    )
+
+
 def _stable_regular_bytes(path: Path, label: str) -> bytes:
     before = path.lstat()
     _require(
@@ -174,6 +257,7 @@ def _stable_regular_bytes(path: Path, label: str) -> bytes:
         and before.st_mode & 0o022 == 0,
         f"{label} is not a private regular file",
     )
+    _require_nonmutating_acl(path, label)
     payload = path.read_bytes()
     after = path.lstat()
     _require(
@@ -213,6 +297,7 @@ def _require_root_owned_ancestry(path: Path, label: str) -> None:
             ),
             f"{label} has mutable or non-root-owned ancestry: {component}",
         )
+        _require_nonmutating_acl(component, f"{label} ancestor {component}")
 
 
 def _python_runtime_binding() -> dict[str, object]:
@@ -252,6 +337,12 @@ def _python_runtime_binding() -> dict[str, object]:
     _require(isinstance(stdlib_value, str), "M5 stdlib path is unavailable")
     stdlib = Path(stdlib_value).resolve()
     _require_root_owned_ancestry(stdlib, "M5 stdlib")
+    stdlib_zip = stdlib.parent / "python39.zip"
+    _require_root_owned_ancestry(stdlib_zip.parent, "M5 stdlib ZIP parent")
+    _require(
+        not os.path.lexists(stdlib_zip),
+        "M5 unauthenticated stdlib ZIP import root must be absent",
+    )
     inventory: list[dict[str, object]] = []
     for directory, directory_names, file_names in os.walk(
         stdlib,
@@ -276,6 +367,7 @@ def _python_runtime_binding() -> dict[str, object]:
                 and metadata.st_mode & 0o022 == 0,
                 f"M5 stdlib contains an unsafe directory: {child}",
             )
+            _require_nonmutating_acl(child, f"M5 stdlib directory {child}")
             retained_directories.append(name)
         directory_names[:] = retained_directories
         for name in sorted(file_names):
@@ -307,6 +399,8 @@ def _python_runtime_binding() -> dict[str, object]:
             runtime_library_payload
         ).hexdigest(),
         "stdlib_path": str(stdlib),
+        "stdlib_zip_path": str(stdlib_zip),
+        "stdlib_zip_status": "ABSENT",
         "stdlib_file_count": len(inventory),
         "stdlib_bytes": sum(int(item["bytes"]) for item in inventory),
         "stdlib_inventory_sha256": hashlib.sha256(
@@ -336,6 +430,7 @@ def _python_evidence_binding(
         "runtime_library_sha256": runtime_binding[
             "runtime_library_sha256"
         ],
+        "stdlib_zip_status": runtime_binding["stdlib_zip_status"],
         "stdlib_file_count": runtime_binding["stdlib_file_count"],
         "stdlib_bytes": runtime_binding["stdlib_bytes"],
         "stdlib_inventory_sha256": runtime_binding[
@@ -729,6 +824,7 @@ def verify_adapter_attestation(
         == repository,
         "M5 adapter is not running from its repository root",
     )
+    _require_no_git_grafts(repository)
     _require(
         _COMMIT_RE.fullmatch(expected_attestation_commit) is not None
         and _SHA256_RE.fullmatch(expected_manifest_sha256) is not None
@@ -748,9 +844,9 @@ def verify_adapter_attestation(
         "M5 attestation commit differs from the external launch binding",
     )
     attestation_commit = expected_attestation_commit
-    implementation_commit = _git_text(
+    implementation_commit = _single_parent_commit(
         repository,
-        ("rev-parse", f"{attestation_commit}^"),
+        attestation_commit,
         "M5 implementation commit",
     )
     _git_text(
@@ -787,6 +883,15 @@ def verify_adapter_attestation(
     _require(
         manifest_sha256 == expected_manifest_sha256,
         "M5 manifest differs from the external launch binding",
+    )
+    _require(
+        _git_bytes(
+            repository,
+            ("show", f"{attestation_commit}:{ATTESTATION_RELATIVE}"),
+            "M5 committed attestation manifest",
+        )
+        == manifest_payload,
+        "M5 committed attestation manifest differs from runtime bytes",
     )
     try:
         manifest = json.loads(manifest_payload)

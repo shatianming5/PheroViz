@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import uuid
@@ -20,6 +21,18 @@ from experiments.providers import (
     ProviderBatch,
     ProviderUnavailableError,
 )
+
+
+def release_test_git_repository() -> Path:
+    configured = os.environ.get("C2_M5_TEST_GIT_REPOSITORY")
+    repository = (
+        Path(__file__).resolve().parents[2]
+        if configured is None
+        else Path(configured)
+    )
+    if not repository.is_absolute() or not repository.is_dir() or repository.is_symlink():
+        raise AssertionError("release-test Git repository is unsafe")
+    return repository.resolve()
 
 
 @contextmanager

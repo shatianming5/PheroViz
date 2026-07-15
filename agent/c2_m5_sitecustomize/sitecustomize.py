@@ -100,6 +100,7 @@ def _public_addresses(host: str, port: int) -> list[tuple[Any, ...]]:
             or address.is_private
             or address.is_loopback
             or address.is_link_local
+            or getattr(address, "is_site_local", False)
             or address.is_multicast
             or address.is_reserved
             or address.is_unspecified
@@ -130,6 +131,7 @@ def _guarded_getaddrinfo(
             or address.is_private
             or address.is_loopback
             or address.is_link_local
+            or getattr(address, "is_site_local", False)
             or address.is_multicast
             or address.is_reserved
             or address.is_unspecified

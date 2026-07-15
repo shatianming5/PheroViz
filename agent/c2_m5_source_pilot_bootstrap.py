@@ -4,13 +4,18 @@ from __future__ import annotations
 
 import sys
 
-if (
-    not sys.flags.isolated
-    or not sys.flags.no_site
-    or not sys.flags.dont_write_bytecode
-):
-    print("M5 bootstrap refused: invoke Python with -I -S -B", file=sys.stderr)
-    raise SystemExit(2)
+
+def _require_isolated_python(flags):
+    if (
+        not flags.isolated
+        or not flags.no_site
+        or not flags.dont_write_bytecode
+    ):
+        print("M5 bootstrap refused: invoke Python with -I -S -B", file=sys.stderr)
+        raise SystemExit(2)
+
+
+_require_isolated_python(sys.flags)
 
 
 def _preauthenticate_helper(agent_root):

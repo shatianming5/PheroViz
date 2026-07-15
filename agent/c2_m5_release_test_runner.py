@@ -12,6 +12,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 import types
 import zipfile
 from pathlib import Path
@@ -36,6 +37,10 @@ _TEST_ARCHIVE = (
     _AGENT_ROOT
     / "experiments/resources/c2_m5_py39_test_dependencies_v1.zip"
 )
+_ATTESTATION_MANIFEST = (
+    _AGENT_ROOT
+    / "experiments/resources/c2_m5_source_pilot_attestation_v1.json"
+)
 _TEST_WHEELS = frozenset(
     {
         "exceptiongroup-1.3.1-py3-none-any.whl",
@@ -59,26 +64,38 @@ _MAX_FILE_BYTES = 16 * 1024 * 1024
 _MAX_ARCHIVE_BYTES = 32 * 1024 * 1024
 _MAX_RUNTIME_FILES = 2_000
 _TEST_TIMEOUT_SECONDS = 15 * 60
-_CHILD_LOADER = """\
+_PROCESS_GROUP_CLEANUP_SECONDS = 10
+_PYTEST_CONFIG = b"[pytest]\naddopts =\n"
+_PYTEST_CHILD = """\
 import os
 import sys
 
-fd = os.open(sys.argv[1], os.O_RDONLY | os.O_NOFOLLOW)
-try:
-    payload = bytearray()
-    while True:
-        block = os.read(fd, 1024 * 1024)
-        if not block:
-            break
-        payload.extend(block)
-        if len(payload) > 2 * 1024 * 1024:
-            raise RuntimeError("retained M5 release runner is oversized")
-finally:
-    os.close(fd)
-original = sys.argv[2]
-sys.argv = [original, *sys.argv[3:]]
-scope = {"__name__": "__main__", "__file__": original}
-exec(compile(bytes(payload), original, "exec"), scope, scope)
+production, tests, source, config, *targets = sys.argv[1:]
+sys.path[:0] = [tests, production, os.path.join(source, "agent")]
+from c2_m5_source_pilot_bootstrap import _install_python39_compatibility
+
+_install_python39_compatibility()
+import pytest
+
+os.chdir(source)
+raise SystemExit(
+    pytest.main(
+        [
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            "--disable-warnings",
+            "-c",
+            config,
+            "--rootdir",
+            source,
+            "--confcutdir",
+            source,
+            "--noconftest",
+            *targets,
+        ]
+    )
+)
 """
 _GIT_ENVIRONMENT = {
     "PATH": "/usr/bin:/bin",
@@ -202,6 +219,20 @@ def _load_json(payload: bytes, label: str) -> Dict[str, object]:
     return value
 
 
+def _retained_attested_payload(
+    payloads: Mapping[str, bytes],
+    relative: str,
+    label: str,
+    maximum_bytes: int,
+) -> bytes:
+    payload = payloads.get(relative)
+    _require(
+        isinstance(payload, bytes) and 0 < len(payload) <= maximum_bytes,
+        f"{label} is missing from the retained M5 attestation",
+    )
+    return payload
+
+
 def _git(arguments: Tuple[str, ...], label: str) -> bytes:
     try:
         completed = subprocess.run(
@@ -245,10 +276,67 @@ def _trusted_temporary_parent() -> Path:
             and metadata.st_mode & 0o022 == 0,
             f"M5 release temporary ancestor is unsafe: {current}",
         )
+        _require_nonmutating_acl(current, f"M5 release temporary ancestor {current}")
     return parent
 
 
+def _require_nonmutating_acl(path: Path, label: str) -> None:
+    if sys.platform != "darwin":
+        return
+    try:
+        completed = subprocess.run(
+            ["/bin/ls", "-lde", str(path)],
+            check=True,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            env={"PATH": "/usr/bin:/bin", "LANG": "C", "LC_ALL": "C"},
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise M5ReleaseTestError(f"{label} ACL could not be verified") from exc
+    acl_entries = [
+        line.strip()
+        for line in completed.stdout.splitlines()[1:]
+        if line.strip()
+    ]
+    _require(
+        all(" deny " in entry for entry in acl_entries),
+        f"{label} grants mutation through a Darwin ACL",
+    )
+
+
+def _remove_acl(path: Path, label: str) -> None:
+    if sys.platform != "darwin":
+        return
+    try:
+        subprocess.run(
+            ["/bin/chmod", "-N", str(path)],
+            check=True,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env={"PATH": "/usr/bin:/bin", "LANG": "C", "LC_ALL": "C"},
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise M5ReleaseTestError(f"{label} ACL could not be removed") from exc
+    _require_nonmutating_acl(path, label)
+
+
 def _verified_production_attestation_module() -> Tuple[types.ModuleType, bytes]:
+    expected_runner_sha256 = _release_pin(
+        "C2_M5_EXPECTED_RELEASE_RUNNER_SHA256",
+        64,
+    )
+    expected_attestation_commit = _release_pin(
+        "C2_M5_EXPECTED_ATTESTATION_COMMIT",
+        40,
+    )
+    expected_manifest_sha256 = _release_pin(
+        "C2_M5_EXPECTED_MANIFEST_SHA256",
+        64,
+    )
+    _require_no_git_grafts(_REPOSITORY)
     head = _git(("rev-parse", "HEAD"), "M5 release HEAD").decode("ascii").strip()
     _require(
         len(head) == 40 and all(character in "0123456789abcdef" for character in head),
@@ -258,6 +346,89 @@ def _verified_production_attestation_module() -> Tuple[types.ModuleType, bytes]:
     runner_relative = "agent/c2_m5_release_test_runner.py"
     helper_path = _REPOSITORY / helper_relative
     runner_path = _REPOSITORY / runner_relative
+    manifest_relative = (
+        "agent/experiments/resources/c2_m5_source_pilot_attestation_v1.json"
+    )
+    manifest_payload = _stable_regular(
+        _ATTESTATION_MANIFEST,
+        "M5 release attestation manifest",
+        4 * 1024 * 1024,
+    )
+    _require(
+        _sha256(manifest_payload) == expected_manifest_sha256,
+        "M5 release manifest differs from the external digest",
+    )
+    manifest = _load_json(manifest_payload, "M5 release attestation manifest")
+    implementation_commit = _single_parent_commit(
+        _REPOSITORY,
+        expected_attestation_commit,
+        "M5 attestation commit",
+    )
+    _require(
+        _git(
+            ("log", "-1", "--format=%H", "--", manifest_relative),
+            "M5 manifest introducing commit",
+        ).decode("ascii").strip()
+        == expected_attestation_commit
+        and _git(
+            ("merge-base", "--is-ancestor", expected_attestation_commit, head),
+            "M5 attestation ancestry",
+        )
+        == b""
+        and _git(
+            (
+                "diff",
+                "--name-status",
+                "--no-renames",
+                implementation_commit,
+                expected_attestation_commit,
+            ),
+            "M5 manifest-only commit",
+        ).decode("utf-8").strip()
+        == f"A\t{manifest_relative}"
+        and _git(
+            ("show", f"{expected_attestation_commit}:{manifest_relative}"),
+            "M5 committed manifest",
+        )
+        == manifest_payload,
+        "M5 external manifest commit binding is invalid",
+    )
+    _require(
+        set(manifest)
+        == {
+            "schema_version",
+            "approved_implementation_commit_full",
+            "attested_paths",
+        }
+        and manifest.get("schema_version")
+        == "c2_m5_source_pilot_attestation_v1"
+        and manifest.get("approved_implementation_commit_full")
+        == implementation_commit,
+        "M5 release attestation manifest shape is invalid",
+    )
+    raw_entries = manifest.get("attested_paths")
+    _require(isinstance(raw_entries, list), "M5 release attested paths are invalid")
+    attested_entries: Dict[str, Mapping[str, object]] = {}
+    for entry in raw_entries:
+        _require(
+            isinstance(entry, dict)
+            and set(entry) == {"relative_path", "git_blob_object_id", "sha256"}
+            and isinstance(entry.get("relative_path"), str)
+            and entry["relative_path"]
+            and "\\" not in entry["relative_path"]
+            and not Path(entry["relative_path"]).is_absolute()
+            and ".." not in Path(entry["relative_path"]).parts
+            and entry["relative_path"] not in attested_entries
+            and isinstance(entry.get("git_blob_object_id"), str)
+            and len(entry["git_blob_object_id"]) == 40
+            and all(
+                character in "0123456789abcdef"
+                for character in entry["git_blob_object_id"]
+            )
+            and _is_sha256(entry.get("sha256")),
+            "M5 release attestation entry is invalid",
+        )
+        attested_entries[entry["relative_path"]] = entry
     helper_payload = _stable_regular(
         helper_path,
         "M5 release attestation helper",
@@ -268,12 +439,29 @@ def _verified_production_attestation_module() -> Tuple[types.ModuleType, bytes]:
         "M5 release test runner",
         2 * 1024 * 1024,
     )
+    for relative, payload in (
+        (helper_relative, helper_payload),
+        (runner_relative, runner_payload),
+    ):
+        entry = attested_entries.get(relative)
+        _require(
+            entry is not None
+            and entry["sha256"] == _sha256(payload)
+            and _git(
+                ("rev-parse", f"{implementation_commit}:{relative}"),
+                f"M5 attested blob {relative}",
+            ).decode("ascii").strip()
+            == entry["git_blob_object_id"]
+            and _git(
+                ("show", f"{implementation_commit}:{relative}"),
+                f"M5 attested payload {relative}",
+            )
+            == payload,
+            f"M5 release verifier is not authenticated: {relative}",
+        )
     _require(
-        _git(("show", f"{head}:{helper_relative}"), "committed M5 helper")
-        == helper_payload
-        and _git(("show", f"{head}:{runner_relative}"), "committed M5 runner")
-        == runner_payload,
-        "M5 release verifier differs from HEAD",
+        _sha256(runner_payload) == expected_runner_sha256,
+        "M5 release runner differs from its external digest",
     )
     module_name = "c2_m5_release_verified_attestation"
     _require(
@@ -424,6 +612,14 @@ def _test_dependency_payloads(
 
 def _materialize(root: Path, payloads: Mapping[str, bytes]) -> None:
     for relative, payload in sorted(payloads.items()):
+        relative_path = Path(relative)
+        _require(
+            relative
+            and "\\" not in relative
+            and not relative_path.is_absolute()
+            and ".." not in relative_path.parts,
+            f"unsafe materialization path: {relative}",
+        )
         target = root / relative
         target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         descriptor = os.open(
@@ -446,30 +642,246 @@ def _materialize(root: Path, payloads: Mapping[str, bytes]) -> None:
             os.close(descriptor)
 
 
-def _child(production: Path, tests: Path) -> int:
+def _verify_materialized(root: Path, payloads: Mapping[str, bytes]) -> None:
+    observed: Dict[str, bytes] = {}
+    for directory, directory_names, file_names in os.walk(
+        root,
+        topdown=True,
+        followlinks=False,
+    ):
+        directory_path = Path(directory)
+        for name in sorted(directory_names):
+            child = directory_path / name
+            metadata = child.lstat()
+            _require(
+                stat.S_ISDIR(metadata.st_mode) and not stat.S_ISLNK(metadata.st_mode),
+                f"M5 materialized source directory is unsafe: {child}",
+            )
+        for name in sorted(file_names):
+            path = directory_path / name
+            relative = path.relative_to(root).as_posix()
+            observed[relative] = _stable_regular(
+                path,
+                f"M5 materialized source {relative}",
+                _MAX_FILE_BYTES,
+            )
     _require(
-        production.is_absolute()
-        and tests.is_absolute()
-        and production.is_dir()
-        and tests.is_dir()
-        and not production.is_symlink()
-        and not tests.is_symlink(),
-        "M5 child dependency roots are unsafe",
+        observed == dict(payloads),
+        "M5 materialized source closure changed",
     )
-    sys.path[:0] = [str(tests), str(production), str(_AGENT_ROOT)]
-    import pytest
 
-    return int(
-        pytest.main(
+
+def _clone_private_git_repository(destination: Path, head: str) -> None:
+    environment = dict(_GIT_ENVIRONMENT)
+    environment["GIT_ALLOW_PROTOCOL"] = "file"
+    try:
+        subprocess.run(
             [
-                "-q",
-                "-p",
-                "no:cacheprovider",
-                "--disable-warnings",
-                *_TEST_TARGETS,
-            ]
+                *_GIT_PREFIX,
+                "-c",
+                "protocol.file.allow=always",
+                "clone",
+                "--local",
+                "--no-hardlinks",
+                "--no-checkout",
+                "--",
+                str(_REPOSITORY),
+                str(destination),
+            ],
+            check=True,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=environment,
         )
+        subprocess.run(
+            [
+                *_GIT_PREFIX,
+                "-C",
+                str(destination),
+                "checkout",
+                "--detach",
+                head,
+            ],
+            check=True,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=_GIT_ENVIRONMENT,
+        )
+        subprocess.run(
+            [
+                *_GIT_PREFIX,
+                "-C",
+                str(destination),
+                "config",
+                "core.hooksPath",
+                "/dev/null",
+            ],
+            check=True,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=_GIT_ENVIRONMENT,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise M5ReleaseTestError(
+            "M5 private Git test repository could not be materialized"
+        ) from exc
+    _require(
+        _git_in(destination, ("rev-parse", "HEAD"), "private Git HEAD")
+        .decode("ascii")
+        .strip()
+        == head,
+        "M5 private Git test repository has the wrong HEAD",
     )
+
+
+def _git_in(repository: Path, arguments: Tuple[str, ...], label: str) -> bytes:
+    try:
+        completed = subprocess.run(
+            [*_GIT_PREFIX, "-C", str(repository), *arguments],
+            check=True,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=_GIT_ENVIRONMENT,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise M5ReleaseTestError(f"{label} could not be verified") from exc
+    return completed.stdout
+
+
+def _require_no_git_grafts(repository: Path) -> None:
+    graft_value = _git_in(
+        repository,
+        ("rev-parse", "--git-path", "info/grafts"),
+        "M5 graft path",
+    ).decode("utf-8").strip()
+    graft_path = Path(graft_value)
+    if not graft_path.is_absolute():
+        graft_path = repository / graft_path
+    _require(
+        not os.path.lexists(graft_path),
+        "M5 repository graft metadata is forbidden",
+    )
+
+
+def _single_parent_commit(repository: Path, commit: str, label: str) -> str:
+    payload = _git_in(
+        repository,
+        ("cat-file", "commit", commit),
+        label,
+    )
+    raw_parents = [
+        line.removeprefix(b"parent ")
+        for line in payload.split(b"\n\n", 1)[0].splitlines()
+        if line.startswith(b"parent ")
+    ]
+    try:
+        parents = [parent.decode("ascii") for parent in raw_parents]
+    except UnicodeDecodeError as exc:
+        raise M5ReleaseTestError(f"{label} has a malformed parent") from exc
+    _require(
+        len(parents) == 1
+        and len(parents[0]) == 40
+        and all(character in "0123456789abcdef" for character in parents[0]),
+        f"{label} must have exactly one literal parent",
+    )
+    return parents[0]
+
+
+def _terminate_process_group(process: subprocess.Popen[bytes]) -> None:
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    except OSError as exc:
+        raise M5ReleaseTestError(
+            "M5 release test process group could not be terminated"
+        ) from exc
+    try:
+        process.wait(timeout=_PROCESS_GROUP_CLEANUP_SECONDS)
+    except subprocess.TimeoutExpired as exc:
+        raise M5ReleaseTestError(
+            "M5 release test leader could not be reaped"
+        ) from exc
+    deadline = time.monotonic() + _PROCESS_GROUP_CLEANUP_SECONDS
+    while True:
+        try:
+            os.killpg(process.pid, 0)
+        except ProcessLookupError:
+            return
+        except PermissionError as exc:
+            if time.monotonic() >= deadline:
+                raise M5ReleaseTestError(
+                    "M5 release test process group remained unverifiable"
+                ) from exc
+            time.sleep(0.01)
+            continue
+        except OSError as exc:
+            raise M5ReleaseTestError(
+                "M5 release test process group state could not be verified"
+            ) from exc
+        if time.monotonic() >= deadline:
+            raise M5ReleaseTestError(
+                "M5 release test descendants survived process-group termination"
+            )
+        time.sleep(0.01)
+
+
+def _run_release_child(
+    command: list[str],
+    *,
+    cwd: Path,
+    environment: Mapping[str, str],
+) -> int:
+    watched_signals = (signal.SIGHUP, signal.SIGINT, signal.SIGTERM)
+    previous_mask = signal.pthread_sigmask(signal.SIG_BLOCK, watched_signals)
+    previous_handlers: dict[int, object] = {}
+    process: subprocess.Popen[bytes] | None = None
+
+    def terminate_from_signal(signum: int, _frame: object) -> None:
+        raise M5ReleaseTestError(
+            f"M5 release tests interrupted by signal {signum}"
+        )
+
+    try:
+        for signum in watched_signals:
+            previous_handlers[signum] = signal.getsignal(signum)
+            signal.signal(signum, terminate_from_signal)
+        process = subprocess.Popen(
+            command,
+            cwd=cwd,
+            env=dict(environment),
+            stdin=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+        signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
+        try:
+            return process.wait(timeout=_TEST_TIMEOUT_SECONDS)
+        except subprocess.TimeoutExpired as exc:
+            raise M5ReleaseTestError(
+                "M5 release tests exceeded the fixed timeout"
+            ) from exc
+    finally:
+        active_error = sys.exc_info()[1]
+        signal.pthread_sigmask(signal.SIG_BLOCK, watched_signals)
+        cleanup_error: Exception | None = None
+        if process is not None:
+            try:
+                _terminate_process_group(process)
+            except Exception as exc:
+                cleanup_error = exc
+        for signum, previous_handler in previous_handlers.items():
+            signal.signal(signum, previous_handler)
+        signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
+        if cleanup_error is not None:
+            if active_error is not None:
+                raise active_error.with_traceback(
+                    active_error.__traceback__
+                ) from cleanup_error
+            raise cleanup_error
 
 
 def _run() -> int:
@@ -507,13 +919,16 @@ def _run() -> int:
         "M5 release runner is outside the verified runtime closure",
     )
 
-    production_manifest_payload = _stable_regular(
-        _PRODUCTION_MANIFEST,
+    retained_payloads = runtime_attestation.path_payloads
+    production_manifest_payload = _retained_attested_payload(
+        retained_payloads,
+        _PRODUCTION_MANIFEST.relative_to(_REPOSITORY).as_posix(),
         "M5 production dependency manifest",
         2 * 1024 * 1024,
     )
-    production_archive_payload = _stable_regular(
-        _PRODUCTION_ARCHIVE,
+    production_archive_payload = _retained_attested_payload(
+        retained_payloads,
+        _PRODUCTION_ARCHIVE.relative_to(_REPOSITORY).as_posix(),
         "M5 production dependency archive",
         _MAX_ARCHIVE_BYTES,
     )
@@ -531,13 +946,15 @@ def _run() -> int:
         production_manifest_payload,
         production_archive_payload,
     )
-    test_manifest_payload = _stable_regular(
-        _TEST_MANIFEST,
+    test_manifest_payload = _retained_attested_payload(
+        retained_payloads,
+        _TEST_MANIFEST.relative_to(_REPOSITORY).as_posix(),
         "M5 test dependency manifest",
         2 * 1024 * 1024,
     )
-    test_archive_payload = _stable_regular(
-        _TEST_ARCHIVE,
+    test_archive_payload = _retained_attested_payload(
+        retained_payloads,
+        _TEST_ARCHIVE.relative_to(_REPOSITORY).as_posix(),
         "M5 test dependency archive",
         _MAX_ARCHIVE_BYTES,
     )
@@ -552,6 +969,7 @@ def _run() -> int:
     ) as temporary:
         temporary_root = Path(temporary)
         temporary_root.chmod(0o700)
+        _remove_acl(temporary_root, "M5 release temporary root")
         temporary_metadata = temporary_root.lstat()
         _require(
             stat.S_ISDIR(temporary_metadata.st_mode)
@@ -562,17 +980,30 @@ def _run() -> int:
         )
         production_root = temporary_root / "production"
         test_root = temporary_root / "tests"
+        source_root = temporary_root / "source"
+        git_repository = temporary_root / "git-repository"
         temporary_directory = temporary_root / "tmp"
-        retained_runner_path = temporary_root / "retained_release_runner.py"
+        pytest_control_root = temporary_root / "pytest-control"
         production_root.mkdir(mode=0o700)
         test_root.mkdir(mode=0o700)
+        source_root.mkdir(mode=0o700)
         temporary_directory.mkdir(mode=0o700)
-        _materialize(
-            temporary_root,
-            {retained_runner_path.name: runner_payload},
-        )
+        pytest_control_root.mkdir(mode=0o700)
         _materialize(production_root, production_payloads)
         _materialize(test_root, test_payloads)
+        _materialize(source_root, runtime_attestation.path_payloads)
+        _materialize(pytest_control_root, {"pytest.ini": _PYTEST_CONFIG})
+        _verify_materialized(production_root, production_payloads)
+        _verify_materialized(test_root, test_payloads)
+        _verify_materialized(source_root, runtime_attestation.path_payloads)
+        _verify_materialized(
+            pytest_control_root,
+            {"pytest.ini": _PYTEST_CONFIG},
+        )
+        _clone_private_git_repository(
+            git_repository,
+            runtime_attestation.head_commit,
+        )
         environment = {
             "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
             "HOME": "/var/empty",
@@ -581,37 +1012,36 @@ def _run() -> int:
             "PYTHONDONTWRITEBYTECODE": "1",
             "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
             "TMPDIR": str(temporary_directory),
+            "C2_M5_TEST_GIT_REPOSITORY": str(git_repository),
         }
-        process = subprocess.Popen(
+        exit_code = _run_release_child(
             [
                 sys.executable,
                 "-I",
                 "-S",
                 "-B",
                 "-c",
-                _CHILD_LOADER,
-                str(retained_runner_path),
-                str(Path(__file__).resolve()),
-                "--child",
+                _PYTEST_CHILD,
                 str(production_root),
                 str(test_root),
+                str(source_root),
+                str(pytest_control_root / "pytest.ini"),
+                *_TEST_TARGETS,
             ],
-            cwd=_REPOSITORY,
-            env=environment,
-            stdin=subprocess.DEVNULL,
-            start_new_session=True,
+            cwd=source_root,
+            environment=environment,
         )
-        try:
-            return process.wait(timeout=_TEST_TIMEOUT_SECONDS)
-        except subprocess.TimeoutExpired:
-            os.killpg(process.pid, signal.SIGKILL)
-            process.wait()
-            raise M5ReleaseTestError("M5 release tests exceeded the fixed timeout")
+        _verify_materialized(production_root, production_payloads)
+        _verify_materialized(test_root, test_payloads)
+        _verify_materialized(source_root, runtime_attestation.path_payloads)
+        _verify_materialized(
+            pytest_control_root,
+            {"pytest.ini": _PYTEST_CONFIG},
+        )
+        return exit_code
 
 
 def main() -> int:
-    if len(sys.argv) == 4 and sys.argv[1] == "--child":
-        return _child(Path(sys.argv[2]), Path(sys.argv[3]))
     _require(len(sys.argv) == 1, "M5 release runner takes no arguments")
     return _run()
 

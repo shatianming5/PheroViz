@@ -3,10 +3,12 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import shutil
 import struct
 import subprocess
 import time
 import zipfile
+from functools import lru_cache
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -19,16 +21,19 @@ from experiments import c2_source_bearing_extension as source_extension
 from experiments.c2_source_bearing_extension import (
     SourceBearingExtensionError,
     build_source_bearing_extension,
-    build_source_bearing_extension_for_testing,
+    build_source_bearing_extension_for_testing as _build_source_bearing_extension_for_testing,
     validate_source_bearing_extension,
-    validate_source_bearing_extension_for_testing,
+    validate_source_bearing_extension_for_testing as _validate_source_bearing_extension_for_testing,
     verify_source_extension_code_attestation_for_testing,
 )
 from tests.test_c2_remediation_root_finalizer import (
     _make_fixture,
     _refresh_raw_inventory,
 )
-from tests.test_experiment_support import experiment_workspace
+from tests.test_experiment_support import (
+    experiment_workspace,
+    release_test_git_repository,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -60,6 +65,26 @@ def _exercise_guarded_remediation_calls(
             SimpleNamespace(required_action="FRESH_REMEDIATION_REQUIRED"),
         ),
     )
+
+
+@lru_cache(maxsize=1)
+def _test_code_attestation() -> Any:
+    return verify_source_extension_code_attestation_for_testing(
+        release_test_git_repository()
+    )
+
+
+def build_source_bearing_extension_for_testing(**kwargs: Any) -> Any:
+    kwargs["test_code_attestation"] = _test_code_attestation()
+    return _build_source_bearing_extension_for_testing(**kwargs)
+
+
+def validate_source_bearing_extension_for_testing(
+    root: Any,
+    **kwargs: Any,
+) -> dict[str, Any]:
+    kwargs["test_code_attestation"] = _test_code_attestation()
+    return _validate_source_bearing_extension_for_testing(root, **kwargs)
 
 
 def _canonical(value: Any) -> bytes:
@@ -456,7 +481,7 @@ def test_required_v2_schemas_are_closed_and_meta_schema_valid() -> None:
 
 
 def test_test_only_code_attestation_rejects_wrong_commit_blob_and_runtime_path() -> None:
-    repository = Path(__file__).resolve().parents[2]
+    repository = release_test_git_repository()
     current_commit = subprocess.check_output(
         ["git", "-C", str(repository), "rev-parse", "HEAD"],
         text=True,
@@ -510,6 +535,50 @@ def test_test_only_code_attestation_rejects_wrong_commit_blob_and_runtime_path()
             loaded_finalizer_path=finalizer_path,
             loaded_m1_trust_boundary_path=m1_trust_boundary_path,
         )
+        split_runtime = workspace / "split-runtime"
+        for relative in sorted(source_extension._REQUIRED_ATTESTED_CODE_PATHS):
+            source = clone / relative
+            destination = split_runtime / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source, destination)
+        split_models = split_runtime / "agent/experiments/models.py"
+        split_models.write_bytes(split_models.read_bytes() + b"\n# forged runtime\n")
+        with pytest.raises(SourceBearingExtensionError, match="runtime bytes differ"):
+            verify_source_extension_code_attestation_for_testing(
+                clone,
+                loaded_extension_path=(
+                    split_runtime
+                    / "agent/experiments/c2_source_bearing_extension.py"
+                ),
+                loaded_finalizer_path=(
+                    split_runtime
+                    / "agent/experiments/c2_remediation_root_finalizer.py"
+                ),
+                loaded_m1_trust_boundary_path=(
+                    split_runtime / "agent/experiments/c2_m1_trust_boundary.py"
+                ),
+            )
+        graft_path = Path(
+            subprocess.check_output(
+                ["git", "-C", str(clone), "rev-parse", "--git-path", "info/grafts"],
+                text=True,
+            ).strip()
+        )
+        if not graft_path.is_absolute():
+            graft_path = clone / graft_path
+        graft_path.parent.mkdir(parents=True, exist_ok=True)
+        graft_path.write_text(
+            f"{attestation.attestation_commit_full} {current_commit}\n",
+            encoding="ascii",
+        )
+        with pytest.raises(SourceBearingExtensionError, match="graft metadata"):
+            verify_source_extension_code_attestation_for_testing(
+                clone,
+                loaded_extension_path=extension_path,
+                loaded_finalizer_path=finalizer_path,
+                loaded_m1_trust_boundary_path=m1_trust_boundary_path,
+            )
+        graft_path.unlink()
         with pytest.raises(SourceBearingExtensionError, match="loaded runtime path"):
             verify_source_extension_code_attestation_for_testing(
                 clone,
@@ -601,7 +670,7 @@ def test_test_only_code_attestation_rejects_wrong_commit_blob_and_runtime_path()
             stderr=subprocess.PIPE,
             text=True,
         )
-        with pytest.raises(SourceBearingExtensionError, match="attested blob mismatch"):
+        with pytest.raises(SourceBearingExtensionError, match="runtime attestation"):
             verify_source_extension_code_attestation_for_testing(
                 clone,
                 loaded_extension_path=extension_path,
@@ -624,7 +693,7 @@ def test_test_only_code_attestation_rejects_wrong_commit_blob_and_runtime_path()
         )
         with pytest.raises(
             SourceBearingExtensionError,
-            match="attestation commit",
+            match="runtime attestation",
         ):
             verify_source_extension_code_attestation_for_testing(
                 clone,
@@ -766,172 +835,72 @@ def test_test_only_code_attestation_rejects_wrong_commit_blob_and_runtime_path()
             stderr=subprocess.PIPE,
             text=True,
         )
-        matching_test_only = verify_source_extension_code_attestation_for_testing(
-            malicious_clone,
-            loaded_extension_path=malicious_extension,
-            loaded_finalizer_path=(
-                malicious_clone
-                / "agent/experiments/c2_remediation_root_finalizer.py"
-            ),
-            loaded_m1_trust_boundary_path=(
-                malicious_clone / "agent/experiments/c2_m1_trust_boundary.py"
-            ),
-        )
-        assert (
-            matching_test_only.approved_implementation_commit_full
-            == malicious_implementation
-        )
+        with pytest.raises(SourceBearingExtensionError, match="runtime attestation"):
+            verify_source_extension_code_attestation_for_testing(
+                malicious_clone,
+                loaded_extension_path=malicious_extension,
+                loaded_finalizer_path=(
+                    malicious_clone
+                    / "agent/experiments/c2_remediation_root_finalizer.py"
+                ),
+                loaded_m1_trust_boundary_path=(
+                    malicious_clone / "agent/experiments/c2_m1_trust_boundary.py"
+                ),
+            )
 
 
 
-def test_test_only_code_attestation_rejects_invalid_child_topologies_and_manifest() -> None:
-    repository = Path(__file__).resolve().parents[2]
+def test_test_manifest_commit_is_derived_from_compile_pinned_runtime_parent() -> None:
+    repository = release_test_git_repository()
     attestation = verify_source_extension_code_attestation_for_testing(repository)
-    implementation = attestation.approved_implementation_commit_full
-    manifest_relative = (
-        "agent/tests/fixtures/c2_source_bearing_extension_test_attestation.json"
+    registry = (
+        source_extension.load_compile_pinned_source_extension_code_attestation()
     )
-    source_manifest = json.loads(
-        (repository / manifest_relative).read_text(encoding="utf-8")
+    runtime_commit = registry.manifest_only_attestation_commit_full
+    test_commit = subprocess.check_output(
+        ["git", "-C", str(repository), "rev-parse", f"{runtime_commit}^"],
+        text=True,
+    ).strip()
+    implementation_commit = subprocess.check_output(
+        ["git", "-C", str(repository), "rev-parse", f"{test_commit}^"],
+        text=True,
+    ).strip()
+
+    assert test_commit == attestation.attestation_commit_full
+    assert implementation_commit == attestation.approved_implementation_commit_full
+    assert implementation_commit == registry.extension_implementation_commit_full
+    assert subprocess.check_output(
+        [
+            "git",
+            "-C",
+            str(repository),
+            "diff",
+            "--name-status",
+            "--no-renames",
+            implementation_commit,
+            test_commit,
+        ],
+        text=True,
+    ).strip() == (
+        "A\tagent/tests/fixtures/"
+        "c2_source_bearing_extension_test_attestation.json"
     )
-
-    with experiment_workspace("c2-source-extension-attestation-topology") as workspace:
-        clone = workspace / "topology-clone"
-        subprocess.run(
-            ["git", "clone", "--no-local", "--no-checkout", str(repository), str(clone)],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
-
-        def git(*arguments: str) -> None:
-            subprocess.run(
-                ["git", "-C", str(clone), *arguments],
-                check=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-            )
-
-        for key, value in (
-            ("user.email", "attestation-topology-test@example.test"),
-            ("user.name", "Attestation Topology Test"),
-        ):
-            git("config", key, value)
-
-        manifest_path = clone / manifest_relative
-        extension_path = clone / "agent/experiments/c2_source_bearing_extension.py"
-        finalizer_path = clone / "agent/experiments/c2_remediation_root_finalizer.py"
-        m1_trust_boundary_path = (
-            clone / "agent/experiments/c2_m1_trust_boundary.py"
-        )
-        unexpected_child = clone / "unexpected-test-only-child.txt"
-
-        def checkout_implementation() -> None:
-            git("checkout", "--detach", implementation)
-            if unexpected_child.exists():
-                unexpected_child.unlink()
-
-        def clone_manifest() -> dict[str, Any]:
-            return json.loads(_canonical(source_manifest).decode("utf-8"))
-
-        def commit_manifest(
-            payload: bytes,
-            message: str,
-            *,
-            with_unexpected_child: bool = False,
-        ) -> None:
-            manifest_path.parent.mkdir(parents=True, exist_ok=True)
-            manifest_path.write_bytes(payload)
-            paths = [manifest_relative]
-            if with_unexpected_child:
-                unexpected_child.write_text("unexpected child diff\n", encoding="utf-8")
-                paths.append(unexpected_child.relative_to(clone).as_posix())
-            git("add", *paths)
-            git("commit", "-m", message)
-
-        checkout_implementation()
-        with pytest.raises(
-            SourceBearingExtensionError,
-            match="must add only its manifest",
-        ):
-            verify_source_extension_code_attestation_for_testing(
-                clone,
-                loaded_extension_path=extension_path,
-                loaded_finalizer_path=finalizer_path,
-                loaded_m1_trust_boundary_path=m1_trust_boundary_path,
-            )
-
-        checkout_implementation()
-        commit_manifest(
-            _test_only_attestation_payload(clone, implementation),
-            "test non-manifest attestation child",
-            with_unexpected_child=True,
-        )
-        with pytest.raises(
-            SourceBearingExtensionError,
-            match="must add only its manifest",
-        ):
-            verify_source_extension_code_attestation_for_testing(
-                clone,
-                loaded_extension_path=extension_path,
-                loaded_finalizer_path=finalizer_path,
-                loaded_m1_trust_boundary_path=m1_trust_boundary_path,
-            )
-
-        wrong_blob = clone_manifest()
-        wrong_blob["attested_paths"][0]["git_blob_object_id"] = "0" * 40
-        checkout_implementation()
-        commit_manifest(
-            _canonical(wrong_blob) + b"\n",
-            "test wrong attestation blob",
-        )
-        with pytest.raises(SourceBearingExtensionError, match="attested blob mismatch"):
-            verify_source_extension_code_attestation_for_testing(
-                clone,
-                loaded_extension_path=extension_path,
-                loaded_finalizer_path=finalizer_path,
-                loaded_m1_trust_boundary_path=m1_trust_boundary_path,
-            )
-
-        wrong_path = clone_manifest()
-        wrong_path["attested_paths"][0]["relative_path"] = (
-            "agent/experiments/not_attested.py"
-        )
-        checkout_implementation()
-        commit_manifest(
-            _canonical(wrong_path) + b"\n",
-            "test wrong attestation path",
-        )
-        with pytest.raises(
-            SourceBearingExtensionError,
-            match="code attestation blob is invalid",
-        ):
-            verify_source_extension_code_attestation_for_testing(
-                clone,
-                loaded_extension_path=extension_path,
-                loaded_finalizer_path=finalizer_path,
-                loaded_m1_trust_boundary_path=m1_trust_boundary_path,
-            )
-
-        wrong_manifest = clone_manifest()
-        wrong_manifest["approved_implementation_commit_full"] = "0" * 40
-        checkout_implementation()
-        commit_manifest(
-            _canonical(wrong_manifest) + b"\n",
-            "test wrong attestation manifest",
-        )
-        with pytest.raises(
-            SourceBearingExtensionError,
-            match="code attestation manifest is invalid",
-        ):
-            verify_source_extension_code_attestation_for_testing(
-                clone,
-                loaded_extension_path=extension_path,
-                loaded_finalizer_path=finalizer_path,
-                loaded_m1_trust_boundary_path=m1_trust_boundary_path,
-            )
+    assert subprocess.check_output(
+        [
+            "git",
+            "-C",
+            str(repository),
+            "diff",
+            "--name-status",
+            "--no-renames",
+            test_commit,
+            runtime_commit,
+        ],
+        text=True,
+    ).strip() == (
+        "A\tagent/experiments/resources/"
+        "c2_source_extension_runtime_manifest_v1.json"
+    )
 
 
 def test_production_extension_routes_use_fixed_runtime_attestation() -> None:

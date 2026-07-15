@@ -12,7 +12,10 @@ import pytest
 
 from experiments import c2_remediation_root_finalizer as finalizer
 from experiments.models import sha256_file
-from tests.test_experiment_support import experiment_workspace
+from tests.test_experiment_support import (
+    experiment_workspace,
+    release_test_git_repository,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -481,7 +484,7 @@ def _make_fixture(
         },
     )
     worktree = workspace / "frozen-acquisition-worktree"
-    repository = Path(__file__).resolve().parents[2]
+    repository = release_test_git_repository()
     subprocess.run(
         ["git", "clone", "--shared", "--no-checkout", str(repository), str(worktree)],
         check=True,
@@ -623,6 +626,27 @@ def test_finalizes_exact_200_and_63_roots(
             "status": "PUBLISHED_ATOMIC_NO_REPLACE",
             "canonical_target_identity_verified": True,
         }
+        terminal_manifest_path = (
+            target / "sealed_report_v1/terminal_manifest.json"
+        )
+        terminal_manifest = json.loads(
+            terminal_manifest_path.read_text(encoding="utf-8")
+        )
+        assert result["terminal_manifest_sha256"] == sha256_file(
+            terminal_manifest_path
+        )
+        assert result["terminal_manifest_hash"] == terminal_manifest["manifest_hash"]
+        terminal_paths = {entry["path"] for entry in terminal_manifest["files"]}
+        assert {
+            "sealed_report_v1/sealed_report.json",
+            "sealed_report_v1/postseal_preservation.json",
+            "sealed_report_v1/validation.json",
+        }.issubset(terminal_paths)
+        assert (
+            target / "sealed_report_v1/terminal_manifest.sha256"
+        ).read_text(encoding="utf-8") == (
+            f"{result['terminal_manifest_sha256']}  terminal_manifest.json\n"
+        )
         assert validation["gates"]["private_trusted_staging_parent"] is True
         report_payload = json.loads(report.read_text(encoding="utf-8"))
         assert report_payload["execution_authorization"] == {
@@ -861,6 +885,44 @@ def test_unsupported_native_publication_removes_private_staging(
         )
 
 
+def test_terminal_manifest_mutation_before_publication_fails_and_cleans_staging(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with experiment_workspace("c2-remediation-terminal-manifest-race") as workspace:
+        paths = _make_fixture(workspace, monkeypatch, chunk_id="001")
+        original_write = finalizer._write_bytes
+
+        def mutate_manifest_after_sidecar(
+            target: finalizer._SecureTargetRoot,
+            relative: str,
+            payload: bytes,
+        ) -> str:
+            written = original_write(target, relative, payload)
+            if relative == "sealed_report_v1/terminal_manifest.sha256":
+                (
+                    target.path.parent
+                    / target.staging_name
+                    / "sealed_report_v1"
+                    / "terminal_manifest.json"
+                ).write_bytes(b"{}\n")
+            return written
+
+        monkeypatch.setattr(finalizer, "_write_bytes", mutate_manifest_after_sidecar)
+
+        with pytest.raises(
+            finalizer.C2RemediationError,
+            match="terminal publication binding changed",
+        ):
+            _finalize(paths, "001")
+
+        assert not paths["target_root"].exists()
+        assert not list(
+            paths["target_root"].parent.glob(
+                f".{paths['target_root'].name}.c2-remediation-staging-*"
+            )
+        )
+
+
 def test_rejects_symlinked_provenance_before_creating_target(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1086,6 +1148,11 @@ def test_descriptor_target_detects_parent_swap_without_outside_write(
         with pytest.raises(finalizer.ProvenanceError):
             _finalize(paths, "001")
         assert not (outside / paths["target_root"].name).exists()
+        assert not list(
+            (workspace / "moved-output").glob(
+                f".{paths['target_root'].name}.c2-remediation-staging-*"
+            )
+        )
 
 
 def test_descriptor_target_detects_leaf_swap_without_outside_write(

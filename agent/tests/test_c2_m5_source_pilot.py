@@ -7,6 +7,7 @@ import json
 import os
 import shlex
 import shutil
+import signal
 import stat
 import struct
 import subprocess
@@ -49,6 +50,7 @@ if sys.version_info < (3, 10):
     dataclasses.dataclass = _compatible_dataclass
 
 import c2_m5_bootstrap_attestation as m5_attestation
+import c2_m5_release_test_runner as release_runner
 from experiments import c2_m5_source_pilot as pilot
 from experiments import c2_remediation_root_finalizer as finalizer
 from experiments import c2_source_bearing_extension as source_extension
@@ -1305,9 +1307,9 @@ def test_final_m5_manifest_verifies_positive_path(
         "run_chain.py",
         "run_multi_panel.py",
     }:
-        shutil.copyfile(
-            source_repository / "agent" / name,
-            repository / "agent" / name,
+        (repository / "agent" / name).write_text(
+            '"""Synthetic non-runtime file for clean-tree verification."""\n',
+            encoding="utf-8",
         )
     subprocess.run(["git", "-C", str(repository), "add", "agent"], check=True)
     subprocess.run(
@@ -1420,6 +1422,343 @@ def test_final_m5_manifest_verifies_positive_path(
     )
     assert completed.returncode == 0, completed.stderr
     assert "execute" in completed.stdout
+
+
+def test_m5_release_manifest_covers_transitive_test_imports() -> None:
+    assert {
+        "agent/experiments/aggregate.py",
+        "agent/experiments/c2_full_replacement_evidence.py",
+        "agent/experiments/c2_full_replacement_finalizer.py",
+        "agent/experiments/c2_full_replacement_stageb_policy.py",
+        "agent/experiments/c2_terminal_finalizer.py",
+        "agent/experiments/decision_report.py",
+        "agent/experiments/harness.py",
+        "agent/experiments/matrix.py",
+        "agent/experiments/production_statistics.py",
+        "agent/experiments/provenance_stage.py",
+        "agent/experiments/rejudge.py",
+        "agent/experiments/scheduler.py",
+        "agent/tests/__init__.py",
+        "agent/experiments/tests/__init__.py",
+        "agent/tests/fixtures/c2_source_bearing_extension_test_attestation.json",
+        "agent/sample.xlsx",
+    }.issubset(m5_attestation.REQUIRED_ATTESTED_PATHS)
+
+
+def test_release_runner_refuses_without_external_runner_digest() -> None:
+    runner = (
+        Path(__file__).resolve().parents[1] / "c2_m5_release_test_runner.py"
+    )
+    completed = subprocess.run(
+        [sys.executable, "-I", "-S", "-B", str(runner)],
+        cwd=runner.parent,
+        env={
+            "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+            "HOME": "/var/empty",
+            "LANG": "C",
+            "LC_ALL": "C",
+        },
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode == 2
+    assert "C2_M5_EXPECTED_RELEASE_RUNNER_SHA256" in completed.stderr
+
+
+def test_release_runner_fixes_pytest_configuration_boundary() -> None:
+    child = release_runner._PYTEST_CHILD
+    assert '"-c"' in child
+    assert '"--rootdir"' in child
+    assert '"--confcutdir"' in child
+    assert '"--noconftest"' in child
+    assert release_runner._PYTEST_CONFIG == b"[pytest]\naddopts =\n"
+
+
+def test_private_git_copy_never_executes_source_upload_pack_hook(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    subprocess.run(["git", "init", "-q", str(repository)], check=True)
+    subprocess.run(
+        ["git", "-C", str(repository), "config", "user.name", "M5 Test"],
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(repository), "config", "user.email", "m5@example.invalid"],
+        check=True,
+    )
+    (repository / "tracked.txt").write_text("retained\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repository), "add", "tracked.txt"], check=True)
+    subprocess.run(
+        ["git", "-C", str(repository), "commit", "-q", "-m", "retained"],
+        check=True,
+    )
+    marker = tmp_path / "upload-pack-ran"
+    hook = tmp_path / "pack-objects-hook"
+    hook.write_text(
+        "#!/bin/sh\n"
+        f"/usr/bin/touch {shlex.quote(str(marker))}\n"
+        'exec /usr/bin/git pack-objects "$@"\n',
+        encoding="utf-8",
+    )
+    hook.chmod(0o700)
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repository),
+            "config",
+            "uploadpack.packObjectsHook",
+            str(hook),
+        ],
+        check=True,
+    )
+
+    private_repository = tmp_path / "private"
+    head = subprocess.check_output(
+        ["git", "-C", str(repository), "rev-parse", "HEAD"],
+        text=True,
+    ).strip()
+    monkeypatch.setattr(release_runner, "_REPOSITORY", repository)
+    release_runner._clone_private_git_repository(
+        private_repository,
+        head,
+    )
+
+    assert not marker.exists()
+    assert (
+        subprocess.check_output(
+            ["git", "-C", str(private_repository), "rev-parse", "HEAD"],
+            text=True,
+        ).strip()
+        == head
+    )
+
+
+def test_m5_topology_helpers_reject_grafts_and_merge_parents(
+    tmp_path: Path,
+) -> None:
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    subprocess.run(["git", "init", "-q", str(repository)], check=True)
+    subprocess.run(
+        ["git", "-C", str(repository), "config", "user.name", "M5 Test"],
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(repository), "config", "user.email", "m5@example.invalid"],
+        check=True,
+    )
+    (repository / "base.txt").write_text("base\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repository), "add", "base.txt"], check=True)
+    subprocess.run(
+        ["git", "-C", str(repository), "commit", "-q", "-m", "base"],
+        check=True,
+    )
+    base_branch = subprocess.check_output(
+        ["git", "-C", str(repository), "symbolic-ref", "--short", "HEAD"],
+        text=True,
+    ).strip()
+    subprocess.run(
+        ["git", "-C", str(repository), "checkout", "-q", "-b", "side"],
+        check=True,
+    )
+    (repository / "side.txt").write_text("side\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repository), "add", "side.txt"], check=True)
+    subprocess.run(
+        ["git", "-C", str(repository), "commit", "-q", "-m", "side"],
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(repository), "checkout", "-q", base_branch],
+        check=True,
+    )
+    (repository / "main.txt").write_text("main\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repository), "add", "main.txt"], check=True)
+    subprocess.run(
+        ["git", "-C", str(repository), "commit", "-q", "-m", "main"],
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(repository), "merge", "-q", "--no-ff", "side", "-m", "merge"],
+        check=True,
+    )
+    merge_commit = subprocess.check_output(
+        ["git", "-C", str(repository), "rev-parse", "HEAD"],
+        text=True,
+    ).strip()
+    with pytest.raises(
+        m5_attestation.C2M5BootstrapAttestationError,
+        match="exactly one literal parent",
+    ):
+        m5_attestation._single_parent_commit(
+            repository,
+            merge_commit,
+            "test M5 merge",
+        )
+    with pytest.raises(
+        release_runner.M5ReleaseTestError,
+        match="exactly one literal parent",
+    ):
+        release_runner._single_parent_commit(
+            repository,
+            merge_commit,
+            "test M5 merge",
+        )
+
+    graft_path = repository / ".git/info/grafts"
+    graft_path.parent.mkdir(parents=True, exist_ok=True)
+    graft_path.write_text(f"{merge_commit} {merge_commit}\n", encoding="ascii")
+    with pytest.raises(
+        m5_attestation.C2M5BootstrapAttestationError,
+        match="graft metadata",
+    ):
+        m5_attestation._require_no_git_grafts(repository)
+    with pytest.raises(
+        release_runner.M5ReleaseTestError,
+        match="graft metadata",
+    ):
+        release_runner._require_no_git_grafts(repository)
+
+
+def test_release_runner_kills_descendants_after_leader_exit(
+    tmp_path: Path,
+) -> None:
+    child_pid_path = tmp_path / "child.pid"
+    leader = subprocess.Popen(
+        [
+            sys.executable,
+            "-I",
+            "-S",
+            "-B",
+            "-c",
+            (
+                "import pathlib,subprocess,sys; "
+                "child=subprocess.Popen("
+                "[sys.executable,'-I','-S','-B','-c',"
+                "'import time; time.sleep(60)']); "
+                f"pathlib.Path({str(child_pid_path)!r}).write_text(str(child.pid))"
+            ),
+        ],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+    assert leader.wait(timeout=5) == 0
+    child_pid = int(child_pid_path.read_text(encoding="utf-8"))
+
+    release_runner._terminate_process_group(leader)
+
+    with pytest.raises(ProcessLookupError):
+        os.kill(child_pid, 0)
+
+
+def test_release_runner_cleans_process_group_on_sigterm(tmp_path: Path) -> None:
+    child_pid_path = tmp_path / "signal-child.pid"
+    agent_root = Path(__file__).resolve().parents[1]
+    child_code = (
+        "import pathlib,subprocess,sys,time; "
+        "child=subprocess.Popen("
+        "[sys.executable,'-I','-S','-B','-c',"
+        "'import time; time.sleep(60)']); "
+        f"pathlib.Path({str(child_pid_path)!r}).write_text(str(child.pid)); "
+        "time.sleep(60)"
+    )
+    wrapper_code = f"""
+import pathlib
+import sys
+sys.path.insert(0, {str(agent_root)!r})
+import c2_m5_release_test_runner as runner
+try:
+    runner._run_release_child(
+        [sys.executable, "-I", "-S", "-B", "-c", {child_code!r}],
+        cwd=pathlib.Path({str(tmp_path)!r}),
+        environment={{
+            "PATH": "/usr/bin:/bin",
+            "HOME": "/var/empty",
+            "LANG": "C",
+            "LC_ALL": "C",
+        }},
+    )
+except runner.M5ReleaseTestError as exc:
+    raise SystemExit(17 if "signal" in str(exc) else 18)
+raise SystemExit(19)
+"""
+    wrapper = subprocess.Popen(
+        [sys.executable, "-I", "-S", "-B", "-c", wrapper_code],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    deadline = time.monotonic() + 5
+    while not child_pid_path.exists():
+        if wrapper.poll() is not None:
+            stdout, stderr = wrapper.communicate()
+            raise AssertionError(
+                f"release wrapper exited early: {wrapper.returncode}: "
+                f"{stdout}\n{stderr}"
+            )
+        if time.monotonic() >= deadline:
+            wrapper.kill()
+            wrapper.wait()
+            raise AssertionError("release wrapper did not start its child")
+        time.sleep(0.01)
+    child_pid = int(child_pid_path.read_text(encoding="utf-8"))
+
+    os.kill(wrapper.pid, signal.SIGTERM)
+    stdout, stderr = wrapper.communicate(timeout=15)
+
+    assert wrapper.returncode == 17, (stdout, stderr)
+    with pytest.raises(ProcessLookupError):
+        os.kill(child_pid, 0)
+
+
+@pytest.mark.skipif(sys.platform != "darwin", reason="Darwin ACL regression")
+def test_runtime_acl_checks_reject_mutating_allow_entry(tmp_path: Path) -> None:
+    target = tmp_path / "runtime.py"
+    target.write_text("trusted = True\n", encoding="utf-8")
+    username = subprocess.check_output(
+        ["/usr/bin/id", "-un"],
+        text=True,
+    ).strip()
+    subprocess.run(
+        [
+            "/bin/chmod",
+            "+a",
+            f"user:{username} allow write",
+            str(target),
+        ],
+        check=True,
+    )
+    try:
+        with pytest.raises(
+            m5_attestation.C2M5BootstrapAttestationError,
+            match="Darwin ACL",
+        ):
+            m5_attestation._require_nonmutating_acl(target, "test runtime")
+        with pytest.raises(
+            release_runner.M5ReleaseTestError,
+            match="Darwin ACL",
+        ):
+            release_runner._require_nonmutating_acl(target, "test runtime")
+    finally:
+        subprocess.run(["/bin/chmod", "-N", str(target)], check=True)
+
+
+def test_fixed_python_binding_requires_stdlib_zip_absence() -> None:
+    dependency_binding, _, manifest_payload, _ = _dependency_closure()
+    python_binding = dependency_binding["python"]
+    assert python_binding["stdlib_zip_status"] == "ABSENT"
+    runtime_binding = json.loads(manifest_payload)["python"]
+    assert runtime_binding["stdlib_zip_path"].endswith("/lib/python39.zip")
+    assert not Path(runtime_binding["stdlib_zip_path"]).exists()
 
 
 def test_git_object_reads_never_invoke_partial_clone_transport(tmp_path: Path) -> None:
@@ -1536,26 +1875,44 @@ def test_materialized_downloader_runs_behind_network_guard(tmp_path: Path) -> No
         "c2_m5_downloader_bootstrap.py",
     ),
 )
-@pytest.mark.parametrize("flags", [(), ("-S", "-B"), ("-I", "-B")])
+@pytest.mark.parametrize(
+    "missing_flag",
+    ("isolated", "no_site", "dont_write_bytecode"),
+)
 def test_bootstraps_require_all_isolation_flags(
     relative: str,
-    flags: tuple[str, ...],
+    missing_flag: str,
 ) -> None:
     bootstrap = Path(__file__).resolve().parents[1] / relative
-    environment = {
-        key: value
-        for key, value in os.environ.items()
-        if key not in {"PYTHONDONTWRITEBYTECODE", "PYTHONPATH"}
-    }
+    module_name = bootstrap.stem
+    agent_root = bootstrap.parent
+    code = f"""
+import sys
+from types import SimpleNamespace
+sys.path.insert(0, {str(agent_root)!r})
+module = __import__({module_name!r})
+values = {{
+    "isolated": True,
+    "no_site": True,
+    "dont_write_bytecode": True,
+}}
+values[{missing_flag!r}] = False
+module._require_isolated_python(SimpleNamespace(**values))
+"""
 
     completed = subprocess.run(
-        [sys.executable, *flags, str(bootstrap)],
+        [sys.executable, "-I", "-S", "-B", "-c", code],
         stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
         check=False,
-        env=environment,
+        env={
+            "PATH": "/usr/bin:/bin",
+            "HOME": "/var/empty",
+            "LANG": "C",
+            "LC_ALL": "C",
+        },
     )
 
     assert completed.returncode == 2
@@ -1828,11 +2185,10 @@ def test_network_guard_loads_and_rejects_non_allowlisted_urls(
     budget_path.write_bytes(struct.pack(">QQ", 0, 0))
     budget_path.chmod(0o600)
     environment = {
-        "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
-        "PYTHONPATH": os.pathsep.join(
-            [str(guard), str(dependency_workspace)]
-        ),
-        "PYTHONNOUSERSITE": "1",
+        "PATH": "/usr/bin:/bin",
+        "HOME": "/var/empty",
+        "LANG": "C",
+        "LC_ALL": "C",
         "PYTHONDONTWRITEBYTECODE": "1",
         "C2_M5_NETWORK_GUARD_REQUIRED": "1",
         "C2_M5_NETWORK_BUDGET_PATH": str(budget_path),
@@ -1883,6 +2239,23 @@ except RuntimeError:
     pass
 else:
     raise AssertionError("non-TLS destination port passed")
+for family, address in ((2, "127.0.0.1"), (30, "fec0::1")):
+    sitecustomize._ORIGINAL_GETADDRINFO = lambda *args, _family=family, _address=address, **kwargs: [
+        (_family, 1, 6, "", (_address, 443))
+    ]
+    for validator in (
+        sitecustomize._public_addresses,
+        sitecustomize._guarded_getaddrinfo,
+    ):
+        try:
+            validator("www.nature.com", 443)
+        except RuntimeError:
+            pass
+        else:
+            raise AssertionError(f"non-public destination passed: {address}")
+sitecustomize._ORIGINAL_GETADDRINFO = lambda *args, **kwargs: [
+    (2, 1, 6, "", ("93.184.216.34", 443))
+]
 
 def response(status, headers=None, content=b""):
     value = sitecustomize.requests.Response()
@@ -1988,8 +2361,13 @@ except RuntimeError:
 else:
     raise AssertionError("non-global shared address passed")
 """
+    isolated_code = (
+        "import sys\n"
+        f"sys.path[:0] = [{str(guard)!r}, {str(dependency_workspace)!r}]\n"
+        + code
+    )
     completed = subprocess.run(
-        [sys.executable, "-B", "-c", code],
+        [sys.executable, "-I", "-S", "-B", "-c", isolated_code],
         env=environment,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,

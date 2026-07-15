@@ -13,6 +13,7 @@ import csv
 import hashlib
 import io
 import json
+import os
 import re
 import stat
 import struct
@@ -36,6 +37,7 @@ from .c2_m1_trust_boundary import (
 from .c2_stageb_source_extension_code_attestation import (
     C2StageBCodeAttestationError,
     ProductionSourceExtensionCodeAttestation,
+    load_compile_pinned_source_extension_code_attestation,
     load_verified_source_extension_runtime_attestation,
 )
 
@@ -94,6 +96,9 @@ _CLI_RELATIVE_PATH = "agent/experiments/cli.py"
 _MODELS_RELATIVE_PATH = "agent/experiments/models.py"
 _TEST_ONLY_CODE_ATTESTATION_RELATIVE_PATH = (
     "agent/tests/fixtures/c2_source_bearing_extension_test_attestation.json"
+)
+_RUNTIME_CODE_ATTESTATION_RELATIVE_PATH = (
+    "agent/experiments/resources/c2_source_extension_runtime_manifest_v1.json"
 )
 _REQUIRED_SCHEMA_NAMES = (
     "c2_v2_fd_format_classifier_config_v1.schema.json",
@@ -1080,9 +1085,50 @@ def _git_bytes(worktree: Path, arguments: Sequence[str], label: str) -> bytes:
     return completed.stdout
 
 
+def _single_parent_commit(worktree: Path, commit: str, label: str) -> str:
+    payload = _git_bytes(
+        worktree,
+        ("cat-file", "commit", commit),
+        label,
+    )
+    headers = payload.split(b"\n\n", 1)[0].splitlines()
+    raw_parents = [
+        line.removeprefix(b"parent ")
+        for line in headers
+        if line.startswith(b"parent ")
+    ]
+    try:
+        parents = [parent.decode("ascii") for parent in raw_parents]
+    except UnicodeDecodeError as exc:
+        raise SourceBearingExtensionError(
+            f"source extension {label} has a malformed parent"
+        ) from exc
+    _require(
+        len(parents) == 1
+        and _GIT_OBJECT_RE.fullmatch(parents[0]) is not None,
+        f"source extension {label} must have exactly one parent",
+    )
+    return parents[0]
+
+
+def _require_no_git_grafts(worktree: Path) -> None:
+    graft_value = _git_text(
+        worktree,
+        ("rev-parse", "--git-path", "info/grafts"),
+        "graft path",
+    )
+    graft_path = Path(graft_value)
+    if not graft_path.is_absolute():
+        graft_path = worktree / graft_path
+    _require(
+        not os.path.lexists(graft_path),
+        "source extension repository graft metadata is forbidden",
+    )
+
+
 def _attested_runtime_paths(
     *,
-    worktree: Path,
+    runtime_root: Path,
     loaded_extension_path: Path | None,
     loaded_finalizer_path: Path | None,
     loaded_m1_trust_boundary_path: Path | None,
@@ -1108,7 +1154,7 @@ def _attested_runtime_paths(
         if isinstance(module_path, str):
             runtime_paths[_FINALIZER_RELATIVE_PATH] = Path(module_path)
     for relative_path, runtime_path in runtime_paths.items():
-        expected_path = worktree / relative_path
+        expected_path = runtime_root / relative_path
         _require(
             runtime_path.is_file()
             and not runtime_path.is_symlink()
@@ -1163,6 +1209,7 @@ def verify_source_extension_code_attestation_for_testing(
         repository_root == resolved_worktree,
         "source extension worktree is not the Git repository root",
     )
+    _require_no_git_grafts(resolved_worktree)
     status = _git_text(
         resolved_worktree,
         ("status", "--porcelain=v1", "--untracked-files=all"),
@@ -1172,40 +1219,66 @@ def verify_source_extension_code_attestation_for_testing(
     head_commit = _git_text(
         resolved_worktree, ("rev-parse", "HEAD"), "worktree HEAD"
     )
-    attestation_commit = _git_text(
-        resolved_worktree,
-        (
-            "log",
-            "-1",
-            "--format=%H",
-            "--",
-            _TEST_ONLY_CODE_ATTESTATION_RELATIVE_PATH,
-        ),
-        "attestation commit",
-    )
+    try:
+        registry = load_compile_pinned_source_extension_code_attestation()
+    except C2StageBCodeAttestationError as exc:
+        raise SourceBearingExtensionError(
+            "source extension compile-pinned runtime topology is unavailable"
+        ) from exc
+    runtime_manifest_commit = registry.manifest_only_attestation_commit_full
     _require(
         _GIT_OBJECT_RE.fullmatch(head_commit) is not None
-        and _GIT_OBJECT_RE.fullmatch(attestation_commit) is not None,
-        "source extension attestation commit is invalid",
+        and _GIT_OBJECT_RE.fullmatch(runtime_manifest_commit) is not None,
+        "source extension runtime attestation commit is invalid",
     )
     try:
         _git_text(
             resolved_worktree,
-            ("merge-base", "--is-ancestor", attestation_commit, head_commit),
-            "attestation ancestry",
+            (
+                "merge-base",
+                "--is-ancestor",
+                runtime_manifest_commit,
+                head_commit,
+            ),
+            "runtime attestation ancestry",
         )
     except SourceBearingExtensionError as exc:
         raise SourceBearingExtensionError(
-            "source extension attestation is not an ancestor of HEAD"
+            "source extension runtime attestation is not an ancestor of HEAD"
         ) from exc
-    implementation_commit = _git_text(
+    attestation_commit = _single_parent_commit(
         resolved_worktree,
-        ("rev-parse", f"{attestation_commit}^"),
-        "implementation parent commit",
+        runtime_manifest_commit,
+        "runtime manifest commit",
+    )
+    implementation_commit = _single_parent_commit(
+        resolved_worktree,
+        attestation_commit,
+        "test manifest commit",
     )
     _require(
         _GIT_OBJECT_RE.fullmatch(implementation_commit) is not None,
         "source extension implementation commit is invalid",
+    )
+    _require(
+        implementation_commit == registry.extension_implementation_commit_full,
+        "source extension test manifest parent differs from the compile-pinned "
+        "implementation commit",
+    )
+    runtime_changed = _git_text(
+        resolved_worktree,
+        (
+            "diff",
+            "--name-status",
+            "--no-renames",
+            attestation_commit,
+            runtime_manifest_commit,
+        ),
+        "runtime manifest commit contents",
+    )
+    _require(
+        runtime_changed == f"A\t{_RUNTIME_CODE_ATTESTATION_RELATIVE_PATH}",
+        "source extension runtime attestation commit must add only its manifest",
     )
     changed = _git_text(
         resolved_worktree,
@@ -1255,6 +1328,7 @@ def verify_source_extension_code_attestation_for_testing(
         "source extension code attestation has no paths",
     )
     code_blobs: list[_AttestedCodeBlob] = []
+    implementation_payloads: dict[str, bytes] = {}
     seen_paths: set[str] = set()
     for raw_blob in raw_blobs:
         _require(
@@ -1310,6 +1384,7 @@ def verify_source_extension_code_attestation_for_testing(
             f"source extension attested blob mismatch: {relative_path}",
         )
         seen_paths.add(relative_path)
+        implementation_payloads[relative_path] = implementation_payload
         code_blobs.append(
             _AttestedCodeBlob(relative_path, blob_object_id, digest)
         )
@@ -1319,12 +1394,29 @@ def verify_source_extension_code_attestation_for_testing(
         == sorted(blob.relative_path for blob in code_blobs),
         "source extension code attestation path coverage is invalid",
     )
+    if loaded_extension_path is None:
+        runtime_root = _module_worktree()
+    else:
+        resolved_extension_path = Path(loaded_extension_path).resolve()
+        _require(
+            resolved_extension_path.as_posix().endswith(_EXTENSION_RELATIVE_PATH),
+            "loaded source extension path is not repository-relative",
+        )
+        runtime_root = resolved_extension_path.parents[2]
     _attested_runtime_paths(
-        worktree=resolved_worktree,
+        runtime_root=runtime_root,
         loaded_extension_path=loaded_extension_path,
         loaded_finalizer_path=loaded_finalizer_path,
         loaded_m1_trust_boundary_path=loaded_m1_trust_boundary_path,
     )
+    for relative_path, implementation_payload in implementation_payloads.items():
+        runtime_path = runtime_root / relative_path
+        _require(
+            runtime_path.is_file()
+            and not runtime_path.is_symlink()
+            and runtime_path.read_bytes() == implementation_payload,
+            f"source extension runtime bytes differ: {relative_path}",
+        )
     return TestOnlySourceExtensionCodeAttestation(
         worktree=resolved_worktree,
         attestation_commit_full=attestation_commit,

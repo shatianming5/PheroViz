@@ -6,7 +6,6 @@ import json
 import subprocess
 from copy import deepcopy
 from importlib import resources
-from pathlib import Path
 from typing import Any
 
 import pytest
@@ -16,6 +15,7 @@ import experiments.c2_source_bearing_extension as source_extension
 from experiments.c2_full_replacement_policy import C2FullReplacementPolicyError
 from experiments.cli import _build_parser
 from experiments.models import sha256_json
+from tests.test_experiment_support import release_test_git_repository
 
 
 def _digest(label: str) -> str:
@@ -397,7 +397,7 @@ def test_compile_pinned_resource_and_runtime_manifest_are_active() -> None:
 
 
 def test_declared_manifest_attestation_commit_contains_only_exact_manifest() -> None:
-    repository = Path(__file__).resolve().parents[3]
+    repository = release_test_git_repository()
     entry = code_attestation.load_compile_pinned_source_extension_code_attestation()
     relative = (
         "agent/experiments/resources/"

@@ -849,7 +849,7 @@ class _SecureTargetRoot:
     def discard_unpublished(self) -> None:
         require_external_m1_trust_lock()
         _require(not self._published, "refusing to discard a published root")
-        self.verify_staging_identity()
+        self._verify_anchored_entry(self._staging_name, "private staging")
         self._remove_tree_contents(self._root_fd)
         os.rmdir(self._staging_name, dir_fd=self._parent_fd)
         os.fsync(self._parent_fd)
@@ -4453,7 +4453,51 @@ def _finalize_remediation_root(
                     "source-bearing extension failed immediate prepublication replay: "
                     f"{exc}"
                 ) from exc
+        terminal_manifest_excludes = {
+            "sealed_report_v1/terminal_manifest.json",
+            "sealed_report_v1/terminal_manifest.sha256",
+        }
+        terminal_entries = _target_artifact_entries(
+            target,
+            terminal_manifest_excludes,
+        )
+        terminal_manifest = {
+            "schema_version": "c2-remediation-terminal-manifest-v1",
+            "root_name": target.name,
+            "artifact_count": len(terminal_entries),
+            "total_bytes": sum(int(entry["bytes"]) for entry in terminal_entries),
+            "excludes": sorted(terminal_manifest_excludes),
+            "files": terminal_entries,
+        }
+        _seal(terminal_manifest, "manifest_hash")
+        terminal_manifest_path = _write_json(
+            target,
+            "sealed_report_v1/terminal_manifest.json",
+            terminal_manifest,
+        )
+        terminal_manifest_sha256 = target.sha256(terminal_manifest_path)
+        terminal_manifest_sidecar = (
+            f"{terminal_manifest_sha256}  terminal_manifest.json\n".encode("utf-8")
+        )
+        terminal_manifest_sidecar_path = _write_bytes(
+            target,
+            "sealed_report_v1/terminal_manifest.sha256",
+            terminal_manifest_sidecar,
+        )
+        _require(
+            _target_artifact_entries(target, terminal_manifest_excludes)
+            == terminal_entries,
+            "terminal artifact closure changed while being sealed",
+        )
         target.harden_staging_read_only()
+        _require(
+            target.sha256(terminal_manifest_path) == terminal_manifest_sha256
+            and target.read_bytes(terminal_manifest_sidecar_path)
+            == terminal_manifest_sidecar
+            and _target_artifact_entries(target, terminal_manifest_excludes)
+            == terminal_entries,
+            "terminal publication binding changed before publication",
+        )
         target.publish()
         target.verify_published_identity()
         return {
@@ -4462,15 +4506,20 @@ def _finalize_remediation_root(
             "input_total": partition.records,
             "sealed_report_sha256": target.sha256(report_path),
             "report_hash": report["report_hash"],
+            "terminal_manifest_sha256": terminal_manifest_sha256,
+            "terminal_manifest_hash": terminal_manifest["manifest_hash"],
             "status": report["status"],
             "publication": {
                 "status": "PUBLISHED_ATOMIC_NO_REPLACE",
                 "canonical_target_identity_verified": True,
             },
         }
-    except Exception:
+    except Exception as error:
         if target is not None and not target.published:
-            target.discard_unpublished()
+            try:
+                target.discard_unpublished()
+            except Exception as cleanup_error:
+                raise error.with_traceback(error.__traceback__) from cleanup_error
         raise
     finally:
         if target is not None:
