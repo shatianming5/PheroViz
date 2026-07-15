@@ -62,6 +62,8 @@ FROZEN_FREEZE_SUMMARY_SHA256 = (
 FROZEN_FREEZE_SUMMARY_HASH = (
     "6cdb5f8398cc70960d108c6319c93c2121327ce757af405bc44bca687a71056d"
 )
+_GIT_OBJECT_RE = re.compile(r"^[0-9a-f]{40}$")
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 FROZEN_CODE_COMMIT = "ca98442b9e805110089b03083cb240e19b58d4a2"
 STATUS_VALUES = frozenset(
     {"downloaded", "no-source-data", "no-figures", "fetch-error"}
@@ -325,6 +327,16 @@ def expected_target_root_name(chunk_id: str) -> str:
     return f"ccby_sr_npj_chunk{chunk_id}_rerun3_clean_ca98442"
 
 
+def expected_raw_root_name(chunk_id: str) -> str:
+    """Return the fixed raw-evidence name paired with one remediation target."""
+
+    _require(
+        chunk_id in SUPPORTED_REMEDIATION_CHUNKS,
+        "chunk is not authorized for fresh remediation",
+    )
+    return f"ccby_sr_npj_chunk{chunk_id}_rerun3_raw_ca98442"
+
+
 def _require(condition: bool, message: str) -> None:
     if not condition:
         raise C2RemediationError(message)
@@ -422,6 +434,10 @@ class _SourceEvidence:
     source_paths: tuple[Mapping[str, Any], ...]
 
 
+_RAW_MAX_SINGLE_FILE_BYTES = 256 * 1024 * 1024
+_RAW_MAX_TOTAL_BYTES = 768 * 1024 * 1024
+
+
 class _RawRootReader:
     """Single-read, descriptor-relative reader for immutable raw evidence."""
 
@@ -439,7 +455,9 @@ class _RawRootReader:
         finally:
             probe.close()
         self._seen: set[str] = set()
+        self._total_bytes = 0
         self.reads: dict[str, _RawRead] = {}
+        self.declared_inventory: Mapping[str, Any] | None = None
 
     def close(self) -> None:
         if self._root_fd != -1:
@@ -496,7 +514,13 @@ class _RawRootReader:
                 dir_fd=current_fd,
             )
             before = os.fstat(leaf_fd)
-            _require(stat.S_ISREG(before.st_mode), f"{label} is not a regular file")
+            _require(
+                stat.S_ISREG(before.st_mode)
+                and 0 <= before.st_size <= _RAW_MAX_SINGLE_FILE_BYTES
+                and self._total_bytes + before.st_size
+                <= _RAW_MAX_TOTAL_BYTES,
+                f"{label} is not a bounded regular file",
+            )
             chunks: list[bytes] = []
             while True:
                 block = os.read(leaf_fd, 1024 * 1024)
@@ -518,6 +542,7 @@ class _RawRootReader:
                 os.close(leaf_fd)
             os.close(current_fd)
         self._seen.add(relative_text)
+        self._total_bytes += len(payload)
         self.reads[relative_text] = _RawRead(
             payload=payload,
             sha256=_sha256_bytes(payload),
@@ -577,6 +602,51 @@ class _RawRootReader:
             raise C2RemediationError(f"cannot securely list {label}") from exc
         finally:
             os.close(current_fd)
+
+    def files_under_root(self, label: str) -> tuple[str, ...]:
+        """Return the complete no-follow regular-file closure of the raw root."""
+
+        require_external_m1_trust_lock()
+        flags = (
+            os.O_RDONLY
+            | os.O_DIRECTORY
+            | os.O_NOFOLLOW
+            | getattr(os, "O_CLOEXEC", 0)
+        )
+
+        def descend(directory_fd: int, prefix: tuple[str, ...]) -> Iterable[str]:
+            for name in sorted(os.listdir(directory_fd)):
+                file_stat = os.stat(
+                    name,
+                    dir_fd=directory_fd,
+                    follow_symlinks=False,
+                )
+                relative_name = "/".join((*prefix, name))
+                _require(
+                    not stat.S_ISLNK(file_stat.st_mode),
+                    f"{label} contains a symlink: {relative_name}",
+                )
+                if stat.S_ISDIR(file_stat.st_mode):
+                    child_fd = os.open(name, flags, dir_fd=directory_fd)
+                    try:
+                        yield from descend(child_fd, (*prefix, name))
+                    finally:
+                        os.close(child_fd)
+                    continue
+                _require(
+                    stat.S_ISREG(file_stat.st_mode),
+                    f"{label} contains a non-regular artifact: {relative_name}",
+                )
+                yield relative_name
+
+        try:
+            return tuple(descend(self._root_fd, ()))
+        except C2RemediationError:
+            raise
+        except OSError as exc:
+            if exc.errno == errno.ELOOP:
+                raise C2RemediationError(f"{label} contains a symlink") from exc
+            raise C2RemediationError(f"cannot securely list {label}") from exc
 
 
 _DARWIN_RENAME_EXCL = 0x00000004
@@ -1065,6 +1135,66 @@ class _SecureTargetRoot:
         finally:
             probe.close()
 
+    def harden_staging_read_only(self) -> None:
+        """Descriptor-relatively harden every staged artifact before publication."""
+
+        require_external_m1_trust_lock()
+        self.verify_staging_identity()
+        flags = (
+            os.O_RDONLY
+            | os.O_NOFOLLOW
+            | getattr(os, "O_CLOEXEC", 0)
+        )
+
+        def harden(directory_fd: int) -> None:
+            for name in sorted(os.listdir(directory_fd)):
+                metadata = os.stat(
+                    name,
+                    dir_fd=directory_fd,
+                    follow_symlinks=False,
+                )
+                _require(
+                    not stat.S_ISLNK(metadata.st_mode),
+                    "staged target contains a symlink",
+                )
+                if stat.S_ISDIR(metadata.st_mode):
+                    child_fd = os.open(
+                        name,
+                        flags | os.O_DIRECTORY,
+                        dir_fd=directory_fd,
+                    )
+                    try:
+                        opened = os.fstat(child_fd)
+                        _require(
+                            (opened.st_dev, opened.st_ino)
+                            == (metadata.st_dev, metadata.st_ino),
+                            "staged directory identity changed during hardening",
+                        )
+                        harden(child_fd)
+                        os.fchmod(child_fd, 0o500)
+                    finally:
+                        os.close(child_fd)
+                    continue
+                _require(
+                    stat.S_ISREG(metadata.st_mode),
+                    "staged target contains a non-regular artifact",
+                )
+                file_fd = os.open(name, flags, dir_fd=directory_fd)
+                try:
+                    opened = os.fstat(file_fd)
+                    _require(
+                        (opened.st_dev, opened.st_ino)
+                        == (metadata.st_dev, metadata.st_ino),
+                        "staged file identity changed during hardening",
+                    )
+                    os.fchmod(file_fd, 0o400)
+                finally:
+                    os.close(file_fd)
+
+        harden(self._root_fd)
+        os.fchmod(self._root_fd, 0o500)
+        self.verify_staging_identity()
+
     def publish(self) -> None:
         require_external_m1_trust_lock()
         self.verify_staging_identity()
@@ -1167,26 +1297,204 @@ def _parse_skipped(
     return statuses
 
 
+def _verify_filter_free_worktree(
+    worktree: Path,
+    git_command: list[str],
+    git_environment: Mapping[str, str],
+    commit: str,
+) -> None:
+    def git_bytes(arguments: list[str], label: str) -> bytes:
+        try:
+            return subprocess.check_output(
+                [*git_command, *arguments],
+                env=git_environment,
+            )
+        except (OSError, subprocess.CalledProcessError) as exc:
+            raise C2RemediationError(f"cannot establish {label}") from exc
+
+    try:
+        index_records = git_bytes(
+            ["ls-files", "--stage", "-z"],
+            "filter-free worktree index",
+        ).split(b"\0")
+        tree_records = git_bytes(
+            ["ls-tree", "-r", "-z", "--full-tree", commit],
+            "filter-free worktree HEAD",
+        ).split(b"\0")
+        index: dict[str, tuple[str, str]] = {}
+        for record in index_records:
+            if not record:
+                continue
+            metadata, separator, raw_path = record.partition(b"\t")
+            mode, object_id, stage = metadata.decode("ascii").split()
+            relative = raw_path.decode("utf-8")
+            path = Path(relative)
+            _require(
+                separator == b"\t"
+                and mode == "100644"
+                and stage == "0"
+                and _GIT_OBJECT_RE.fullmatch(object_id) is not None
+                and relative
+                and "\\" not in relative
+                and not path.is_absolute()
+                and ".." not in path.parts
+                and relative not in index,
+                "filter-free worktree index is unsafe",
+            )
+            index[relative] = (mode, object_id)
+        tree: dict[str, tuple[str, str]] = {}
+        for record in tree_records:
+            if not record:
+                continue
+            metadata, separator, raw_path = record.partition(b"\t")
+            mode, object_type, object_id = metadata.decode("ascii").split()
+            relative = raw_path.decode("utf-8")
+            _require(
+                separator == b"\t"
+                and object_type == "blob"
+                and relative not in tree,
+                "filter-free worktree HEAD is unsafe",
+            )
+            tree[relative] = (mode, object_id)
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise C2RemediationError("filter-free worktree metadata is invalid") from exc
+    _require(index and index == tree, "worktree index differs from frozen HEAD")
+
+    expected_directories = {
+        parent.as_posix()
+        for relative in index
+        for parent in Path(relative).parents
+        if parent != Path(".")
+    }
+    observed: set[str] = set()
+    for directory, directory_names, file_names in os.walk(
+        worktree,
+        topdown=True,
+        followlinks=False,
+    ):
+        directory_path = Path(directory)
+        if directory_path == worktree:
+            directory_names[:] = sorted(
+                name for name in directory_names if name != ".git"
+            )
+            file_names = [name for name in file_names if name != ".git"]
+        else:
+            directory_names.sort()
+        relative_directory = directory_path.relative_to(worktree)
+        for name in directory_names:
+            path = directory_path / name
+            relative = (relative_directory / name).as_posix()
+            metadata = path.lstat()
+            _require(
+                stat.S_ISDIR(metadata.st_mode)
+                and not stat.S_ISLNK(metadata.st_mode)
+                and metadata.st_uid == os.geteuid()
+                and relative in expected_directories,
+                f"worktree contains an unsafe or untracked directory: {relative}",
+            )
+        for name in sorted(file_names):
+            path = directory_path / name
+            relative = (relative_directory / name).as_posix()
+            metadata = path.lstat()
+            _require(
+                stat.S_ISREG(metadata.st_mode)
+                and not stat.S_ISLNK(metadata.st_mode)
+                and metadata.st_nlink == 1
+                and metadata.st_uid == os.geteuid()
+                and relative in index,
+                f"worktree contains an unsafe or untracked file: {relative}",
+            )
+            payload = path.read_bytes()
+            after = path.lstat()
+            _require(
+                (
+                    metadata.st_dev,
+                    metadata.st_ino,
+                    metadata.st_size,
+                    metadata.st_mtime_ns,
+                    metadata.st_ctime_ns,
+                )
+                == (
+                    after.st_dev,
+                    after.st_ino,
+                    after.st_size,
+                    after.st_mtime_ns,
+                    after.st_ctime_ns,
+                ),
+                f"worktree file changed while being read: {relative}",
+            )
+            object_id = hashlib.sha1(
+                f"blob {len(payload)}\0".encode("ascii") + payload,
+                usedforsecurity=False,
+            ).hexdigest()
+            _require(
+                object_id == index[relative][1],
+                f"worktree file differs from frozen HEAD: {relative}",
+            )
+            observed.add(relative)
+    _require(observed == set(index), "worktree filesystem coverage differs from HEAD")
+
+
 def _verify_worktree(worktree: Path) -> dict[str, Any]:
     require_external_m1_trust_lock()
     worktree = _verify_trusted_existing_root(worktree, "worktree")
+    git_environment = {
+        "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+        "HOME": "/var/empty",
+        "LANG": "C",
+        "LC_ALL": "C",
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_CONFIG_GLOBAL": "/dev/null",
+        "GIT_CONFIG_SYSTEM": "/dev/null",
+        "GIT_OPTIONAL_LOCKS": "0",
+        "GIT_TERMINAL_PROMPT": "0",
+        "GIT_NO_REPLACE_OBJECTS": "1",
+        "GIT_NO_LAZY_FETCH": "1",
+        "GIT_PROTOCOL_FROM_USER": "0",
+        "GIT_ALLOW_PROTOCOL": "",
+    }
+    git_command = [
+        "/usr/bin/git",
+        "--no-replace-objects",
+        "-c",
+        "core.fsmonitor=false",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "-c",
+        "diff.external=",
+        "-c",
+        "protocol.allow=never",
+        "-c",
+        "protocol.ext.allow=never",
+        "-c",
+        "protocol.file.allow=never",
+        "-c",
+        "core.pager=cat",
+        "-c",
+        "log.showSignature=false",
+        "-C",
+        str(worktree),
+    ]
     try:
         commit = subprocess.check_output(
-            ["git", "-C", str(worktree), "rev-parse", "HEAD"],
+            [*git_command, "rev-parse", "HEAD"],
             text=True,
+            env=git_environment,
         ).strip()
         tree = subprocess.check_output(
-            ["git", "-C", str(worktree), "rev-parse", "HEAD^{tree}"],
+            [*git_command, "rev-parse", "HEAD^{tree}"],
             text=True,
+            env=git_environment,
         ).strip()
-        status = subprocess.check_output(
-            ["git", "-C", str(worktree), "status", "--porcelain"],
-            text=True,
-        )
     except (OSError, subprocess.CalledProcessError) as exc:
         raise C2RemediationError("cannot establish clean worktree binding") from exc
     _require(commit == FROZEN_CODE_COMMIT, "worktree commit is not the frozen acquisition commit")
-    _require(not status.strip(), "worktree is dirty")
+    _verify_filter_free_worktree(
+        worktree,
+        git_command,
+        git_environment,
+        commit,
+    )
     return {"commit": commit, "tree": tree, "dirty": False}
 
 
@@ -1299,9 +1607,35 @@ def _parse_receipt(
     expected_hashes: Mapping[str, str],
 ) -> dict[str, Any]:
     receipt = _read_json_bytes(payload, f"{attempt} raw attempt receipt")
+    schema_version = receipt.get("schema_version")
     _require(
-        receipt.get("schema_version") == "c2-v2-raw-attempt-receipt-v1",
+        schema_version
+        in {
+            "c2-v2-raw-attempt-receipt-v1",
+            "c2-v2-raw-attempt-receipt-v2",
+        },
         f"{attempt} receipt schema mismatch",
+    )
+    expected_fields = {
+        "schema_version",
+        "attempt",
+        "attempt_index",
+        "start_monotonic_ns",
+        "end_monotonic_ns",
+        *expected_hashes,
+        "receipt_hash",
+    }
+    if schema_version == "c2-v2-raw-attempt-receipt-v2":
+        expected_fields.update(
+            {
+                "status_transformation",
+                "source_harvest",
+                "source_harvest_hash",
+            }
+        )
+    _require(
+        set(receipt) == expected_fields,
+        f"{attempt} receipt fields are not closed",
     )
     _require(receipt.get("attempt") == attempt, f"{attempt} receipt attempt mismatch")
     _require(
@@ -1319,6 +1653,15 @@ def _parse_receipt(
         receipt["end_monotonic_ns"] >= receipt["start_monotonic_ns"],
         f"{attempt} receipt timestamps are invalid",
     )
+    if schema_version == "c2-v2-raw-attempt-receipt-v2":
+        source_harvest = receipt["source_harvest"]
+        _require(
+            receipt["status_transformation"]
+            == "OPERATIONAL_ALL_ATTEMPTED_MINUS_SKIPPED_TO_STRICT_PARTITION_V1"
+            and isinstance(source_harvest, dict)
+            and receipt["source_harvest_hash"] == _sha256_json(source_harvest),
+            f"{attempt} receipt transformation or source harvest is invalid",
+        )
     declared = receipt.get("receipt_hash")
     _require(isinstance(declared, str), f"{attempt} receipt hash missing")
     _require(
@@ -1420,21 +1763,122 @@ def _raw_relative_files() -> tuple[str, ...]:
         "control/pre_download_binding.json",
         "control/pre_download_binding.sha256",
         "control/execution_evidence.json",
+        "control/raw_inventory.json",
     ]
     for attempt in ATTEMPTS:
         prefix = f"control/{attempt}"
         files.extend(
             (
                 f"{prefix}/accepted.jsonl",
+                f"{prefix}/operational_processed.txt",
+                f"{prefix}/operational_skipped.txt",
                 f"{prefix}/processed.txt",
                 f"{prefix}/_skipped.txt",
                 f"{prefix}/postfetch.log",
                 f"{prefix}/postfetch.exit",
+                f"{prefix}/network_budget.json",
                 f"{prefix}/raw_attempt_receipt.json",
                 f"{prefix}/raw_attempt_events.jsonl",
             )
         )
     return tuple(files)
+
+
+def _validate_raw_inventory(
+    reader: _RawRootReader,
+    payload: bytes,
+    observed_files: set[str],
+) -> dict[str, Any]:
+    inventory = _read_json_bytes(payload, "raw root inventory")
+    _require(
+        set(inventory)
+        == {
+            "schema_version",
+            "root_name",
+            "artifact_count",
+            "total_bytes",
+            "excludes",
+            "files",
+            "inventory_hash",
+        }
+        and inventory.get("schema_version")
+        == "c2-m5-raw-root-inventory-v1"
+        and inventory.get("root_name") == reader.root.name
+        and inventory.get("excludes") == ["control/raw_inventory.json"],
+        "raw root inventory shape is invalid",
+    )
+    _require(
+        inventory.get("inventory_hash")
+        == _sha256_json(_json_without(inventory, "inventory_hash")),
+        "raw root inventory hash is invalid",
+    )
+    rows = inventory.get("files")
+    _require(isinstance(rows, list), "raw root inventory files are invalid")
+    declared: dict[str, tuple[int, str]] = {}
+    for row in rows:
+        _require(
+            isinstance(row, dict)
+            and set(row) == {"relative_path", "bytes", "sha256"}
+            and isinstance(row.get("relative_path"), str)
+            and row["relative_path"] != "control/raw_inventory.json"
+            and row["relative_path"] not in declared
+            and not Path(row["relative_path"]).is_absolute()
+            and ".." not in Path(row["relative_path"]).parts
+            and "\\" not in row["relative_path"]
+            and isinstance(row.get("bytes"), int)
+            and not isinstance(row["bytes"], bool)
+            and 0 <= row["bytes"] <= _RAW_MAX_SINGLE_FILE_BYTES
+            and isinstance(row.get("sha256"), str)
+            and _SHA256_RE.fullmatch(row["sha256"]) is not None,
+            "raw root inventory entry is invalid",
+        )
+        declared[row["relative_path"]] = (row["bytes"], row["sha256"])
+    _require(
+        list(declared) == sorted(declared)
+        and inventory.get("artifact_count") == len(declared)
+        and inventory.get("total_bytes")
+        == sum(size for size, _ in declared.values())
+        and set(declared) | {"control/raw_inventory.json"} == observed_files,
+        "raw root inventory coverage is invalid",
+    )
+    expected_noncontent = set(_raw_relative_files())
+    observed_noncontent = {
+        relative
+        for relative in observed_files
+        if not relative.startswith("content/")
+    }
+    _require(
+        observed_noncontent == expected_noncontent,
+        "raw root control namespace is not closed",
+    )
+    reader.declared_inventory = inventory
+    return inventory
+
+
+def _verify_raw_inventory_reads(reader: _RawRootReader) -> None:
+    inventory = reader.declared_inventory
+    _require(
+        isinstance(inventory, Mapping),
+        "raw root inventory was not validated",
+    )
+    declared = {
+        row["relative_path"]: (row["bytes"], row["sha256"])
+        for row in inventory["files"]
+    }
+    observed = {
+        relative: value
+        for relative, value in reader.reads.items()
+        if relative != "control/raw_inventory.json"
+    }
+    _require(
+        set(observed) == set(declared)
+        and all(
+            len(observed[relative].payload) == expected[0]
+            and observed[relative].sha256 == expected[1]
+            for relative, expected in declared.items()
+        ),
+        "raw root bytes differ from the complete inventory",
+    )
 
 
 def _validate_pre_download_controls(
@@ -1589,6 +2033,94 @@ def _validate_execution_evidence(
     return evidence
 
 
+def _is_m5_execution_evidence(evidence: Mapping[str, Any]) -> bool:
+    adapter = evidence.get("adapter")
+    network_guard = evidence.get("network_guard")
+    return (
+        isinstance(adapter, dict)
+        and isinstance(network_guard, dict)
+        and network_guard.get("status") == "ENFORCED"
+        and network_guard.get("trust_environment") is False
+        and network_guard.get("https_only") is True
+        and network_guard.get("public_ip_only") is True
+        and network_guard.get("redirects_validated") is True
+        and network_guard.get("per_response_byte_cap") == 256 * 1024 * 1024
+        and network_guard.get("per_attempt_request_cap") == 10_000
+        and network_guard.get("per_attempt_response_byte_cap")
+        == 8 * 1024 * 1024 * 1024
+        and network_guard.get("per_attempt_wall_timeout_seconds")
+        == 3 * 60 * 60
+    )
+
+
+def _validate_m5_network_harvest_binding(
+    *,
+    attempt: str,
+    receipt: Mapping[str, Any],
+    processed_ids: set[str],
+    expected_attempted_records: int,
+    network_budget: Mapping[str, Any],
+) -> None:
+    _require(
+        receipt.get("schema_version") == "c2-v2-raw-attempt-receipt-v2",
+        f"{attempt} M5 receipt must use the closed V2 schema",
+    )
+    harvest = receipt.get("source_harvest")
+    _require(
+        isinstance(harvest, dict) and set(harvest) == processed_ids,
+        f"{attempt} M5 source harvest differs from downloaded statuses",
+    )
+    harvested_bytes = 0
+    for article_id, raw_entry in harvest.items():
+        _require(
+            isinstance(raw_entry, dict)
+            and set(raw_entry)
+            == {
+                "source_assets_observed",
+                "figure_assets_observed",
+                "caption_assets_observed",
+                "assets",
+            },
+            f"{attempt} M5 source harvest entry is invalid: {article_id}",
+        )
+        assets = raw_entry["assets"]
+        counts = (
+            raw_entry["source_assets_observed"],
+            raw_entry["figure_assets_observed"],
+            raw_entry["caption_assets_observed"],
+        )
+        _require(
+            isinstance(assets, list)
+            and all(
+                isinstance(count, int)
+                and not isinstance(count, bool)
+                and count >= 0
+                for count in counts
+            )
+            and counts[0] >= 1
+            and sum(counts) == len(assets),
+            f"{attempt} M5 source harvest counts are invalid: {article_id}",
+        )
+        seen_assets: set[str] = set()
+        for asset in assets:
+            _require(
+                isinstance(asset, dict)
+                and isinstance(asset.get("asset_id"), str)
+                and asset["asset_id"] not in seen_assets
+                and isinstance(asset.get("bytes"), int)
+                and not isinstance(asset["bytes"], bool)
+                and asset["bytes"] > 0,
+                f"{attempt} M5 source harvest asset is invalid: {article_id}",
+            )
+            seen_assets.add(asset["asset_id"])
+            harvested_bytes += asset["bytes"]
+    _require(
+        network_budget["request_count"] >= expected_attempted_records
+        and network_budget["response_bytes"] >= harvested_bytes,
+        f"{attempt} M5 network budget cannot explain its acquisition harvest",
+    )
+
+
 def _validate_raw_root_from_reader(
     reader: _RawRootReader,
     source_bytes: bytes,
@@ -1606,6 +2138,13 @@ def _validate_raw_root_from_reader(
     _RawRootReader,
 ]:
     require_external_m1_trust_lock()
+    _require(
+        reader.root.name == expected_raw_root_name(partition.chunk_id),
+        "raw root name does not match the frozen remediation contract",
+    )
+    observed_raw_files = set(
+        reader.files_under_root("raw root")
+    )
     expected_ids = {_article_id(record) for record in records}
     expected_dois = {_normalized_doi(record) for record in records}
     input_line_hashes = [
@@ -1619,6 +2158,11 @@ def _validate_raw_root_from_reader(
     raw_bytes: dict[str, bytes] = {}
     for relative in _raw_relative_files():
         raw_bytes[relative] = reader.read(relative, f"raw {relative}")
+    _validate_raw_inventory(
+        reader,
+        raw_bytes["control/raw_inventory.json"],
+        observed_raw_files,
+    )
     _require(raw_bytes["accepted.jsonl"] == source_bytes, "raw accepted bytes differ from source")
     config, binding = _validate_pre_download_controls(
         raw_bytes,
@@ -1626,6 +2170,17 @@ def _validate_raw_root_from_reader(
         code=code,
     )
     execution_evidence = _validate_execution_evidence(raw_bytes, code)
+    is_m5_execution = (
+        config.get("schema_version")
+        == "c2-m5-source-pilot-acquisition-config-v1"
+    )
+    if is_m5_execution:
+        _require(
+            binding.get("schema_version")
+            == "c2-m5-source-pilot-pre-download-binding-v1"
+            and _is_m5_execution_evidence(execution_evidence),
+            "M5 raw root is missing its fixed execution trust evidence",
+        )
     for label, value in (
         ("raw acquisition config", config),
         ("raw pre-download binding", binding),
@@ -1644,10 +2199,13 @@ def _validate_raw_root_from_reader(
     for attempt in ATTEMPTS:
         prefix = f"control/{attempt}"
         accepted_key = f"{prefix}/accepted.jsonl"
+        operational_processed_key = f"{prefix}/operational_processed.txt"
+        operational_skipped_key = f"{prefix}/operational_skipped.txt"
         processed_key = f"{prefix}/processed.txt"
         skipped_key = f"{prefix}/_skipped.txt"
         log_key = f"{prefix}/postfetch.log"
         exit_key = f"{prefix}/postfetch.exit"
+        network_budget_key = f"{prefix}/network_budget.json"
         receipt_key = f"{prefix}/raw_attempt_receipt.json"
         events_key = f"{prefix}/raw_attempt_events.jsonl"
         _require(
@@ -1656,6 +2214,36 @@ def _validate_raw_root_from_reader(
         )
         processed = _parse_processed(raw_bytes[processed_key], expected_ids, processed_key)
         skipped = _parse_skipped(raw_bytes[skipped_key], expected_ids, skipped_key)
+        operational_processed = _parse_processed(
+            raw_bytes[operational_processed_key],
+            expected_ids,
+            operational_processed_key,
+        )
+        operational_skipped = _parse_skipped(
+            raw_bytes[operational_skipped_key],
+            expected_ids,
+            operational_skipped_key,
+        )
+        _require(
+            set(operational_processed) == expected_ids
+            and set(operational_skipped).issubset(expected_ids),
+            f"{attempt} operational coverage is incomplete",
+        )
+        expected_processed_payload = "".join(
+            f"{_article_id(record)}\n"
+            for record in records
+            if _article_id(record) not in operational_skipped
+        ).encode("utf-8")
+        expected_skipped_payload = "".join(
+            f"{_article_id(record)}\t{operational_skipped[_article_id(record)][0]}\n"
+            for record in records
+            if _article_id(record) in operational_skipped
+        ).encode("utf-8")
+        _require(
+            raw_bytes[processed_key] == expected_processed_payload
+            and raw_bytes[skipped_key] == expected_skipped_payload,
+            f"{attempt} strict status files differ from operational replay",
+        )
         processed_set = set(processed)
         skipped_set = set(skipped)
         _require(processed_set.isdisjoint(skipped_set), f"{attempt} processed/skipped overlap")
@@ -1668,13 +2256,57 @@ def _validate_raw_root_from_reader(
             raw_bytes[exit_key].decode("utf-8").strip() == "0",
             f"{attempt} postfetch exit is nonzero",
         )
+        network_budget = _read_json_bytes(
+            raw_bytes[network_budget_key],
+            f"{attempt} network budget",
+        )
+        _require(
+            set(network_budget)
+            == {
+                "schema_version",
+                "request_count",
+                "response_bytes",
+                "request_cap",
+                "response_byte_cap",
+                "wall_timeout_seconds",
+                "budget_hash",
+            }
+            and network_budget.get("schema_version")
+            == "c2-m5-network-budget-v1"
+            and network_budget.get("request_cap") == 10_000
+            and network_budget.get("response_byte_cap")
+            == 8 * 1024 * 1024 * 1024
+            and network_budget.get("wall_timeout_seconds") == 3 * 60 * 60
+            and isinstance(network_budget.get("request_count"), int)
+            and not isinstance(network_budget["request_count"], bool)
+            and 0 <= network_budget["request_count"] <= 10_000
+            and isinstance(network_budget.get("response_bytes"), int)
+            and not isinstance(network_budget["response_bytes"], bool)
+            and 0
+            <= network_budget["response_bytes"]
+            <= 8 * 1024 * 1024 * 1024
+            and network_budget.get("budget_hash")
+            == _sha256_json(
+                _json_without(network_budget, "budget_hash")
+            ),
+            f"{attempt} network budget is invalid",
+        )
         hashes = {
             "input_sha256": _sha256_bytes(raw_bytes[accepted_key]),
             "config_hash": str(config["config_hash"]),
+            "operational_processed_sha256": _sha256_bytes(
+                raw_bytes[operational_processed_key]
+            ),
+            "operational_skipped_sha256": _sha256_bytes(
+                raw_bytes[operational_skipped_key]
+            ),
             "processed_sha256": _sha256_bytes(raw_bytes[processed_key]),
             "skipped_sha256": _sha256_bytes(raw_bytes[skipped_key]),
             "postfetch_log_sha256": _sha256_bytes(raw_bytes[log_key]),
             "postfetch_exit_sha256": _sha256_bytes(raw_bytes[exit_key]),
+            "network_budget_sha256": _sha256_bytes(
+                raw_bytes[network_budget_key]
+            ),
             "source_chunk_sha256": partition.source_sha256,
             "source_universe_sha256": FROZEN_UNIVERSE_SHA256,
             "source_freeze_summary_sha256": FROZEN_FREEZE_SUMMARY_SHA256,
@@ -1685,6 +2317,14 @@ def _validate_raw_root_from_reader(
             attempt=attempt,
             expected_hashes=hashes,
         )
+        if is_m5_execution:
+            _validate_m5_network_harvest_binding(
+                attempt=attempt,
+                receipt=receipt,
+                processed_ids=processed_set,
+                expected_attempted_records=len(operational_processed),
+                network_budget=network_budget,
+            )
         _reject_absolute_path_values(
             receipt,
             raw_root=reader.root,
@@ -2016,6 +2656,81 @@ def _read_provenance(
             "source_classification_state": source_classification_state,
         }
     return provenance
+
+
+def _validate_m5_snapshot_source_qualification(
+    execution_evidence: Mapping[str, Any],
+    provenance: Mapping[str, Mapping[str, Any]],
+) -> dict[str, Any] | None:
+    if not _is_m5_execution_evidence(execution_evidence):
+        return None
+    entries: list[dict[str, Any]] = []
+    total_source_assets = 0
+    total_source_bytes = 0
+    for article_id, provenance_entry in sorted(provenance.items()):
+        source_evidence = provenance_entry["source_evidence"]
+        if source_evidence is None:
+            continue
+        _require(
+            source_evidence.schema_version == "c2-source-evidence-v2",
+            f"M5 source evidence must use V2: {article_id}",
+        )
+        assets = source_evidence.descriptor.get("assets")
+        _require(
+            isinstance(assets, list) and assets,
+            f"M5 source evidence has no assets: {article_id}",
+        )
+        source_assets: list[dict[str, Any]] = []
+        for asset in assets:
+            _require(
+                isinstance(asset, dict)
+                and asset.get("candidate_hints") == [],
+                f"M5 source evidence contains candidate hints: {article_id}",
+            )
+            if asset.get("declared_asset_kind") not in {
+                "source_data",
+                "source_archive",
+            }:
+                continue
+            source_assets.append(
+                {
+                    "asset_id": asset["asset_id"],
+                    "relative_path": asset["relative_path"],
+                    "sha256": asset["sha256"],
+                    "bytes": asset["bytes"],
+                    "declared_asset_kind": asset["declared_asset_kind"],
+                }
+            )
+            total_source_bytes += int(asset["bytes"])
+        _require(
+            source_assets,
+            f"M5 source-bearing article lacks a source asset: {article_id}",
+        )
+        total_source_assets += len(source_assets)
+        entries.append(
+            {
+                "article_id": article_id,
+                "descriptor_path": source_evidence.descriptor_path,
+                "descriptor_sha256": source_evidence.descriptor_sha256,
+                "source_assets": source_assets,
+            }
+        )
+    _require(
+        entries and total_source_assets > 0 and total_source_bytes > 0,
+        "M5_SOURCE_BEARING_REQUIRED: finalized snapshot has no source evidence",
+    )
+    return _seal(
+        {
+            "schema_version": "c2-m5-finalized-snapshot-qualification-v1",
+            "status": "PASS_SOURCE_BEARING_NO_CANDIDATE_HINTS",
+            "execution_evidence_hash": execution_evidence["evidence_hash"],
+            "source_article_count": len(entries),
+            "source_asset_count": total_source_assets,
+            "source_asset_bytes": total_source_bytes,
+            "entries": entries,
+        },
+        "qualification_hash",
+    )
 
 
 def _validate_content_closure(
@@ -2437,7 +3152,12 @@ def finalize_remediation_root(
             records,
             statuses_by_attempt,
         )
+        m5_source_qualification = _validate_m5_snapshot_source_qualification(
+            execution_evidence,
+            provenance,
+        )
         content_files = _validate_content_closure(raw_reader, provenance)
+        _verify_raw_inventory_reads(raw_reader)
     except Exception:
         raw_reader.close()
         raise
@@ -2466,6 +3186,15 @@ def finalize_remediation_root(
         for relative, payload in raw_bytes.items():
             _write_bytes(target, relative, payload)
         _copy_raw_tree(raw_reader, target, content_files)
+        m5_source_qualification_path = (
+            None
+            if m5_source_qualification is None
+            else _write_json(
+                target,
+                "control/m5_finalized_snapshot_qualification.json",
+                m5_source_qualification,
+            )
+        )
 
         source_manifest = _source_manifest(raw_reader.reads)
         _write_json(target, "control/v2/raw_source_manifest.json", source_manifest)
@@ -3046,6 +3775,23 @@ def finalize_remediation_root(
                     source_extension.extension_validation
                 )
             }
+        m5_snapshot_trust: Mapping[str, Any] = (
+            {}
+            if m5_source_qualification_path is None
+            or m5_source_qualification is None
+            else {
+                "m5_finalized_snapshot_qualification": {
+                    "path": m5_source_qualification_path,
+                    "file_sha256": target.sha256(
+                        m5_source_qualification_path
+                    ),
+                    "qualification_hash": m5_source_qualification[
+                        "qualification_hash"
+                    ],
+                    "status": m5_source_qualification["status"],
+                }
+            }
+        )
 
         report = {
             "sealed_report_version": "3.0",
@@ -3162,6 +3908,7 @@ def finalize_remediation_root(
                 "artifact_hashes": {
                     entry["path"]: entry["sha256"] for entry in artifact_entries
                 },
+                **m5_snapshot_trust,
                 **source_extension_trust,
             },
         }
@@ -3286,7 +4033,7 @@ def finalize_remediation_root(
                     "source-bearing extension failed immediate prepublication replay: "
                     f"{exc}"
                 ) from exc
-        target.verify_staging_identity()
+        target.harden_staging_read_only()
         target.publish()
         target.verify_published_identity()
         return {

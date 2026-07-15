@@ -43,9 +43,6 @@ from .provenance_stage import (
     validate_generator_identity_index,
     write_provenance_index,
 )
-from .rejudge import merge_rejudged_summary, rejudge_batch
-
-
 _C2_INDEPENDENT_ADMISSION_COMMANDS = frozenset(
     {
         "c2-terminal-finalize",
@@ -393,6 +390,8 @@ def _decision_report_command(args: argparse.Namespace) -> int:
 
 
 def _rejudge_command(args: argparse.Namespace) -> int:
+    from .rejudge import rejudge_batch
+
     result = rejudge_batch(
         args.source,
         judge_model=args.judge_model,
@@ -411,6 +410,8 @@ def _rejudge_command(args: argparse.Namespace) -> int:
 
 
 def _merge_rejudge_command(args: argparse.Namespace) -> int:
+    from .rejudge import merge_rejudged_summary
+
     path, metric = merge_rejudged_summary(
         args.summary,
         args.sidecar_dir,

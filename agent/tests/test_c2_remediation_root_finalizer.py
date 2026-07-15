@@ -11,7 +11,6 @@ from typing import Any
 import pytest
 
 from experiments import c2_remediation_root_finalizer as finalizer
-from experiments import cli
 from experiments.models import sha256_file
 from tests.test_experiment_support import experiment_workspace
 
@@ -60,6 +59,29 @@ def _seal(value: dict[str, Any], field: str) -> dict[str, Any]:
         _canonical_json({key: item for key, item in value.items() if key != field})
     )
     return value
+
+
+def _refresh_raw_inventory(raw_root: Path) -> None:
+    inventory_path = raw_root / "control/raw_inventory.json"
+    entries = [
+        {
+            "relative_path": path.relative_to(raw_root).as_posix(),
+            "bytes": path.stat().st_size,
+            "sha256": sha256_file(path),
+        }
+        for path in sorted(raw_root.rglob("*"))
+        if path.is_file() and path != inventory_path
+    ]
+    inventory = {
+        "schema_version": "c2-m5-raw-root-inventory-v1",
+        "root_name": raw_root.name,
+        "artifact_count": len(entries),
+        "total_bytes": sum(int(entry["bytes"]) for entry in entries),
+        "excludes": ["control/raw_inventory.json"],
+        "files": entries,
+    }
+    _seal(inventory, "inventory_hash")
+    _write_json(inventory_path, inventory)
 
 
 def _records() -> list[dict[str, str]]:
@@ -164,7 +186,7 @@ def _make_fixture(
         "FROZEN_FREEZE_SUMMARY_HASH",
         str(summary["summary_hash"]),
     )
-    raw_root = workspace / "raw"
+    raw_root = workspace / finalizer.expected_raw_root_name(chunk_id)
     raw_root.mkdir(mode=0o700)
     (raw_root / "accepted.jsonl").write_bytes(source_bytes)
     config = {
@@ -267,6 +289,17 @@ def _make_fixture(
             "\n".join(processed) + ("\n" if processed else ""),
             encoding="utf-8",
         )
+        (attempt_dir / "operational_processed.txt").write_text(
+            "".join(
+                f"{record['article_url'].rsplit('/', 1)[-1]}\n"
+                for record in source_records
+            ),
+            encoding="utf-8",
+        )
+        (attempt_dir / "operational_skipped.txt").write_text(
+            "\n".join(skipped) + ("\n" if skipped else ""),
+            encoding="utf-8",
+        )
         (attempt_dir / "_skipped.txt").write_text(
             "\n".join(skipped) + ("\n" if skipped else ""),
             encoding="utf-8",
@@ -276,13 +309,32 @@ def _make_fixture(
             encoding="utf-8",
         )
         (attempt_dir / "postfetch.exit").write_text("0\n", encoding="utf-8")
+        network_budget = {
+            "schema_version": "c2-m5-network-budget-v1",
+            "request_count": 1,
+            "response_bytes": 2,
+            "request_cap": 10_000,
+            "response_byte_cap": 8 * 1024 * 1024 * 1024,
+            "wall_timeout_seconds": 3 * 60 * 60,
+        }
+        _seal(network_budget, "budget_hash")
+        _write_json(attempt_dir / "network_budget.json", network_budget)
         hashes = {
             "input_sha256": sha256_file(attempt_dir / "accepted.jsonl"),
             "config_hash": str(config["config_hash"]),
+            "operational_processed_sha256": sha256_file(
+                attempt_dir / "operational_processed.txt"
+            ),
+            "operational_skipped_sha256": sha256_file(
+                attempt_dir / "operational_skipped.txt"
+            ),
             "processed_sha256": sha256_file(attempt_dir / "processed.txt"),
             "skipped_sha256": sha256_file(attempt_dir / "_skipped.txt"),
             "postfetch_log_sha256": sha256_file(attempt_dir / "postfetch.log"),
             "postfetch_exit_sha256": sha256_file(attempt_dir / "postfetch.exit"),
+            "network_budget_sha256": sha256_file(
+                attempt_dir / "network_budget.json"
+            ),
             "source_chunk_sha256": partition.source_sha256,
             "source_universe_sha256": finalizer.FROZEN_UNIVERSE_SHA256,
             "source_freeze_summary_sha256": finalizer.FROZEN_FREEZE_SUMMARY_SHA256,
@@ -380,6 +432,28 @@ def _make_fixture(
                     "descriptor_bytes": len(descriptor_payload),
                 }
         _write_json(provenance_dir / f"{article_id}.json", provenance)
+
+    inventory_entries = [
+        {
+            "relative_path": path.relative_to(raw_root).as_posix(),
+            "bytes": path.stat().st_size,
+            "sha256": sha256_file(path),
+        }
+        for path in sorted(raw_root.rglob("*"))
+        if path.is_file()
+    ]
+    raw_inventory = {
+        "schema_version": "c2-m5-raw-root-inventory-v1",
+        "root_name": raw_root.name,
+        "artifact_count": len(inventory_entries),
+        "total_bytes": sum(
+            int(entry["bytes"]) for entry in inventory_entries
+        ),
+        "excludes": ["control/raw_inventory.json"],
+        "files": inventory_entries,
+    }
+    _seal(raw_inventory, "inventory_hash")
+    _write_json(raw_root / "control/raw_inventory.json", raw_inventory)
 
     target_parent = workspace / "output"
     target_parent.mkdir(mode=0o700)
@@ -912,6 +986,7 @@ def test_rejects_unreferenced_source_artifact_before_target_creation(
         )
         orphan = paths["raw_root"] / "content/_sources/article-1/orphan.json"
         orphan.write_text('{"unreferenced":true}\n', encoding="utf-8")
+        _refresh_raw_inventory(paths["raw_root"])
 
         with pytest.raises(finalizer.C2RemediationError, match="unreferenced"):
             _finalize(paths, "001")
@@ -922,8 +997,8 @@ def test_rejects_unreferenced_source_artifact_before_target_creation(
     ("mutation", "message"),
     [
         ("downloaded-status", "invalid skipped status"),
-        ("overlap", "processed/skipped overlap"),
-        ("missing", "partition is incomplete"),
+        ("overlap", "strict status files differ from operational replay"),
+        ("missing", "strict status files differ from operational replay"),
     ],
 )
 def test_rejects_invalid_processed_skipped_partitions(
@@ -1035,7 +1110,7 @@ def test_descriptor_target_detects_leaf_swap_without_outside_write(
             target: finalizer._SecureTargetRoot,
         ) -> None:
             original_publish(target)
-            moved_target = workspace / "moved-target"
+            moved_target = paths["target_root"].with_name("moved-target")
             paths["target_root"].rename(moved_target)
             os.symlink(outside, paths["target_root"])
 
@@ -1103,6 +1178,7 @@ def test_blocks_generated_root_when_secret_scan_hits(
         evidence["tests"][0]["command"] = "API_KEY=abcdefghijklmnop"
         _seal(evidence, "evidence_hash")
         _write_json(evidence_path, evidence)
+        _refresh_raw_inventory(paths["raw_root"])
 
         with pytest.raises(finalizer.C2RemediationError, match="secret scan"):
             _finalize(paths, "001")
@@ -1120,6 +1196,8 @@ def test_cli_wires_the_dedicated_remediation_finalizer(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
+    from experiments import cli
+
     received: dict[str, Any] = {}
 
     def fake_finalizer(**kwargs: Any) -> dict[str, Any]:

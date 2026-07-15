@@ -3,7 +3,9 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import struct
 import subprocess
+import time
 import zipfile
 from pathlib import Path
 from types import SimpleNamespace
@@ -24,6 +26,7 @@ from experiments.c2_source_bearing_extension import (
 )
 from tests.test_c2_remediation_root_finalizer import (
     _make_fixture,
+    _refresh_raw_inventory,
 )
 from tests.test_experiment_support import experiment_workspace
 
@@ -95,6 +98,29 @@ def _zip(entries: dict[str, bytes]) -> bytes:
     return output.getvalue()
 
 
+def _with_deflate_option_flags(payload: bytes, option_bits: int) -> bytes:
+    output = bytearray(payload)
+    with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+        for info in archive.infolist():
+            if info.compress_type == zipfile.ZIP_DEFLATED:
+                struct.pack_into("<H", output, info.header_offset + 6, option_bits)
+    eocd = output.rfind(b"PK\x05\x06")
+    assert eocd >= 0
+    central_offset = struct.unpack_from("<I", output, eocd + 16)[0]
+    cursor = central_offset
+    while cursor < eocd:
+        assert output[cursor : cursor + 4] == b"PK\x01\x02"
+        compression = struct.unpack_from("<H", output, cursor + 10)[0]
+        if compression == zipfile.ZIP_DEFLATED:
+            struct.pack_into("<H", output, cursor + 8, option_bits)
+        name_size, extra_size, comment_size = struct.unpack_from(
+            "<HHH", output, cursor + 28
+        )
+        cursor += 46 + name_size + extra_size + comment_size
+    assert cursor == eocd
+    return bytes(output)
+
+
 def _dos_directory_with_data_zip() -> bytes:
     output = io.BytesIO()
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_STORED) as archive:
@@ -116,7 +142,13 @@ def _dos_directory_archive(directory_payload: bytes) -> bytes:
     return output.getvalue()
 
 
-def _xlsx(*, workbook_extra_relationship: bytes = b"") -> bytes:
+def _xlsx(
+    *,
+    workbook_extra_relationship: bytes = b"",
+    worksheet_target: bytes = b"worksheets/sheet1.xml",
+    worksheet_part: str = "xl/worksheets/sheet1.xml",
+) -> bytes:
+    worksheet_part_bytes = worksheet_part.encode("utf-8")
     style_parts = (
         {
             "xl/styles.xml": (
@@ -142,7 +174,9 @@ def _xlsx(*, workbook_extra_relationship: bytes = b"") -> bytes:
                 b'Extension="xml" ContentType="application/xml"/><Override '
                 b'PartName="/xl/workbook.xml" ContentType="application/vnd.'
                 b'openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
-                b'<Override PartName="/xl/worksheets/sheet1.xml" ContentType='
+                b'<Override PartName="/'
+                + worksheet_part_bytes
+                + b'" ContentType='
                 b'"application/vnd.openxmlformats-officedocument.spreadsheetml.'
                 b'worksheet+xml"/>'
                 + content_type_extra
@@ -164,11 +198,13 @@ def _xlsx(*, workbook_extra_relationship: bytes = b"") -> bytes:
                 b'<Relationships xmlns="http://schemas.openxmlformats.org/package/'
                 b'2006/relationships"><Relationship Id="rId1" Type="http://'
                 b'schemas.openxmlformats.org/officeDocument/2006/relationships/'
-                b'worksheet" Target="worksheets/sheet1.xml"/>'
+                b'worksheet" Target="'
+                + worksheet_target
+                + b'"/>'
                 + workbook_extra_relationship
                 + b"</Relationships>"
             ),
-            "xl/worksheets/sheet1.xml": (
+            worksheet_part: (
                 b'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/'
                 b'2006/main"><sheetData/></worksheet>'
             ),
@@ -960,6 +996,40 @@ def test_csv_pipeline_replays_without_models_and_retains_single_case() -> None:
     assert protocol["review_mode"] == "C2_V2_STRUCTURAL_REVIEW_V1"
 
 
+def test_zip_preflight_reuses_one_member_reader(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    archive = _zip(
+        {
+            f"table-{index:04d}.csv": b"panel,value\na,1\n"
+            for index in range(200)
+        }
+    )
+    original = source_extension.zipfile.ZipFile
+    calls = 0
+
+    def counting_zipfile(*args: Any, **kwargs: Any):
+        nonlocal calls
+        calls += 1
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(source_extension.zipfile, "ZipFile", counting_zipfile)
+
+    assert source_extension.validate_v2_source_asset_payload(archive) == (
+        "ZIP_V1",
+        "GENERIC_ZIP_V1",
+    )
+    assert calls == 2
+    expired_budget = source_extension.new_v2_archive_run_budget(
+        deadline_monotonic=time.monotonic() - 1
+    )
+    with pytest.raises(SourceBearingExtensionError, match="ARCHIVE_DEADLINE"):
+        source_extension.validate_v2_source_asset_payload(
+            archive,
+            archive_budget=expired_budget,
+        )
+
+
 def test_generic_zip_is_fd_accounted_and_every_member_is_consumed() -> None:
     archive = _zip(
         {
@@ -1076,6 +1146,200 @@ def test_raw_xlsx_is_a_zip_accounted_outer_self_unit() -> None:
         partition_records=1,
         source_chunk_sha256="a" * 64,
     )["status"] == "PASS"
+
+
+@pytest.mark.parametrize("option_bits", [0x2, 0x4, 0x6])
+def test_valid_deflate_compression_option_flags_are_supported(
+    option_bits: int,
+) -> None:
+    xlsx = _with_deflate_option_flags(_xlsx(), option_bits)
+
+    detected = source_extension._detect_format(xlsx)
+
+    assert detected.tuple == ("ZIP_V1", "XLSX_V1")
+
+
+def test_opc_relationship_parent_segments_normalize_within_package() -> None:
+    assert source_extension._resolve_internal_opc_target(
+        "xl/worksheets/sheet1.xml",
+        "../drawings/drawing1.xml",
+    ) == "xl/drawings/drawing1.xml"
+    assert (
+        source_extension._resolve_internal_opc_target(
+            "xl/workbook.xml",
+            "../../outside.xml",
+        )
+        is None
+    )
+    assert source_extension._resolve_internal_opc_target(
+        "xl/workbook.xml",
+        "/xl/worksheets/sheet1.xml",
+    ) == "xl/worksheets/sheet1.xml"
+    assert source_extension._resolve_internal_opc_target(
+        "xl/workbook.xml",
+        "./worksheets/sheet1.xml",
+    ) == "xl/worksheets/sheet1.xml"
+    assert (
+        source_extension._resolve_internal_opc_target(
+            "xl/workbook.xml",
+            "urn:x/../worksheets/sheet1.xml",
+        )
+        is None
+    )
+
+
+def test_opc_uri_scheme_is_not_an_internal_xlsx_target() -> None:
+    disguised = _xlsx(worksheet_target=b"urn:x/../worksheets/sheet1.xml")
+    package_root = _xlsx(worksheet_target=b"/xl/worksheets/sheet1.xml")
+
+    assert source_extension._detect_format(disguised).tuple == (
+        "ZIP_V1",
+        "GENERIC_ZIP_V1",
+    )
+    assert source_extension._detect_format(package_root).tuple == (
+        "ZIP_V1",
+        "XLSX_V1",
+    )
+
+
+def test_ooxml_parser_rejects_utf16_and_entity_declarations() -> None:
+    entity_xml = (
+        '<?xml version="1.0" encoding="UTF-16"?>'
+        '<!DOCTYPE workbook [<!ENTITY injected "fabricated">]>'
+        '<workbook xmlns="http://schemas.openxmlformats.org/'
+        'spreadsheetml/2006/main">&injected;</workbook>'
+    ).encode("utf-16")
+
+    assert source_extension._parse_ooxml_xml(entity_xml) is None
+    assert (
+        source_extension._parse_ooxml_xml(
+            b'<!doctype workbook><workbook xmlns="urn:test"/>'
+        )
+        is None
+    )
+
+
+@pytest.mark.parametrize(
+    ("raw_target", "xml_target"),
+    [
+        (" worksheets/sheet1.xml", b" worksheets/sheet1.xml"),
+        ("worksheets/sheet1.xml?", b"worksheets/sheet1.xml?"),
+        ("worksheets/sheet1.xml#", b"worksheets/sheet1.xml#"),
+        ("//[", b"//["),
+        ("///xl/worksheets/sheet1.xml", b"///xl/worksheets/sheet1.xml"),
+        ("1:x/../worksheets/sheet1.xml", b"1:x/../worksheets/sheet1.xml"),
+        ("worksheets/she\net1.xml", b"worksheets/she&#10;et1.xml"),
+        ("worksheets/sheet1.xml/.", b"worksheets/sheet1.xml/."),
+        ("worksheets/%2e%2e/sheet1.xml", b"worksheets/%2e%2e/sheet1.xml"),
+        ("worksheets/\u0080.xml", "worksheets/\u0080.xml".encode("utf-8")),
+    ],
+)
+def test_malformed_opc_targets_fail_closed_without_aliasing(
+    raw_target: str,
+    xml_target: bytes,
+) -> None:
+    assert (
+        source_extension._resolve_internal_opc_target(
+            "xl/workbook.xml",
+            raw_target,
+        )
+        is None
+    )
+    assert source_extension._detect_format(
+        _xlsx(worksheet_target=xml_target)
+    ).tuple == ("ZIP_V1", "GENERIC_ZIP_V1")
+
+
+def test_illegal_opc_path_character_cannot_match_a_packaged_worksheet() -> None:
+    target = b"worksheets/[sheet].xml"
+    package = _xlsx(
+        worksheet_target=target,
+        worksheet_part="xl/worksheets/[sheet].xml",
+    )
+
+    assert source_extension._resolve_internal_opc_target(
+        "xl/workbook.xml",
+        target.decode("ascii"),
+    ) is None
+    assert source_extension._detect_format(package).tuple == (
+        "ZIP_V1",
+        "GENERIC_ZIP_V1",
+    )
+
+
+@pytest.mark.parametrize(
+    "target",
+    (
+        "worksheets/sheet1.xml.",
+        "worksheets/...",
+        "worksheets/directory./sheet1.xml",
+    ),
+)
+def test_opc_trailing_dot_alias_cannot_match_a_packaged_worksheet(
+    target: str,
+) -> None:
+    package_target = target.encode("ascii")
+    package_part = f"xl/{target}"
+    package = _xlsx(
+        worksheet_target=package_target,
+        worksheet_part=package_part,
+    )
+
+    assert (
+        source_extension._resolve_internal_opc_target(
+            "xl/workbook.xml",
+            target,
+        )
+        is None
+    )
+    assert source_extension._detect_format(package).tuple == (
+        "ZIP_V1",
+        "GENERIC_ZIP_V1",
+    )
+
+
+def test_zip_selector_rejects_unicode_control_characters() -> None:
+    with pytest.raises(SourceBearingExtensionError, match="SELECTOR_UNSAFE"):
+        source_extension._detect_format(_zip({"\u0080.csv": b"a,b\n1,2\n"}))
+
+
+def test_v2_source_asset_preflight_reads_every_generic_zip_member(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(source_extension, "MAX_ARCHIVE_MEMBER_BYTES", 16)
+    archive = _zip({"table.csv": b"a,b\n" + b"1,2\n" * 5})
+    assert source_extension._detect_format(archive).tuple == (
+        "ZIP_V1",
+        "GENERIC_ZIP_V1",
+    )
+
+    with pytest.raises(SourceBearingExtensionError, match="MEMBER_TOO_LARGE"):
+        source_extension.validate_v2_source_asset_payload(archive)
+
+
+def test_v2_source_asset_preflight_bounds_recursive_entry_count(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(source_extension, "MAX_ARCHIVE_RUN_ENTRIES", 2)
+    nested = _zip(
+        {
+            "first.csv": b"a,b\n1,2\n",
+            "second.csv": b"a,b\n3,4\n",
+        }
+    )
+    archive = _zip({"nested.zip": nested})
+
+    with pytest.raises(SourceBearingExtensionError, match="RUN_ENTRY_LIMIT"):
+        source_extension.validate_v2_source_asset_payload(archive)
+
+
+def test_tracked_openpyxl_workbook_is_xlsx_v1() -> None:
+    sample = Path(__file__).resolve().parents[1] / "sample.xlsx"
+
+    assert source_extension._detect_format(sample.read_bytes()).tuple == (
+        "ZIP_V1",
+        "XLSX_V1",
+    )
 
 
 def test_declared_format_bypass_cross_doi_and_mixed_p_fail_closed() -> None:
@@ -1587,6 +1851,7 @@ def _upgrade_raw_source_descriptor_v2(raw_root: Path) -> None:
         "descriptor_bytes": len(payload),
     }
     provenance_path.write_bytes(json.dumps(provenance, sort_keys=True).encode("utf-8"))
+    _refresh_raw_inventory(raw_root)
 
 
 @pytest.mark.parametrize("chunk_id", ["001", "013"])
