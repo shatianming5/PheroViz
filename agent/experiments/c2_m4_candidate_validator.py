@@ -30,6 +30,7 @@ from .c2_owner_remediation_execution_policy import (
 )
 from .models import (
     ProvenanceError,
+    _trusted_acl_allows_foreign_mutation,
     canonical_json,
     open_trusted_directory,
     verify_trusted_directory,
@@ -53,6 +54,9 @@ EXPECTED_CAPABILITY = "C2_CANDIDATE_VALIDATION"
 SNAPSHOT_ALGORITHM = "sha256_canonical_sorted_path_size_content_sha256_rows_v1"
 EXCLUDED_TREE = ".pipeline_worktree"
 EMPTY_SHA256 = hashlib.sha256(b"").hexdigest()
+TERMINAL_SELECTION_RULE = (
+    "retry2 is the fixed third and final attempt for every input record"
+)
 
 
 def _require(condition: bool, message: str) -> None:
@@ -216,7 +220,14 @@ class _DescriptorSnapshotter:
 
     def __init__(self, root: Path) -> None:
         self._directory = open_trusted_directory(root)
-        self._root_fd = os.dup(self._directory.descriptor)
+        self._root_fd = -1
+        try:
+            self._root_fd = os.dup(self._directory.descriptor)
+        except OSError as exc:
+            self._directory.close()
+            raise C2M4CandidateValidationError(
+                "cannot retain candidate root descriptor"
+            ) from exc
 
     def close(self) -> None:
         if self._root_fd != -1:
@@ -245,13 +256,23 @@ class _DescriptorSnapshotter:
         directory_fd: int,
         name: str,
         label: str,
+        expected: os.stat_result,
     ) -> _SnapshotFile:
-        flags = os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0)
+        flags = (
+            os.O_RDONLY
+            | os.O_NOFOLLOW
+            | getattr(os, "O_CLOEXEC", 0)
+            | getattr(os, "O_NONBLOCK", 0)
+        )
         descriptor = -1
         try:
             descriptor = os.open(name, flags, dir_fd=directory_fd)
             before = os.fstat(descriptor)
             _require(stat.S_ISREG(before.st_mode), f"{label} is not regular")
+            _require(
+                (before.st_dev, before.st_ino) == (expected.st_dev, expected.st_ino),
+                f"{label} changed between inspection and open",
+            )
             _require(before.st_nlink == 1, f"{label} has multiple hard links")
             _require(
                 before.st_uid == os.geteuid(),
@@ -260,6 +281,10 @@ class _DescriptorSnapshotter:
             _require(
                 stat.S_IMODE(before.st_mode) & 0o022 == 0,
                 f"{label} is group/world writable",
+            )
+            _require(
+                not _trusted_acl_allows_foreign_mutation(descriptor),
+                f"{label} has a mutating ACL",
             )
             chunks: list[bytes] = []
             while True:
@@ -289,6 +314,38 @@ class _DescriptorSnapshotter:
         finally:
             if descriptor != -1:
                 os.close(descriptor)
+
+    @staticmethod
+    def _validate_open_directory(
+        descriptor: int,
+        expected: os.stat_result,
+        label: str,
+    ) -> tuple[int, ...]:
+        try:
+            opened = os.fstat(descriptor)
+            _require(stat.S_ISDIR(opened.st_mode), f"{label} is not a directory")
+            _require(
+                (opened.st_dev, opened.st_ino)
+                == (expected.st_dev, expected.st_ino),
+                f"{label} changed between inspection and open",
+            )
+            _require(
+                opened.st_uid == os.geteuid(),
+                f"{label} is not owned by the executing user",
+            )
+            _require(
+                stat.S_IMODE(opened.st_mode) & 0o022 == 0,
+                f"{label} is group/world writable",
+            )
+            _require(
+                not _trusted_acl_allows_foreign_mutation(descriptor),
+                f"{label} has a mutating ACL",
+            )
+        except OSError as exc:
+            raise C2M4CandidateValidationError(
+                f"cannot securely inspect {label}"
+            ) from exc
+        return _metadata(opened)
 
     def _scan(self) -> dict[str, _SnapshotFile]:
         flags = (
@@ -344,7 +401,13 @@ class _DescriptorSnapshotter:
                         raise C2M4CandidateValidationError(
                             f"cannot securely open {EXCLUDED_TREE}"
                         ) from exc
-                    else:
+                    try:
+                        self._validate_open_directory(
+                            child_fd,
+                            file_stat,
+                            EXCLUDED_TREE,
+                        )
+                    finally:
                         os.close(child_fd)
                     excluded_seen = True
                     continue
@@ -356,7 +419,21 @@ class _DescriptorSnapshotter:
                             f"cannot securely open candidate directory {relative}"
                         ) from exc
                     try:
+                        opened_identity = self._validate_open_directory(
+                            child_fd,
+                            file_stat,
+                            f"candidate directory {relative}",
+                        )
                         descend(child_fd, (*prefix, name))
+                        _require(
+                            _metadata(os.fstat(child_fd)) == opened_identity,
+                            f"candidate directory changed while read: {relative}",
+                        )
+                        self._validate_open_directory(
+                            child_fd,
+                            file_stat,
+                            f"candidate directory {relative}",
+                        )
                     finally:
                         os.close(child_fd)
                     continue
@@ -368,9 +445,15 @@ class _DescriptorSnapshotter:
                     directory_fd,
                     name,
                     f"candidate artifact {relative}",
+                    file_stat,
                 )
 
-        root_fd = os.dup(self._root_fd)
+        try:
+            root_fd = os.dup(self._root_fd)
+        except OSError as exc:
+            raise C2M4CandidateValidationError(
+                "cannot duplicate candidate root descriptor"
+            ) from exc
         try:
             descend(root_fd, ())
         finally:
@@ -1019,6 +1102,10 @@ def _validate_terminal(
                 terminal["terminal_content_directory"] is None,
                 "terminal row declares a content directory",
             )
+            _require(
+                terminal["terminal_selection_rule"] == TERMINAL_SELECTION_RULE,
+                "terminal selection rule differs",
+            )
         else:
             expected_keys = {
                 "article_id",
@@ -1066,7 +1153,20 @@ def _validate_terminal(
                 ],
                 "terminal_status": terminal_status,
                 "acquisition_disposition": (
-                    "NO_SOURCE_BEARING_ARTIFACT_OBSERVED_ACROSS_FIXED_ATTEMPTS"
+                    (
+                        "NO_SOURCE_BEARING_ARTIFACT_OBSERVED_IN_BOUND_"
+                        "PER_ATTEMPT_PROVENANCE"
+                    )
+                    if binding.format_profile
+                    == "RERUN2_FORENSIC_ACQUISITION_V2"
+                    else (
+                        "NO_DOWNLOADED_STATUS_RECORDED_ACROSS_FIXED_ATTEMPTS_"
+                        "AND_TERMINAL_PROVENANCE_EMPTY"
+                    )
+                ),
+                "per_attempt_provenance_bound": (
+                    binding.format_profile
+                    == "RERUN2_FORENSIC_ACQUISITION_V2"
                 ),
                 "source_binding": None,
                 "canonical_binding": None,
@@ -1133,11 +1233,67 @@ def _validate_inventory(
     }
     _require(declared == expected, "native inventory does not match the root snapshot")
     if binding.format_profile == "RERUN2_FORENSIC_ACQUISITION_V2":
+        _require(
+            inventory.get("inventory_type") == "c2_rerun2_root_inventory",
+            "forensic inventory type differs",
+        )
+        _require(
+            inventory.get("root_id") == binding.root_name,
+            "forensic inventory root ID differs",
+        )
+        _require(
+            inventory.get("excluded_prefixes") == [f"{EXCLUDED_TREE}/"],
+            "forensic inventory exclusions differ",
+        )
+        _require(
+            inventory.get("entry_hashes_verified_at_build") is True,
+            "forensic inventory did not verify entries",
+        )
+        _require(
+            inventory.get("formal_artifact_manifest_path")
+            == "control/artifact_manifest_v1.json",
+            "forensic inventory manifest path differs",
+        )
+        _require(
+            inventory.get("formal_artifact_manifest_sha256")
+            == snapshot.digest(
+                "control/artifact_manifest_v1.json",
+                "formal artifact manifest",
+            ),
+            "forensic inventory manifest digest differs",
+        )
+        _require(
+            inventory.get("sealed_report_path")
+            == "sealed_report_v1/sealed_report.json",
+            "forensic inventory sealed-report path differs",
+        )
+        _require(
+            inventory.get("sealed_report_sha256")
+            == snapshot.digest(
+                "sealed_report_v1/sealed_report.json",
+                "sealed report",
+            ),
+            "forensic inventory sealed-report digest differs",
+        )
         _validate_sidecar(
             snapshot.read("root_inventory.sha256", "inventory sidecar"),
             _sha256(payload),
             "root_inventory.json",
             "inventory sidecar",
+        )
+    else:
+        _require(
+            inventory.get("root_name") == binding.root_name,
+            "legacy inventory root name differs",
+        )
+        _require(
+            inventory.get("artifact_count") == len(declared),
+            "legacy inventory artifact count differs",
+        )
+        _require(
+            inventory.get("total_bytes")
+            == sum(size for size, _ in declared.values()),
+            "legacy inventory total bytes differ",
         )
     return {
         "path": path,
@@ -1170,11 +1326,19 @@ def _validate_sealed_report(
     binding: M4CandidateBinding,
     attempt_reports: Sequence[Mapping[str, Any]],
     terminal_sha256: str,
+    terminal_counts: Mapping[str, int],
+    frozen_universe_sha256: str,
 ) -> dict[str, Any]:
     path = "sealed_report_v1/sealed_report.json"
     payload = snapshot.read(path, "legacy sealed report")
     report = _json_object(payload, "legacy sealed report")
     report_hash = _semantic_hash(report, "report_hash", "legacy sealed report")
+    coverage_payload = snapshot.read(
+        "control/attempt_coverage.json",
+        "attempt coverage",
+    )
+    coverage = _json_object(coverage_payload, "attempt coverage")
+    coverage_hash = _semantic_hash(coverage, "summary_hash", "attempt coverage")
     _validate_sidecar(
         snapshot.read(
             "sealed_report_v1/sealed_report.sha256",
@@ -1202,8 +1366,28 @@ def _validate_sealed_report(
             source.get("source_chunk_sha256") == binding.accepted_sha256,
             "sealed source digest differs",
         )
+        _require(
+            source.get("frozen_universe_sha256") == frozen_universe_sha256,
+            "sealed frozen-universe digest differs",
+        )
         formal = report.get("formal_attempts")
         _require(isinstance(formal, dict), "sealed attempt binding is invalid")
+        _require(
+            formal.get("attempt_coverage_path") == "control/attempt_coverage.json",
+            "sealed attempt-coverage path differs",
+        )
+        _require(
+            formal.get("attempt_coverage_sha256") == _sha256(coverage_payload),
+            "sealed attempt-coverage digest differs",
+        )
+        _require(
+            formal.get("attempt_coverage_summary_hash") == coverage_hash,
+            "sealed attempt-coverage semantic digest differs",
+        )
+        _require(
+            formal.get("roster") == list(ATTEMPTS),
+            "sealed attempt roster differs",
+        )
         _require(
             formal.get("total_ledger_records") == 3 * binding.input_total,
             "sealed ledger count differs",
@@ -1213,6 +1397,18 @@ def _validate_sealed_report(
         _require(
             terminal.get("terminal_outcomes_sha256") == terminal_sha256,
             "sealed terminal digest differs",
+        )
+        _require(
+            terminal.get("records") == binding.input_total,
+            "sealed terminal count differs",
+        )
+        _require(
+            terminal.get("unique_dois") == binding.input_total,
+            "sealed terminal DOI count differs",
+        )
+        _require(
+            terminal.get("terminal_counts") == dict(terminal_counts),
+            "sealed terminal status counts differ",
         )
     else:
         _require(
@@ -1239,6 +1435,54 @@ def _validate_sealed_report(
             and len(report["attempt_evidence"]["attempts"]) == len(attempt_reports),
             "legacy sealed attempt roster differs",
         )
+        attempt_evidence = report["attempt_evidence"]
+        _require(
+            attempt_evidence.get("coverage_exact") is True,
+            "legacy sealed coverage is incomplete",
+        )
+        _require(
+            attempt_evidence.get("coverage_file_sha256")
+            == _sha256(coverage_payload),
+            "legacy sealed coverage digest differs",
+        )
+        _require(
+            attempt_evidence.get("coverage_summary_hash") == coverage_hash,
+            "legacy sealed coverage semantic digest differs",
+        )
+        _require(
+            attempt_evidence.get("attempts") == coverage.get("attempts"),
+            "legacy sealed attempt details differ",
+        )
+        _require(
+            frozen_input.get("universe_sha256") == frozen_universe_sha256,
+            "legacy sealed universe digest differs",
+        )
+        postfetch = report.get("postfetch")
+        _require(isinstance(postfetch, dict), "legacy sealed postfetch is invalid")
+        _require(
+            postfetch.get("terminal_outcomes_sha256") == terminal_sha256,
+            "legacy sealed terminal digest differs",
+        )
+        _require(
+            postfetch.get("terminal_counts") == dict(terminal_counts),
+            "legacy sealed terminal counts differ",
+        )
+        _require(
+            report.get("canonical", {}).get("eligible_cases") == 0,
+            "legacy sealed report claims canonical cases",
+        )
+        _require(
+            report.get("cases", {}).get("candidates") == 0,
+            "legacy sealed report claims candidate cases",
+        )
+        _require(
+            report.get("proposals", {}).get("total") == 0,
+            "legacy sealed report claims proposals",
+        )
+        _require(
+            report.get("corpus_manifest", {}).get("source_data_dois") == 0,
+            "legacy sealed report claims source-data DOI",
+        )
     return {
         "sha256": _sha256(payload),
         "report_hash": report_hash,
@@ -1251,7 +1495,49 @@ def _validate_sealed_report(
 def _validate_no_source_surfaces(
     snapshot: _RootSnapshot,
     binding: M4CandidateBinding,
+    article_ids: Sequence[str],
 ) -> dict[str, Any]:
+    allowed_root_files = {
+        "accepted.jsonl",
+        "root_inventory.json",
+        "root_inventory.sha256",
+    }
+    allowed_directories = {
+        "canonical_v1",
+        "cases_v1",
+        "content",
+        "control",
+        "manifest_v1",
+        "p_evidence_v1",
+        "pre_acquisition_aborted_v1",
+        "proposals_v1",
+        "sealed_report_v1",
+    }
+    for relative in snapshot.files:
+        parts = PurePosixPath(relative).parts
+        _require(
+            relative in allowed_root_files or parts[0] in allowed_directories,
+            f"candidate root has an unsupported artifact path: {relative}",
+        )
+        if parts[0] == "content":
+            _require(
+                len(parts) == 3
+                and parts[1] == "_provenance"
+                and parts[2].endswith(".json"),
+                f"formal content has a non-provenance artifact: {relative}",
+            )
+    expected_live_provenance = {
+        f"content/_provenance/{article_id}.json" for article_id in article_ids
+    }
+    observed_live_provenance = {
+        relative
+        for relative in snapshot.files
+        if relative.startswith("content/")
+    }
+    _require(
+        observed_live_provenance == expected_live_provenance,
+        "formal live-provenance roster differs from accepted input",
+    )
     forbidden_prefixes = ("content/_sources/", "content/_source_evidence/")
     _require(
         not any(
@@ -1265,10 +1551,36 @@ def _validate_no_source_surfaces(
         _require(payload == b"", f"{path} is not empty")
         _require(_sha256(payload) == EMPTY_SHA256, f"{path} empty digest differs")
     return {
-        "source_bearing_attempt_records": 0,
-        "source_asset_paths": 0,
-        "candidate_records": 0,
-        "proposal_records": 0,
+        "observed_scope": (
+            "FORMAL_ROOT_ACQUISITION_SURFACES_EXCLUDING_PIPELINE_AND_"
+            "HISTORICAL_QUARANTINE"
+        ),
+        "excluded_unassessed_trees": [
+            f"{EXCLUDED_TREE}/",
+            *(
+                ["pre_acquisition_aborted_v1/"]
+                if any(
+                    relative.startswith("pre_acquisition_aborted_v1/")
+                    for relative in snapshot.files
+                )
+                else []
+            ),
+        ],
+        "source_bearing_ledger_status_records_in_observed_scope": 0,
+        "formal_content_source_asset_paths": 0,
+        "root_candidate_surface_records": 0,
+        "root_proposal_surface_records": 0,
+        "per_attempt_provenance_bound": (
+            binding.format_profile == "RERUN2_FORENSIC_ACQUISITION_V2"
+        ),
+        "legacy_source_absence_qualification": (
+            None
+            if binding.format_profile == "RERUN2_FORENSIC_ACQUISITION_V2"
+            else (
+                "ZERO_DOWNLOADED_LEDGER_STATUSES_PLUS_EMPTY_TERMINAL_"
+                "PROVENANCE_ONLY"
+            )
+        ),
         "source_classification_performed": False,
         "canonical_classification_performed": False,
         "p_classification_performed": False,
@@ -1311,8 +1623,14 @@ def _validate_candidate(
         binding,
         attempt_reports,
         terminal_sha256,
+        terminal_counts,
+        frozen_universe_sha256,
     )
-    source_absence = _validate_no_source_surfaces(snapshot, binding)
+    source_observation = _validate_no_source_surfaces(
+        snapshot,
+        binding,
+        article_ids,
+    )
     disposition_hash = _sha256(canonical_json(dispositions).encode("utf-8"))
     legacy = binding.format_profile == "LEGACY_COMPACT_ACQUISITION_ONLY"
     return {
@@ -1358,7 +1676,7 @@ def _validate_candidate(
         "ordered_acquisition_dispositions_sha256": disposition_hash,
         "native_inventory": inventory,
         "legacy_sealed_report": sealed_report,
-        "source_absence": source_absence,
+        "source_observation": source_observation,
         "legacy_canonical_p_handling": (
             "SNAPSHOT_BOUND_BYTES_ONLY_NOT_EVALUATED_NOT_AUTHORITY"
         ),
@@ -1466,8 +1784,12 @@ def validate_fixed_m4_candidates(root_base: Path) -> dict[str, Any]:
             "terminal_records": sum(
                 binding.input_total for binding in bindings.candidates
             ),
-            "source_bearing_attempt_records": 0,
-            "candidate_records": 0,
+            "observed_scope": (
+                "FORMAL_ROOT_ACQUISITION_SURFACES_EXCLUDING_PIPELINE_AND_"
+                "HISTORICAL_QUARANTINE"
+            ),
+            "source_bearing_ledger_status_records_in_observed_scope": 0,
+            "root_candidate_surface_records": 0,
             "v2_admission_eligible_roots": 0,
         },
         "observation_status": "VALIDATED_FIXED_CANDIDATES_NON_ADMISSIVE",
