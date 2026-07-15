@@ -217,6 +217,16 @@ def _git(arguments: Tuple[str, ...], label: str) -> bytes:
     return completed.stdout
 
 
+def _release_pin(name: str, length: int) -> str:
+    value = os.environ.get(name, "")
+    _require(
+        len(value) == length
+        and all(character in "0123456789abcdef" for character in value),
+        f"M5 release pin is invalid: {name}",
+    )
+    return value
+
+
 def _verified_production_attestation_module() -> Tuple[types.ModuleType, bytes]:
     head = _git(("rev-parse", "HEAD"), "M5 release HEAD").decode("ascii").strip()
     _require(
@@ -434,6 +444,36 @@ def _child(production: Path, tests: Path) -> int:
 def _run() -> int:
     production_attestation, runner_payload = (
         _verified_production_attestation_module()
+    )
+    runtime_attestation = production_attestation.verify_adapter_attestation(
+        activate=False,
+        expected_attestation_commit=_release_pin(
+            "C2_M5_EXPECTED_ATTESTATION_COMMIT",
+            40,
+        ),
+        expected_manifest_sha256=_release_pin(
+            "C2_M5_EXPECTED_MANIFEST_SHA256",
+            64,
+        ),
+        expected_bootstrap_sha256=_release_pin(
+            "C2_M5_EXPECTED_BOOTSTRAP_SHA256",
+            64,
+        ),
+        expected_python_sha256=_release_pin(
+            "C2_M5_EXPECTED_PYTHON_SHA256",
+            64,
+        ),
+        expected_python_library_sha256=_release_pin(
+            "C2_M5_EXPECTED_PYTHON_LIBRARY_SHA256",
+            64,
+        ),
+    )
+    _require(
+        runtime_attestation.path_payloads[
+            "agent/c2_m5_release_test_runner.py"
+        ]
+        == runner_payload,
+        "M5 release runner is outside the verified runtime closure",
     )
 
     production_manifest_payload = _stable_regular(
