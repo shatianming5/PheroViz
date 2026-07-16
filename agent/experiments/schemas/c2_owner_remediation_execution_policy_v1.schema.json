@@ -1,0 +1,192 @@
+{
+  "$defs": {
+    "chunkAction": {
+      "additionalProperties": false,
+      "properties": {
+        "chunk_id": {
+          "$ref": "#/$defs/chunkId"
+        },
+        "required_action": {
+          "enum": [
+            "FRESH_REMEDIATION_REQUIRED",
+            "CANDIDATE_V2_VALIDATION_ONLY",
+            "STRICT_PATH_ONLY_DERIVATIVE_OR_REMEDIATION_REQUIRED",
+            "TRANSPARENT_63_INPUT_DERIVATIVE_OR_FRESH_3X63_REQUIRED"
+          ]
+        }
+      },
+      "required": [
+        "chunk_id",
+        "required_action"
+      ],
+      "type": "object"
+    },
+    "chunkBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "chunk_file_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "chunk_id": {
+          "$ref": "#/$defs/chunkId"
+        },
+        "first_global_ordinal": {
+          "maximum": 2463,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "input_total": {
+          "maximum": 200,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "last_global_ordinal": {
+          "maximum": 2463,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "chunk_id",
+        "first_global_ordinal",
+        "last_global_ordinal",
+        "input_total",
+        "chunk_file_sha256"
+      ],
+      "type": "object"
+    },
+    "chunkId": {
+      "enum": [
+        "001",
+        "002",
+        "003",
+        "004",
+        "005",
+        "006",
+        "007",
+        "008",
+        "009",
+        "010",
+        "011",
+        "012",
+        "013"
+      ]
+    },
+    "sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    }
+  },
+  "$id": "c2_owner_remediation_execution_policy_v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A pre-remediation policy for owner-authorized, non-independent execution and atomic sealing of non-admissive evidence roots. It contains no source classification, admission, scientific-publication, or outcome authority.",
+  "properties": {
+    "admission_authorized": {
+      "const": false
+    },
+    "allowed_operations": {
+      "items": false,
+      "maxItems": 4,
+      "minItems": 4,
+      "prefixItems": [
+        {
+          "const": "M3_READ_ONLY_PREFLIGHT"
+        },
+        {
+          "const": "C2_REMEDIATION_EXECUTION"
+        },
+        {
+          "const": "C2_SOURCE_EXTENSION_BUILD_REPLAY"
+        },
+        {
+          "const": "C2_CANDIDATE_VALIDATION"
+        }
+      ],
+      "type": "array"
+    },
+    "authorization_id_sha256": {
+      "const": "e9904025acb67abe3a2fa3c8211b4ff578458004062be8b1c6266163a98c578a"
+    },
+    "chunk_actions": {
+      "items": {
+        "$ref": "#/$defs/chunkAction"
+      },
+      "maxItems": 13,
+      "minItems": 13,
+      "type": "array"
+    },
+    "frozen_universe": {
+      "additionalProperties": false,
+      "properties": {
+        "input_total": {
+          "const": 2463
+        },
+        "partition": {
+          "items": {
+            "$ref": "#/$defs/chunkBinding"
+          },
+          "maxItems": 13,
+          "minItems": 13,
+          "type": "array"
+        },
+        "universe_file_sha256": {
+          "const": "51848466c6bf6bf400b58faf539953830349abab21438e527eaefd74103450df"
+        }
+      },
+      "required": [
+        "universe_file_sha256",
+        "input_total",
+        "partition"
+      ],
+      "type": "object"
+    },
+    "independent_verification": {
+      "const": false
+    },
+    "non_admissive_evidence_root_sealing_authorized": {
+      "const": true,
+      "description": "Allows atomic sealing of non-admissive remediation evidence roots only."
+    },
+    "policy_id_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "policy_phase": {
+      "const": "PRE_REMEDIATION_EXECUTION"
+    },
+    "policy_type": {
+      "const": "C2_OWNER_REMEDIATION_EXECUTION_POLICY"
+    },
+    "publication_authorized": {
+      "const": false,
+      "description": "Scientific, manuscript, or public-result publication remains forbidden."
+    },
+    "schema_version": {
+      "const": "c2-owner-remediation-execution-policy-v1"
+    },
+    "source_extension_runtime_registry_required": {
+      "const": true
+    },
+    "trust_mode": {
+      "const": "OWNER_AUTHORIZED_NON_INDEPENDENT"
+    }
+  },
+  "required": [
+    "schema_version",
+    "policy_type",
+    "policy_phase",
+    "policy_id_sha256",
+    "authorization_id_sha256",
+    "trust_mode",
+    "independent_verification",
+    "non_admissive_evidence_root_sealing_authorized",
+    "admission_authorized",
+    "publication_authorized",
+    "frozen_universe",
+    "chunk_actions",
+    "allowed_operations",
+    "source_extension_runtime_registry_required"
+  ],
+  "title": "C2 owner remediation execution policy",
+  "type": "object"
+}

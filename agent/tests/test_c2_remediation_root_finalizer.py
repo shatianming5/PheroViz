@@ -5,14 +5,17 @@ import json
 import os
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
 
 from experiments import c2_remediation_root_finalizer as finalizer
-from experiments import cli
 from experiments.models import sha256_file
-from tests.test_experiment_support import experiment_workspace
+from tests.test_experiment_support import (
+    experiment_workspace,
+    release_test_git_repository,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -23,6 +26,20 @@ def _exercise_guarded_remediation_paths(
         finalizer,
         "require_external_m1_trust_lock",
         lambda: None,
+    )
+    monkeypatch.setattr(
+        finalizer,
+        "require_test_only_finalizer_gate",
+        lambda: None,
+    )
+    monkeypatch.setattr(
+        finalizer,
+        "_require_owner_remediation_policy_for_chunk",
+        lambda _chunk_id, _partition: (
+            SimpleNamespace(authorization_id_sha256="test-authorization"),
+            SimpleNamespace(policy_id_sha256="test-policy"),
+            SimpleNamespace(required_action="FRESH_REMEDIATION_REQUIRED"),
+        ),
     )
 
 
@@ -50,6 +67,29 @@ def _seal(value: dict[str, Any], field: str) -> dict[str, Any]:
         _canonical_json({key: item for key, item in value.items() if key != field})
     )
     return value
+
+
+def _refresh_raw_inventory(raw_root: Path) -> None:
+    inventory_path = raw_root / "control/raw_inventory.json"
+    entries = [
+        {
+            "relative_path": path.relative_to(raw_root).as_posix(),
+            "bytes": path.stat().st_size,
+            "sha256": sha256_file(path),
+        }
+        for path in sorted(raw_root.rglob("*"))
+        if path.is_file() and path != inventory_path
+    ]
+    inventory = {
+        "schema_version": "c2-m5-raw-root-inventory-v1",
+        "root_name": raw_root.name,
+        "artifact_count": len(entries),
+        "total_bytes": sum(int(entry["bytes"]) for entry in entries),
+        "excludes": ["control/raw_inventory.json"],
+        "files": entries,
+    }
+    _seal(inventory, "inventory_hash")
+    _write_json(inventory_path, inventory)
 
 
 def _records() -> list[dict[str, str]]:
@@ -154,7 +194,7 @@ def _make_fixture(
         "FROZEN_FREEZE_SUMMARY_HASH",
         str(summary["summary_hash"]),
     )
-    raw_root = workspace / "raw"
+    raw_root = workspace / finalizer.expected_raw_root_name(chunk_id)
     raw_root.mkdir(mode=0o700)
     (raw_root / "accepted.jsonl").write_bytes(source_bytes)
     config = {
@@ -257,6 +297,17 @@ def _make_fixture(
             "\n".join(processed) + ("\n" if processed else ""),
             encoding="utf-8",
         )
+        (attempt_dir / "operational_processed.txt").write_text(
+            "".join(
+                f"{record['article_url'].rsplit('/', 1)[-1]}\n"
+                for record in source_records
+            ),
+            encoding="utf-8",
+        )
+        (attempt_dir / "operational_skipped.txt").write_text(
+            "\n".join(skipped) + ("\n" if skipped else ""),
+            encoding="utf-8",
+        )
         (attempt_dir / "_skipped.txt").write_text(
             "\n".join(skipped) + ("\n" if skipped else ""),
             encoding="utf-8",
@@ -266,13 +317,32 @@ def _make_fixture(
             encoding="utf-8",
         )
         (attempt_dir / "postfetch.exit").write_text("0\n", encoding="utf-8")
+        network_budget = {
+            "schema_version": "c2-m5-network-budget-v1",
+            "request_count": 1,
+            "response_bytes": 2,
+            "request_cap": 10_000,
+            "response_byte_cap": 8 * 1024 * 1024 * 1024,
+            "wall_timeout_seconds": 3 * 60 * 60,
+        }
+        _seal(network_budget, "budget_hash")
+        _write_json(attempt_dir / "network_budget.json", network_budget)
         hashes = {
             "input_sha256": sha256_file(attempt_dir / "accepted.jsonl"),
             "config_hash": str(config["config_hash"]),
+            "operational_processed_sha256": sha256_file(
+                attempt_dir / "operational_processed.txt"
+            ),
+            "operational_skipped_sha256": sha256_file(
+                attempt_dir / "operational_skipped.txt"
+            ),
             "processed_sha256": sha256_file(attempt_dir / "processed.txt"),
             "skipped_sha256": sha256_file(attempt_dir / "_skipped.txt"),
             "postfetch_log_sha256": sha256_file(attempt_dir / "postfetch.log"),
             "postfetch_exit_sha256": sha256_file(attempt_dir / "postfetch.exit"),
+            "network_budget_sha256": sha256_file(
+                attempt_dir / "network_budget.json"
+            ),
             "source_chunk_sha256": partition.source_sha256,
             "source_universe_sha256": finalizer.FROZEN_UNIVERSE_SHA256,
             "source_freeze_summary_sha256": finalizer.FROZEN_FREEZE_SUMMARY_SHA256,
@@ -371,6 +441,28 @@ def _make_fixture(
                 }
         _write_json(provenance_dir / f"{article_id}.json", provenance)
 
+    inventory_entries = [
+        {
+            "relative_path": path.relative_to(raw_root).as_posix(),
+            "bytes": path.stat().st_size,
+            "sha256": sha256_file(path),
+        }
+        for path in sorted(raw_root.rglob("*"))
+        if path.is_file()
+    ]
+    raw_inventory = {
+        "schema_version": "c2-m5-raw-root-inventory-v1",
+        "root_name": raw_root.name,
+        "artifact_count": len(inventory_entries),
+        "total_bytes": sum(
+            int(entry["bytes"]) for entry in inventory_entries
+        ),
+        "excludes": ["control/raw_inventory.json"],
+        "files": inventory_entries,
+    }
+    _seal(raw_inventory, "inventory_hash")
+    _write_json(raw_root / "control/raw_inventory.json", raw_inventory)
+
     target_parent = workspace / "output"
     target_parent.mkdir(mode=0o700)
     target_parent.chmod(0o700)
@@ -392,7 +484,7 @@ def _make_fixture(
         },
     )
     worktree = workspace / "frozen-acquisition-worktree"
-    repository = Path(__file__).resolve().parents[2]
+    repository = release_test_git_repository()
     subprocess.run(
         ["git", "clone", "--shared", "--no-checkout", str(repository), str(worktree)],
         check=True,
@@ -426,19 +518,10 @@ def _make_fixture(
 
 
 def _finalize(paths: dict[str, Path], chunk_id: str) -> dict[str, Any]:
-    return finalizer.finalize_remediation_root(
+    return finalizer.finalize_remediation_root_for_testing(
         chunk_id=chunk_id,
         **paths,
     )
-
-
-def _private_staging_root(paths: dict[str, Path]) -> Path:
-    target = paths["target_root"]
-    roots = sorted(
-        target.parent.glob(f".{target.name}.c2-remediation-staging-*")
-    )
-    assert len(roots) == 1
-    return roots[0]
 
 
 def test_static_partition_covers_the_frozen_2463_record_universe() -> None:
@@ -537,16 +620,70 @@ def test_finalizes_exact_200_and_63_roots(
         validation = json.loads(
             (target / "sealed_report_v1/validation.json").read_text(encoding="utf-8")
         )
-        assert validation["gates"]["atomic_no_replace_publication"] is True
-        assert validation["gates"]["canonical_target_identity"] is True
+        assert validation["gates"]["atomic_no_replace_publication_ready"] is True
+        assert validation["gates"]["canonical_target_absence_prechecked"] is True
+        assert result["publication"] == {
+            "status": "PUBLISHED_ATOMIC_NO_REPLACE",
+            "canonical_target_identity_verified": True,
+        }
+        terminal_manifest_path = (
+            target / "sealed_report_v1/terminal_manifest.json"
+        )
+        terminal_manifest = json.loads(
+            terminal_manifest_path.read_text(encoding="utf-8")
+        )
+        assert result["terminal_manifest_sha256"] == sha256_file(
+            terminal_manifest_path
+        )
+        assert result["terminal_manifest_hash"] == terminal_manifest["manifest_hash"]
+        terminal_paths = {entry["path"] for entry in terminal_manifest["files"]}
+        assert {
+            "sealed_report_v1/sealed_report.json",
+            "sealed_report_v1/postseal_preservation.json",
+            "sealed_report_v1/validation.json",
+        }.issubset(terminal_paths)
+        assert (
+            target / "sealed_report_v1/terminal_manifest.sha256"
+        ).read_text(encoding="utf-8") == (
+            f"{result['terminal_manifest_sha256']}  terminal_manifest.json\n"
+        )
         assert validation["gates"]["private_trusted_staging_parent"] is True
         report_payload = json.loads(report.read_text(encoding="utf-8"))
+        assert report_payload["execution_authorization"] == {
+            "authorization_mode": "OWNER_AUTHORIZED_NON_INDEPENDENT",
+            "authorization_id_sha256": "test-authorization",
+            "policy_id_sha256": "test-policy",
+            "required_action": "FRESH_REMEDIATION_REQUIRED",
+            "non_admissive_evidence_root_sealing_authorized": True,
+            "admission_authorized": False,
+            "scientific_publication_authorized": False,
+        }
         assert report_payload["publication"]["staging_parent"] == (
             "pre-existing descriptor-validated owner/ACL-safe parent"
         )
         assert report_payload["publication"]["threat_boundary"].endswith(
             "malicious same-EUID filesystem control is out of scope"
         )
+
+
+def test_public_finalizer_rejects_legacy_config_schema(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with experiment_workspace("c2-remediation-public-m5-only") as workspace:
+        paths = _make_fixture(workspace, monkeypatch, chunk_id="001")
+        monkeypatch.setattr(
+            finalizer,
+            "_require_active_m5_adapter_attestation",
+            lambda: SimpleNamespace(),
+        )
+
+        with pytest.raises(
+            finalizer.C2RemediationError,
+            match="M5 acquisition config schema is not closed",
+        ):
+            finalizer.finalize_remediation_root(chunk_id="001", **paths)
+
+        assert not paths["target_root"].exists()
 
 
 def test_rejects_source_hash_mismatch_before_creating_target(
@@ -693,8 +830,9 @@ def test_atomic_publish_rejects_target_replacement_without_accepting_attacker(
             "attacker-owned\n"
         )
         assert {path.name for path in target.iterdir()} == {"attacker-marker"}
-        staging = _private_staging_root(paths)
-        assert (staging / "control/preseal_validation.json").is_file()
+        assert not list(
+            target.parent.glob(f".{target.name}.c2-remediation-staging-*")
+        )
 
 
 def test_atomic_publish_binds_canonical_leaf_to_staging_inode(
@@ -725,7 +863,7 @@ def test_atomic_publish_binds_canonical_leaf_to_staging_inode(
         assert paths["target_root"].is_dir()
 
 
-def test_unsupported_native_publication_retains_private_staging(
+def test_unsupported_native_publication_removes_private_staging(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     with experiment_workspace("c2-remediation-unsupported-publication") as workspace:
@@ -740,8 +878,49 @@ def test_unsupported_native_publication_retains_private_staging(
             _finalize(paths, "001")
 
         assert not paths["target_root"].exists()
-        staging = _private_staging_root(paths)
-        assert (staging / "sealed_report_v1/artifact_manifest.json").is_file()
+        assert not list(
+            paths["target_root"].parent.glob(
+                f".{paths['target_root'].name}.c2-remediation-staging-*"
+            )
+        )
+
+
+def test_terminal_manifest_mutation_before_publication_fails_and_cleans_staging(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with experiment_workspace("c2-remediation-terminal-manifest-race") as workspace:
+        paths = _make_fixture(workspace, monkeypatch, chunk_id="001")
+        original_write = finalizer._write_bytes
+
+        def mutate_manifest_after_sidecar(
+            target: finalizer._SecureTargetRoot,
+            relative: str,
+            payload: bytes,
+        ) -> str:
+            written = original_write(target, relative, payload)
+            if relative == "sealed_report_v1/terminal_manifest.sha256":
+                (
+                    target.path.parent
+                    / target.staging_name
+                    / "sealed_report_v1"
+                    / "terminal_manifest.json"
+                ).write_bytes(b"{}\n")
+            return written
+
+        monkeypatch.setattr(finalizer, "_write_bytes", mutate_manifest_after_sidecar)
+
+        with pytest.raises(
+            finalizer.C2RemediationError,
+            match="terminal publication binding changed",
+        ):
+            _finalize(paths, "001")
+
+        assert not paths["target_root"].exists()
+        assert not list(
+            paths["target_root"].parent.glob(
+                f".{paths['target_root'].name}.c2-remediation-staging-*"
+            )
+        )
 
 
 def test_rejects_symlinked_provenance_before_creating_target(
@@ -818,37 +997,11 @@ def test_blocks_source_bearing_terminal_before_empty_canonical_p_seal(
             _finalize(paths, "001")
 
         assert not paths["target_root"].exists()
-        target = _private_staging_root(paths)
-        blocked = json.loads(
-            (target / "control/source_classification_blocked.json").read_text(
-                encoding="utf-8"
+        assert not list(
+            paths["target_root"].parent.glob(
+                f".{paths['target_root'].name}.c2-remediation-staging-*"
             )
         )
-        assert blocked["status"] == (
-            "NOT_SEALABLE_SOURCE_CLASSIFICATION_BUILDER_REQUIRED"
-        )
-        terminal = json.loads(
-            (target / "control/terminal_outcomes.jsonl").read_text(
-                encoding="utf-8"
-            ).splitlines()[0]
-        )
-        assert terminal["acquisition_disposition"] == "SOURCE_BEARING_DOWNLOAD"
-        assert terminal["source_classification_state"] == (
-            "BLOCKED_CANONICAL_P_BUILDER_REQUIRED"
-        )
-        terminal_summary = json.loads(
-            (target / "control/postfetch_terminal_summary.json").read_text(
-                encoding="utf-8"
-            )
-        )
-        assert terminal_summary["source_classification"] == {
-            "source_bearing_terminal_records": 1,
-            "source_less_terminal_records": 199,
-            "empty_chain_authorized": False,
-        }
-        assert not (target / "canonical_v1").exists()
-        assert not (target / "p_evidence_v1").exists()
-        assert not (target / "sealed_report_v1").exists()
 
 
 def test_blocks_prior_attempt_source_bearing_record_before_empty_seal(
@@ -867,18 +1020,11 @@ def test_blocks_prior_attempt_source_bearing_record_before_empty_seal(
             _finalize(paths, "001")
 
         assert not paths["target_root"].exists()
-        staging = _private_staging_root(paths)
-        terminal = json.loads(
-            (staging / "control/terminal_outcomes.jsonl").read_text(
-                encoding="utf-8"
-            ).splitlines()[0]
+        assert not list(
+            paths["target_root"].parent.glob(
+                f".{paths['target_root'].name}.c2-remediation-staging-*"
+            )
         )
-        assert terminal["terminal_status"] == "no-source-data"
-        assert terminal["acquisition_disposition"] == (
-            "SOURCE_BEARING_PRIOR_ATTEMPT_DOWNLOAD_RETRY2_NO_SOURCE_DATA"
-        )
-        assert not (staging / "canonical_v1").exists()
-        assert not (staging / "sealed_report_v1").exists()
 
 
 def test_rejects_unreferenced_source_artifact_before_target_creation(
@@ -893,6 +1039,7 @@ def test_rejects_unreferenced_source_artifact_before_target_creation(
         )
         orphan = paths["raw_root"] / "content/_sources/article-1/orphan.json"
         orphan.write_text('{"unreferenced":true}\n', encoding="utf-8")
+        _refresh_raw_inventory(paths["raw_root"])
 
         with pytest.raises(finalizer.C2RemediationError, match="unreferenced"):
             _finalize(paths, "001")
@@ -903,8 +1050,8 @@ def test_rejects_unreferenced_source_artifact_before_target_creation(
     ("mutation", "message"),
     [
         ("downloaded-status", "invalid skipped status"),
-        ("overlap", "processed/skipped overlap"),
-        ("missing", "partition is incomplete"),
+        ("overlap", "strict status files differ from operational replay"),
+        ("missing", "strict status files differ from operational replay"),
     ],
 )
 def test_rejects_invalid_processed_skipped_partitions(
@@ -1001,6 +1148,11 @@ def test_descriptor_target_detects_parent_swap_without_outside_write(
         with pytest.raises(finalizer.ProvenanceError):
             _finalize(paths, "001")
         assert not (outside / paths["target_root"].name).exists()
+        assert not list(
+            (workspace / "moved-output").glob(
+                f".{paths['target_root'].name}.c2-remediation-staging-*"
+            )
+        )
 
 
 def test_descriptor_target_detects_leaf_swap_without_outside_write(
@@ -1016,7 +1168,7 @@ def test_descriptor_target_detects_leaf_swap_without_outside_write(
             target: finalizer._SecureTargetRoot,
         ) -> None:
             original_publish(target)
-            moved_target = workspace / "moved-target"
+            moved_target = paths["target_root"].with_name("moved-target")
             paths["target_root"].rename(moved_target)
             os.symlink(outside, paths["target_root"])
 
@@ -1084,23 +1236,24 @@ def test_blocks_generated_root_when_secret_scan_hits(
         evidence["tests"][0]["command"] = "API_KEY=abcdefghijklmnop"
         _seal(evidence, "evidence_hash")
         _write_json(evidence_path, evidence)
+        _refresh_raw_inventory(paths["raw_root"])
 
         with pytest.raises(finalizer.C2RemediationError, match="secret scan"):
             _finalize(paths, "001")
         assert not paths["target_root"].exists()
-        staging = _private_staging_root(paths)
-        scan = json.loads(
-            (staging / "control/secret_scan.json").read_text(
-                encoding="utf-8"
+        assert not list(
+            paths["target_root"].parent.glob(
+                f".{paths['target_root'].name}.c2-remediation-staging-*"
             )
         )
-        assert scan["status"] == "BLOCKED_SECRET_HIT"
 
 
 def test_cli_wires_the_dedicated_remediation_finalizer(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
+    from experiments import cli
+
     received: dict[str, Any] = {}
 
     def fake_finalizer(**kwargs: Any) -> dict[str, Any]:

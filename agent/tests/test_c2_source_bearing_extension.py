@@ -3,8 +3,12 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import shutil
+import struct
 import subprocess
+import time
 import zipfile
+from functools import lru_cache
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -17,16 +21,19 @@ from experiments import c2_source_bearing_extension as source_extension
 from experiments.c2_source_bearing_extension import (
     SourceBearingExtensionError,
     build_source_bearing_extension,
-    build_source_bearing_extension_for_testing,
+    build_source_bearing_extension_for_testing as _build_source_bearing_extension_for_testing,
     validate_source_bearing_extension,
-    validate_source_bearing_extension_for_testing,
+    validate_source_bearing_extension_for_testing as _validate_source_bearing_extension_for_testing,
     verify_source_extension_code_attestation_for_testing,
 )
 from tests.test_c2_remediation_root_finalizer import (
     _make_fixture,
-    _private_staging_root,
+    _refresh_raw_inventory,
 )
-from tests.test_experiment_support import experiment_workspace
+from tests.test_experiment_support import (
+    experiment_workspace,
+    release_test_git_repository,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -39,6 +46,45 @@ def _exercise_guarded_remediation_calls(
             "require_external_m1_trust_lock",
             lambda: None,
         )
+    monkeypatch.setattr(
+        source_extension,
+        "require_test_only_source_extension_gate",
+        lambda: None,
+    )
+    monkeypatch.setattr(
+        finalizer,
+        "require_test_only_finalizer_gate",
+        lambda: None,
+    )
+    monkeypatch.setattr(
+        finalizer,
+        "_require_owner_remediation_policy_for_chunk",
+        lambda _chunk_id, _partition: (
+            SimpleNamespace(authorization_id_sha256="test-authorization"),
+            SimpleNamespace(policy_id_sha256="test-policy"),
+            SimpleNamespace(required_action="FRESH_REMEDIATION_REQUIRED"),
+        ),
+    )
+
+
+@lru_cache(maxsize=1)
+def _test_code_attestation() -> Any:
+    return verify_source_extension_code_attestation_for_testing(
+        release_test_git_repository()
+    )
+
+
+def build_source_bearing_extension_for_testing(**kwargs: Any) -> Any:
+    kwargs["test_code_attestation"] = _test_code_attestation()
+    return _build_source_bearing_extension_for_testing(**kwargs)
+
+
+def validate_source_bearing_extension_for_testing(
+    root: Any,
+    **kwargs: Any,
+) -> dict[str, Any]:
+    kwargs["test_code_attestation"] = _test_code_attestation()
+    return _validate_source_bearing_extension_for_testing(root, **kwargs)
 
 
 def _canonical(value: Any) -> bytes:
@@ -82,6 +128,29 @@ def _zip(entries: dict[str, bytes]) -> bytes:
     return output.getvalue()
 
 
+def _with_deflate_option_flags(payload: bytes, option_bits: int) -> bytes:
+    output = bytearray(payload)
+    with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+        for info in archive.infolist():
+            if info.compress_type == zipfile.ZIP_DEFLATED:
+                struct.pack_into("<H", output, info.header_offset + 6, option_bits)
+    eocd = output.rfind(b"PK\x05\x06")
+    assert eocd >= 0
+    central_offset = struct.unpack_from("<I", output, eocd + 16)[0]
+    cursor = central_offset
+    while cursor < eocd:
+        assert output[cursor : cursor + 4] == b"PK\x01\x02"
+        compression = struct.unpack_from("<H", output, cursor + 10)[0]
+        if compression == zipfile.ZIP_DEFLATED:
+            struct.pack_into("<H", output, cursor + 8, option_bits)
+        name_size, extra_size, comment_size = struct.unpack_from(
+            "<HHH", output, cursor + 28
+        )
+        cursor += 46 + name_size + extra_size + comment_size
+    assert cursor == eocd
+    return bytes(output)
+
+
 def _dos_directory_with_data_zip() -> bytes:
     output = io.BytesIO()
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_STORED) as archive:
@@ -103,7 +172,13 @@ def _dos_directory_archive(directory_payload: bytes) -> bytes:
     return output.getvalue()
 
 
-def _xlsx(*, workbook_extra_relationship: bytes = b"") -> bytes:
+def _xlsx(
+    *,
+    workbook_extra_relationship: bytes = b"",
+    worksheet_target: bytes = b"worksheets/sheet1.xml",
+    worksheet_part: str = "xl/worksheets/sheet1.xml",
+) -> bytes:
+    worksheet_part_bytes = worksheet_part.encode("utf-8")
     style_parts = (
         {
             "xl/styles.xml": (
@@ -129,7 +204,9 @@ def _xlsx(*, workbook_extra_relationship: bytes = b"") -> bytes:
                 b'Extension="xml" ContentType="application/xml"/><Override '
                 b'PartName="/xl/workbook.xml" ContentType="application/vnd.'
                 b'openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
-                b'<Override PartName="/xl/worksheets/sheet1.xml" ContentType='
+                b'<Override PartName="/'
+                + worksheet_part_bytes
+                + b'" ContentType='
                 b'"application/vnd.openxmlformats-officedocument.spreadsheetml.'
                 b'worksheet+xml"/>'
                 + content_type_extra
@@ -151,11 +228,13 @@ def _xlsx(*, workbook_extra_relationship: bytes = b"") -> bytes:
                 b'<Relationships xmlns="http://schemas.openxmlformats.org/package/'
                 b'2006/relationships"><Relationship Id="rId1" Type="http://'
                 b'schemas.openxmlformats.org/officeDocument/2006/relationships/'
-                b'worksheet" Target="worksheets/sheet1.xml"/>'
+                b'worksheet" Target="'
+                + worksheet_target
+                + b'"/>'
                 + workbook_extra_relationship
                 + b"</Relationships>"
             ),
-            "xl/worksheets/sheet1.xml": (
+            worksheet_part: (
                 b'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/'
                 b'2006/main"><sheetData/></worksheet>'
             ),
@@ -348,6 +427,7 @@ def _test_only_attestation_payload(repository: Path, commit: str) -> bytes:
         "agent/experiments/c2_m1_trust_boundary.py",
         "agent/experiments/c2_remediation_root_finalizer.py",
         "agent/experiments/c2_source_bearing_extension.py",
+        "agent/experiments/c2_stageb_source_extension_code_attestation.py",
         "agent/experiments/cli.py",
         "agent/experiments/models.py",
         "agent/experiments/schemas/c2_v2_candidate_set_input_v1.schema.json",
@@ -401,13 +481,24 @@ def test_required_v2_schemas_are_closed_and_meta_schema_valid() -> None:
 
 
 def test_test_only_code_attestation_rejects_wrong_commit_blob_and_runtime_path() -> None:
-    repository = Path(__file__).resolve().parents[2]
+    repository = release_test_git_repository()
     current_commit = subprocess.check_output(
         ["git", "-C", str(repository), "rev-parse", "HEAD"],
         text=True,
     ).strip()
     attestation = verify_source_extension_code_attestation_for_testing(repository)
-    assert attestation.attestation_commit_full == current_commit
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repository),
+            "merge-base",
+            "--is-ancestor",
+            attestation.attestation_commit_full,
+            current_commit,
+        ],
+        check=True,
+    )
     assert {
         blob.relative_path for blob in attestation.code_blobs
     } >= {
@@ -444,6 +535,50 @@ def test_test_only_code_attestation_rejects_wrong_commit_blob_and_runtime_path()
             loaded_finalizer_path=finalizer_path,
             loaded_m1_trust_boundary_path=m1_trust_boundary_path,
         )
+        split_runtime = workspace / "split-runtime"
+        for relative in sorted(source_extension._REQUIRED_ATTESTED_CODE_PATHS):
+            source = clone / relative
+            destination = split_runtime / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source, destination)
+        split_models = split_runtime / "agent/experiments/models.py"
+        split_models.write_bytes(split_models.read_bytes() + b"\n# forged runtime\n")
+        with pytest.raises(SourceBearingExtensionError, match="runtime bytes differ"):
+            verify_source_extension_code_attestation_for_testing(
+                clone,
+                loaded_extension_path=(
+                    split_runtime
+                    / "agent/experiments/c2_source_bearing_extension.py"
+                ),
+                loaded_finalizer_path=(
+                    split_runtime
+                    / "agent/experiments/c2_remediation_root_finalizer.py"
+                ),
+                loaded_m1_trust_boundary_path=(
+                    split_runtime / "agent/experiments/c2_m1_trust_boundary.py"
+                ),
+            )
+        graft_path = Path(
+            subprocess.check_output(
+                ["git", "-C", str(clone), "rev-parse", "--git-path", "info/grafts"],
+                text=True,
+            ).strip()
+        )
+        if not graft_path.is_absolute():
+            graft_path = clone / graft_path
+        graft_path.parent.mkdir(parents=True, exist_ok=True)
+        graft_path.write_text(
+            f"{attestation.attestation_commit_full} {current_commit}\n",
+            encoding="ascii",
+        )
+        with pytest.raises(SourceBearingExtensionError, match="graft metadata"):
+            verify_source_extension_code_attestation_for_testing(
+                clone,
+                loaded_extension_path=extension_path,
+                loaded_finalizer_path=finalizer_path,
+                loaded_m1_trust_boundary_path=m1_trust_boundary_path,
+            )
+        graft_path.unlink()
         with pytest.raises(SourceBearingExtensionError, match="loaded runtime path"):
             verify_source_extension_code_attestation_for_testing(
                 clone,
@@ -535,7 +670,7 @@ def test_test_only_code_attestation_rejects_wrong_commit_blob_and_runtime_path()
             stderr=subprocess.PIPE,
             text=True,
         )
-        with pytest.raises(SourceBearingExtensionError, match="attested blob mismatch"):
+        with pytest.raises(SourceBearingExtensionError, match="runtime attestation"):
             verify_source_extension_code_attestation_for_testing(
                 clone,
                 loaded_extension_path=extension_path,
@@ -558,7 +693,7 @@ def test_test_only_code_attestation_rejects_wrong_commit_blob_and_runtime_path()
         )
         with pytest.raises(
             SourceBearingExtensionError,
-            match="attestation commit",
+            match="runtime attestation",
         ):
             verify_source_extension_code_attestation_for_testing(
                 clone,
@@ -700,199 +835,96 @@ def test_test_only_code_attestation_rejects_wrong_commit_blob_and_runtime_path()
             stderr=subprocess.PIPE,
             text=True,
         )
-        matching_test_only = verify_source_extension_code_attestation_for_testing(
-            malicious_clone,
-            loaded_extension_path=malicious_extension,
-            loaded_finalizer_path=(
-                malicious_clone
-                / "agent/experiments/c2_remediation_root_finalizer.py"
-            ),
-            loaded_m1_trust_boundary_path=(
-                malicious_clone / "agent/experiments/c2_m1_trust_boundary.py"
-            ),
-        )
-        assert (
-            matching_test_only.approved_implementation_commit_full
-            == malicious_implementation
-        )
+        with pytest.raises(SourceBearingExtensionError, match="runtime attestation"):
+            verify_source_extension_code_attestation_for_testing(
+                malicious_clone,
+                loaded_extension_path=malicious_extension,
+                loaded_finalizer_path=(
+                    malicious_clone
+                    / "agent/experiments/c2_remediation_root_finalizer.py"
+                ),
+                loaded_m1_trust_boundary_path=(
+                    malicious_clone / "agent/experiments/c2_m1_trust_boundary.py"
+                ),
+            )
 
 
 
-def test_test_only_code_attestation_rejects_invalid_child_topologies_and_manifest() -> None:
-    repository = Path(__file__).resolve().parents[2]
+def test_test_manifest_commit_is_derived_from_compile_pinned_runtime_parent() -> None:
+    repository = release_test_git_repository()
     attestation = verify_source_extension_code_attestation_for_testing(repository)
-    implementation = attestation.approved_implementation_commit_full
-    manifest_relative = (
-        "agent/tests/fixtures/c2_source_bearing_extension_test_attestation.json"
+    registry = (
+        source_extension.load_compile_pinned_source_extension_code_attestation()
     )
-    source_manifest = json.loads(
-        (repository / manifest_relative).read_text(encoding="utf-8")
+    runtime_commit = registry.manifest_only_attestation_commit_full
+    test_commit = subprocess.check_output(
+        ["git", "-C", str(repository), "rev-parse", f"{runtime_commit}^"],
+        text=True,
+    ).strip()
+    implementation_commit = subprocess.check_output(
+        ["git", "-C", str(repository), "rev-parse", f"{test_commit}^"],
+        text=True,
+    ).strip()
+
+    assert test_commit == attestation.attestation_commit_full
+    assert implementation_commit == attestation.approved_implementation_commit_full
+    assert implementation_commit == registry.extension_implementation_commit_full
+    assert subprocess.check_output(
+        [
+            "git",
+            "-C",
+            str(repository),
+            "diff",
+            "--name-status",
+            "--no-renames",
+            implementation_commit,
+            test_commit,
+        ],
+        text=True,
+    ).strip() == (
+        "A\tagent/tests/fixtures/"
+        "c2_source_bearing_extension_test_attestation.json"
+    )
+    assert subprocess.check_output(
+        [
+            "git",
+            "-C",
+            str(repository),
+            "diff",
+            "--name-status",
+            "--no-renames",
+            test_commit,
+            runtime_commit,
+        ],
+        text=True,
+    ).strip() == (
+        "A\tagent/experiments/resources/"
+        "c2_source_extension_runtime_manifest_v1.json"
     )
 
-    with experiment_workspace("c2-source-extension-attestation-topology") as workspace:
-        clone = workspace / "topology-clone"
-        subprocess.run(
-            ["git", "clone", "--no-local", "--no-checkout", str(repository), str(clone)],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
 
-        def git(*arguments: str) -> None:
-            subprocess.run(
-                ["git", "-C", str(clone), *arguments],
-                check=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-            )
+def test_production_extension_routes_use_fixed_runtime_attestation() -> None:
+    root, reader, records, provenance, terminal_rows = _source_root(
+        source_assets=_bound_assets()
+    )
+    result = build_source_bearing_extension(
+        root=root,
+        raw_reader=reader,
+        records=records,
+        provenance=provenance,
+        terminal_rows=terminal_rows,
+        partition_records=1,
+        source_chunk_sha256="a" * 64,
+    )
+    replay = validate_source_bearing_extension(
+        root,
+        partition_records=1,
+        source_chunk_sha256="a" * 64,
+    )
 
-        for key, value in (
-            ("user.email", "attestation-topology-test@example.test"),
-            ("user.name", "Attestation Topology Test"),
-        ):
-            git("config", key, value)
-
-        manifest_path = clone / manifest_relative
-        extension_path = clone / "agent/experiments/c2_source_bearing_extension.py"
-        finalizer_path = clone / "agent/experiments/c2_remediation_root_finalizer.py"
-        m1_trust_boundary_path = (
-            clone / "agent/experiments/c2_m1_trust_boundary.py"
-        )
-        unexpected_child = clone / "unexpected-test-only-child.txt"
-
-        def checkout_implementation() -> None:
-            git("checkout", "--detach", implementation)
-            if unexpected_child.exists():
-                unexpected_child.unlink()
-
-        def clone_manifest() -> dict[str, Any]:
-            return json.loads(_canonical(source_manifest).decode("utf-8"))
-
-        def commit_manifest(
-            payload: bytes,
-            message: str,
-            *,
-            with_unexpected_child: bool = False,
-        ) -> None:
-            manifest_path.parent.mkdir(parents=True, exist_ok=True)
-            manifest_path.write_bytes(payload)
-            paths = [manifest_relative]
-            if with_unexpected_child:
-                unexpected_child.write_text("unexpected child diff\n", encoding="utf-8")
-                paths.append(unexpected_child.relative_to(clone).as_posix())
-            git("add", *paths)
-            git("commit", "-m", message)
-
-        checkout_implementation()
-        with pytest.raises(
-            SourceBearingExtensionError,
-            match="must add only its manifest",
-        ):
-            verify_source_extension_code_attestation_for_testing(
-                clone,
-                loaded_extension_path=extension_path,
-                loaded_finalizer_path=finalizer_path,
-                loaded_m1_trust_boundary_path=m1_trust_boundary_path,
-            )
-
-        checkout_implementation()
-        commit_manifest(
-            _test_only_attestation_payload(clone, implementation),
-            "test non-manifest attestation child",
-            with_unexpected_child=True,
-        )
-        with pytest.raises(
-            SourceBearingExtensionError,
-            match="must add only its manifest",
-        ):
-            verify_source_extension_code_attestation_for_testing(
-                clone,
-                loaded_extension_path=extension_path,
-                loaded_finalizer_path=finalizer_path,
-                loaded_m1_trust_boundary_path=m1_trust_boundary_path,
-            )
-
-        wrong_blob = clone_manifest()
-        wrong_blob["attested_paths"][0]["git_blob_object_id"] = "0" * 40
-        checkout_implementation()
-        commit_manifest(
-            _canonical(wrong_blob) + b"\n",
-            "test wrong attestation blob",
-        )
-        with pytest.raises(SourceBearingExtensionError, match="attested blob mismatch"):
-            verify_source_extension_code_attestation_for_testing(
-                clone,
-                loaded_extension_path=extension_path,
-                loaded_finalizer_path=finalizer_path,
-                loaded_m1_trust_boundary_path=m1_trust_boundary_path,
-            )
-
-        wrong_path = clone_manifest()
-        wrong_path["attested_paths"][0]["relative_path"] = (
-            "agent/experiments/not_attested.py"
-        )
-        checkout_implementation()
-        commit_manifest(
-            _canonical(wrong_path) + b"\n",
-            "test wrong attestation path",
-        )
-        with pytest.raises(
-            SourceBearingExtensionError,
-            match="code attestation blob is invalid",
-        ):
-            verify_source_extension_code_attestation_for_testing(
-                clone,
-                loaded_extension_path=extension_path,
-                loaded_finalizer_path=finalizer_path,
-                loaded_m1_trust_boundary_path=m1_trust_boundary_path,
-            )
-
-        wrong_manifest = clone_manifest()
-        wrong_manifest["approved_implementation_commit_full"] = "0" * 40
-        checkout_implementation()
-        commit_manifest(
-            _canonical(wrong_manifest) + b"\n",
-            "test wrong attestation manifest",
-        )
-        with pytest.raises(
-            SourceBearingExtensionError,
-            match="code attestation manifest is invalid",
-        ):
-            verify_source_extension_code_attestation_for_testing(
-                clone,
-                loaded_extension_path=extension_path,
-                loaded_finalizer_path=finalizer_path,
-                loaded_m1_trust_boundary_path=m1_trust_boundary_path,
-            )
-
-
-def test_production_extension_routes_fail_before_candidate_attestation() -> None:
-    root = _MemoryRoot()
-    with pytest.raises(
-        SourceBearingExtensionError,
-        match="STAGEB_POLICY_REQUIRED",
-    ):
-        build_source_bearing_extension(
-            root=root,
-            raw_reader=object(),
-            records=(),
-            provenance={},
-            terminal_rows=(),
-            partition_records=0,
-            source_chunk_sha256="a" * 64,
-        )
-    with pytest.raises(
-        SourceBearingExtensionError,
-        match="STAGEB_POLICY_REQUIRED",
-    ):
-        validate_source_bearing_extension(
-            root,
-            partition_records=0,
-            source_chunk_sha256="a" * 64,
-        )
-    assert root.payloads == {}
+    assert result.status == "SOURCE_CLASSIFICATION_V2_COMPLETE"
+    assert replay["status"] == "PASS"
+    assert replay["source_classification_count"] == 1
 
 
 def test_csv_pipeline_replays_without_models_and_retains_single_case() -> None:
@@ -936,6 +968,104 @@ def test_csv_pipeline_replays_without_models_and_retains_single_case() -> None:
     assert replay["status"] == "PASS"
     protocol = json.loads(root.read_bytes("review_v2/structural_protocol.json"))
     assert protocol["review_mode"] == "C2_V2_STRUCTURAL_REVIEW_V1"
+
+
+def test_zip_preflight_reuses_one_member_reader(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    archive = _zip(
+        {
+            f"table-{index:04d}.csv": b"panel,value\na,1\n"
+            for index in range(200)
+        }
+    )
+    original = source_extension.zipfile.ZipFile
+    calls = 0
+
+    def counting_zipfile(*args: Any, **kwargs: Any):
+        nonlocal calls
+        calls += 1
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(source_extension.zipfile, "ZipFile", counting_zipfile)
+
+    assert source_extension.validate_v2_source_asset_payload(archive) == (
+        "ZIP_V1",
+        "GENERIC_ZIP_V1",
+    )
+    assert calls == 2
+    expired_budget = source_extension.new_v2_archive_run_budget(
+        deadline_monotonic=time.monotonic() - 1
+    )
+    with pytest.raises(SourceBearingExtensionError, match="ARCHIVE_DEADLINE"):
+        source_extension.validate_v2_source_asset_payload(
+            archive,
+            archive_budget=expired_budget,
+        )
+
+
+def test_zip_preflight_rejects_non_source_and_unaccounted_bytes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for archive in (
+        _zip({}),
+        _zip({"__MACOSX/._metadata": b"resource-only"}),
+        _zip({"notes.txt": b"not tabular source data"}),
+    ):
+        with pytest.raises(
+            SourceBearingExtensionError,
+            match="ARCHIVE_NO_SUBSTANTIVE_SOURCE",
+        ):
+            source_extension.validate_v2_source_asset_payload(archive)
+
+    valid = _zip({"table.csv": b"panel,value\na,1\n"})
+    eocd = valid.rfind(b"PK\x05\x06")
+    assert eocd >= 0
+    central_offset = struct.unpack_from("<I", valid, eocd + 16)[0]
+    gap = b"hidden-gap"
+    with_gap = bytearray(valid[:central_offset] + gap + valid[central_offset:])
+    struct.pack_into(
+        "<I",
+        with_gap,
+        eocd + len(gap) + 16,
+        central_offset + len(gap),
+    )
+    with pytest.raises(
+        SourceBearingExtensionError,
+        match="ZIP_PHYSICAL_COVERAGE",
+    ):
+        source_extension.validate_v2_source_asset_payload(bytes(with_gap))
+
+    monkeypatch.setattr(source_extension, "MAX_ARCHIVE_MEMBER_BYTES", 10)
+    with pytest.raises(
+        SourceBearingExtensionError,
+        match="ZIP_MEMBER_TOO_LARGE",
+    ):
+        source_extension.validate_v2_source_asset_payload(
+            _zip(
+                {
+                    "table.csv": b"a,b\n1,2\n",
+                    "__MACOSX/._metadata": b"oversized-resource",
+                }
+            )
+        )
+
+
+def test_xlsx_rejects_contradictory_xml_encoding() -> None:
+    workbook = _xlsx()
+    with zipfile.ZipFile(io.BytesIO(workbook)) as archive:
+        members = {
+            info.filename: archive.read(info)
+            for info in archive.infolist()
+            if not info.is_dir()
+        }
+    members["[Content_Types].xml"] = (
+        b'<?xml version="1.0" encoding="UTF-16"?>'
+        + members["[Content_Types].xml"]
+    )
+
+    with pytest.raises(SourceBearingExtensionError):
+        source_extension.validate_v2_source_asset_payload(_zip(members))
 
 
 def test_generic_zip_is_fd_accounted_and_every_member_is_consumed() -> None:
@@ -1054,6 +1184,200 @@ def test_raw_xlsx_is_a_zip_accounted_outer_self_unit() -> None:
         partition_records=1,
         source_chunk_sha256="a" * 64,
     )["status"] == "PASS"
+
+
+@pytest.mark.parametrize("option_bits", [0x2, 0x4, 0x6])
+def test_valid_deflate_compression_option_flags_are_supported(
+    option_bits: int,
+) -> None:
+    xlsx = _with_deflate_option_flags(_xlsx(), option_bits)
+
+    detected = source_extension._detect_format(xlsx)
+
+    assert detected.tuple == ("ZIP_V1", "XLSX_V1")
+
+
+def test_opc_relationship_parent_segments_normalize_within_package() -> None:
+    assert source_extension._resolve_internal_opc_target(
+        "xl/worksheets/sheet1.xml",
+        "../drawings/drawing1.xml",
+    ) == "xl/drawings/drawing1.xml"
+    assert (
+        source_extension._resolve_internal_opc_target(
+            "xl/workbook.xml",
+            "../../outside.xml",
+        )
+        is None
+    )
+    assert source_extension._resolve_internal_opc_target(
+        "xl/workbook.xml",
+        "/xl/worksheets/sheet1.xml",
+    ) == "xl/worksheets/sheet1.xml"
+    assert source_extension._resolve_internal_opc_target(
+        "xl/workbook.xml",
+        "./worksheets/sheet1.xml",
+    ) == "xl/worksheets/sheet1.xml"
+    assert (
+        source_extension._resolve_internal_opc_target(
+            "xl/workbook.xml",
+            "urn:x/../worksheets/sheet1.xml",
+        )
+        is None
+    )
+
+
+def test_opc_uri_scheme_is_not_an_internal_xlsx_target() -> None:
+    disguised = _xlsx(worksheet_target=b"urn:x/../worksheets/sheet1.xml")
+    package_root = _xlsx(worksheet_target=b"/xl/worksheets/sheet1.xml")
+
+    assert source_extension._detect_format(disguised).tuple == (
+        "ZIP_V1",
+        "GENERIC_ZIP_V1",
+    )
+    assert source_extension._detect_format(package_root).tuple == (
+        "ZIP_V1",
+        "XLSX_V1",
+    )
+
+
+def test_ooxml_parser_rejects_utf16_and_entity_declarations() -> None:
+    entity_xml = (
+        '<?xml version="1.0" encoding="UTF-16"?>'
+        '<!DOCTYPE workbook [<!ENTITY injected "fabricated">]>'
+        '<workbook xmlns="http://schemas.openxmlformats.org/'
+        'spreadsheetml/2006/main">&injected;</workbook>'
+    ).encode("utf-16")
+
+    assert source_extension._parse_ooxml_xml(entity_xml) is None
+    assert (
+        source_extension._parse_ooxml_xml(
+            b'<!doctype workbook><workbook xmlns="urn:test"/>'
+        )
+        is None
+    )
+
+
+@pytest.mark.parametrize(
+    ("raw_target", "xml_target"),
+    [
+        (" worksheets/sheet1.xml", b" worksheets/sheet1.xml"),
+        ("worksheets/sheet1.xml?", b"worksheets/sheet1.xml?"),
+        ("worksheets/sheet1.xml#", b"worksheets/sheet1.xml#"),
+        ("//[", b"//["),
+        ("///xl/worksheets/sheet1.xml", b"///xl/worksheets/sheet1.xml"),
+        ("1:x/../worksheets/sheet1.xml", b"1:x/../worksheets/sheet1.xml"),
+        ("worksheets/she\net1.xml", b"worksheets/she&#10;et1.xml"),
+        ("worksheets/sheet1.xml/.", b"worksheets/sheet1.xml/."),
+        ("worksheets/%2e%2e/sheet1.xml", b"worksheets/%2e%2e/sheet1.xml"),
+        ("worksheets/\u0080.xml", "worksheets/\u0080.xml".encode("utf-8")),
+    ],
+)
+def test_malformed_opc_targets_fail_closed_without_aliasing(
+    raw_target: str,
+    xml_target: bytes,
+) -> None:
+    assert (
+        source_extension._resolve_internal_opc_target(
+            "xl/workbook.xml",
+            raw_target,
+        )
+        is None
+    )
+    assert source_extension._detect_format(
+        _xlsx(worksheet_target=xml_target)
+    ).tuple == ("ZIP_V1", "GENERIC_ZIP_V1")
+
+
+def test_illegal_opc_path_character_cannot_match_a_packaged_worksheet() -> None:
+    target = b"worksheets/[sheet].xml"
+    package = _xlsx(
+        worksheet_target=target,
+        worksheet_part="xl/worksheets/[sheet].xml",
+    )
+
+    assert source_extension._resolve_internal_opc_target(
+        "xl/workbook.xml",
+        target.decode("ascii"),
+    ) is None
+    assert source_extension._detect_format(package).tuple == (
+        "ZIP_V1",
+        "GENERIC_ZIP_V1",
+    )
+
+
+@pytest.mark.parametrize(
+    "target",
+    (
+        "worksheets/sheet1.xml.",
+        "worksheets/...",
+        "worksheets/directory./sheet1.xml",
+    ),
+)
+def test_opc_trailing_dot_alias_cannot_match_a_packaged_worksheet(
+    target: str,
+) -> None:
+    package_target = target.encode("ascii")
+    package_part = f"xl/{target}"
+    package = _xlsx(
+        worksheet_target=package_target,
+        worksheet_part=package_part,
+    )
+
+    assert (
+        source_extension._resolve_internal_opc_target(
+            "xl/workbook.xml",
+            target,
+        )
+        is None
+    )
+    assert source_extension._detect_format(package).tuple == (
+        "ZIP_V1",
+        "GENERIC_ZIP_V1",
+    )
+
+
+def test_zip_selector_rejects_unicode_control_characters() -> None:
+    with pytest.raises(SourceBearingExtensionError, match="SELECTOR_UNSAFE"):
+        source_extension._detect_format(_zip({"\u0080.csv": b"a,b\n1,2\n"}))
+
+
+def test_v2_source_asset_preflight_reads_every_generic_zip_member(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(source_extension, "MAX_ARCHIVE_MEMBER_BYTES", 16)
+    archive = _zip({"table.csv": b"a,b\n" + b"1,2\n" * 5})
+    assert source_extension._detect_format(archive).tuple == (
+        "ZIP_V1",
+        "GENERIC_ZIP_V1",
+    )
+
+    with pytest.raises(SourceBearingExtensionError, match="MEMBER_TOO_LARGE"):
+        source_extension.validate_v2_source_asset_payload(archive)
+
+
+def test_v2_source_asset_preflight_bounds_recursive_entry_count(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(source_extension, "MAX_ARCHIVE_RUN_ENTRIES", 2)
+    nested = _zip(
+        {
+            "first.csv": b"a,b\n1,2\n",
+            "second.csv": b"a,b\n3,4\n",
+        }
+    )
+    archive = _zip({"nested.zip": nested})
+
+    with pytest.raises(SourceBearingExtensionError, match="RUN_ENTRY_LIMIT"):
+        source_extension.validate_v2_source_asset_payload(archive)
+
+
+def test_tracked_openpyxl_workbook_is_xlsx_v1() -> None:
+    sample = Path(__file__).resolve().parents[1] / "sample.xlsx"
+
+    assert source_extension._detect_format(sample.read_bytes()).tuple == (
+        "ZIP_V1",
+        "XLSX_V1",
+    )
 
 
 def test_declared_format_bypass_cross_doi_and_mixed_p_fail_closed() -> None:
@@ -1339,7 +1663,7 @@ def test_v2_opt_in_keeps_a_zero_source_root_on_the_empty_chain(
 ) -> None:
     with experiment_workspace("c2-source-bearing-zero-source") as workspace:
         paths = _make_fixture(workspace, monkeypatch, chunk_id="001")
-        result = finalizer.finalize_remediation_root(
+        result = finalizer.finalize_remediation_root_for_testing(
             chunk_id="001",
             source_bearing_v2=True,
             **paths,
@@ -1349,7 +1673,7 @@ def test_v2_opt_in_keeps_a_zero_source_root_on_the_empty_chain(
         assert not (paths["target_root"] / "canonical_v2").exists()
 
 
-def test_v2_opt_in_blocks_prior_attempt_source_without_stage_b_policy(
+def test_v2_opt_in_seals_prior_attempt_source_under_fixed_stage_b_policy(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     with experiment_workspace("c2-source-bearing-prior-download") as workspace:
@@ -1361,30 +1685,99 @@ def test_v2_opt_in_blocks_prior_attempt_source_without_stage_b_policy(
             downloaded_attempt="initial",
         )
         _upgrade_raw_source_descriptor_v2(paths["raw_root"])
-        with pytest.raises(
-            finalizer.C2RemediationError,
-            match="STAGEB_POLICY_REQUIRED",
-        ):
-            finalizer.finalize_remediation_root(
-                chunk_id="001",
-                source_bearing_v2=True,
-                **paths,
-            )
-        assert not paths["target_root"].exists()
-        staging = _private_staging_root(paths)
-        blocked = json.loads(
-            (staging / "control/source_classification_blocked.json").read_text(
-                encoding="utf-8"
-            )
+        result = finalizer.finalize_remediation_root_for_testing(
+            chunk_id="001",
+            source_bearing_v2=True,
+            **paths,
         )
-        assert blocked["status"] == (
-            "NOT_SEALABLE_SOURCE_EXTENSION_STAGEB_POLICY_REQUIRED"
+        assert result["status"] == "SEALED_COMPLETE_ATTEMPT_EVIDENCE_SOURCE_V2"
+        assert (
+            paths["target_root"]
+            / "canonical_v2/canonical_case_set_manifest.json"
+        ).is_file()
+        assert (
+            paths["target_root"]
+            / "p_evidence_v2/source_classifications.jsonl"
+        ).is_file()
+        assert not (
+            paths["target_root"] / "control/source_classification_blocked.json"
+        ).exists()
+        inventory = [
+            json.loads(line)
+            for line in (
+                paths["target_root"]
+                / "source_inventory_v2/source_inventory.jsonl"
+            ).read_text(encoding="utf-8").splitlines()
+        ]
+        classifications = [
+            json.loads(line)
+            for line in (
+                paths["target_root"]
+                / "p_evidence_v2/source_classifications.jsonl"
+            ).read_text(encoding="utf-8").splitlines()
+        ]
+        dispositions = [
+            json.loads(line)
+            for line in (
+                paths["target_root"]
+                / "p_evidence_v2/acquisition_dispositions.jsonl"
+            ).read_text(encoding="utf-8").splitlines()
+        ]
+        assert inventory
+        assert [item["doi_id"] for item in classifications] == ["10.9999/c2-1"]
+        assert dispositions[0]["terminal_status"] == "NO_SOURCE_DATA"
+        assert dispositions[0]["final_disposition"] == (
+            "STRATIFIED_SOURCE_CANONICAL"
         )
-        assert not (staging / "canonical_v2").exists()
-        assert not (staging / "p_evidence_v2").exists()
+        assert dispositions[0]["classification_reason"] == (
+            "VERIFIED_PRIOR_ATTEMPT_SOURCE_CANONICAL_ALL_CASES"
+        )
+        assert dispositions[0]["source_inventory_binding_or_null"] is not None
 
 
-def test_stage_b_block_keeps_raw_acquisition_binding_separate(
+def test_exact_63_prior_attempt_source_is_fully_accounted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with experiment_workspace("c2-source-bearing-prior-download-013") as workspace:
+        paths = _make_fixture(
+            workspace,
+            monkeypatch,
+            chunk_id="013",
+            downloaded_mode="source",
+            downloaded_attempt="initial",
+        )
+        _upgrade_raw_source_descriptor_v2(paths["raw_root"])
+        result = finalizer.finalize_remediation_root_for_testing(
+            chunk_id="013",
+            source_bearing_v2=True,
+            **paths,
+        )
+
+        assert result["status"] == "SEALED_COMPLETE_ATTEMPT_EVIDENCE_SOURCE_V2"
+        assert result["input_total"] == 63
+        classifications = [
+            json.loads(line)
+            for line in (
+                paths["target_root"]
+                / "p_evidence_v2/source_classifications.jsonl"
+            ).read_text(encoding="utf-8").splitlines()
+        ]
+        dispositions = [
+            json.loads(line)
+            for line in (
+                paths["target_root"]
+                / "p_evidence_v2/acquisition_dispositions.jsonl"
+            ).read_text(encoding="utf-8").splitlines()
+        ]
+        assert len(classifications) == 1
+        assert len(dispositions) == 63
+        assert dispositions[0]["source_inventory_binding_or_null"] is not None
+        assert dispositions[0]["source_classification_record_hash_or_null"] == (
+            classifications[0]["record_hash"]
+        )
+
+
+def test_stage_b_execution_keeps_raw_acquisition_binding_separate(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     with experiment_workspace("c2-stageb-raw-binding-separation") as workspace:
@@ -1402,34 +1795,31 @@ def test_stage_b_block_keeps_raw_acquisition_binding_separate(
             ).strip()
             == finalizer.FROZEN_CODE_COMMIT
         )
-        with pytest.raises(
-            finalizer.C2RemediationError,
-            match="STAGEB_POLICY_REQUIRED",
-        ):
-            finalizer.finalize_remediation_root(
-                chunk_id="001",
-                source_bearing_v2=True,
-                **paths,
-            )
-        staging = _private_staging_root(paths)
+        result = finalizer.finalize_remediation_root_for_testing(
+            chunk_id="001",
+            source_bearing_v2=True,
+            **paths,
+        )
+        assert result["status"] == "SEALED_COMPLETE_ATTEMPT_EVIDENCE_SOURCE_V2"
+        sealed_root = paths["target_root"]
         raw_binding = json.loads(
-            (staging / "control/pre_download_binding.json").read_text(
+            (sealed_root / "control/pre_download_binding.json").read_text(
                 encoding="utf-8"
             )
         )
         execution_evidence = json.loads(
-            (staging / "control/execution_evidence.json").read_text(
+            (sealed_root / "control/execution_evidence.json").read_text(
                 encoding="utf-8"
             )
         )
         assert raw_binding["code_commit"] == finalizer.FROZEN_CODE_COMMIT
         assert execution_evidence["code_commit"] == finalizer.FROZEN_CODE_COMMIT
-        assert json.loads(
-            (staging / "control/source_classification_blocked.json").read_text(
-                encoding="utf-8"
-            )
-        )["status"] == "NOT_SEALABLE_SOURCE_EXTENSION_STAGEB_POLICY_REQUIRED"
-        assert not (staging / "canonical_v2").exists()
+        assert (
+            sealed_root / "control/v2/source_bearing_extension_validation.json"
+        ).is_file()
+        assert not (
+            sealed_root / "control/source_classification_blocked.json"
+        ).exists()
 
 
 def _upgrade_raw_source_descriptor_v2(raw_root: Path) -> None:
@@ -1499,10 +1889,11 @@ def _upgrade_raw_source_descriptor_v2(raw_root: Path) -> None:
         "descriptor_bytes": len(payload),
     }
     provenance_path.write_bytes(json.dumps(provenance, sort_keys=True).encode("utf-8"))
+    _refresh_raw_inventory(raw_root)
 
 
 @pytest.mark.parametrize("chunk_id", ["001", "013"])
-def test_finalizer_blocks_source_bearing_roots_without_stage_b_policy(
+def test_finalizer_seals_source_bearing_roots_with_fixed_stage_b_policy(
     monkeypatch: pytest.MonkeyPatch,
     chunk_id: str,
 ) -> None:
@@ -1514,21 +1905,24 @@ def test_finalizer_blocks_source_bearing_roots_without_stage_b_policy(
             downloaded_mode="source",
         )
         _upgrade_raw_source_descriptor_v2(paths["raw_root"])
-        with pytest.raises(
-            finalizer.C2RemediationError,
-            match="STAGEB_POLICY_REQUIRED",
-        ):
-            finalizer.finalize_remediation_root(
-                chunk_id=chunk_id,
-                source_bearing_v2=True,
-                **paths,
-            )
+        result = finalizer.finalize_remediation_root_for_testing(
+            chunk_id=chunk_id,
+            source_bearing_v2=True,
+            **paths,
+        )
 
-        assert not paths["target_root"].exists()
-        staging = _private_staging_root(paths)
-        assert json.loads(
-            (staging / "control/source_classification_blocked.json").read_text(
-                encoding="utf-8"
-            )
-        )["status"] == "NOT_SEALABLE_SOURCE_EXTENSION_STAGEB_POLICY_REQUIRED"
-        assert not (staging / "canonical_v2").exists()
+        assert result["status"] == "SEALED_COMPLETE_ATTEMPT_EVIDENCE_SOURCE_V2"
+        assert result["input_total"] == finalizer.FROZEN_PARTITIONS[chunk_id].records
+        if chunk_id == "013":
+            assert result["input_total"] == 63
+        assert (
+            paths["target_root"]
+            / "canonical_v2/canonical_case_set_manifest.json"
+        ).is_file()
+        assert (
+            paths["target_root"]
+            / "p_evidence_v2/source_classifications.jsonl"
+        ).is_file()
+        assert not (
+            paths["target_root"] / "control/source_classification_blocked.json"
+        ).exists()

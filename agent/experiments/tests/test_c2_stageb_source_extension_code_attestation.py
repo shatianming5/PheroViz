@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import inspect
 import json
+import subprocess
 from copy import deepcopy
 from importlib import resources
 from typing import Any
@@ -14,6 +15,7 @@ import experiments.c2_source_bearing_extension as source_extension
 from experiments.c2_full_replacement_policy import C2FullReplacementPolicyError
 from experiments.cli import _build_parser
 from experiments.models import sha256_json
+from tests.test_experiment_support import release_test_git_repository
 
 
 def _digest(label: str) -> str:
@@ -85,6 +87,10 @@ def test_runtime_path_contract_is_closed_ordered_and_nonclassification() -> None
         (
             "agent/experiments/c2_source_bearing_extension.py",
             "SOURCE_EXTENSION_RUNTIME",
+        ),
+        (
+            "agent/experiments/c2_stageb_source_extension_code_attestation.py",
+            "CODE_ATTESTATION_LOADER_RUNTIME",
         ),
         ("agent/experiments/cli.py", "EXPERIMENTS_CLI_RUNTIME"),
         ("agent/experiments/models.py", "EXPERIMENTS_MODELS_RUNTIME"),
@@ -168,6 +174,11 @@ def test_typed_fixture_compiles_but_production_loader_stays_non_admissive(
         "_read_compile_pinned_resource_bytes",
         lambda: payload,
     )
+    monkeypatch.setattr(
+        code_attestation,
+        "_SOURCE_EXTENSION_CODE_ATTESTATION_ROUTE_APPROVED",
+        False,
+    )
     with pytest.raises(C2FullReplacementPolicyError, match="intentionally non-admissive"):
         code_attestation.load_compile_pinned_source_extension_code_attestation()
 
@@ -183,8 +194,10 @@ def test_loader_has_no_selector_and_ignores_environment(
     monkeypatch.setenv("C2_STAGEB_CODE_ANCHOR_PATH", "/attacker/anchor.json")
     monkeypatch.setenv("C2_STAGEB_CODE_ANCHOR_SHA256", "f" * 64)
     monkeypatch.setenv("C2_STAGEB_CODE_ANCHOR_EVIDENCE", "/attacker/evidence")
-    with pytest.raises(C2FullReplacementPolicyError, match="Stage-A only"):
-        code_attestation.load_compile_pinned_source_extension_code_attestation()
+    loaded = code_attestation.load_compile_pinned_source_extension_code_attestation()
+    assert loaded.resource_sha256 == (
+        code_attestation._SOURCE_EXTENSION_CODE_ATTESTATION_RESOURCE_SHA256
+    )
 
     parser = _build_parser()
     parsed = parser.parse_args(
@@ -364,15 +377,92 @@ def test_runtime_path_role_mismatch_is_rejected() -> None:
         _compile(entry)
 
 
-def test_no_compile_pinned_resource_exists() -> None:
-    assert code_attestation._SOURCE_EXTENSION_CODE_ATTESTATION_RESOURCE_SHA256 is None
-    assert not code_attestation._SOURCE_EXTENSION_CODE_ATTESTATION_ROUTE_APPROVED
+def test_compile_pinned_resource_and_runtime_manifest_are_active() -> None:
+    assert isinstance(
+        code_attestation._SOURCE_EXTENSION_CODE_ATTESTATION_RESOURCE_SHA256,
+        str,
+    )
+    assert code_attestation._SOURCE_EXTENSION_CODE_ATTESTATION_ROUTE_APPROVED
     resource = resources.files(
         code_attestation._SOURCE_EXTENSION_CODE_ATTESTATION_RESOURCE_PACKAGE
     ).joinpath(*code_attestation._SOURCE_EXTENSION_CODE_ATTESTATION_RESOURCE_PARTS)
-    assert not resource.is_file()
-    with pytest.raises(
-        C2FullReplacementPolicyError,
-        match="no reviewed compile-pinned internal source-extension",
-    ):
-        code_attestation.load_compile_pinned_source_extension_code_attestation()
+    assert resource.is_file()
+    entry = code_attestation.load_compile_pinned_source_extension_code_attestation()
+    runtime = code_attestation.load_verified_source_extension_runtime_attestation()
+    assert entry.registry_id == (
+        "a918e021bc70e3f3c1242afc5ea22db9191a0f03349dd05ad87e0813214a9069"
+    )
+    assert runtime.code_blob_set_sha256 == entry.canonical_attested_blob_set_sha256
+    assert len(runtime.code_blobs) == 13
+
+
+def test_declared_manifest_attestation_commit_contains_only_exact_manifest() -> None:
+    repository = release_test_git_repository()
+    entry = code_attestation.load_compile_pinned_source_extension_code_attestation()
+    relative = (
+        "agent/experiments/resources/"
+        "c2_source_extension_runtime_manifest_v1.json"
+    )
+    committed = subprocess.check_output(
+        [
+            "git",
+            "-C",
+            str(repository),
+            "show",
+            f"{entry.manifest_only_attestation_commit_full}:{relative}",
+        ]
+    )
+    bundled = (repository / relative).read_bytes()
+
+    assert committed == bundled
+    assert hashlib.sha256(committed).hexdigest() == entry.manifest_sha256
+    changed_paths = subprocess.check_output(
+        [
+            "git",
+            "-C",
+            str(repository),
+            "diff-tree",
+            "--no-commit-id",
+            "--name-only",
+            "-r",
+            entry.manifest_only_attestation_commit_full,
+        ],
+        text=True,
+    ).splitlines()
+    assert changed_paths == [relative]
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repository),
+            "merge-base",
+            "--is-ancestor",
+            entry.extension_implementation_commit_full,
+            entry.manifest_only_attestation_commit_full,
+        ],
+        check=True,
+    )
+    manifest = json.loads(committed)
+    for blob in manifest["attested_paths"]:
+        relative_path = blob["relative_path"]
+        observed_object_id = subprocess.check_output(
+            [
+                "git",
+                "-C",
+                str(repository),
+                "rev-parse",
+                f"{entry.extension_implementation_commit_full}:{relative_path}",
+            ],
+            text=True,
+        ).strip()
+        observed_payload = subprocess.check_output(
+            [
+                "git",
+                "-C",
+                str(repository),
+                "show",
+                f"{entry.extension_implementation_commit_full}:{relative_path}",
+            ]
+        )
+        assert observed_object_id == blob["git_blob_object_id"]
+        assert hashlib.sha256(observed_payload).hexdigest() == blob["sha256"]

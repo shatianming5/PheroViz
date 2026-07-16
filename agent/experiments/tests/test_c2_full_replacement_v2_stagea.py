@@ -90,6 +90,16 @@ def _allow_m1_guard_for_test(monkeypatch: pytest.MonkeyPatch) -> None:
             "require_external_m1_trust_lock",
             lambda: None,
         )
+    monkeypatch.setattr(
+        v2_evidence,
+        "require_test_only_full_replacement_evidence_gate",
+        lambda: None,
+    )
+    monkeypatch.setattr(
+        v2_policy,
+        "require_test_only_full_replacement_policy_gate",
+        lambda: None,
+    )
 
 
 @dataclass

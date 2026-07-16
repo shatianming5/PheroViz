@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "c2_m4_candidate_validation_bindings_v1.schema.json",
+  "title": "C2 M4 fixed candidate validation bindings",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "binding_type",
+    "authorization_id_sha256",
+    "owner_policy_id_sha256",
+    "owner_policy_resource_sha256",
+    "frozen_universe_sha256",
+    "snapshot_algorithm",
+    "excluded_tree",
+    "candidates",
+    "binding_id_sha256"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "c2-m4-candidate-validation-bindings-v1"
+    },
+    "binding_type": {
+      "const": "FIXED_OWNER_AUTHORIZED_NON_INDEPENDENT_CANDIDATE_OBSERVATION"
+    },
+    "authorization_id_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "owner_policy_id_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "owner_policy_resource_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "frozen_universe_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "snapshot_algorithm": {
+      "const": "sha256_canonical_sorted_path_size_content_sha256_rows_v1"
+    },
+    "excluded_tree": {
+      "const": ".pipeline_worktree/"
+    },
+    "candidates": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "$ref": "#/$defs/candidate"
+      }
+    },
+    "binding_id_sha256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "chunk_id",
+        "root_name",
+        "format_profile",
+        "required_action",
+        "first_global_ordinal",
+        "last_global_ordinal",
+        "input_total",
+        "accepted_bytes",
+        "accepted_sha256",
+        "snapshot",
+        "fixed_artifacts"
+      ],
+      "properties": {
+        "chunk_id": {
+          "type": "string",
+          "pattern": "^[0-9]{3}$"
+        },
+        "root_name": {
+          "type": "string",
+          "pattern": "^ccby_sr_npj_chunk[0-9]{3}_rerun2_clean_ca98442$"
+        },
+        "format_profile": {
+          "enum": [
+            "RERUN2_FORENSIC_ACQUISITION_V2",
+            "LEGACY_COMPACT_ACQUISITION_ONLY"
+          ]
+        },
+        "required_action": {
+          "const": "CANDIDATE_V2_VALIDATION_ONLY"
+        },
+        "first_global_ordinal": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "last_global_ordinal": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "input_total": {
+          "const": 200
+        },
+        "accepted_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "accepted_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "snapshot": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "file_count",
+            "total_bytes",
+            "canonical_bytes",
+            "sha256"
+          ],
+          "properties": {
+            "file_count": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "total_bytes": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "canonical_bytes": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "sha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
+        },
+        "fixed_artifacts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "inventory_path",
+            "inventory_sha256",
+            "pre_download_binding_sha256",
+            "attempt_coverage_sha256",
+            "terminal_outcomes_sha256",
+            "sealed_report_sha256",
+            "candidate_surface_sha256"
+          ],
+          "properties": {
+            "inventory_path": {
+              "enum": [
+                "root_inventory.json",
+                "control/root_inventory.json"
+              ]
+            },
+            "inventory_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "pre_download_binding_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "attempt_coverage_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "terminal_outcomes_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "sealed_report_sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "candidate_surface_sha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
+        }
+      }
+    }
+  }
+}

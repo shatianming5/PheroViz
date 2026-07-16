@@ -13,11 +13,13 @@ import csv
 import hashlib
 import io
 import json
+import os
 import re
 import stat
 import struct
 import subprocess
 import sys
+import time
 import unicodedata
 import xml.etree.ElementTree as ElementTree
 import zipfile
@@ -28,10 +30,15 @@ from typing import Any, Iterable, Mapping, Protocol, Sequence
 from urllib.parse import unquote, urlsplit
 
 from . import c2_m1_trust_boundary as _m1_trust_boundary
-from .c2_m1_trust_boundary import require_external_m1_trust_lock
+from .c2_m1_trust_boundary import (
+    require_external_m1_trust_lock as require_test_only_source_extension_gate,
+    require_owner_authorized_c2_execution as require_external_m1_trust_lock,
+)
 from .c2_stageb_source_extension_code_attestation import (
     C2StageBCodeAttestationError,
+    ProductionSourceExtensionCodeAttestation,
     load_compile_pinned_source_extension_code_attestation,
+    load_verified_source_extension_runtime_attestation,
 )
 
 
@@ -45,6 +52,19 @@ class _TargetRoot(Protocol):
     def write_bytes(self, relative: str, payload: bytes) -> str: ...
 
     def read_bytes(self, relative: str) -> bytes: ...
+
+
+class _SourceExtensionCodeAttestation(Protocol):
+    approved_implementation_commit_full: str
+    attestation_commit_full: str
+    manifest_sha256: str
+
+    @property
+    def code_blob_set_sha256(self) -> str: ...
+
+    def sha256_for(self, relative_path: str) -> str: ...
+
+    def verify_runtime(self, **paths: Path | None) -> None: ...
 
     def sha256(self, relative: str) -> str: ...
 
@@ -64,14 +84,21 @@ MAX_ARCHIVE_CONTAINER_COMPRESSED_BYTES = 128 * 1024 * 1024
 MAX_ARCHIVE_CONTAINER_UNCOMPRESSED_BYTES = 256 * 1024 * 1024
 MAX_ARCHIVE_RUN_COMPRESSED_BYTES = 512 * 1024 * 1024
 MAX_ARCHIVE_RUN_UNCOMPRESSED_BYTES = 1024 * 1024 * 1024
+MAX_ARCHIVE_RUN_ENTRIES = 50_000
 
 _M1_TRUST_BOUNDARY_RELATIVE_PATH = "agent/experiments/c2_m1_trust_boundary.py"
 _EXTENSION_RELATIVE_PATH = "agent/experiments/c2_source_bearing_extension.py"
 _FINALIZER_RELATIVE_PATH = "agent/experiments/c2_remediation_root_finalizer.py"
+_CODE_ATTESTATION_LOADER_RELATIVE_PATH = (
+    "agent/experiments/c2_stageb_source_extension_code_attestation.py"
+)
 _CLI_RELATIVE_PATH = "agent/experiments/cli.py"
 _MODELS_RELATIVE_PATH = "agent/experiments/models.py"
 _TEST_ONLY_CODE_ATTESTATION_RELATIVE_PATH = (
     "agent/tests/fixtures/c2_source_bearing_extension_test_attestation.json"
+)
+_RUNTIME_CODE_ATTESTATION_RELATIVE_PATH = (
+    "agent/experiments/resources/c2_source_extension_runtime_manifest_v1.json"
 )
 _REQUIRED_SCHEMA_NAMES = (
     "c2_v2_fd_format_classifier_config_v1.schema.json",
@@ -87,6 +114,7 @@ _REQUIRED_ATTESTED_CODE_PATHS = frozenset(
         _M1_TRUST_BOUNDARY_RELATIVE_PATH,
         _EXTENSION_RELATIVE_PATH,
         _FINALIZER_RELATIVE_PATH,
+        _CODE_ATTESTATION_LOADER_RELATIVE_PATH,
         _CLI_RELATIVE_PATH,
         _MODELS_RELATIVE_PATH,
         *(
@@ -99,6 +127,44 @@ _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _GIT_OBJECT_RE = re.compile(r"^[0-9a-f]{40,64}$")
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 _DRIVE_RE = re.compile(r"^[A-Za-z]:")
+_OPC_SAFE_TARGET_RE = re.compile(r"^/?[A-Za-z0-9._~/-]+$")
+_GIT_COMMAND = (
+    "/usr/bin/git",
+    "--no-replace-objects",
+    "-c",
+    "core.fsmonitor=false",
+    "-c",
+    "core.untrackedCache=false",
+    "-c",
+    "core.hooksPath=/dev/null",
+    "-c",
+    "core.pager=cat",
+    "-c",
+    "log.showSignature=false",
+    "-c",
+    "diff.external=",
+    "-c",
+    "protocol.allow=never",
+    "-c",
+    "protocol.ext.allow=never",
+    "-c",
+    "protocol.file.allow=never",
+)
+_GIT_ENVIRONMENT = {
+    "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+    "HOME": "/var/empty",
+    "LANG": "C",
+    "LC_ALL": "C",
+    "GIT_CONFIG_NOSYSTEM": "1",
+    "GIT_CONFIG_GLOBAL": "/dev/null",
+    "GIT_CONFIG_SYSTEM": "/dev/null",
+    "GIT_OPTIONAL_LOCKS": "0",
+    "GIT_TERMINAL_PROMPT": "0",
+    "GIT_NO_REPLACE_OBJECTS": "1",
+    "GIT_NO_LAZY_FETCH": "1",
+    "GIT_PROTOCOL_FROM_USER": "0",
+    "GIT_ALLOW_PROTOCOL": "",
+}
 _ZIP_SIGNATURES = (b"PK\x03\x04", b"PK\x05\x06", b"PK\x07\x08")
 _EOCD_SIGNATURE = b"PK\x05\x06"
 _CENTRAL_SIGNATURE = b"PK\x01\x02"
@@ -227,6 +293,7 @@ _CLOSED_FIELDS: dict[str, frozenset[str]] = {
             "maximum_archive_container_uncompressed_bytes",
             "maximum_archive_run_compressed_bytes",
             "maximum_archive_run_uncompressed_bytes",
+            "maximum_archive_run_entries",
             "schema_hashes",
             "closed_schema_registry_hash",
             "review_mode",
@@ -987,11 +1054,12 @@ def _git_text(worktree: Path, arguments: Sequence[str], label: str) -> str:
     require_external_m1_trust_lock()
     try:
         completed = subprocess.run(
-            ["git", "-C", str(worktree), *arguments],
+            [*_GIT_COMMAND, "-C", str(worktree), *arguments],
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
+            env=_GIT_ENVIRONMENT,
         )
     except (OSError, subprocess.CalledProcessError) as exc:
         raise SourceBearingExtensionError(
@@ -1004,10 +1072,11 @@ def _git_bytes(worktree: Path, arguments: Sequence[str], label: str) -> bytes:
     require_external_m1_trust_lock()
     try:
         completed = subprocess.run(
-            ["git", "-C", str(worktree), *arguments],
+            [*_GIT_COMMAND, "-C", str(worktree), *arguments],
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            env=_GIT_ENVIRONMENT,
         )
     except (OSError, subprocess.CalledProcessError) as exc:
         raise SourceBearingExtensionError(
@@ -1016,9 +1085,50 @@ def _git_bytes(worktree: Path, arguments: Sequence[str], label: str) -> bytes:
     return completed.stdout
 
 
+def _single_parent_commit(worktree: Path, commit: str, label: str) -> str:
+    payload = _git_bytes(
+        worktree,
+        ("cat-file", "commit", commit),
+        label,
+    )
+    headers = payload.split(b"\n\n", 1)[0].splitlines()
+    raw_parents = [
+        line.removeprefix(b"parent ")
+        for line in headers
+        if line.startswith(b"parent ")
+    ]
+    try:
+        parents = [parent.decode("ascii") for parent in raw_parents]
+    except UnicodeDecodeError as exc:
+        raise SourceBearingExtensionError(
+            f"source extension {label} has a malformed parent"
+        ) from exc
+    _require(
+        len(parents) == 1
+        and _GIT_OBJECT_RE.fullmatch(parents[0]) is not None,
+        f"source extension {label} must have exactly one parent",
+    )
+    return parents[0]
+
+
+def _require_no_git_grafts(worktree: Path) -> None:
+    graft_value = _git_text(
+        worktree,
+        ("rev-parse", "--git-path", "info/grafts"),
+        "graft path",
+    )
+    graft_path = Path(graft_value)
+    if not graft_path.is_absolute():
+        graft_path = worktree / graft_path
+    _require(
+        not os.path.lexists(graft_path),
+        "source extension repository graft metadata is forbidden",
+    )
+
+
 def _attested_runtime_paths(
     *,
-    worktree: Path,
+    runtime_root: Path,
     loaded_extension_path: Path | None,
     loaded_finalizer_path: Path | None,
     loaded_m1_trust_boundary_path: Path | None,
@@ -1044,7 +1154,7 @@ def _attested_runtime_paths(
         if isinstance(module_path, str):
             runtime_paths[_FINALIZER_RELATIVE_PATH] = Path(module_path)
     for relative_path, runtime_path in runtime_paths.items():
-        expected_path = worktree / relative_path
+        expected_path = runtime_root / relative_path
         _require(
             runtime_path.is_file()
             and not runtime_path.is_symlink()
@@ -1083,7 +1193,7 @@ def verify_source_extension_code_attestation_for_testing(
 ) -> TestOnlySourceExtensionCodeAttestation:
     """Verify a synthetic Git/blob anchor for tests only, never production."""
 
-    require_external_m1_trust_lock()
+    require_test_only_source_extension_gate()
     candidate = _module_worktree() if worktree is None else Path(worktree)
     _require(
         candidate.is_absolute()
@@ -1099,25 +1209,76 @@ def verify_source_extension_code_attestation_for_testing(
         repository_root == resolved_worktree,
         "source extension worktree is not the Git repository root",
     )
+    _require_no_git_grafts(resolved_worktree)
     status = _git_text(
         resolved_worktree,
         ("status", "--porcelain=v1", "--untracked-files=all"),
         "worktree status",
     )
     _require(not status, "source extension worktree is dirty")
-    attestation_commit = _git_text(
-        resolved_worktree, ("rev-parse", "HEAD"), "attestation commit"
+    head_commit = _git_text(
+        resolved_worktree, ("rev-parse", "HEAD"), "worktree HEAD"
     )
+    try:
+        registry = load_compile_pinned_source_extension_code_attestation()
+    except C2StageBCodeAttestationError as exc:
+        raise SourceBearingExtensionError(
+            "source extension compile-pinned runtime topology is unavailable"
+        ) from exc
+    runtime_manifest_commit = registry.manifest_only_attestation_commit_full
     _require(
-        _GIT_OBJECT_RE.fullmatch(attestation_commit) is not None,
-        "source extension attestation commit is invalid",
+        _GIT_OBJECT_RE.fullmatch(head_commit) is not None
+        and _GIT_OBJECT_RE.fullmatch(runtime_manifest_commit) is not None,
+        "source extension runtime attestation commit is invalid",
     )
-    implementation_commit = _git_text(
-        resolved_worktree, ("rev-parse", "HEAD^"), "implementation parent commit"
+    try:
+        _git_text(
+            resolved_worktree,
+            (
+                "merge-base",
+                "--is-ancestor",
+                runtime_manifest_commit,
+                head_commit,
+            ),
+            "runtime attestation ancestry",
+        )
+    except SourceBearingExtensionError as exc:
+        raise SourceBearingExtensionError(
+            "source extension runtime attestation is not an ancestor of HEAD"
+        ) from exc
+    attestation_commit = _single_parent_commit(
+        resolved_worktree,
+        runtime_manifest_commit,
+        "runtime manifest commit",
+    )
+    implementation_commit = _single_parent_commit(
+        resolved_worktree,
+        attestation_commit,
+        "test manifest commit",
     )
     _require(
         _GIT_OBJECT_RE.fullmatch(implementation_commit) is not None,
         "source extension implementation commit is invalid",
+    )
+    _require(
+        implementation_commit == registry.extension_implementation_commit_full,
+        "source extension test manifest parent differs from the compile-pinned "
+        "implementation commit",
+    )
+    runtime_changed = _git_text(
+        resolved_worktree,
+        (
+            "diff",
+            "--name-status",
+            "--no-renames",
+            attestation_commit,
+            runtime_manifest_commit,
+        ),
+        "runtime manifest commit contents",
+    )
+    _require(
+        runtime_changed == f"A\t{_RUNTIME_CODE_ATTESTATION_RELATIVE_PATH}",
+        "source extension runtime attestation commit must add only its manifest",
     )
     changed = _git_text(
         resolved_worktree,
@@ -1167,6 +1328,7 @@ def verify_source_extension_code_attestation_for_testing(
         "source extension code attestation has no paths",
     )
     code_blobs: list[_AttestedCodeBlob] = []
+    implementation_payloads: dict[str, bytes] = {}
     seen_paths: set[str] = set()
     for raw_blob in raw_blobs:
         _require(
@@ -1205,17 +1367,24 @@ def verify_source_extension_code_attestation_for_testing(
             ("show", f"{attestation_commit}:{relative_path}"),
             f"attestation bytes {relative_path}",
         )
+        head_payload = _git_bytes(
+            resolved_worktree,
+            ("show", f"{head_commit}:{relative_path}"),
+            f"HEAD bytes {relative_path}",
+        )
         runtime_path = resolved_worktree / relative_path
         _require(
             runtime_path.is_file()
             and not runtime_path.is_symlink()
             and implementation_blob_object_id == blob_object_id
             and attestation_payload == implementation_payload
+            and head_payload == implementation_payload
             and runtime_path.read_bytes() == implementation_payload
             and _sha256(implementation_payload) == digest,
             f"source extension attested blob mismatch: {relative_path}",
         )
         seen_paths.add(relative_path)
+        implementation_payloads[relative_path] = implementation_payload
         code_blobs.append(
             _AttestedCodeBlob(relative_path, blob_object_id, digest)
         )
@@ -1225,12 +1394,29 @@ def verify_source_extension_code_attestation_for_testing(
         == sorted(blob.relative_path for blob in code_blobs),
         "source extension code attestation path coverage is invalid",
     )
+    if loaded_extension_path is None:
+        runtime_root = _module_worktree()
+    else:
+        resolved_extension_path = Path(loaded_extension_path).resolve()
+        _require(
+            resolved_extension_path.as_posix().endswith(_EXTENSION_RELATIVE_PATH),
+            "loaded source extension path is not repository-relative",
+        )
+        runtime_root = resolved_extension_path.parents[2]
     _attested_runtime_paths(
-        worktree=resolved_worktree,
+        runtime_root=runtime_root,
         loaded_extension_path=loaded_extension_path,
         loaded_finalizer_path=loaded_finalizer_path,
         loaded_m1_trust_boundary_path=loaded_m1_trust_boundary_path,
     )
+    for relative_path, implementation_payload in implementation_payloads.items():
+        runtime_path = runtime_root / relative_path
+        _require(
+            runtime_path.is_file()
+            and not runtime_path.is_symlink()
+            and runtime_path.read_bytes() == implementation_payload,
+            f"source extension runtime bytes differ: {relative_path}",
+        )
     return TestOnlySourceExtensionCodeAttestation(
         worktree=resolved_worktree,
         attestation_commit_full=attestation_commit,
@@ -1240,7 +1426,7 @@ def verify_source_extension_code_attestation_for_testing(
     )
 
 
-def _schema_hashes(attestation: TestOnlySourceExtensionCodeAttestation) -> dict[str, str]:
+def _schema_hashes(attestation: _SourceExtensionCodeAttestation) -> dict[str, str]:
     attestation.verify_runtime()
     return {
         name: attestation.sha256_for(f"agent/experiments/schemas/{name}")
@@ -1257,7 +1443,7 @@ def _closed_schema_registry_hash() -> str:
     )
 
 
-def _format_config(attestation: TestOnlySourceExtensionCodeAttestation) -> dict[str, Any]:
+def _format_config(attestation: _SourceExtensionCodeAttestation) -> dict[str, Any]:
     attestation.verify_runtime()
     source_sha = attestation.sha256_for(_EXTENSION_RELATIVE_PATH)
     value: dict[str, Any] = {
@@ -1295,6 +1481,7 @@ def _format_config(attestation: TestOnlySourceExtensionCodeAttestation) -> dict[
         "maximum_archive_run_uncompressed_bytes": (
             MAX_ARCHIVE_RUN_UNCOMPRESSED_BYTES
         ),
+        "maximum_archive_run_entries": MAX_ARCHIVE_RUN_ENTRIES,
         "schema_hashes": _schema_hashes(attestation),
         "closed_schema_registry_hash": _closed_schema_registry_hash(),
         "review_mode": REVIEW_MODE,
@@ -1341,10 +1528,21 @@ class _ArchiveRunBudget:
 
     compressed_bytes: int = 0
     uncompressed_bytes: int = 0
+    entries: int = 0
+    deadline_monotonic: float | None = None
+
+    def check_deadline(self) -> None:
+        _require(
+            self.deadline_monotonic is None
+            or time.monotonic() <= self.deadline_monotonic,
+            "REJECT_ARCHIVE_DEADLINE",
+        )
 
     def reserve(self, payload: bytes, archive: _ZipInfo) -> None:
+        self.check_deadline()
         next_compressed = self.compressed_bytes + len(payload)
         next_uncompressed = self.uncompressed_bytes + archive.total_uncompressed_bytes
+        next_entries = self.entries + len(archive.entries)
         _require(
             next_compressed <= MAX_ARCHIVE_RUN_COMPRESSED_BYTES,
             "REJECT_ZIP_RUN_COMPRESSED_LIMIT",
@@ -1353,8 +1551,13 @@ class _ArchiveRunBudget:
             next_uncompressed <= MAX_ARCHIVE_RUN_UNCOMPRESSED_BYTES,
             "REJECT_ZIP_RUN_UNCOMPRESSED_LIMIT",
         )
+        _require(
+            next_entries <= MAX_ARCHIVE_RUN_ENTRIES,
+            "REJECT_ZIP_RUN_ENTRY_LIMIT",
+        )
         self.compressed_bytes = next_compressed
         self.uncompressed_bytes = next_uncompressed
+        self.entries = next_entries
 
 
 def _find_eocd(payload: bytes) -> tuple[int, tuple[int, ...]]:
@@ -1382,7 +1585,10 @@ def _normalise_selector(raw_name: bytes) -> tuple[str, str]:
         and "\\" not in selector
         and not selector.startswith("/")
         and not _DRIVE_RE.match(selector)
-        and not any(ord(character) < 32 or ord(character) == 127 for character in selector),
+        and not any(
+            unicodedata.category(character).startswith("C")
+            for character in selector
+        ),
         "REJECT_ZIP_SELECTOR_UNSAFE",
     )
     is_directory = selector.endswith("/")
@@ -1465,7 +1671,10 @@ def _parse_zip_v1(payload: bytes) -> _ZipInfo:
             disk_start == 0 and local_offset != _ZIP64_MARKER,
             "REJECT_ZIP_UNSUPPORTED_FEATURE",
         )
-        _require(flags in {0, 0x800}, "REJECT_ZIP_UNSUPPORTED_FEATURE")
+        _require(
+            flags & ~(0x1 | 0x2 | 0x4 | 0x800) == 0,
+            "REJECT_ZIP_UNSUPPORTED_FEATURE",
+        )
         raw_name = central[cursor + 46 : cursor + 46 + name_size]
         _require(
             all(byte < 128 for byte in raw_name) or bool(flags & 0x800),
@@ -1481,6 +1690,10 @@ def _parse_zip_v1(payload: bytes) -> _ZipInfo:
         _require(not (flags & 0x1), "REJECT_ZIP_ENCRYPTED")
         _require(
             compression in {zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED},
+            "REJECT_ZIP_UNSUPPORTED_FEATURE",
+        )
+        _require(
+            not (flags & 0x6) or compression == zipfile.ZIP_DEFLATED,
             "REJECT_ZIP_UNSUPPORTED_FEATURE",
         )
         _require(
@@ -1595,10 +1808,24 @@ def _parse_zip_v1(payload: bytes) -> _ZipInfo:
         total_uncompressed_bytes <= MAX_ARCHIVE_CONTAINER_UNCOMPRESSED_BYTES,
         "REJECT_ZIP_CONTAINER_UNCOMPRESSED_LIMIT",
     )
-    for (_, previous_end), (next_start, _) in zip(
-        sorted(local_ranges), sorted(local_ranges)[1:], strict=False
-    ):
-        _require(previous_end <= next_start, "REJECT_ZIP_LOCAL_OVERLAP")
+    ordered_ranges = sorted(local_ranges)
+    if ordered_ranges:
+        _require(
+            ordered_ranges[0][0] == 0
+            and ordered_ranges[-1][1] == central_offset,
+            "REJECT_ZIP_PHYSICAL_COVERAGE",
+        )
+        for (_, previous_end), (next_start, _) in zip(
+            ordered_ranges,
+            ordered_ranges[1:],
+            strict=False,
+        ):
+            _require(
+                previous_end == next_start,
+                "REJECT_ZIP_PHYSICAL_COVERAGE",
+            )
+    else:
+        _require(central_offset == 0, "REJECT_ZIP_PHYSICAL_COVERAGE")
     return _ZipInfo(
         entries=tuple(entries),
         central_directory_sha256=_sha256(central),
@@ -1608,27 +1835,59 @@ def _parse_zip_v1(payload: bytes) -> _ZipInfo:
     )
 
 
-def _read_zip_member(payload: bytes, entry: _CentralEntry) -> bytes:
-    try:
-        with zipfile.ZipFile(io.BytesIO(payload), "r") as archive:
-            with archive.open(entry.zip_info, "r") as member:
+class _ZipMemberReader:
+    """Reuse one parsed central directory while streaming bounded members."""
+
+    def __init__(
+        self,
+        payload: bytes,
+        archive_budget: _ArchiveRunBudget | None = None,
+    ) -> None:
+        self._archive_budget = archive_budget
+        try:
+            self._buffer = io.BytesIO(payload)
+            self._archive = zipfile.ZipFile(self._buffer, "r")
+        except (OSError, RuntimeError, zipfile.BadZipFile) as exc:
+            raise SourceBearingExtensionError(
+                "REJECT_ZIP_MEMBER_STREAM_FAILURE"
+            ) from exc
+
+    def read(self, entry: _CentralEntry) -> bytes:
+        try:
+            with self._archive.open(entry.zip_info, "r") as member:
                 result = bytearray()
                 total = 0
                 while True:
+                    if self._archive_budget is not None:
+                        self._archive_budget.check_deadline()
                     block = member.read(64 * 1024)
                     if not block:
                         break
                     total += len(block)
-                    _require(total <= MAX_ARCHIVE_MEMBER_BYTES, "REJECT_ZIP_MEMBER_TOO_LARGE")
+                    _require(
+                        total <= MAX_ARCHIVE_MEMBER_BYTES,
+                        "REJECT_ZIP_MEMBER_TOO_LARGE",
+                    )
                     result.extend(block)
-    except (OSError, RuntimeError, zipfile.BadZipFile) as exc:
-        raise SourceBearingExtensionError("REJECT_ZIP_MEMBER_STREAM_FAILURE") from exc
-    payload = bytes(result)
-    _require(
-        len(payload) == entry.uncompressed_bytes,
-        "REJECT_ZIP_MEMBER_SIZE_MISMATCH",
-    )
-    return payload
+        except (OSError, RuntimeError, zipfile.BadZipFile) as exc:
+            raise SourceBearingExtensionError(
+                "REJECT_ZIP_MEMBER_STREAM_FAILURE"
+            ) from exc
+        payload = bytes(result)
+        _require(
+            len(payload) == entry.uncompressed_bytes,
+            "REJECT_ZIP_MEMBER_SIZE_MISMATCH",
+        )
+        return payload
+
+
+def _read_zip_member(
+    payload: bytes,
+    entry: _CentralEntry,
+    reader: _ZipMemberReader | None = None,
+) -> bytes:
+    member_reader = reader if reader is not None else _ZipMemberReader(payload)
+    return member_reader.read(entry)
 
 
 def _is_csv_v1(payload: bytes) -> bool:
@@ -1686,7 +1945,12 @@ _OOXML_WORKSHEET_CONTENT_TYPE = (
 
 
 def _parse_ooxml_xml(payload: bytes) -> ElementTree.Element | None:
-    if b"<!DOCTYPE" in payload or b"<!ENTITY" in payload:
+    try:
+        text = payload.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+    normalized = text.casefold()
+    if "\x00" in text or "<!doctype" in normalized or "<!entity" in normalized:
         return None
     try:
         return ElementTree.fromstring(payload)
@@ -1737,21 +2001,54 @@ def _opc_relationship_owner(selector: str) -> str | None:
 def _resolve_internal_opc_target(owner: str, target: str) -> str | None:
     if (
         not target
+        or target != target.strip()
         or target != unicodedata.normalize("NFC", target)
-        or target.startswith("/")
-        or "\\" in target
+        or target.startswith("//")
         or _DRIVE_RE.match(target)
-        or "?" in target
-        or "#" in target
+        or _OPC_SAFE_TARGET_RE.fullmatch(target) is None
+        or any(
+            character in "\\%?#:"
+            or character.isspace()
+            or unicodedata.category(character).startswith("C")
+            for character in target
+        )
     ):
         return None
-    pieces = target.split("/")
-    if any(piece in {"", ".", ".."} for piece in pieces):
+    try:
+        parsed = urlsplit(target)
+    except ValueError:
+        return None
+    if (
+        parsed.scheme
+        or parsed.netloc
+        or parsed.query
+        or parsed.fragment
+    ):
+        return None
+    absolute = parsed.path.startswith("/")
+    path = parsed.path[1:] if absolute else parsed.path
+    pieces = path.split("/")
+    if (
+        any(not piece for piece in pieces)
+        or pieces[-1] in {".", ".."}
+        or any(
+            piece not in {".", ".."} and piece.endswith(".")
+            for piece in pieces
+        )
+    ):
         return None
     owner_directory = owner.rsplit("/", 1)[0] if "/" in owner else ""
-    return "/".join(
-        [*([owner_directory] if owner_directory else []), *pieces]
-    )
+    resolved = [] if absolute else (owner_directory.split("/") if owner_directory else [])
+    for piece in pieces:
+        if piece == ".":
+            continue
+        if piece == "..":
+            if not resolved:
+                return None
+            resolved.pop()
+            continue
+        resolved.append(piece)
+    return "/".join(resolved) if resolved else None
 
 
 def _opc_content_type(
@@ -1769,7 +2066,11 @@ def _opc_content_type(
     return defaults.get(extension)
 
 
-def _xlsx_profile(payload: bytes, archive: _ZipInfo) -> bool:
+def _xlsx_profile(
+    payload: bytes,
+    archive: _ZipInfo,
+    archive_budget: _ArchiveRunBudget | None = None,
+) -> bool:
     """Recognize only a structurally valid OOXML spreadsheet package."""
 
     required = {
@@ -1782,10 +2083,13 @@ def _xlsx_profile(payload: bytes, archive: _ZipInfo) -> bool:
     if not required.issubset(selectors):
         return False
     by_selector = {entry.selector: entry for entry in archive.entries}
+    if archive_budget is not None:
+        archive_budget.check_deadline()
+    member_reader = _ZipMemberReader(payload, archive_budget)
     try:
         parsed = {
             selector: _parse_ooxml_xml(
-                _read_zip_member(payload, by_selector[selector])
+                _read_zip_member(payload, by_selector[selector], member_reader)
             )
             for selector in required
         }
@@ -1845,11 +2149,13 @@ def _xlsx_profile(payload: bytes, archive: _ZipInfo) -> bool:
         for selector in sorted(
             candidate for candidate in selectors if candidate.endswith(".rels")
         ):
+            if archive_budget is not None:
+                archive_budget.check_deadline()
             owner = _opc_relationship_owner(selector)
             if owner is None or (owner and owner not in selectors):
                 return False
             relationship_root = _parse_ooxml_xml(
-                _read_zip_member(payload, by_selector[selector])
+                _read_zip_member(payload, by_selector[selector], member_reader)
             )
             if relationship_root is None:
                 return False
@@ -1945,8 +2251,10 @@ def _xlsx_profile(payload: bytes, archive: _ZipInfo) -> bool:
         return False
     try:
         for selector in sorted(worksheet_selectors):
+            if archive_budget is not None:
+                archive_budget.check_deadline()
             worksheet = _parse_ooxml_xml(
-                _read_zip_member(payload, by_selector[selector])
+                _read_zip_member(payload, by_selector[selector], member_reader)
             )
             if (
                 worksheet is None
@@ -1976,11 +2284,13 @@ def _detect_format(
     *,
     archive_budget: _ArchiveRunBudget | None = None,
 ) -> _Detected:
+    if archive_budget is not None:
+        archive_budget.check_deadline()
     if _zip_like(payload):
         archive = _parse_zip_v1(payload)
         if archive_budget is not None:
             archive_budget.reserve(payload, archive)
-        if _xlsx_profile(payload, archive):
+        if _xlsx_profile(payload, archive, archive_budget):
             return _Detected("ZIP_V1", "XLSX_V1", archive)
         return _Detected("ZIP_V1", "GENERIC_ZIP_V1", archive)
     if _is_csv_v1(payload):
@@ -1988,6 +2298,72 @@ def _detect_format(
     if _is_other_registered(payload):
         return _Detected("NONE", "OTHER_REGISTERED_V1", None)
     raise SourceBearingExtensionError("REJECT_FORMAT_UNRECOGNIZED")
+
+
+def new_v2_archive_run_budget(
+    deadline_monotonic: float | None = None,
+) -> _ArchiveRunBudget:
+    """Return an opaque run budget shared across retained source assets."""
+
+    return _ArchiveRunBudget(deadline_monotonic=deadline_monotonic)
+
+
+def _preflight_detected_source_asset(
+    payload: bytes,
+    detected: _Detected,
+    archive_budget: _ArchiveRunBudget,
+    *,
+    depth: int,
+) -> bool:
+    archive_budget.check_deadline()
+    _require(depth <= MAX_CONTAINER_DEPTH, "REJECT_CONTAINER_DEPTH")
+    if detected.container_format != "ZIP_V1":
+        return detected.content_profile == "CSV_V1"
+    archive = detected.zip_info
+    _require(archive is not None, "REJECT_ZIP_PARSER_FAILURE")
+    member_reader = _ZipMemberReader(payload, archive_budget)
+    if detected.content_profile == "XLSX_V1":
+        for entry in archive.entries:
+            archive_budget.check_deadline()
+            if not entry.is_directory:
+                _read_zip_member(payload, entry, member_reader)
+        return True
+    substantive_source = False
+    for entry in archive.entries:
+        archive_budget.check_deadline()
+        if entry.is_directory:
+            continue
+        member_payload = _read_zip_member(payload, entry, member_reader)
+        if entry.is_resource_fork:
+            continue
+        child = _detect_format(member_payload, archive_budget=archive_budget)
+        substantive_source = (
+            _preflight_detected_source_asset(
+                member_payload,
+                child,
+                archive_budget,
+                depth=depth + 1,
+            )
+            or substantive_source
+        )
+    _require(
+        substantive_source,
+        "REJECT_ARCHIVE_NO_SUBSTANTIVE_SOURCE",
+    )
+    return True
+
+
+def validate_v2_source_asset_payload(
+    payload: bytes,
+    *,
+    archive_budget: _ArchiveRunBudget | None = None,
+) -> tuple[str, str]:
+    """Apply complete V2 parser and archive limits without building candidates."""
+
+    budget = archive_budget if archive_budget is not None else _ArchiveRunBudget()
+    detected = _detect_format(payload, archive_budget=budget)
+    _preflight_detected_source_asset(payload, detected, budget, depth=0)
+    return detected.tuple
 
 
 def _validate_declared_format(asset: Mapping[str, Any], detected: _Detected) -> None:
@@ -2232,7 +2608,7 @@ def _applicable_case_set_doi_ids(
     terminal_rows: Sequence[Mapping[str, Any]],
     source_by_article: Mapping[str, Mapping[str, Any]],
 ) -> tuple[str, ...]:
-    """Return frozen-order downloaded DOI with complete verified source inventory."""
+    """Return frozen-order DOI with complete verified source from any attempt."""
 
     doi_ids: list[str] = []
     for terminal in sorted(
@@ -2244,8 +2620,6 @@ def _applicable_case_set_doi_ids(
             and terminal_status_raw in _TERMINAL_STATUS_ADAPTER,
             "terminal status is not in the closed adapter",
         )
-        if _TERMINAL_STATUS_ADAPTER[terminal_status_raw] != "DOWNLOADED":
-            continue
         article_id = _require_identifier(
             terminal.get("article_id"), "terminal article ID is invalid"
         )
@@ -2345,7 +2719,7 @@ class _Builder:
         source_by_article: Mapping[str, Mapping[str, Any]],
         partition_records: int,
         source_chunk_sha256: str,
-        test_code_attestation: TestOnlySourceExtensionCodeAttestation,
+        test_code_attestation: _SourceExtensionCodeAttestation,
     ) -> None:
         require_external_m1_trust_lock()
         self.root = root
@@ -2726,6 +3100,7 @@ class _Builder:
     ) -> None:
         _require(archive is not None, "REJECT_XLSX_PROFILE_FAILURE")
         entries: list[dict[str, Any]] = []
+        member_reader = _ZipMemberReader(payload)
         for central in archive.entries:
             entry = self._base_entry(central)
             if central.is_directory:
@@ -2739,6 +3114,10 @@ class _Builder:
                         reason="DIRECTORY_ENTRY",
                     )
                 )
+            else:
+                _read_zip_member(payload, central, member_reader)
+            if central.is_directory:
+                pass
             elif central.is_resource_fork:
                 entry["disposition"] = "SOURCE_ONLY_EXCLUSION"
                 entry["source_only_exclusion_reason_or_null"] = "RESOURCE_FORK"
@@ -2751,7 +3130,6 @@ class _Builder:
                     )
                 )
             else:
-                _read_zip_member(payload, central)
                 entry["disposition"] = "SOURCE_ONLY_EXCLUSION"
                 entry["source_only_exclusion_reason_or_null"] = "XLSX_PACKAGE_COMPONENT"
                 entry["archive_source_only_disposition_record_hash_or_null"] = (
@@ -2793,6 +3171,7 @@ class _Builder:
         _require(archive is not None, "REJECT_ZIP_PARSER_FAILURE")
         entries: list[dict[str, Any]] = []
         child_nodes: list[str] = []
+        member_reader = _ZipMemberReader(payload)
         for central in archive.entries:
             entry = self._base_entry(central)
             if central.is_directory:
@@ -2809,7 +3188,7 @@ class _Builder:
                 entries.append(entry)
                 continue
             if central.is_resource_fork:
-                _read_zip_member(payload, central)
+                _read_zip_member(payload, central, member_reader)
                 entry["disposition"] = "SOURCE_ONLY_EXCLUSION"
                 entry["source_only_exclusion_reason_or_null"] = "RESOURCE_FORK"
                 entry["archive_source_only_disposition_record_hash_or_null"] = (
@@ -2822,7 +3201,7 @@ class _Builder:
                 )
                 entries.append(entry)
                 continue
-            member_payload = _read_zip_member(payload, central)
+            member_payload = _read_zip_member(payload, central, member_reader)
             child_detected = _detect_format(
                 member_payload,
                 archive_budget=self._archive_budget,
@@ -3270,8 +3649,6 @@ class _Builder:
         for doi_id in sorted(cases_by_doi):
             terminal = terminal_by_doi.get(doi_id)
             _require(terminal is not None, "canonical case has no terminal DOI record")
-            if _TERMINAL_STATUS_ADAPTER[terminal["terminal_status"]] != "DOWNLOADED":
-                continue
             doi_cases = sorted(
                 cases_by_doi[doi_id],
                 key=lambda item: str(item["case_id"]),
@@ -3341,12 +3718,20 @@ class _Builder:
             doi_cases = sorted(
                 cases_by_doi.get(doi_id, ()), key=lambda item: str(item["case_id"])
             )
-            if terminal_status == "DOWNLOADED" and doi_id in case_stratum:
+            if source_present and doi_id in case_stratum:
                 disposition = "STRATIFIED_SOURCE_CANONICAL"
-                reason = "VERIFIED_SOURCE_CANONICAL_ALL_CASES"
-            elif terminal_status == "DOWNLOADED" and source_present:
+                reason = (
+                    "VERIFIED_SOURCE_CANONICAL_ALL_CASES"
+                    if terminal_status == "DOWNLOADED"
+                    else "VERIFIED_PRIOR_ATTEMPT_SOURCE_CANONICAL_ALL_CASES"
+                )
+            elif source_present:
                 disposition = "NON_STRATIFIED_SOURCE_NO_CANONICAL_CASE"
-                reason = "DOWNLOADED_SOURCE_NO_QUALIFYING_CASE"
+                reason = (
+                    "DOWNLOADED_SOURCE_NO_QUALIFYING_CASE"
+                    if terminal_status == "DOWNLOADED"
+                    else "PRIOR_ATTEMPT_SOURCE_NO_QUALIFYING_CASE"
+                )
             elif terminal_status == "DOWNLOADED":
                 disposition = "NON_STRATIFIED_DOWNLOADED_NO_VERIFIED_SOURCE"
                 reason = "DOWNLOADED_WITHOUT_VERIFIED_SOURCE"
@@ -3366,7 +3751,7 @@ class _Builder:
                 "terminal attempt evidence is incomplete",
             )
             source_inventory_binding: dict[str, Any] | None = None
-            if source_present and terminal_status == "DOWNLOADED":
+            if source_present:
                 evidence = self.source_by_article[article_id]["source_evidence"]
                 source_inventory_binding = {
                     "source_inventory_collection_hash": source_inventory_hash,
@@ -3389,7 +3774,7 @@ class _Builder:
                     ],
                 }
             canonical_builder_binding: dict[str, Any] | None = None
-            if terminal_status == "DOWNLOADED" and source_present:
+            if source_present:
                 canonical_builder_binding = {
                     "canonical_builder_rule_id": CANONICAL_RULE_ID,
                     "canonical_builder_rule_version": "1",
@@ -3416,7 +3801,7 @@ class _Builder:
                 "canonical_builder_binding_or_null": canonical_builder_binding,
                 "all_eligible_case_ids": (
                     [item["case_id"] for item in doi_cases]
-                    if terminal_status == "DOWNLOADED"
+                    if source_present
                     else []
                 ),
                 "classification_reason": reason,
@@ -3728,11 +4113,11 @@ class _Builder:
             self.root, "p_evidence_v2/acquisition_dispositions.jsonl", dispositions
         )
         p_summary_path = _write_json(self.root, "p_evidence_v2/p_summary.json", p_summary)
-        validation = validate_source_bearing_extension_for_testing(
+        validation = _validate_source_bearing_extension_with_attestation(
             self.root,
             partition_records=self.partition_records,
             source_chunk_sha256=self.source_chunk_sha256,
-            test_code_attestation=self.test_code_attestation,
+            code_attestation=self.test_code_attestation,
         )
         validation_path = _write_json(
             self.root, "control/v2/source_bearing_extension_validation.json", validation
@@ -4065,23 +4450,19 @@ def _validate_archive_accounts(
     return result
 
 
-def _require_stage_b_production_source_extension_trust() -> None:
-    """Fail before any candidate worktree or attestation can influence production."""
+def _require_stage_b_production_source_extension_trust() -> (
+    ProductionSourceExtensionCodeAttestation
+):
+    """Resolve the fixed owner-authorized runtime manifest before caller input."""
 
     require_external_m1_trust_lock()
     try:
-        registry = load_compile_pinned_source_extension_code_attestation()
+        return load_verified_source_extension_runtime_attestation()
     except C2StageBCodeAttestationError as exc:
         raise SourceBearingExtensionError(
-            "NOT_SEALABLE_SOURCE_EXTENSION_STAGEB_POLICY_REQUIRED: no compile-pinned "
-            "package-internal Stage-B production policy/code-registry commitment exists"
+            "NOT_SEALABLE_SOURCE_EXTENSION_RUNTIME_ATTESTATION_REQUIRED: no valid "
+            "compile-pinned package runtime registry/manifest exists"
         ) from exc
-    del registry
-    raise SourceBearingExtensionError(
-        "NOT_SEALABLE_SOURCE_EXTENSION_STAGEB_RUNTIME_VERIFIER_REQUIRED: the "
-        "reviewed Stage-B registry is available, but no production runtime verifier "
-        "has been authorized to consume it"
-    )
 
 
 def validate_source_bearing_extension_for_testing(
@@ -4089,16 +4470,34 @@ def validate_source_bearing_extension_for_testing(
     *,
     partition_records: int,
     source_chunk_sha256: str,
-    test_code_attestation: TestOnlySourceExtensionCodeAttestation | None = None,
+    test_code_attestation: _SourceExtensionCodeAttestation | None = None,
 ) -> dict[str, Any]:
     """Test-only replay of V2 bytes -> account -> consumption -> canonical/P."""
 
-    require_external_m1_trust_lock()
+    require_test_only_source_extension_gate()
     attestation = (
         verify_source_extension_code_attestation_for_testing()
         if test_code_attestation is None
         else test_code_attestation
     )
+    return _validate_source_bearing_extension_with_attestation(
+        root,
+        partition_records=partition_records,
+        source_chunk_sha256=source_chunk_sha256,
+        code_attestation=attestation,
+    )
+
+
+def _validate_source_bearing_extension_with_attestation(
+    root: _TargetRoot,
+    *,
+    partition_records: int,
+    source_chunk_sha256: str,
+    code_attestation: _SourceExtensionCodeAttestation,
+) -> dict[str, Any]:
+    """Replay V2 artifacts with an attestation selected by a guarded caller."""
+
+    attestation = code_attestation
     attestation.verify_runtime()
     config = _json_object(
         root.read_bytes("source_inventory_v2/fd_format_classifier_config.json"),
@@ -4192,6 +4591,10 @@ def validate_source_bearing_extension_for_testing(
         (str(item["raw_article_id"]), str(item["asset_id"])): item
         for item in inventory
     }
+    container_replays: dict[
+        str,
+        tuple[bytes, dict[tuple[int, str], _CentralEntry], _ZipMemberReader],
+    ] = {}
     for item in derived:
         _verify_seal(item, "record_hash", "derived archive member")
         member_id = _require_identifier(
@@ -4233,17 +4636,36 @@ def validate_source_bearing_extension_for_testing(
             "derived member format replay mismatch",
         )
         account = accounts[node_id]
-        container_payload = root.read_bytes(account["verified_relative_path"])
-        archive = _parse_zip_v1(container_payload)
-        matching_central = [
-            entry
-            for entry in archive.entries
-            if entry.index == central_index
-            and entry.header_sha256 == central_header_sha256
-        ]
+        replay = container_replays.get(node_id)
+        if replay is None:
+            container_payload = root.read_bytes(account["verified_relative_path"])
+            archive = _parse_zip_v1(container_payload)
+            entry_index = {
+                (entry.index, entry.header_sha256): entry
+                for entry in archive.entries
+            }
+            _require(
+                len(entry_index) == len(archive.entries),
+                "container replay entry index is ambiguous",
+            )
+            replay = (
+                container_payload,
+                entry_index,
+                _ZipMemberReader(container_payload),
+            )
+            container_replays[node_id] = replay
+        container_payload, entry_index, member_reader = replay
+        matching_entry = entry_index.get(
+            (central_index, str(central_header_sha256))
+        )
         _require(
-            len(matching_central) == 1
-            and payload == _read_zip_member(container_payload, matching_central[0])
+            matching_entry is not None
+            and payload
+            == _read_zip_member(
+                container_payload,
+                matching_entry,
+                member_reader,
+            )
             and item.get("parent_doi_id") == account.get("parent_doi_id")
             and item.get("frozen_input_ordinal")
             == account.get("frozen_input_ordinal"),
@@ -4252,7 +4674,8 @@ def validate_source_bearing_extension_for_testing(
         member_selector = item.get("member_selector")
         _require(
             isinstance(member_selector, str)
-            and member_selector.rsplit("!", 1)[-1] == matching_central[0].selector,
+            and matching_entry is not None
+            and member_selector.rsplit("!", 1)[-1] == matching_entry.selector,
             "derived archive member selector mismatch",
         )
         raw_record = raw_by_article_asset.get(
@@ -5096,12 +5519,7 @@ def validate_source_bearing_extension_for_testing(
             "P stratum recomputation mismatch",
         )
         classifications_by_doi[doi_id] = item
-    expected_classification_dois = {
-        doi_id
-        for doi_id in cases_by_doi
-        if _TERMINAL_STATUS_ADAPTER[terminal_by_doi[doi_id]["terminal_status"]]
-        == "DOWNLOADED"
-    }
+    expected_classification_dois = set(cases_by_doi)
     _require(
         set(classifications_by_doi) == expected_classification_dois,
         "source classification canonical coverage mismatch",
@@ -5149,12 +5567,21 @@ def validate_source_bearing_extension_for_testing(
         doi_cases = sorted(
             cases_by_doi.get(doi_id, ()), key=lambda item: str(item["case_id"])
         )
-        if terminal_status == "DOWNLOADED" and doi_id in classifications_by_doi:
+        source_present = source_inventory_binding is not None
+        if source_present and doi_id in classifications_by_doi:
             final_disposition = "STRATIFIED_SOURCE_CANONICAL"
-            reason = "VERIFIED_SOURCE_CANONICAL_ALL_CASES"
-        elif terminal_status == "DOWNLOADED" and source_inventory_binding is not None:
+            reason = (
+                "VERIFIED_SOURCE_CANONICAL_ALL_CASES"
+                if terminal_status == "DOWNLOADED"
+                else "VERIFIED_PRIOR_ATTEMPT_SOURCE_CANONICAL_ALL_CASES"
+            )
+        elif source_present:
             final_disposition = "NON_STRATIFIED_SOURCE_NO_CANONICAL_CASE"
-            reason = "DOWNLOADED_SOURCE_NO_QUALIFYING_CASE"
+            reason = (
+                "DOWNLOADED_SOURCE_NO_QUALIFYING_CASE"
+                if terminal_status == "DOWNLOADED"
+                else "PRIOR_ATTEMPT_SOURCE_NO_QUALIFYING_CASE"
+            )
         elif terminal_status == "DOWNLOADED":
             final_disposition = "NON_STRATIFIED_DOWNLOADED_NO_VERIFIED_SOURCE"
             reason = "DOWNLOADED_WITHOUT_VERIFIED_SOURCE"
@@ -5191,8 +5618,7 @@ def validate_source_bearing_extension_for_testing(
                 ),
                 "consumption_bijection_hash": bijection["consumption_bijection_hash"],
             }
-            if terminal_status == "DOWNLOADED"
-            and source_inventory_binding is not None
+            if source_present
             else None
         )
         _require(
@@ -5210,7 +5636,7 @@ def validate_source_bearing_extension_for_testing(
             and disposition.get("all_eligible_case_ids")
             == (
                 [item["case_id"] for item in doi_cases]
-                if terminal_status == "DOWNLOADED"
+                if source_present
                 else []
             )
             and disposition.get("classification_reason") == reason,
@@ -5323,12 +5749,16 @@ def validate_source_bearing_extension(
     partition_records: int,
     source_chunk_sha256: str,
 ) -> dict[str, Any]:
-    """Production replay gate; unavailable until Stage-B pins a trust commitment."""
+    """Replay source evidence under the fixed non-independent runtime manifest."""
 
     require_external_m1_trust_lock()
-    del root, partition_records, source_chunk_sha256
-    _require_stage_b_production_source_extension_trust()
-    raise AssertionError("unreachable")
+    attestation = _require_stage_b_production_source_extension_trust()
+    return _validate_source_bearing_extension_with_attestation(
+        root,
+        partition_records=partition_records,
+        source_chunk_sha256=source_chunk_sha256,
+        code_attestation=attestation,
+    )
 
 
 def build_source_bearing_extension_for_testing(
@@ -5340,7 +5770,7 @@ def build_source_bearing_extension_for_testing(
     terminal_rows: Sequence[Mapping[str, Any]],
     partition_records: int,
     source_chunk_sha256: str,
-    test_code_attestation: TestOnlySourceExtensionCodeAttestation | None = None,
+    test_code_attestation: _SourceExtensionCodeAttestation | None = None,
 ) -> SourceBearingExtensionResult:
     """Build source-bearing artifacts through the explicit test-only route.
 
@@ -5349,12 +5779,38 @@ def build_source_bearing_extension_for_testing(
     would violate the raw-attempt single-read contract.
     """
 
-    require_external_m1_trust_lock()
+    require_test_only_source_extension_gate()
     attestation = (
         verify_source_extension_code_attestation_for_testing()
         if test_code_attestation is None
         else test_code_attestation
     )
+    return _build_source_bearing_extension_with_attestation(
+        root=root,
+        raw_reader=raw_reader,
+        records=records,
+        provenance=provenance,
+        terminal_rows=terminal_rows,
+        partition_records=partition_records,
+        source_chunk_sha256=source_chunk_sha256,
+        code_attestation=attestation,
+    )
+
+
+def _build_source_bearing_extension_with_attestation(
+    *,
+    root: _TargetRoot,
+    raw_reader: Any,
+    records: Sequence[Mapping[str, Any]],
+    provenance: Mapping[str, Mapping[str, Any]],
+    terminal_rows: Sequence[Mapping[str, Any]],
+    partition_records: int,
+    source_chunk_sha256: str,
+    code_attestation: _SourceExtensionCodeAttestation,
+) -> SourceBearingExtensionResult:
+    """Build V2 artifacts with an attestation selected by a guarded caller."""
+
+    attestation = code_attestation
     attestation.verify_runtime()
     _require(len(records) == partition_records, "source extension partition count mismatch")
     assets: list[_RawAsset] = []
@@ -5400,11 +5856,6 @@ def build_source_bearing_extension_for_testing(
             article_id in terminal_status_by_article,
             "source evidence has no terminal article record",
         )
-        if (
-            _TERMINAL_STATUS_ADAPTER[terminal_status_by_article[article_id]]
-            != "DOWNLOADED"
-        ):
-            continue
         for asset in validated:
             relative = str(asset["relative_path"])
             snapshot = raw_reader.reads.get(relative)
@@ -5461,17 +5912,17 @@ def build_source_bearing_extension(
     partition_records: int,
     source_chunk_sha256: str,
 ) -> SourceBearingExtensionResult:
-    """Production builder gate; no caller can provide an alternate trust anchor."""
+    """Build source artifacts under the fixed non-independent runtime manifest."""
 
     require_external_m1_trust_lock()
-    del (
-        root,
-        raw_reader,
-        records,
-        provenance,
-        terminal_rows,
-        partition_records,
-        source_chunk_sha256,
+    attestation = _require_stage_b_production_source_extension_trust()
+    return _build_source_bearing_extension_with_attestation(
+        root=root,
+        raw_reader=raw_reader,
+        records=records,
+        provenance=provenance,
+        terminal_rows=terminal_rows,
+        partition_records=partition_records,
+        source_chunk_sha256=source_chunk_sha256,
+        code_attestation=attestation,
     )
-    _require_stage_b_production_source_extension_trust()
-    raise AssertionError("unreachable")

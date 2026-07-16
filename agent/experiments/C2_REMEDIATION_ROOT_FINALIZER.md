@@ -1,14 +1,12 @@
 # C2 fresh-remediation root finalizer
 
-## M1 production trust boundary
+## Owner execution and M1 admission boundaries
 
-The public finalizer and CLI currently fail with
-`M1_EXTERNAL_TRUST_LOCK_UNAVAILABLE` before inspecting any caller-selected raw
-root, target, source evidence, frozen input, or worktree. This repository does
-not provide an independently signed, deployment-pinned external M1 artifact or
-adapter; no local file, environment value, flag, or `--source-bearing-v2`
-selection can authorize a production run. Private `*_for_testing` helpers are
-not CLI-selectable production routes.
+The fixed `OWNER_AUTHORIZED_NON_INDEPENDENT` capability permits remediation,
+source build/replay, and non-admissive sealing. It does not supply independent
+M1 verification and cannot authorize admission, publication, a scientific
+outcome, or an outcome-dependent input choice. The finalizer therefore produces
+evidence only; the independent admission boundary remains deny-only.
 
 `c2-remediation-root-finalize` seals one new root from a separately acquired
 raw-evidence root. It does not acquire articles, invoke models, alter the raw
@@ -90,14 +88,309 @@ legacy, malformed, or ambiguous evidence fails closed. A byte-valid table with
 no deterministic source mapping receives an explicit, hash-bound source-only
 exclusion; it never falls back to an empty chain.
 
-The current source branch has no compile-pinned, package-internal Stage-B
-production policy/code-registry commitment. Consequently, a source-bearing V2
-root fails closed with
-`NOT_SEALABLE_SOURCE_EXTENSION_STAGEB_POLICY_REQUIRED` before it reads any
-candidate worktree, parent commit, manifest, or runtime attestation. A future
-production route must consume only
-`c2_stageb_source_extension_code_attestation.load_compile_pinned_source_extension_code_attestation`;
-test-only Git/blob anchors are not a production trust boundary.
+The package-internal Stage-B source-extension registry is compile-pinned and
+runtime-verified. It binds the reviewed implementation/attestation commits and
+the closed runtime path/blob roster but carries no P labels, clusters, outcomes,
+or admission authority. Runtime bytes, the registry resource, or its compiled
+pin changing independently causes source-bearing V2 sealing to fail closed.
+
+## Fixed chunk-001 source pilot
+
+`c2_m5_source_pilot` is the only supported adapter from the frozen downloader's
+operational files to a strict chunk-001 raw root. A stdlib-only caller first
+hashes the bootstrap bytes against an externally distributed release pin. The
+authenticated bootstrap then verifies the externally pinned manifest digest
+and manifest-only commit before importing any checkout helper. It binds the
+frozen chunk, universe, summary, downloader commit, and protected legacy root,
+and takes an exclusive parent lease. Each of `initial`, `retry1`, and `retry2`
+runs in a separate credential-free workspace behind the
+HTTPS/public-IP/size network guard. The adapter preserves the raw postfetch log
+while deriving disjoint downloaded-only `processed.txt` and source-less
+`_skipped.txt` files; assets from any successful pass are retained even when
+retry2 is source-less.
+
+```bash
+cd agent
+export LANG=C LC_ALL=C
+export C2_M5_EXPECTED_ATTESTATION_COMMIT=6d9933af9121c7ec1a3b95edc0fae7dd7d153966
+export C2_M5_EXPECTED_MANIFEST_SHA256=3b7a1293542222a511aaf158b3086bf44eceb9e4e4418bf1bbc1962099f524a6
+export C2_M5_EXPECTED_BOOTSTRAP_SHA256=fd04918b1782dc884ea60b856139f025d4b01c34fa04475f2c916ed4f843ca01
+export C2_M5_EXPECTED_RELEASE_RUNNER_SHA256=c638738f78d7a12cdb9982d41e9ba5556126ccdc68bfb979fee2b3a5be4648ae
+export C2_M5_EXPECTED_PYTHON_SHA256=4b42b1a117605cafc8607b67b0892a609c2cd125012dd56288abeed8c89cdfb1
+export C2_M5_EXPECTED_PYTHON_LIBRARY_SHA256=0432398c0d1b2ff35a741b2758dccfb08d9f1aad39abac2c4da9cfcc84e6d225
+PYTHON=/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9
+PYTHON_LIBRARY=/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Python3
+PYTHON_STDLIB_ZIP_PARENT=/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib
+PYTHON_STDLIB_ZIP="$PYTHON_STDLIB_ZIP_PARENT/python39.zip"
+PYTHON_STDLIB="$PYTHON_STDLIB_ZIP_PARENT/python3.9"
+require_root_safe_path() {
+  local metadata owner remainder mode kind acl_output
+  metadata=$(/usr/bin/stat -f '%u:%Lp:%HT' "$1") || exit 1
+  owner=${metadata%%:*}
+  remainder=${metadata#*:}
+  mode=${remainder%%:*}
+  kind=${metadata##*:}
+  [ "$owner" = 0 ] && [ "$kind" = "$2" ] || exit 1
+  [ $((8#$mode & 8#022)) -eq 0 ] || exit 1
+  acl_output=$(/bin/ls -lde "$1") || exit 1
+  case "$acl_output" in *" allow "*) exit 1 ;; esac
+}
+for path in \
+  / \
+  /Library \
+  /Library/Developer \
+  /Library/Developer/CommandLineTools \
+  /Library/Developer/CommandLineTools/Library \
+  /Library/Developer/CommandLineTools/Library/Frameworks \
+  /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework \
+  /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions \
+  /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9 \
+  /Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin \
+  "$PYTHON_STDLIB_ZIP_PARENT" \
+  "$PYTHON_STDLIB"; do
+  require_root_safe_path "$path" Directory
+done
+require_root_safe_path "$PYTHON" "Regular File"
+require_root_safe_path "$PYTHON_LIBRARY" "Regular File"
+STDLIB_METADATA_UNSAFE=$(
+  /usr/bin/find -x "$PYTHON_STDLIB" \
+    \( -path "$PYTHON_STDLIB/site-packages" -o \
+       -path "$PYTHON_STDLIB/config-3.9-darwin" \) -prune -o \
+    \( -type l -o ! -user root -o -perm +022 -o \
+       \( ! -type f ! -type d \) \) -print -quit
+) || exit 1
+[ -z "$STDLIB_METADATA_UNSAFE" ] || exit 1
+STDLIB_ACLS=$(
+  /usr/bin/find -x "$PYTHON_STDLIB" \
+    \( -path "$PYTHON_STDLIB/site-packages" -o \
+       -path "$PYTHON_STDLIB/config-3.9-darwin" \) -prune -o \
+    -exec /bin/ls -lde {} \;
+) || exit 1
+case "$STDLIB_ACLS" in *" allow "*) exit 1 ;; esac
+[ "$(/usr/bin/shasum -a 256 "$PYTHON" | /usr/bin/cut -d " " -f 1)" = \
+  "$C2_M5_EXPECTED_PYTHON_SHA256" ] || exit 1
+[ "$(/usr/bin/shasum -a 256 "$PYTHON_LIBRARY" | /usr/bin/cut -d " " -f 1)" = \
+  "$C2_M5_EXPECTED_PYTHON_LIBRARY_SHA256" ] || exit 1
+[ "$(/usr/bin/stat -f '%u:%Lp:%HT' "$PYTHON_STDLIB_ZIP_PARENT")" = \
+  "0:755:Directory" ] || exit 1
+[ ! -e "$PYTHON_STDLIB_ZIP" ] && [ ! -L "$PYTHON_STDLIB_ZIP" ] || exit 1
+BOOTSTRAP="$PWD/c2_m5_source_pilot_bootstrap.py"
+m5() {
+  /usr/bin/env -i \
+  PATH=/usr/bin:/bin:/usr/sbin:/sbin \
+  HOME=/var/empty LANG=C LC_ALL=C \
+  C2_M5_EXPECTED_ATTESTATION_COMMIT="$C2_M5_EXPECTED_ATTESTATION_COMMIT" \
+  C2_M5_EXPECTED_MANIFEST_SHA256="$C2_M5_EXPECTED_MANIFEST_SHA256" \
+  C2_M5_EXPECTED_BOOTSTRAP_SHA256="$C2_M5_EXPECTED_BOOTSTRAP_SHA256" \
+  C2_M5_EXPECTED_PYTHON_SHA256="$C2_M5_EXPECTED_PYTHON_SHA256" \
+  C2_M5_EXPECTED_PYTHON_LIBRARY_SHA256="$C2_M5_EXPECTED_PYTHON_LIBRARY_SHA256" \
+  "$PYTHON" -I -S -B -c '
+import hashlib, os, stat, sys
+path = sys.argv[1]
+fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+metadata = os.fstat(fd)
+payload = bytearray()
+try:
+    while True:
+        block = os.read(fd, 1024 * 1024)
+        if not block:
+            break
+        payload.extend(block)
+        if len(payload) > 2 * 1024 * 1024:
+            raise SystemExit("M5 bootstrap is oversized")
+finally:
+    os.close(fd)
+if (
+    not stat.S_ISREG(metadata.st_mode)
+    or metadata.st_uid != os.geteuid()
+    or metadata.st_nlink != 1
+    or metadata.st_mode & 0o022
+    or hashlib.sha256(payload).hexdigest()
+       != os.environ["C2_M5_EXPECTED_BOOTSTRAP_SHA256"]
+):
+    raise SystemExit("M5 external bootstrap pin mismatch")
+sys.argv = sys.argv[1:]
+exec(
+    compile(bytes(payload), path, "exec"),
+    {"__name__": "__main__", "__file__": path, "__package__": None},
+)
+' "$BOOTSTRAP" "$@"
+}
+```
+
+Execution refuses to publish a raw root unless at least one descriptor-bound
+`c2-source-evidence-v2` asset exists. The `finalize` subcommand repeats that
+read-only source-bearing check before invoking the existing V2 finalizer with
+the fixed target name. It still returns only non-independent, non-admissive
+evidence.
+
+All three commands require the reviewed external release pins and an exact
+clean repository tree. Direct execution of the checkout bootstrap without
+those pins is unsupported and refuses. After pre-authentication, the bootstrap
+compares the Git index to the pinned HEAD tree and directly hashes every
+worktree file with Git blob framing; it does not invoke checkout-controlled
+clean/smudge filters. It rejects `__pycache__`, `.pyc`, `.pyo`, `.pytest_cache`,
+or any other tracked, untracked, or ignored extra. Run tests with
+`PYTHONDONTWRITEBYTECODE=1` and remove test/cache artifacts before production;
+never place the raw or sealed roots inside this checkout. Replace the four
+remaining `__M5_*__` placeholders only with values published by the reviewed
+release; the externally checked CPython digest must also match that release.
+
+The release topology is part of the trust contract:
+
+1. remove the superseded source-extension test/runtime manifests and commit the
+   complete implementation, parser, dependency-manifest, and test bytes;
+2. add only the regenerated test attestation in its direct child commit;
+3. add only the regenerated production runtime manifest in the next commit;
+4. rotate the Stage-B registry, compile pin, and hard-coded registry test;
+5. commit the final reviewed M5 runtime anchor (an empty anchor is permitted when
+   review requires no byte changes);
+6. add only `c2_m5_source_pilot_attestation_v1.json` in its direct child commit.
+
+Verify each one-file attestation commit with `git diff-tree --no-commit-id
+--name-status -r HEAD`, then run:
+
+```bash
+/usr/bin/env -i \
+  PATH=/usr/bin:/bin:/usr/sbin:/sbin \
+  HOME=/var/empty LANG=C LC_ALL=C \
+  C2_M5_EXPECTED_RELEASE_RUNNER_SHA256="$C2_M5_EXPECTED_RELEASE_RUNNER_SHA256" \
+  C2_M5_EXPECTED_ATTESTATION_COMMIT="$C2_M5_EXPECTED_ATTESTATION_COMMIT" \
+  C2_M5_EXPECTED_MANIFEST_SHA256="$C2_M5_EXPECTED_MANIFEST_SHA256" \
+  C2_M5_EXPECTED_BOOTSTRAP_SHA256="$C2_M5_EXPECTED_BOOTSTRAP_SHA256" \
+  C2_M5_EXPECTED_PYTHON_SHA256="$C2_M5_EXPECTED_PYTHON_SHA256" \
+  C2_M5_EXPECTED_PYTHON_LIBRARY_SHA256="$C2_M5_EXPECTED_PYTHON_LIBRARY_SHA256" \
+  "$PYTHON" -I -S -B -c '
+import hashlib, os, stat, sys
+path = sys.argv[1]
+fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+metadata = os.fstat(fd)
+payload = bytearray()
+try:
+    while True:
+        block = os.read(fd, 1024 * 1024)
+        if not block:
+            break
+        payload.extend(block)
+        if len(payload) > 2 * 1024 * 1024:
+            raise SystemExit("M5 release runner is oversized")
+finally:
+    os.close(fd)
+if (
+    not stat.S_ISREG(metadata.st_mode)
+    or metadata.st_uid != os.geteuid()
+    or metadata.st_nlink != 1
+    or metadata.st_mode & 0o022
+    or hashlib.sha256(payload).hexdigest()
+       != os.environ["C2_M5_EXPECTED_RELEASE_RUNNER_SHA256"]
+):
+    raise SystemExit("M5 external release-runner pin mismatch")
+sys.argv = [path]
+exec(
+    compile(bytes(payload), path, "exec"),
+    {"__name__": "__main__", "__file__": path, "__package__": None},
+)
+' "$PWD/c2_m5_release_test_runner.py"
+```
+
+Only after that release runner exits zero and all four independent freeze
+reviews report no BLOCKER/HIGH may the same shell start acquisition:
+
+```bash
+m5 execute \
+  --raw-root /absolute/output/ccby_sr_npj_chunk001_rerun3_raw_ca98442 \
+  --source-chunk /absolute/chunks/chunk_001.jsonl \
+  --frozen-universe /absolute/universe.jsonl \
+  --freeze-summary /absolute/freeze_summary.json \
+  --worktree /absolute/clean-ca98442-worktree \
+  --workers 4
+
+m5 validate \
+  --raw-root /absolute/output/ccby_sr_npj_chunk001_rerun3_raw_ca98442 \
+  --source-chunk /absolute/chunks/chunk_001.jsonl \
+  --frozen-universe /absolute/universe.jsonl \
+  --freeze-summary /absolute/freeze_summary.json \
+  --worktree /absolute/clean-ca98442-worktree
+
+m5 finalize \
+  --raw-root /absolute/output/ccby_sr_npj_chunk001_rerun3_raw_ca98442 \
+  --target-root /absolute/output/ccby_sr_npj_chunk001_rerun3_clean_ca98442 \
+  --source-chunk /absolute/chunks/chunk_001.jsonl \
+  --frozen-universe /absolute/universe.jsonl \
+  --freeze-summary /absolute/freeze_summary.json \
+  --worktree /absolute/clean-ca98442-worktree
+```
+
+The release runner verifies the native Python/stdlib binding, the externally
+pinned live M5 manifest, and both hash-bound dependency archives before
+creating its own ACL-checked mode-0700 temporary root. It materializes all test
+and application sources from the authenticated manifest into a private source
+snapshot; the checkout is never on the child import path. It disables ambient
+pytest plugins and conftests, fixes the config/rootdir, uses only the fixed test
+roster, and rejects unreviewed session-control topology before execution. A
+trusted in-session supervisor, which never imports pytest or test code, alone
+owns the completion writer. It waits for the exact worker, emits one bounded
+status frame, closes the writer, and remains the unreaped SID leader; the outer
+runner accepts status only after EOF and leader-identity verification. Every
+approved nested spawn uses the registry binding pinned when containment is
+installed and remains in the leader group until its parent appends a pending
+registration and explicitly releases it to create the new PGID; the trampoline
+then adds a live anchor before target execution.
+Root-session mode is process-nonreentrant after containment installation.
+Cleanup freezes two identical stopped-state censuses, rereads the pinned
+descriptor, attempts every independently validated anchored group, verifies
+only the trusted supervisor remains, and then kills and reaps that exact child.
+Any registry, census, signal, cleanup, or survivor error makes release fail.
+
+This is deterministic cleanup for the hash-attested process topology, not a
+sandbox for hostile same-UID code. Unapproved session creation, daemonization,
+native process control, or registry bypass is an attestation violation and
+requires a new implementation anchor and review. The contract does not claim
+containment across hostile same-UID interference, outer `SIGKILL` or fatal
+runtime crash, reboot, or kernel failure; those require a VM or a separately
+provisioned UID. A record-only HUP/INT/TERM supervisor remains active across
+attestation, setup, tests, post-test verification, and mode-0700 temporary-root
+cleanup. The acquisition adapter applies the same record-only lifecycle before
+lease creation and before each downloader spawn, and restores the caller's
+handlers and exact signal mask on every exit. It blocks TERM while assigning the
+spawned worker, then handles cleanup requests record-only. A trusted live group
+leader waits the exact downloader worker and reports status through a
+non-inherited pipe;
+cleanup first asks that leader to reap the worker, kills the still-pinned group,
+drains captured output through EOF under the fixed byte cap, and only then
+reaps the leader. Unpublished staging is discarded and closed while the
+exclusive acquisition lease is still held; a failed or unverifiable rollback
+or process cleanup leaves that lease in place and blocks a later writer.
+Target-root construction
+also removes any staging directory created before its constructor can return.
+Publication blocks lifecycle signals around one commit point: a signal observed
+before that point aborts and rolls back, while one arriving after the point
+commits and returns the complete non-admissive root. Evidence records the
+verified retained PID set rather than assuming it is empty. Before Python
+starts, the shell gate rejects unsafe
+ownership, write bits, symlinks, or mutating Darwin ACLs across the fixed
+executable, runtime library, stdlib, and their ancestry. Bare `pytest`, ambient
+`PYTHONPATH`, user/site packages, and unpinned plugins are not release evidence.
+
+The M5 bootstrap rechecks the manifest-only topology, all Git blobs, the exact
+root-owned Apple CPython 3.9.6 executable/runtime-library/micro/SOABI/native
+arm64 process, the required absence of the higher-priority `python39.zip`
+import root, and the 775-file root-owned stdlib inventory, plus a vendored
+282-file dependency archive before execution. The wrapper invokes the resolved
+framework executable under an empty environment, so ambient `DEVELOPER_DIR`,
+Python, and dynamic-loader variables cannot select code before authentication.
+Every runtime ancestor and stdlib entry must be root-owned and
+non-group/world-writable.
+
+Each acquisition attempt additionally has a 10,000-request, 8-GiB cumulative
+response budget, a 16-MiB bounded subprocess log, and one three-hour deadline
+covering subprocess execution plus source/archive harvesting. The finalizer
+replays the request/byte budget against the downloaded-status harvest and
+applies the no-candidate-hints/real-source-asset gate to the same retained raw
+snapshot that it copies and seals. The resulting qualification hash is part of
+the sealed report trust chain. After every report and validation write, the
+finalizer emits `sealed_report_v1/terminal_manifest.json`; its returned SHA-256
+is the external anchor for the complete published root.
 
 The canonical target leaf is never created directly. Its pre-existing direct
 parent is the private staging parent: it is opened by a retained no-follow FD
