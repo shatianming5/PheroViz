@@ -2852,6 +2852,7 @@ def validate_source_pilot(*args, **kwargs) -> dict:
 
 def finalize_source_pilot(*args, **kwargs):
     print('Finalized.')
+    return {'status': 'success', 'chunk_id': '001'}
 
 def _path(value: str) -> Path:
     return Path(value).expanduser().resolve()
