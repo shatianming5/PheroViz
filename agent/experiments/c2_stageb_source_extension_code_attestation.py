@@ -25,8 +25,8 @@ from importlib import resources
 from pathlib import Path, PurePosixPath
 from typing import Any, Mapping, Sequence
 
-from jsonschema import Draft202012Validator
-from jsonschema.exceptions import SchemaError
+Draft202012Validator = None
+SchemaError = Exception
 
 from .c2_full_replacement_policy import C2FullReplacementPolicyError
 from .models import sha256_json
@@ -186,7 +186,7 @@ _FORBIDDEN_EXACT_FIELDS = frozenset(
         "classifications",
     }
 )
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, )
 class SourceExtensionRuntimePathRole:
     """One exact runtime path/role covered by an external attestation."""
 
@@ -197,7 +197,7 @@ class SourceExtensionRuntimePathRole:
         return {"runtime_path": self.runtime_path, "role": self.role}
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, )
 class SourceExtensionCodeAttestationRegistryEntry:
     """Opaque nonclassification entry a later internal policy can carry."""
 

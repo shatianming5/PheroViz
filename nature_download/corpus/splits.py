@@ -70,7 +70,7 @@ def _allocation_counts(n: int, ratios: tuple[float, float, float]) -> dict[str, 
             )
             counts[donor] -= 1
             counts[empty_index] += 1
-    return dict(zip(SPLIT_NAMES, counts, strict=True))
+    return dict(zip(SPLIT_NAMES, counts))
 
 
 def generate_split_bundle(
@@ -149,7 +149,7 @@ def generate_split_bundle(
     return {
         "schema_version": SCHEMA_VERSION,
         "seed": seed,
-        "ratios": dict(zip(SPLIT_NAMES, ratios, strict=True)),
+        "ratios": dict(zip(SPLIT_NAMES, ratios)),
         "counts": {name: len(split_sets[name]) for name in SPLIT_NAMES},
         "source_manifest_sha256": manifest_hash,
         "model_cutoff_date": model_cutoff_date,

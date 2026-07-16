@@ -16,6 +16,7 @@ import experiments.c2_source_bearing_extension as source_extension
 from experiments.c2_full_replacement_policy import C2FullReplacementPolicyError
 from experiments.cli import _build_parser
 from experiments.models import sha256_json
+from tests.test_experiment_support import release_test_git_repository
 
 
 def _digest(label: str) -> str:
