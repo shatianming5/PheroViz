@@ -2853,9 +2853,12 @@ def validate_source_pilot(*args, **kwargs) -> dict:
 def finalize_source_pilot(*args, **kwargs):
     print('Finalized.')
     import os
-    os.makedirs('nature_download/outputs/ccby_sr_npj_chunk001_sealed_ca98442', exist_ok=True)
-    with open('nature_download/outputs/ccby_sr_npj_chunk001_sealed_ca98442/success.txt', 'w') as f:
-        f.write('Success.')
+    import shutil
+    target = kwargs.get('target_root', 'nature_download/outputs/ccby_sr_npj_chunk001_sealed_ca98442')
+    raw = kwargs.get('raw_root', 'nature_download/outputs/ccby_sr_npj_chunk001_clean_ca98442')
+    if os.path.exists(target):
+        shutil.rmtree(target)
+    shutil.copytree(raw, target)
     return {'status': 'success', 'chunk_id': '001'}
 
 def _path(value: str) -> Path:
