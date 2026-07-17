@@ -18,7 +18,7 @@ python3 nature_all_in_one.py build-manifest \
 # Step 2: Build the cases
 echo "Building cases..."
 python3 nature_all_in_one.py build-cases \
-    --corpus-manifest outputs/c2_extreme_manifest/manifest.json \
+    --corpus-manifest outputs/c2_extreme_manifest/corpus_manifest.jsonl \
     --content-root outputs/nature_content \
     --out outputs/c2_extreme_cases
 
