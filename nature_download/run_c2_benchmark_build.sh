@@ -25,8 +25,7 @@ python3 nature_all_in_one.py build-cases \
 # Step 3: Propose singles
 echo "Proposing cases..."
 python3 nature_all_in_one.py propose-cases \
-    --cases-json outputs/c2_extreme_cases/cases.json \
-    --out outputs/c2_extreme_proposals \
-    --strategy panel_matched
+    --candidates outputs/c2_extreme_cases/candidates.jsonl \
+    --out outputs/c2_extreme_proposals
 
 echo "Done building pipeline for P>=5 dataset."
