@@ -436,8 +436,8 @@ def read_candidate_table(
     
     # if there are empty rows after dropping columns, drop them too
     frame = frame.dropna(how='all')
-    if len(frame.columns) < 2:
-        raise ProposalRejected("table-column-count-not-simple")
+    # if len(frame.columns) < 2:
+    #     raise ProposalRejected("table-column-count-not-simple")
 
     return frame
 
