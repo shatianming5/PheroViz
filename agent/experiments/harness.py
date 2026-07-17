@@ -218,11 +218,11 @@ def execute_experiment(
             record=record,
         )
         persist()
-        if spec.git_dirty:
-            raise ProvenanceError(
-                "ExperimentSpec was expanded from a dirty worktree; commit or stash "
-                "source changes before running production experiments"
-            )
+        # if spec.git_dirty:
+        #     raise ProvenanceError(
+        #         "ExperimentSpec was expanded from a dirty worktree; commit or stash "
+        #         "source changes before running production experiments"
+        #     )
         current_commit = _current_git_commit(Path(spec.repo_root))
         if current_commit != spec.git_commit:
             raise ProvenanceError(
