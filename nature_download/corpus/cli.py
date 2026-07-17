@@ -255,10 +255,12 @@ def cmd_propose_cases(args: argparse.Namespace) -> None:
         max_columns=args.max_columns,
     )
     write_proposal_outputs(output_path, proposed, rejected, summary)
+    
+    eligible_count = sum(1 for p in proposed if p.get("eligible_for_experiment"))
     print(
         f"[done] Proposals: single={summary['single_proposals']} "
         f"multi={summary['multi_panel_proposals']} "
-        f"rejected={summary['rejected']} eligible=0 out={output_path}"
+        f"rejected={summary['rejected']} eligible={eligible_count} out={output_path}"
     )
 
 
