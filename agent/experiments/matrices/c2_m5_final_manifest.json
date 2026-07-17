@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "manifest_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "frozen_universe": {
+    "sha256": "51848466c6bf6bf400b58faf539953830349abab21438e527eaefd74103450df",
+    "input_total": 2463,
+    "doi_ids_sha256": "6cdb5f8398cc70960d108c6319c93c2121327ce757af405bc44bca687a71056d"
+  },
+  "code": {
+    "commit": "ca98442b9e805110089b03083cb240e19b58d4a2",
+    "dirty": false
+  },
+  "replacement_policy": {
+    "replacement_chunk_ids": ["009", "010", "011", "012"],
+    "excluded_superseded_roots": [
+      {"chunk_id": "009", "root_id": "old_009"},
+      {"chunk_id": "010", "root_id": "old_010"},
+      {"chunk_id": "011", "root_id": "old_011"},
+      {"chunk_id": "012", "root_id": "old_012"}
+    ]
+  },
+  "chunks": [
+    {"chunk_id": "001", "root": {"root_id": "r1", "root_kind": "canonical", "supersedes_root_id": null, "partial_root": false}, "report_path": "report1.json", "expected_report_file_sha256": "0000000000000000000000000000000000000000000000000000000000000000", "expected_report_hash": "0000000000000000000000000000000000000000000000000000000000000000", "input_total": 200, "input_doi_ids_sha256": "0000000000000000000000000000000000000000000000000000000000000000"},
+    {"chunk_id": "002", "root": {"root_id": "r2", "root_kind": "canonical", "supersedes_root_id": null, "partial_root": false}, "report_path": "report2.json", "expected_report_file_sha256": "0000000000000000000000000000000000000000000000000000000000000000", "expected_report_hash": "0000000000000000000000000000000000000000000000000000000000000000", "input_total": 200, "input_doi_ids_sha256": "0000000000000000000000000000000000000000000000000000000000000000"},
+    {"chunk_id": "003", "root": {"root_id": "r3", "root_kind": "canonical", "supersedes_root_id": null, "partial_root": false}, "report_path": "report3.json", "expected_report_file_sha256": "0000000000000000000000000000000000000000000000000000000000000000", "expected_report_hash": "0000000000000000000000000000000000000000000000000000000000000000", "input_total": 200, "input_doi_ids_sha256": "0000000000000000000000000000000000000000000000000000000000000000"},
+    {"chunk_id": "004", "root": {"root_id": "r4", "root_kind": "canonical", "supersedes_root_id": null, "partial_root": false}, "report_path": "report4.json", "expected_report_file_sha256": "0000000000000000000000000000000000000000000000000000000000000000", "expected_report_hash": "0000000000000000000000000000000000000000000000000000000000000000", "input_total": 200, "input_doi_ids_sha256": "0000000000000000000000000000000000000000000000000000000000000000"},
+    {"chunk_id": "005", "root": {"root_id": "r5", "root_kind": "canonical", "supersedes_root_id": null, "partial_root": false}, "report_path": "report5.json", "expected_report_file_sha256": "0000000000000000000000000000000000000000000000000000000000000000", "expected_report_hash": "0000000000000000000000000000000000000000000000000000000000000000", "input_total": 200, "input_doi_ids_sha256": "0000000000000000000000000000000000000000000000000000000000000000"},
+    {"chunk_id": "006", "root": {"root_id": "r6", "root_kind": "canonical", "supersedes_root_id": null, "partial_root": false}, "report_path": "report6.json", "expected_report_file_sha256": "0000000000000000000000000000000000000000000000000000000000000000", "expected_report_hash": "0000000000000000000000000000000000000000000000000000000000000000", "input_total": 200, "input_doi_ids_sha256": "0000000000000000000000000000000000000000000000000000000000000000"},
+    {"chunk_id": "007", "root": {"root_id": "r7", "root_kind": "canonical", "supersedes_root_id": null, "partial_root": false}, "report_path": "report7.json", "expected_report_file_sha256": "0000000000000000000000000000000000000000000000000000000000000000", "expected_report_hash": "0000000000000000000000000000000000000000000000000000000000000000", "input_total": 200, "input_doi_ids_sha256": "0000000000000000000000000000000000000000000000000000000000000000"},
+    {"chunk_id": "008", "root": {"root_id": "r8", "root_kind": "canonical", "supersedes_root_id": null, "partial_root": false}, "report_path": "report8.json", "expected_report_file_sha256": "0000000000000000000000000000000000000000000000000000000000000000", "expected_report_hash": "0000000000000000000000000000000000000000000000000000000000000000", "input_total": 200, "input_doi_ids_sha256": "0000000000000000000000000000000000000000000000000000000000000000"},
+    {"chunk_id": "009", "root": {"root_id": "r9", "root_kind": "replacement", "supersedes_root_id": "old_009", "partial_root": false}, "report_path": "report9.json", "expected_report_file_sha256": "0000000000000000000000000000000000000000000000000000000000000000", "expected_report_hash": "0000000000000000000000000000000000000000000000000000000000000000", "input_total": 200, "input_doi_ids_sha256": "0000000000000000000000000000000000000000000000000000000000000000"},
+    {"chunk_id": "010", "root": {"root_id": "r10", "root_kind": "replacement", "supersedes_root_id": "old_010", "partial_root": false}, "report_path": "report10.json", "expected_report_file_sha256": "0000000000000000000000000000000000000000000000000000000000000000", "expected_report_hash": "0000000000000000000000000000000000000000000000000000000000000000", "input_total": 200, "input_doi_ids_sha256": "0000000000000000000000000000000000000000000000000000000000000000"},
+    {"chunk_id": "011", "root": {"root_id": "r11", "root_kind": "replacement", "supersedes_root_id": "old_011", "partial_root": false}, "report_path": "report11.json", "expected_report_file_sha256": "0000000000000000000000000000000000000000000000000000000000000000", "expected_report_hash": "0000000000000000000000000000000000000000000000000000000000000000", "input_total": 200, "input_doi_ids_sha256": "0000000000000000000000000000000000000000000000000000000000000000"},
+    {"chunk_id": "012", "root": {"root_id": "r12", "root_kind": "replacement", "supersedes_root_id": "old_012", "partial_root": false}, "report_path": "report12.json", "expected_report_file_sha256": "0000000000000000000000000000000000000000000000000000000000000000", "expected_report_hash": "0000000000000000000000000000000000000000000000000000000000000000", "input_total": 200, "input_doi_ids_sha256": "0000000000000000000000000000000000000000000000000000000000000000"},
+    {"chunk_id": "013", "root": {"root_id": "r13", "root_kind": "canonical", "supersedes_root_id": null, "partial_root": false}, "report_path": "report13.json", "expected_report_file_sha256": "0000000000000000000000000000000000000000000000000000000000000000", "expected_report_hash": "0000000000000000000000000000000000000000000000000000000000000000", "input_total": 63, "input_doi_ids_sha256": "0000000000000000000000000000000000000000000000000000000000000000"}
+  ]
+}
