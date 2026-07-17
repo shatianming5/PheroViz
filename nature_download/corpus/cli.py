@@ -440,7 +440,7 @@ def add_corpus_subcommands(subparsers: argparse._SubParsersAction) -> None:
         default="",
         help="Optional topical query; omit for journal-wide discovery",
     )
-    discover.add_argument("--max", type=int, default=10)
+    discover.add_argument("--max", type=int, default=0, help="0 means no limit")
     discover.add_argument(
         "--journal",
         default=None,
@@ -449,8 +449,8 @@ def add_corpus_subcommands(subparsers: argparse._SubParsersAction) -> None:
             "'Scientific Reports', or 'npj'; strict allowlist filtering still applies"
         ),
     )
-    discover.add_argument("--from-date", default=None, help="YYYY-MM-DD")
-    discover.add_argument("--until-date", default=None, help="YYYY-MM-DD")
+    discover.add_argument("--from-date", default="2018-01-01", help="YYYY-MM-DD")
+    discover.add_argument("--until-date", default="2026-12-31", help="YYYY-MM-DD")
     discover.add_argument("--out", default="outputs/corpus_discovery")
     discover.add_argument("--mailto", default=None)
     discover.add_argument("--sleep", type=float, default=1.0)

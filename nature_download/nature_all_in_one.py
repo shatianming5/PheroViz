@@ -7,7 +7,11 @@ journal policy. Every download command additionally requires verified CC BY
 """
 from __future__ import annotations
 
+
+import sys
+sys.stdout.reconfigure(line_buffering=True)
 import argparse
+
 import csv
 import json
 import mimetypes
@@ -161,8 +165,8 @@ def crossref_cursor_stream(
     fetched = 0
     cursor = "*"
     page_rows = min(max(1, int(page_rows)), 1000)
-    while fetched < total_max:
-        remaining = total_max - fetched
+    while total_max == 0 or fetched < total_max:
+        remaining = page_rows if total_max == 0 else total_max - fetched
         rows = min(page_rows, remaining)
         params = {
             "query": query,
@@ -525,17 +529,53 @@ def pick_largest_src(soup: BeautifulSoup, base_url: str):
     return None
 
 
+
+def estimate_panels(caption: str) -> int:
+    import re
+    if not caption: return 1
+    
+    # Common nature formats:
+    # 1. (a), (b), ...
+    # 2. a, b, ...
+    # 3. a-f, a-h, ...
+    caption = caption.lower()
+    
+    letters = set(re.findall(r'\(([a-z])\)', caption))
+    letters.update(re.findall(r'(?:^|\s)([a-z])(?:\.|\,)(?:\s|$)', caption))
+    
+    range_pattern = r'(?:^|\s|\()\(?([a-z])\)?\s*(?:-|to|–|—|~)\s*\(?([a-z])\)?(?:$|\s|\)|,|\.)'
+    for match in re.finditer(range_pattern, caption):
+        start, end = match.groups()
+        if start >= 'a' and end <= 'z' and end > start:
+            for i in range(ord(start), ord(end) + 1):
+                letters.add(chr(i))
+                
+    panels = len(letters)
+    if panels < 5:
+        # Fallback: count occurrences of "panel"
+        panel_count = len(re.findall(r'panel\b', caption))
+        if panel_count > panels: return panel_count
+        
+    return max(1, panels)
+
 def extract_caption(soup: BeautifulSoup):
     cap_el = soup.find("figcaption")
     if cap_el:
         t = cap_el.get_text(" ", strip=True)
-        if t:
+        # If figcaption is just "Fig. X", we shouldn't stop here, we should keep looking for the description.
+        if t and len(t) > 20:
             return t
-    cap_div = soup.find(class_=re.compile(r"c-figure__caption|figure__caption|caption"))
+            
+    cap_div = soup.find(class_=re.compile(r"c-figure__caption|figure__caption|caption|c-article-figure-description|description"))
     if cap_div:
         t = cap_div.get_text(" ", strip=True)
         if t:
             return t
+            
+    # Try just generic p if we have nothing
+    for p in soup.find_all("p"):
+        if p.parent and p.parent.get("class") and any("description" in c or "caption" in c for c in p.parent.get("class")):
+            return p.get_text(" ", strip=True)
     cap_dt = soup.find(attrs={"data-test": re.compile(r"caption", re.I)})
     if cap_dt:
         t = cap_dt.get_text(" ", strip=True)
@@ -651,10 +691,16 @@ def cmd_fig(args):
         r = polite_get(url, timeout=args.timeout, sleep=args.sleep, max_retries=args.max_retries)
     except Exception as e:
         print(safe_console(f"[warn] figure page not available: {url} ({e})"))
-        return
+        return False
     soup = BeautifulSoup(r.text, "html.parser")
     img_url = pick_largest_src(soup, r.url)
+
     caption = extract_caption(soup)
+    min_panels = getattr(args, "min_panels", 0)
+    if min_panels > 0 and estimate_panels(caption) < min_panels:
+        print(f"[info] Skipping figure {fno}: panels < {min_panels}")
+        return "skipped"
+
 
     base = Path(args.out) / aid
     figures_dir = base / "figures"
@@ -1059,7 +1105,7 @@ def cmd_postfetch(args):
             with Progress(SpinnerColumn(spinner_name="line"), TextColumn("[progress.description]{task.description}"), BarColumn(), TextColumn("{task.completed}/{task.total}"), TimeElapsedColumn(), console=console) as progress:
                 t = progress.add_task("Postfetch", total=total)
                 with ProcessPoolExecutor(max_workers=workers) as ex:
-                    futures = {ex.submit(postfetch_article, u, args.out, args.max_figs, getattr(args, "max_empty_figs", 2), args.sleep, args.timeout, args.max_retries): (u, record) for u, record in tasks}
+                    futures = {ex.submit(postfetch_article, u, args.out, args.max_figs, getattr(args, "max_empty_figs", 2), args.sleep, args.timeout, args.max_retries, getattr(args, "min_panels", 0)): (u, record) for u, record in tasks}
                     for fut in as_completed(futures):
                         try:
                             aid, found = fut.result()
@@ -1085,7 +1131,7 @@ def cmd_postfetch(args):
                         progress.advance(t, 1)
         else:
             with ProcessPoolExecutor(max_workers=workers) as ex:
-                futures = {ex.submit(postfetch_article, u, args.out, args.max_figs, getattr(args, "max_empty_figs", 2), args.sleep, args.timeout, args.max_retries): (u, record) for u, record in tasks}
+                futures = {ex.submit(postfetch_article, u, args.out, args.max_figs, getattr(args, "max_empty_figs", 2), args.sleep, args.timeout, args.max_retries, getattr(args, "min_panels", 0)): (u, record) for u, record in tasks}
                 for fut in as_completed(futures):
                     try:
                         aid, found = fut.result()
@@ -1137,7 +1183,7 @@ def cmd_postfetch(args):
 
 
 # Helper to postfetch a single article URL
-def postfetch_one(art_url: str, out: str, max_figs: int, sleep: float, timeout: float, max_retries: int, max_empty_figs: int = 2):
+def postfetch_one(art_url: str, out: str, max_figs: int, sleep: float, timeout: float, max_retries: int, max_empty_figs: int = 2, min_panels: int = 0):
     aid = parse_article_id(art_url)
     print(f"[stream] Fetch: {aid}")
     # verify article page is reachable
@@ -1151,12 +1197,17 @@ def postfetch_one(art_url: str, out: str, max_figs: int, sleep: float, timeout: 
     for i in range(1, max_figs + 1):
         fig_url = f"{art_url}/figures/{i}"
         try:
-            found = cmd_fig(argparse.Namespace(url=fig_url, out=out, sleep=sleep, timeout=timeout, max_retries=max_retries, _license_prevalidated=True))
-            if not found:
+            found = cmd_fig(argparse.Namespace(url=fig_url, out=out, sleep=sleep, timeout=timeout, max_retries=max_retries, _license_prevalidated=True, min_panels=min_panels))
+
+            if found is False:
                 empty_streak += 1
                 if empty_streak >= max_empty_figs:
                     print(f"[info] Stop figures loop for {aid}: consecutive empty pages {empty_streak}")
                     break
+            elif found == "skipped":
+                # Do not increment empty streak if it was just skipped due to panels!
+                empty_streak = 0
+
             else:
                 empty_streak = 0
                 found_count += 1
@@ -1171,9 +1222,9 @@ def postfetch_one(art_url: str, out: str, max_figs: int, sleep: float, timeout: 
     return found_count
 
 
-def postfetch_article(art_url: str, out: str, max_figs: int, max_empty_figs: int, sleep: float, timeout: float, max_retries: int):
+def postfetch_article(art_url: str, out: str, max_figs: int, max_empty_figs: int, sleep: float, timeout: float, max_retries: int, min_panels: int = 0):
     aid = parse_article_id(art_url)
-    found = postfetch_one(art_url, out, max_figs, sleep, timeout, max_retries, max_empty_figs)
+    found = postfetch_one(art_url, out, max_figs, sleep, timeout, max_retries, max_empty_figs, min_panels)
     if found > 0:
         ok = cmd_source(argparse.Namespace(url=art_url, out=out, section_id=None, filter=None, sleep=sleep, timeout=timeout, max_retries=max_retries, _license_prevalidated=True))
         if not ok:
@@ -1491,7 +1542,7 @@ def cmd_auto(args):
             print(f"[stream] Searching: {safe_console(kw)}")
             if progress is not None and search_task is not None:
                 progress.update(search_task, description=f"keywords {idx}/{total_keywords}")
-            if args.max_per_keyword > 1000:
+            if args.max_per_keyword > 1000 or args.max_per_keyword == 0:
                 items_iter = crossref_cursor_stream(
                     kw,
                     total_max=args.max_per_keyword,
@@ -1500,12 +1551,12 @@ def cmd_auto(args):
                     timeout=args.timeout,
                     max_retries=args.max_retries,
                     family_bias=True,
-                    page_rows=1000,
+                    page_rows=100, # REDUCE PAGE ROWS TO PREVENT LARGE PAYLOAD TIMEOUTS
                 )
             else:
                 items_iter = crossref_search(
                     kw,
-                    rows=args.max_per_keyword,
+                    rows=args.max_per_keyword if args.max_per_keyword > 0 else 0,
                     mailto=args.mailto,
                     sleep=args.sleep,
                     timeout=args.timeout,
@@ -1591,6 +1642,7 @@ def cmd_auto(args):
                     args.sleep,
                     args.timeout,
                     args.max_retries,
+                    getattr(args, "min_panels", 0),
                 )
                 inflight[future] = (slot, aid2, rec)
             if stop_stream:
@@ -1615,7 +1667,7 @@ def build_parser():
 
     s = sub.add_parser("search", help="Search allowlisted journals via Crossref + Europe PMC")
     s.add_argument("--query", required=True)
-    s.add_argument("--max", type=int, default=10)
+    s.add_argument("--max", type=int, default=0)
     s.add_argument("--out", default="outputs/search_run")
     s.add_argument("--mailto", default=None)
     s.add_argument("--sleep", type=float, default=1.0)
@@ -1658,6 +1710,7 @@ def build_parser():
     pf.add_argument("--jsonl", required=True)
     pf.add_argument("--out", default="outputs/nature_content")
     pf.add_argument("--max-figs", type=int, default=12)
+    pf.add_argument("--min-panels", type=int, default=0, help="Minimum panels e.g. 5 for (a)-(f) or above")
     pf.add_argument("--max-articles", type=int, default=0)
     pf.add_argument("--max-empty-figs", type=int, default=2, help="Max consecutive empty figure pages before stopping")
     pf.add_argument("--sort", choices=["year_desc", "year_asc", "input"], default="year_desc")
@@ -1677,7 +1730,7 @@ def build_parser():
 
     au = sub.add_parser("auto", help="Search multiple keywords then fetch ALL content")
     au.add_argument("--keywords-file", default=None)
-    au.add_argument("--max-per-keyword", type=int, default=50)
+    au.add_argument("--max-per-keyword", type=int, default=0)
     au.add_argument("--search-out", default="outputs/search_auto")
     au.add_argument("--content-out", default="outputs/nature_content")
     au.add_argument("--mailto", default=None)
@@ -1686,6 +1739,7 @@ def build_parser():
     au.add_argument("--max-retries", type=int, default=3)
     au.add_argument("--max-articles", type=int, default=0)
     au.add_argument("--max-figs", type=int, default=12)
+    au.add_argument("--min-panels", type=int, default=0, help="Minimum panels e.g. 5 for (a)-(f) or above")
     au.add_argument("--max-empty-figs", type=int, default=2)
     au.add_argument("--sort", choices=["year_desc", "year_asc", "input"], default="year_desc")
     au.add_argument("--workers", type=int, default=1, help="Workers for postfetch in non-stream mode (processes)")

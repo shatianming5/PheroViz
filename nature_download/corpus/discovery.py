@@ -76,8 +76,8 @@ def crossref_discover(
     sleep: float = 1.0,
     page_size: int = 250,
 ) -> list[dict[str, Any]]:
-    if rows < 1:
-        raise ValueError("rows must be positive")
+    if rows < 0:
+        raise ValueError("rows must be non-negative")
     if page_size < 1 or page_size > 1000:
         raise ValueError("page_size must be between 1 and 1000")
     filters = ["type:journal-article"]
@@ -91,8 +91,8 @@ def crossref_discover(
     collected: list[dict[str, Any]] = []
     cursor = "*"
     seen_cursors: set[str] = set()
-    while len(collected) < rows:
-        request_rows = min(page_size, rows - len(collected))
+    while rows == 0 or len(collected) < rows:
+        request_rows = page_size if rows == 0 else min(page_size, rows - len(collected))
         params: dict[str, Any] = {
             "filter": ",".join(filters),
             "rows": request_rows,
