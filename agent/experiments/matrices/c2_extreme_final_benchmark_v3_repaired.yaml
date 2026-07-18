@@ -1,0 +1,44 @@
+experiment_name: c2-extreme-p5-renderable-v3-repaired
+dataset_manifest: ../../../nature_download/outputs/c2_extreme_proposals/proposed.jsonl
+dataset_manifest_sha256: none
+dataset_mode: sealed_benchmark
+artifact_root: ../runs/production/c2_extreme_p5_renderable_v3_repaired_gpt56sol
+
+provider: experiments.providers:UnifiedBenchmarkProvider
+provider_options:
+  manifest_data_root: /Users/tommy/Downloads/mayi/PheroViz
+methods:
+  - name: best_of_n
+    schedule: best_of_n
+    memory_mode: none
+    initial_generation: model_spec
+    render_timeout_seconds: 120
+  - name: flat_iterative
+    schedule: iterative
+    memory_mode: none
+    initial_generation: model_spec
+    render_timeout_seconds: 120
+  - name: pheroviz_full
+    schedule: iterative
+    memory_mode: full
+    initial_generation: model_spec
+    render_timeout_seconds: 120
+
+backbones:
+  - gpt-5.6-sol
+seeds:
+  - 0
+  - 1
+  - 2
+budgets:
+  - type: renders
+    value: 6
+# splits:
+  # - test
+
+metric:
+  version: programmatic-v2
+  config:
+    selection:
+      metric: data_fidelity
+      direction: maximize

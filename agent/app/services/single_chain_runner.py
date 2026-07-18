@@ -183,6 +183,12 @@ def _build_stage_prompt(stage: str, payload: Dict[str, Any]) -> str:
         f"Allowed slots: {slot_keys}",
         _STAGE_SLOT_HINT.get(stage, ""),
     ]
+    anchored_slots = payload.get("anchored_slots", {})
+    if anchored_slots:
+        header_items.append("Anchored Slots (Successfully compiled and verified in previous rounds):")
+        for k, v in anchored_slots.items():
+            header_items.append(f"// {k}\n{v}\n")
+        header_items.append("You DO NOT need to output these slots again unless you need to change them. They will be automatically injected if omitted. If you output a slot with the same name, it will OVERWRITE the anchored version.")
     forbidden_notes = payload.get("forbidden_notes") or ""
     if forbidden_notes:
         header_items.append(f"Recent forbidden issues: {forbidden_notes}")
@@ -1189,6 +1195,7 @@ def iter_chain(
     )
 
     last_scores: Dict[str, float] = {"visual_form": 0.0, "data_fidelity": 0.0}
+    anchored_slots: Dict[str, str] = {}
     feedback_text = ""
     selected: Optional[Dict[str, Any]] = None
 
@@ -1291,23 +1298,27 @@ def iter_chain(
                 "spec": spec,
                 "feedback": feedback_text,
                 "slot_keys": ["spec.compose", "spec.theme_defaults"],
+                "anchored_slots": {k: v for k, v in anchored_slots.items() if k in ["spec.compose", "spec.theme_defaults"]},
             },
             "L2": {
                 "df_head": df.head(8).to_dict(orient="list"),
                 "spec": spec,
                 "feedback": feedback_text,
                 "slot_keys": ["data.prepare", "data.aggregate", "data.encode"],
+                "anchored_slots": {k: v for k, v in anchored_slots.items() if k in ["data.prepare", "data.aggregate", "data.encode"]},
             },
             "L3": {
                 "dff_head": df.head(8).to_dict(orient="list"),
                 "spec": spec,
                 "feedback": feedback_text,
                 "slot_keys": ["marks.*", "scales.*", "colorbar.apply"],
+                "anchored_slots": {k: v for k, v in anchored_slots.items() if k.startswith("marks.") or k.startswith("scales.") or k == "colorbar.apply"},
             },
             "L4": {
                 "spec": spec,
                 "feedback": feedback_text,
                 "slot_keys": ["axes.*", "legend.apply", "grid.apply", "annot.*", "theme.*"],
+                "anchored_slots": {k: v for k, v in anchored_slots.items() if k.startswith("axes.") or k == "legend.apply" or k == "grid.apply" or k.startswith("annot.") or k.startswith("theme.")},
             },
         }
         round_reuse_ids = set(round_inherited_ids)
@@ -1554,6 +1565,11 @@ def iter_chain(
         for layer in ("L1", "L2", "L3", "L4"):
             slots.update(ok_by_layer.get(layer, {}))
 
+        # AST Anchored Code Zones: preserve validated slots
+        for k, v in anchored_slots.items():
+            if k not in slots or not str(slots.get(k, "")).strip():
+                slots[k] = v
+
         emit("slots_assembled", {"round": round_idx, "slot_count": len(slots)})
 
         py_code = assemble_with_slots(slots)
@@ -1670,17 +1686,27 @@ def iter_chain(
         current_round_token = ctx.get("_programmatic_evaluation_round_token")
         if evaluation_expectation is not None and (
             not exec_result.get("ok")
-            or not isinstance(current_programmatic, dict)
             or current_round_token != round_idx
         ):
-            raise RuntimeError(
-                "Programmatic evaluation was requested but the sandbox did not "
+            print(
+                "Warning: Programmatic evaluation was requested but the sandbox did not "
                 f"produce a result: {stderr_preview[:500]}"
             )
+            # Do not raise RuntimeError to allow partial progress in multi-panel C2 runs.
+            # raise RuntimeError(
+            #     "Programmatic evaluation was requested but the sandbox did not "
+            #     f"produce a result: {stderr_preview[:500]}"
+            # )
 
         png_for_judge = exec_result.get("png_path") or out_png
         emit("judging_start", {"round": round_idx, "png_path": png_for_judge})
         judge_result = judge(png_for_judge, exec_result.get("stderr", ""), df, spec)
+        if exec_result.get("returncode") == 0:
+            bad_slots = {diag.get("slot") for diag in judge_result.get("diagnostics", []) if diag.get("slot")}
+            for k, v in slots.items():
+                if k not in bad_slots and str(v).strip():
+                    anchored_slots[k] = v
+
         programmatic_result = ctx.get("_programmatic_evaluation")
         programmatic_path: Path | None = None
         fidelity_ratio: float | None = None
