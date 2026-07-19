@@ -79,6 +79,17 @@ API_USER_AGENT = "PheroViz-NatureVis2000/2.0 (+CC-BY-gated corpus tooling)"
 _PV_FROM_DATE = os.environ.get("PV_FROM_DATE", "2018-01-01")
 _PV_UNTIL_DATE = os.environ.get("PV_UNTIL_DATE", "2026-12-31")
 _PV_DATE_FILTER = f"type:journal-article,from-pub-date:{_PV_FROM_DATE},until-pub-date:{_PV_UNTIL_DATE}"
+# Optional exact-journal enumeration by ISSN. When set (comma-separated ISSNs),
+# the Crossref filter is restricted to that journal so cursor pagination walks
+# the ENTIRE journal exhaustively instead of relying on keyword relevance
+# (keyword `query` only ranks; it does not hard-restrict, so single-journal
+# harvests like Communications Biology otherwise under-sample). is_corpus_journal
+# still validates every item, so the allowlist remains the source of truth.
+_PV_ISSN_FILTER = os.environ.get("PV_ISSN_FILTER", "").strip()
+if _PV_ISSN_FILTER:
+    _issn_terms = ",".join(f"issn:{s.strip()}" for s in _PV_ISSN_FILTER.split(",") if s.strip())
+    if _issn_terms:
+        _PV_DATE_FILTER = f"{_PV_DATE_FILTER},{_issn_terms}"
 # Crossref container-title enumeration bias. Default "Nature" surfaces the
 # Nature-titled journals (Nature Communications). Set PV_CONTAINER_BIAS to
 # "Scientific Reports" to enumerate that allowed high-volume corpus journal
@@ -150,7 +161,7 @@ def crossref_search(query: str, rows: int = 20, mailto: str | None = None, sleep
         "filter": _PV_DATE_FILTER,
         "rows": rows,
     }
-    if family_bias:
+    if family_bias and not _PV_ISSN_FILTER:
         params["query.container-title"] = _PV_CONTAINER_BIAS
     if mailto:
         params["mailto"] = mailto
@@ -186,7 +197,7 @@ def crossref_cursor_stream(
             "rows": rows,
             "cursor": cursor,
         }
-        if family_bias:
+        if family_bias and not _PV_ISSN_FILTER:
             params["query.container-title"] = _PV_CONTAINER_BIAS
         if mailto:
             params["mailto"] = mailto
