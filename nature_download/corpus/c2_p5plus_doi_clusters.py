@@ -19,10 +19,44 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from corpus.proposals import ProposalRejected, analyze_table
-from corpus.source_table_normalizer import NormalizerRejected, normalize_source_sheet
+from .proposals import (
+    DEFAULT_MAX_COLUMNS,
+    DEFAULT_MAX_ROWS,
+    ProposalRejected,
+    _read_csv,
+    analyze_table,
+)
+from .source_table_normalizer import NormalizerRejected, normalize_source_sheet
 
 PROPOSED = Path("outputs/c2_extreme_proposals/proposed.jsonl")
+
+
+def _panel_composable(data_path: str, sheet: str | None) -> bool:
+    """Honestly re-validate one panel's source table, dispatching by file type.
+
+    Mirrors the proposer's loader dispatch (``read_candidate_table``): ``.xlsx``
+    goes through the fail-closed source-sheet normalizer, ``.csv`` through the
+    same CSV reader the proposer uses. Panels backed by CSV source data are just
+    as legitimate as xlsx ones, so validating both prevents a silent undercount
+    (feeding a CSV to the xlsx-only normalizer raises an uncaught
+    ``InvalidFileException`` and drops the panel). Any honest rejection -- or an
+    unsupported/unreadable file -- counts as non-composable.
+    """
+    path = Path(data_path)
+    suffix = path.suffix.casefold()
+    try:
+        if suffix == ".csv":
+            frame = _read_csv(
+                path, max_rows=DEFAULT_MAX_ROWS, max_columns=DEFAULT_MAX_COLUMNS
+            )
+        elif suffix == ".xlsx":
+            frame = normalize_source_sheet(path, sheet).frame
+        else:
+            return False
+        analyze_table(frame)
+    except (NormalizerRejected, ProposalRejected, OSError, ValueError):
+        return False
+    return True
 
 
 def _panel_sheet(experiment_case: dict[str, Any], pid: str) -> str | None:
@@ -34,7 +68,7 @@ def _panel_sheet(experiment_case: dict[str, Any], pid: str) -> str | None:
 
 def analyze(proposed: Path, min_panels: int = 5, min_composable: int = 5) -> dict:
     rows = [json.loads(line) for line in open(proposed) if line.strip()]
-    groups: dict[tuple, dict[str, tuple[str, str]]] = collections.defaultdict(dict)
+    groups: dict[tuple, dict[str, tuple[str, str | None]]] = collections.defaultdict(dict)
     for r in rows:
         pids = r.get("panel_ids") or []
         if len(pids) != 1:
@@ -43,8 +77,8 @@ def analyze(proposed: Path, min_panels: int = 5, min_composable: int = 5) -> dic
         data_path = ec.get("data_path")
         pid = str(pids[0])
         sheet = _panel_sheet(ec, pid)
-        if data_path and sheet:
-            groups[(r.get("doi"), r.get("figure_no"))][pid] = (str(data_path), str(sheet))
+        if data_path:
+            groups[(r.get("doi"), r.get("figure_no"))][pid] = (str(data_path), sheet)
 
     by_doi: dict[str, list] = collections.defaultdict(list)
     for (doi, fig), panels in groups.items():
@@ -52,12 +86,8 @@ def analyze(proposed: Path, min_panels: int = 5, min_composable: int = 5) -> dic
             continue
         n_comp = 0
         for _pid, (data_path, sheet) in panels.items():
-            try:
-                res = normalize_source_sheet(Path(data_path), sheet)
-                analyze_table(res.frame)
+            if _panel_composable(data_path, sheet):
                 n_comp += 1
-            except (NormalizerRejected, ProposalRejected):
-                pass
         if n_comp >= min_composable:
             by_doi[str(doi)].append({"figure_no": fig, "panels": len(panels), "composable": n_comp})
 
