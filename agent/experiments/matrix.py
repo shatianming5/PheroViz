@@ -284,12 +284,11 @@ def _validate_budget_panel_compatibility(
             )
         ]
         if incompatible:
-            # raise MatrixError(
-            #     f"Render budget {render_budget} cannot form complete panel "
-            #     "checkpoint candidates for: "
-            #     + ", ".join(incompatible)
-            # )
-            pass
+            raise MatrixError(
+                f"Render budget {render_budget} cannot form complete panel "
+                "checkpoint candidates for: "
+                + ", ".join(incompatible)
+            )
 
 
 def expand_matrix(
@@ -362,10 +361,9 @@ def expand_matrix(
         and manifest_object.get("provenance") is not None
     )
     if dataset_mode == "sealed_benchmark" and not has_benchmark_provenance:
-        # raise MatrixError(
-        #     "sealed_benchmark mode requires benchmark provenance"
-        # )
-        pass
+        raise MatrixError(
+            "sealed_benchmark mode requires benchmark provenance"
+        )
     if dataset_mode == "legacy" and has_benchmark_provenance:
         raise MatrixError(
             "A sealed benchmark manifest requires dataset_mode=sealed_benchmark"

@@ -80,7 +80,7 @@ def _sha256_bytes(payload: bytes) -> str:
 
 
 def _read_json_object(path: Path, label: str) -> tuple[dict[str, Any], str]:
-    # require_external_m1_trust_lock()
+    require_external_m1_trust_lock()
     if path.is_symlink():
         raise C2AdmissionError(f"{label} must not be a symlink: {path}")
     try:
@@ -116,7 +116,7 @@ def _make_schema_validator() -> Callable[[str], Draft202012Validator]:
         return Draft202012Validator(schema)
 
     def _guarded_schema_validator(schema_name: str) -> Draft202012Validator:
-        # require_external_m1_trust_lock()
+        require_external_m1_trust_lock()
         return _cached_schema_validator(schema_name)
 
     return _guarded_schema_validator
@@ -134,7 +134,7 @@ def _validate_schema(
     schema_name: str,
     label: str,
 ) -> None:
-    # require_external_m1_trust_lock()
+    require_external_m1_trust_lock()
     errors = sorted(
         _schema_validator(schema_name).iter_errors(value),
         key=lambda error: _validation_location(tuple(error.absolute_path)),
@@ -184,7 +184,9 @@ def _require_doi_list(value: Any, label: str) -> tuple[str, ...]:
 
 
 def _validate_manifest_hash(manifest: Mapping[str, Any]) -> None:
-    pass # Bypassed hash validation
+    declared = _require_sha256(manifest.get("manifest_hash"), "manifest_hash")
+    if sha256_json(_without(manifest, "manifest_hash")) != declared:
+        raise C2AdmissionError("Admission manifest failed its semantic hash")
 
 
 def _validate_report_seal(report: Mapping[str, Any]) -> None:
@@ -304,7 +306,7 @@ def _validate_manifest_structure(manifest: Mapping[str, Any]) -> list[Mapping[st
 
 
 def _resolve_report_path(manifest_path: Path, raw_path: str, chunk_id: str) -> Path:
-    # require_external_m1_trust_lock()
+    require_external_m1_trust_lock()
     if raw_path != raw_path.strip():
         raise C2AdmissionError(f"chunk {chunk_id} report_path has surrounding whitespace")
     relative = Path(raw_path)
@@ -487,7 +489,7 @@ def _blocked_status(deficient_strata: list[str]) -> str:
 
 
 def _validate_final_report(report: Mapping[str, Any]) -> None:
-    # require_external_m1_trust_lock()
+    require_external_m1_trust_lock()
     _validate_schema(
         report,
         "c2_terminal_final_report.schema.json",
@@ -550,14 +552,14 @@ def _validate_final_report(report: Mapping[str, Any]) -> None:
 def validate_final_report(report: Mapping[str, Any]) -> None:
     """Validate a finalizer output without reading any live output root."""
 
-    # require_external_m1_trust_lock()
+    require_external_m1_trust_lock()
     _validate_final_report(report)
 
 
 def prepare_finalization(manifest_path: Path) -> FinalizedAdmission:
     """Validate sealed inputs and retain their resolved paths for safe output."""
 
-    # require_external_m1_trust_lock()
+    require_external_m1_trust_lock()
     if manifest_path.is_symlink():
         raise C2AdmissionError("Admission manifest must not be a symlink")
     try:
@@ -694,12 +696,12 @@ def prepare_finalization(manifest_path: Path) -> FinalizedAdmission:
 def finalize_manifest(manifest_path: Path) -> dict[str, Any]:
     """Build a terminal-only report without writing an output file."""
 
-    # require_external_m1_trust_lock()
+    require_external_m1_trust_lock()
     return prepare_finalization(manifest_path).report
 
 
 def _normalize_final_output_path(path: Path) -> Path:
-    # require_external_m1_trust_lock()
+    require_external_m1_trust_lock()
     try:
         return normalize_trusted_output_path(path)
     except ProvenanceError as exc:
@@ -710,7 +712,7 @@ def _reject_output_input_collision(
     output_target: SecureOutputTarget,
     admitted_input_paths: Sequence[Path],
 ) -> None:
-    # require_external_m1_trust_lock()
+    require_external_m1_trust_lock()
     try:
         output_identity = os.stat(
             output_target.leaf_name,
@@ -754,7 +756,7 @@ def write_final_report(
 ) -> Path:
     """Write a validated report only when its output cannot overwrite evidence."""
 
-    # require_external_m1_trust_lock()
+    require_external_m1_trust_lock()
     if not isinstance(finalized, FinalizedAdmission):
         raise C2AdmissionError(
             "write_final_report requires a FinalizedAdmission from prepare_finalization"
@@ -794,7 +796,7 @@ def finalize_to_path(
 ) -> tuple[dict[str, Any], Path]:
     """Finalize a manifest and safely write its report."""
 
-    # require_external_m1_trust_lock()
+    require_external_m1_trust_lock()
     finalized = prepare_finalization(manifest_path)
     return finalized.report, write_final_report(finalized, output_path)
 
@@ -812,7 +814,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = _build_parser()
     try:
         pass
-        # require_external_m1_trust_lock()
+        require_external_m1_trust_lock()
         args = parser.parse_args(argv)
         report, output_path = finalize_to_path(args.manifest, args.out)
     except (C2AdmissionError, M1ExternalTrustLockUnavailable) as exc:

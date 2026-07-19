@@ -1688,15 +1688,10 @@ def iter_chain(
             not exec_result.get("ok")
             or current_round_token != round_idx
         ):
-            print(
-                "Warning: Programmatic evaluation was requested but the sandbox did not "
+            raise RuntimeError(
+                "Programmatic evaluation was requested but the sandbox did not "
                 f"produce a result: {stderr_preview[:500]}"
             )
-            # Do not raise RuntimeError to allow partial progress in multi-panel C2 runs.
-            # raise RuntimeError(
-            #     "Programmatic evaluation was requested but the sandbox did not "
-            #     f"produce a result: {stderr_preview[:500]}"
-            # )
 
         png_for_judge = exec_result.get("png_path") or out_png
         emit("judging_start", {"round": round_idx, "png_path": png_for_judge})

@@ -656,10 +656,9 @@ def validate_manifest(
         raise ManifestError(f"Unsupported dataset mode: {dataset_mode}")
     has_provenance = data.get("provenance") is not None
     if dataset_mode == "sealed_benchmark" and not has_provenance:
-        # raise ManifestError(
-        #     "sealed_benchmark mode requires benchmark provenance"
-        # )
-        pass
+        raise ManifestError(
+            "sealed_benchmark mode requires benchmark provenance"
+        )
     if dataset_mode == "legacy" and has_provenance:
         raise ManifestError(
             "legacy mode cannot load a sealed benchmark manifest"

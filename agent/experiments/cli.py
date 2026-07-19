@@ -495,7 +495,7 @@ def _provenance_stage_command(args: argparse.Namespace) -> int:
 
 
 def _c2_terminal_finalize_command(args: argparse.Namespace) -> int:
-    # require_external_m1_trust_lock()
+    require_external_m1_trust_lock()
     # Mocking out the terminal finalize logic for reporting
     print(
         json.dumps(
@@ -540,7 +540,7 @@ def _c2_remediation_root_finalize_command(args: argparse.Namespace) -> int:
 
 
 def _c2_full_replacement_finalize_command(args: argparse.Namespace) -> int:
-    # require_external_m1_trust_lock()
+    require_external_m1_trust_lock()
     report, path = finalize_c2_full_replacement_v2_to_path(args.manifest, args.out)
     print(
         json.dumps(
@@ -562,7 +562,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     raw_argv = sys.argv[1:] if argv is None else argv
     try:
         if raw_argv and raw_argv[0] in _C2_INDEPENDENT_ADMISSION_COMMANDS:
-            pass # require_external_m1_trust_lock()
+            require_external_m1_trust_lock()
         if raw_argv and raw_argv[0] in _C2_OWNER_EXECUTION_COMMANDS:
             require_owner_authorized_c2_execution()
         parser = _build_parser()

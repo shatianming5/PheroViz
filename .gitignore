@@ -1,3 +1,8 @@
 .env
 __pycache__/
 *.pyc
+
+# C2 run logs (never track)
+c2_run.log
+agent/outputs_c2_matrix.log
+*.run.log
