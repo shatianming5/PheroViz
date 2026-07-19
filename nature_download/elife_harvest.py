@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import socket
 import time
 from typing import Any, Iterator
 from urllib.parse import unquote, urlparse
@@ -557,9 +558,32 @@ def validate_dates(from_date: str, until_date: str) -> None:
         raise SystemExit("--from must not be later than --until")
 
 
+def maybe_force_ipv4() -> bool:
+    """Force requests/urllib3 to use IPv4 unless ELIFE_ALLOW_IPV6=1.
+
+    requests/urllib3 do not implement Happy Eyeballs: when DNS returns an
+    IPv6 address whose route is flaky, a request hangs for the full timeout
+    instead of falling back to IPv4 (curl does this automatically). On some
+    fleet nodes the IPv6 path to api.elifesciences.org intermittently stalls,
+    causing ReadTimeouts and near-zero throughput, while IPv4 answers in <1s.
+    Forcing AF_INET makes Python behave like ``curl -4``. Reversible via env.
+    """
+    if os.environ.get("ELIFE_ALLOW_IPV6") == "1":
+        return False
+    try:
+        import urllib3.util.connection as urllib3_cn
+
+        urllib3_cn.allowed_gai_family = lambda: socket.AF_INET
+        return True
+    except Exception:
+        return False
+
+
 def run(args: argparse.Namespace) -> int:
     if not args.require_cc_by:
         raise SystemExit("--require-cc-by is mandatory for corpus downloads")
+    if maybe_force_ipv4():
+        print("[net] forcing IPv4 (set ELIFE_ALLOW_IPV6=1 to allow IPv6)", flush=True)
     validate_dates(args.from_date, args.until_date)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)

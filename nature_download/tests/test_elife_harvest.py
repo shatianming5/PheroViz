@@ -247,3 +247,21 @@ def test_crossref_items_offset_paginates_past_200(monkeypatch):
     # Offset advanced 0,100,...,400 and stopped after the short final page.
     assert offsets_seen == [0, 100, 200, 300, 400]
 
+
+
+def test_maybe_force_ipv4_default_and_optout(monkeypatch):
+    import socket
+    import urllib3.util.connection as urllib3_cn
+
+    original = urllib3_cn.allowed_gai_family
+    try:
+        monkeypatch.delenv("ELIFE_ALLOW_IPV6", raising=False)
+        assert elife_harvest.maybe_force_ipv4() is True
+        assert urllib3_cn.allowed_gai_family() == socket.AF_INET
+
+        urllib3_cn.allowed_gai_family = original
+        monkeypatch.setenv("ELIFE_ALLOW_IPV6", "1")
+        assert elife_harvest.maybe_force_ipv4() is False
+        assert urllib3_cn.allowed_gai_family is original
+    finally:
+        urllib3_cn.allowed_gai_family = original
