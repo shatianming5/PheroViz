@@ -73,6 +73,13 @@ except ImportError:
 
 API_USER_AGENT = "PheroViz-NatureVis2000/2.0 (+CC-BY-gated corpus tooling)"
 
+# Crossref publication-date window. Parametrized via env so concurrent crawlers
+# can shard the DOI space by DISJOINT year ranges (zero-overlap paper partition),
+# which is far more efficient than keyword sharding (keywords overlap across slices).
+_PV_FROM_DATE = os.environ.get("PV_FROM_DATE", "2018-01-01")
+_PV_UNTIL_DATE = os.environ.get("PV_UNTIL_DATE", "2026-12-31")
+_PV_DATE_FILTER = f"type:journal-article,from-pub-date:{_PV_FROM_DATE},until-pub-date:{_PV_UNTIL_DATE}"
+
 
 def safe_console(text: str) -> str:
     try:
@@ -135,7 +142,7 @@ def crossref_search(query: str, rows: int = 20, mailto: str | None = None, sleep
     base = "https://api.crossref.org/works"
     params = {
         "query": query,
-        "filter": "type:journal-article",
+        "filter": _PV_DATE_FILTER,
         "rows": rows,
     }
     if family_bias:
@@ -170,7 +177,7 @@ def crossref_cursor_stream(
         rows = min(page_rows, remaining)
         params = {
             "query": query,
-            "filter": "type:journal-article",
+            "filter": _PV_DATE_FILTER,
             "rows": rows,
             "cursor": cursor,
         }
@@ -182,9 +189,9 @@ def crossref_cursor_stream(
             r = polite_get(base, params=params, sleep=sleep, timeout=timeout, max_retries=max_retries)
         except requests.HTTPError as exc:
             status = getattr(exc.response, "status_code", None)
-            if status == 404:
-                msg = safe_console(f"[warn] Crossref cursor 404 for query {query!r}; skipping remainder")
-                if console:
+            if status in (404, 500, 502, 503, 504):
+                msg = safe_console(f"[warn] Crossref cursor {status} for query {query!r}; skipping remainder")
+                if "console" in globals() and console:
                     console.log(msg)
                 else:
                     print(msg)
@@ -534,12 +541,14 @@ def estimate_panels(caption: str) -> int:
     import re
     if not caption: return 1
     
-    # Common nature formats:
-    # 1. (a), (b), ...
-    # 2. a, b, ...
-    # 3. a-f, a-h, ...
     caption = caption.lower()
     
+    # 强制正则靶向挖掘极大图 (a)-(f) 或 (a)-(h) 等
+    if re.search(r'\(a\)\s*[-–—~]\s*\([f-z]\)', caption):
+        return 999
+    if re.search(r'\(a\)\s*[-–—~]\s*[f-z]\b', caption):
+        return 999
+        
     letters = set(re.findall(r'\(([a-z])\)', caption))
     letters.update(re.findall(r'(?:^|\s)([a-z])(?:\.|\,)(?:\s|$)', caption))
     
@@ -771,7 +780,11 @@ def find_source_data_links(soup: BeautifulSoup, base_url: str, section_id: str |
         label = (a.get_text(" ", strip=True) or "").strip()
         if not label:
             continue
-        if not rx.search(label):
+        
+        # 靶向抓取包含 (a)-(f) 及以上极大图的 Source Data
+        has_extreme_panels = bool(re.search(r'\(a\)\s*[-–—~]\s*\([f-z]\)', label.lower()) or re.search(r'\(a\)\s*[-–—~]\s*[f-z]\b', label.lower()))
+        
+        if not rx.search(label) and not has_extreme_panels:
             continue
         if text_filter and (text_filter.lower() not in label.lower()):
             continue
