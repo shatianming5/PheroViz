@@ -268,6 +268,7 @@ def test_communications_siblings_are_not_allowed() -> None:
 
 def test_embo_press_journals_are_allowed() -> None:
     assert is_allowed_journal("EMBO Journal")
+    assert is_allowed_journal("The EMBO Journal")
     assert is_allowed_journal("Molecular Systems Biology")
     assert is_allowed_journal("EMBO Reports")
     assert is_allowed_journal("EMBO Molecular Medicine")

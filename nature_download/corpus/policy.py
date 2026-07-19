@@ -37,6 +37,7 @@ ALLOWED_JOURNALS = frozenset(
         "scientific reports",
         "elife",
         "embo journal",
+        "the embo journal",
         "molecular systems biology",
         "embo reports",
         "embo molecular medicine",
