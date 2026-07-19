@@ -48,6 +48,28 @@ def test_article_id_sanitizes_doi_suffix() -> None:
     assert embo_harvest.article_id_from_doi("10.7554/elife.12345") is None
 
 
+def test_article_id_accepts_legacy_15252_platform_dois() -> None:
+    # Old EMBO platform DOIs (10.15252/{embj,embr,msb,emmm}.*) are now hosted on
+    # link.springer.com with the same MOESM per-figure source-data structure, so
+    # the harvester must admit them for corpus expansion.
+    assert (
+        embo_harvest.article_id_from_doi("10.15252/embr.202153801")
+        == "embr.202153801"
+    )
+    assert (
+        embo_harvest.article_id_from_doi("10.15252/embj.2021109975")
+        == "embj.2021109975"
+    )
+    assert embo_harvest.article_id_from_doi("10.15252/msb.20209923") == "msb.20209923"
+    assert (
+        embo_harvest.article_id_from_doi("10.15252/emmm.202114123")
+        == "emmm.202114123"
+    )
+    # Non-EMBO 15252-lookalike and unrelated prefixes must still be rejected.
+    assert embo_harvest.article_id_from_doi("10.15252/foo.202153801") is None
+    assert embo_harvest.article_id_from_doi("10.7554/elife.12345") is None
+
+
 def test_parse_article_assets_associates_figure_source_and_largest_png() -> None:
     figures, per_figure_keys = embo_harvest.parse_article_assets(
         sample_html(), "10.1038/s44320-026-00206-9"

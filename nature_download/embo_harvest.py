@@ -59,7 +59,11 @@ CC_BY_4_PATTERN = re.compile(
     r"^https?://(?:www\.)?creativecommons\.org/licenses/by/4\.0(?:/|$)",
     re.I,
 )
-DOI_PATTERN = re.compile(r"^10\.1038/s443(?:18|19|20|21)-\d{3}-\d{5}-\d$", re.I)
+DOI_PATTERN = re.compile(
+    r"^(?:10\.1038/s443(?:18|19|20|21)-\d{3}-\d{5}-\d"
+    r"|10\.15252/(?:embj|embr|msb|emmm)\.\S+)$",
+    re.I,
+)
 SPRINGER_SOURCE_PATTERN = re.compile(
     r"(?:https:)?//static-content\.springer\.com/esm/art%3A(?P<doi>[^/\s\"'<>]+)"
     r"/MediaObjects/(?P<name>[^\s\"'<>?#]+_MOESM(?P<moesm>\d+)_ESM\."
