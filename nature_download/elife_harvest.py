@@ -12,10 +12,9 @@ import re
 import shutil
 import time
 from typing import Any, Iterator
-from urllib.parse import unquote, urljoin, urlparse
+from urllib.parse import unquote, urlparse
 import zipfile
 
-from bs4 import BeautifulSoup
 import requests
 
 from corpus.policy import evaluate_crossref_item
@@ -23,11 +22,18 @@ from corpus.provenance import build_article_manifest
 
 
 CROSSREF_URL = "https://api.crossref.org/journals/2050-084X/works"
+CROSSREF_MAILTO = "nature-vis-corpus@outlook.com"
+ELIFE_API_URL = "https://api.elifesciences.org/articles/"
+ELIFE_API_ACCEPT = (
+    "application/vnd.elife.article-vor+json, "
+    "application/vnd.elife.article-poa+json, application/json"
+)
 DEFAULT_FROM_DATE = "2013-01-01"
 DEFAULT_UNTIL_DATE = "2022-12-31"
 USER_AGENT = (
     "PheroViz-eLife-harvester/1.0 "
-    "(CC-BY research corpus; https://github.com/shatianming5/PheroViz)"
+    "(CC-BY research corpus; https://github.com/shatianming5/PheroViz; "
+    "mailto:nature-vis-corpus@outlook.com)"
 )
 CC_BY_4_PATTERN = re.compile(
     r"^https?://(?:www\.)?creativecommons\.org/licenses/by/4\.0(?:/|$)",
@@ -37,10 +43,6 @@ DOI_PATTERN = re.compile(r"^10\.7554/elife\.(\d+)$", re.I)
 SOURCE_DATA_PATTERN = re.compile(
     r"^/articles/(?P<id>\d+)/elife-(?P=id)-"
     r"(?:[^/?#]+-)?data\d+(?:-[^/?#]+)*\.xlsx$",
-    re.I,
-)
-MAIN_FIGURE_PATTERN = re.compile(
-    r"elife-(?P<id>\d+)-fig(?P<number>\d+)-v\d+\.tiff?(?:/|$)",
     re.I,
 )
 PANEL_GROUP_PATTERN = re.compile(
@@ -83,12 +85,17 @@ def request_with_retries(
     *,
     params: dict[str, Any] | None = None,
     referer: str | None = None,
+    accept: str | None = None,
     timeout: float,
     sleep: float,
     max_retries: int,
     stream: bool = False,
 ) -> requests.Response:
-    headers = {"Referer": referer} if referer else None
+    headers: dict[str, str] = {}
+    if referer:
+        headers["Referer"] = referer
+    if accept:
+        headers["Accept"] = accept
     for attempt in range(1, max_retries + 1):
         try:
             response = session.get(
@@ -103,12 +110,20 @@ def request_with_retries(
                 time.sleep(sleep)
             return response
         except requests.RequestException as exc:
+            status = getattr(getattr(exc, "response", None), "status_code", None)
             if attempt == max_retries:
                 raise
-            wait = max(sleep, 0.5) * (2 ** (attempt - 1))
+            # 429/403 are throttle signals (eLife rate-limits per IP); back off
+            # much harder than for a generic transient error so we drop below
+            # the rate limit instead of hammering it.
+            if status in (429, 403):
+                wait = min(60.0, 8.0 * (2 ** (attempt - 1)))
+            else:
+                wait = max(sleep, 0.5) * (2 ** (attempt - 1))
             print(
                 f"  [retry {attempt}/{max_retries}] {url}: "
-                f"{type(exc).__name__}; waiting {wait:.1f}s"
+                f"{type(exc).__name__}"
+                f"{f' {status}' if status else ''}; waiting {wait:.1f}s"
             )
             time.sleep(wait)
     raise RuntimeError("request retry loop exhausted")
@@ -124,6 +139,7 @@ def crossref_items(
     max_retries: int,
 ) -> Iterator[dict[str, Any]]:
     cursor = "*"
+    first_page = True
     while cursor:
         params = {
             "filter": (
@@ -131,23 +147,42 @@ def crossref_items(
             ),
             "rows": 100,
             "cursor": cursor,
-            "sort": "published",
-            "order": "desc",
+            # NOTE: no sort/order — Crossref cursor deep-paging is meant to be
+            # used without sort; combining them can intermittently return an
+            # empty page. mailto puts us in the "polite pool" (fewer 429s).
+            "mailto": CROSSREF_MAILTO,
             "select": (
                 "DOI,URL,container-title,published,published-online,"
                 "published-print,issued,license,title,type"
             ),
         }
-        response = request_with_retries(
-            session,
-            CROSSREF_URL,
-            params=params,
-            timeout=timeout,
-            sleep=sleep,
-            max_retries=max_retries,
-        )
-        message = response.json().get("message") or {}
-        items = message.get("items") or []
+        # eLife always has ~1500 articles/year, so an empty FIRST page is a
+        # transient failure (rate-limit/edge 200-empty), never a real result.
+        # Retry the first page before concluding the range is empty.
+        empty_attempts = 0
+        while True:
+            response = request_with_retries(
+                session,
+                CROSSREF_URL,
+                params=params,
+                timeout=timeout,
+                sleep=sleep,
+                max_retries=max_retries,
+            )
+            message = response.json().get("message") or {}
+            items = message.get("items") or []
+            if items or not first_page:
+                break
+            empty_attempts += 1
+            if empty_attempts >= 5:
+                break
+            wait = max(sleep, 1.0) * (2 ** (empty_attempts - 1))
+            print(
+                f"  [enum-retry {empty_attempts}/5] empty first page for "
+                f"{from_date}..{until_date}; waiting {wait:.1f}s"
+            )
+            time.sleep(wait)
+        first_page = False
         if not items:
             return
         yield from items
@@ -173,23 +208,6 @@ def article_identity(doi: str) -> tuple[str, str] | None:
     return numeric_id, f"elife-{numeric_id}"
 
 
-def source_data_urls(
-    soup: BeautifulSoup, page_url: str, numeric_id: str
-) -> list[str]:
-    urls: set[str] = set()
-    for anchor in soup.select("a[href]"):
-        url = urljoin(page_url, str(anchor.get("href") or ""))
-        parsed = urlparse(url)
-        if (
-            parsed.hostname
-            and parsed.hostname.casefold() == "cdn.elifesciences.org"
-            and (match := SOURCE_DATA_PATTERN.fullmatch(unquote(parsed.path)))
-            and match.group("id") == numeric_id
-        ):
-            urls.add(parsed._replace(query="", fragment="").geturl())
-    return sorted(urls)
-
-
 def panel_count(caption: str) -> int:
     letters: set[str] = set()
     for match in PANEL_GROUP_PATTERN.finditer(caption):
@@ -208,37 +226,138 @@ def full_size_png_url(url: str) -> str:
     return url
 
 
-def main_figures(
-    soup: BeautifulSoup, page_url: str, numeric_id: str
-) -> list[dict[str, Any]]:
-    figures: list[dict[str, Any]] = []
-    seen: set[int] = set()
-    for element in soup.select("figure"):
-        image = element.select_one("img[src]")
-        caption_element = element.select_one("figcaption")
-        if image is None or caption_element is None:
+MAIN_FIGURE_ID_PATTERN = re.compile(r"^fig(\d+)$", re.I)
+
+
+def _caption_to_text(node: Any) -> str:
+    """Flatten eLife API structured caption/content into plain text."""
+    parts: list[str] = []
+
+    def walk(value: Any) -> None:
+        if isinstance(value, dict):
+            text = value.get("text")
+            if isinstance(text, str):
+                parts.append(text)
+            for key, child in value.items():
+                if key == "text":
+                    continue
+                walk(child)
+        elif isinstance(value, list):
+            for child in value:
+                walk(child)
+
+    walk(node)
+    return " ".join(part.strip() for part in parts if part and part.strip())
+
+
+def _iter_figure_assets(payload: dict[str, Any]) -> Iterator[dict[str, Any]]:
+    """Yield every image asset inside a `type: figure` block of the API JSON."""
+
+    def walk(value: Any) -> Iterator[dict[str, Any]]:
+        if isinstance(value, dict):
+            if value.get("type") == "figure":
+                for asset in value.get("assets") or []:
+                    if isinstance(asset, dict):
+                        yield asset
+            for child in value.values():
+                yield from walk(child)
+        elif isinstance(value, list):
+            for child in value:
+                yield from walk(child)
+
+    yield from walk(payload)
+
+
+def _asset_source_xlsx(asset: dict[str, Any], numeric_id: str) -> list[str]:
+    urls: list[str] = []
+    for record in asset.get("sourceData") or []:
+        if not isinstance(record, dict):
             continue
-        image_url = urljoin(page_url, str(image.get("src") or ""))
-        image_path = unquote(urlparse(image_url).path)
-        match = MAIN_FIGURE_PATTERN.search(image_path)
+        uri = str(record.get("uri") or "")
+        parsed = urlparse(uri)
         if (
-            not match
-            or match.group("id") != numeric_id
-            or int(match.group("number")) in seen
+            parsed.hostname
+            and parsed.hostname.casefold() == "cdn.elifesciences.org"
+            and SOURCE_DATA_PATTERN.fullmatch(unquote(parsed.path))
+            and f"/articles/{numeric_id}/" in unquote(parsed.path)
         ):
+            urls.append(parsed._replace(query="", fragment="").geturl())
+    return urls
+
+
+def _asset_png_url(asset: dict[str, Any]) -> str | None:
+    image = asset.get("image")
+    if not isinstance(image, dict):
+        return None
+    base = str(image.get("uri") or "")
+    if urlparse(base).hostname == "iiif.elifesciences.org":
+        return base.rstrip("/") + "/full/full/0/default.png"
+    source = image.get("source")
+    if isinstance(source, dict) and source.get("uri"):
+        return full_size_png_url(str(source["uri"]))
+    return None
+
+
+def fetch_article_assets(
+    session: requests.Session,
+    numeric_id: str,
+    *,
+    timeout: float,
+    sleep: float,
+    max_retries: int,
+) -> tuple[list[str], list[dict[str, Any]]]:
+    """Fetch figures + per-figure source data via the official eLife JSON API.
+
+    The API (api.elifesciences.org) is programmatic-friendly and, unlike the
+    HTML `/figures` page, is not aggressively rate-limited (403). Returns
+    ``(source_xlsx_urls, figures)`` where each figure dict carries
+    ``number``/``caption``/``panels``/``image_url``. Source data is collected
+    from every figure asset (including supplements); ``figures`` lists only the
+    numbered main figures (asset id ``fig<N>``).
+    """
+    response = request_with_retries(
+        session,
+        f"{ELIFE_API_URL}{numeric_id}",
+        accept=ELIFE_API_ACCEPT,
+        timeout=timeout,
+        sleep=sleep,
+        max_retries=max_retries,
+    )
+    payload = response.json()
+    sources: list[str] = []
+    seen_sources: set[str] = set()
+    figures: list[dict[str, Any]] = []
+    seen_numbers: set[int] = set()
+    for asset in _iter_figure_assets(payload):
+        for url in _asset_source_xlsx(asset, numeric_id):
+            if url not in seen_sources:
+                seen_sources.add(url)
+                sources.append(url)
+        asset_id = str(asset.get("id") or "")
+        match = MAIN_FIGURE_ID_PATTERN.fullmatch(asset_id)
+        if not match:
             continue
-        number = int(match.group("number"))
-        seen.add(number)
-        caption = caption_element.get_text(" ", strip=True)
+        number = int(match.group(1))
+        if number in seen_numbers:
+            continue
+        png_url = _asset_png_url(asset)
+        if not png_url:
+            continue
+        caption = _caption_to_text(asset.get("caption"))
+        title = str(asset.get("title") or "")
+        caption_full = f"{title} {caption}".strip()
+        seen_numbers.add(number)
         figures.append(
             {
                 "number": number,
-                "caption": caption,
-                "panels": panel_count(caption),
-                "image_url": full_size_png_url(image_url),
+                "caption": caption_full,
+                "panels": panel_count(caption_full),
+                "image_url": png_url,
             }
         )
-    return sorted(figures, key=lambda figure: figure["number"])
+    return sorted(seen_sources), sorted(
+        figures, key=lambda figure: figure["number"]
+    )
 
 
 def download_file(
@@ -293,18 +412,15 @@ def harvest_article(
     numeric_id, article_id = identity
     article_url = f"https://elifesciences.org/articles/{numeric_id}"
     figures_url = f"{article_url}/figures"
-    response = request_with_retries(
+    sources, figures = fetch_article_assets(
         session,
-        figures_url,
+        numeric_id,
         timeout=timeout,
         sleep=sleep,
         max_retries=max_retries,
     )
-    soup = BeautifulSoup(response.text, "html.parser")
-    sources = source_data_urls(soup, response.url, numeric_id)
     if not sources:
         return False, "no-source-data"
-    figures = main_figures(soup, response.url, numeric_id)
     if not figures:
         return False, "no-figures"
     eligible_figures = [figure for figure in figures if figure["panels"] >= 5]
@@ -334,7 +450,7 @@ def harvest_article(
                 session,
                 source_url,
                 saved,
-                referer=response.url,
+                referer=figures_url,
                 timeout=timeout,
                 sleep=sleep,
                 max_retries=max_retries,
@@ -360,7 +476,7 @@ def harvest_article(
             session,
             selected["image_url"],
             image_path,
-            referer=response.url,
+            referer=figures_url,
             timeout=timeout,
             sleep=sleep,
             max_retries=max_retries,
