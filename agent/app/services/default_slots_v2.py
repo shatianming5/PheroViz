@@ -883,7 +883,11 @@ return spec_out
                         arts.extend(list(bars))
                     ax.set_xticks(base + width / 2)
                 else:
-                    values = [float(v) for v in pd.to_numeric(df[y], errors='coerce').fillna(0).tolist()]
+                    values = []
+                    for cat in cats:
+                        match = df[df[x].astype(str) == cat]
+                        num = pd.to_numeric(match[y], errors='coerce').sum()
+                        values.append(float(num))
                     bars = ax.bar(base, values, width=width, alpha=alpha, zorder=base_z)
                     arts.extend(list(bars))
                     ax.set_xticks(base)
