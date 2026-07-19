@@ -892,6 +892,12 @@ return spec_out
                     arts.extend(list(bars))
                     ax.set_xticks(base)
                 ax.set_xticklabels(list(cats))
+                labels = [str(c) for c in cats]
+                if len(labels) > 6 or max((len(l) for l in labels), default=0) > 8:
+                    for _tick in ax.get_xticklabels():
+                        _tick.set_rotation(45)
+                        _tick.set_ha('right')
+                        _tick.set_rotation_mode('anchor')
                 meta.setdefault('x_categories', list(cats))
                 return arts
 """
