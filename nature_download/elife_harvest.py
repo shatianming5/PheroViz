@@ -98,13 +98,20 @@ def request_with_retries(
         headers["Referer"] = referer
     if accept:
         headers["Accept"] = accept
+    # Use a (connect, read) timeout tuple so a degraded CDN edge that accepts the
+    # TCP connection but stalls before serving bytes fails fast (short read cap)
+    # instead of burning the full budget. A healthy eLife/Crossref response
+    # arrives in <2s, so the read cap need not be large.
+    connect_to = min(6.0, timeout)
+    read_to = timeout
+    req_timeout: tuple[float, float] | float = (connect_to, read_to)
     for attempt in range(1, max_retries + 1):
         try:
             response = session.get(
                 url,
                 params=params,
                 headers=headers,
-                timeout=timeout,
+                timeout=req_timeout,
                 stream=stream,
             )
             response.raise_for_status()
@@ -113,6 +120,17 @@ def request_with_retries(
             return response
         except requests.RequestException as exc:
             status = getattr(getattr(exc, "response", None), "status_code", None)
+            # On a timeout/connection error the pooled keep-alive connection is
+            # very likely pinned to a bad CDN edge IP. Drop all pooled sockets so
+            # the next attempt re-resolves DNS and reconnects to a fresh edge
+            # (this is what lets curl succeed where a single stuck socket hangs).
+            if isinstance(
+                exc, (requests.Timeout, requests.ConnectionError)
+            ):
+                try:
+                    session.close()
+                except Exception:
+                    pass
             if attempt == max_retries:
                 raise
             # 429/403 are throttle signals (eLife rate-limits per IP); back off

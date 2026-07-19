@@ -265,3 +265,46 @@ def test_maybe_force_ipv4_default_and_optout(monkeypatch):
         assert urllib3_cn.allowed_gai_family is original
     finally:
         urllib3_cn.allowed_gai_family = original
+
+
+def test_request_with_retries_drops_connection_and_uses_split_timeout():
+    """A timeout must close the pooled connection (forcing DNS re-resolution on
+    retry) and requests must go out with a (connect, read) timeout tuple."""
+    import requests
+
+    class _Resp:
+        status_code = 200
+
+        def raise_for_status(self):
+            return None
+
+    class FakeSession:
+        def __init__(self):
+            self.calls = 0
+            self.closed = 0
+            self.timeouts = []
+
+        def get(self, url, params=None, headers=None, timeout=None, stream=False):
+            self.calls += 1
+            self.timeouts.append(timeout)
+            if self.calls == 1:
+                raise requests.exceptions.ReadTimeout("stalled edge")
+            return _Resp()
+
+        def close(self):
+            self.closed += 1
+
+    sess = FakeSession()
+    resp = elife_harvest.request_with_retries(
+        sess,
+        "https://api.elifesciences.org/articles/33140",
+        accept="application/json",
+        timeout=20,
+        sleep=0,
+        max_retries=3,
+    )
+    assert resp.status_code == 200
+    assert sess.calls == 2  # first timed out, second succeeded
+    assert sess.closed == 1  # the bad pooled connection was dropped
+    # Split timeout: connect capped at 6s, read keeps the full budget.
+    assert sess.timeouts[0] == (6.0, 20)
