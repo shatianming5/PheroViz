@@ -79,6 +79,11 @@ API_USER_AGENT = "PheroViz-NatureVis2000/2.0 (+CC-BY-gated corpus tooling)"
 _PV_FROM_DATE = os.environ.get("PV_FROM_DATE", "2018-01-01")
 _PV_UNTIL_DATE = os.environ.get("PV_UNTIL_DATE", "2026-12-31")
 _PV_DATE_FILTER = f"type:journal-article,from-pub-date:{_PV_FROM_DATE},until-pub-date:{_PV_UNTIL_DATE}"
+# Crossref container-title enumeration bias. Default "Nature" surfaces the
+# Nature-titled journals (Nature Communications). Set PV_CONTAINER_BIAS to
+# "Scientific Reports" to enumerate that allowed high-volume corpus journal
+# (is_corpus_journal still validates every item -> no policy relaxation).
+_PV_CONTAINER_BIAS = os.environ.get("PV_CONTAINER_BIAS", "Nature")
 
 
 def safe_console(text: str) -> str:
@@ -146,7 +151,7 @@ def crossref_search(query: str, rows: int = 20, mailto: str | None = None, sleep
         "rows": rows,
     }
     if family_bias:
-        params["query.container-title"] = "Nature"
+        params["query.container-title"] = _PV_CONTAINER_BIAS
     if mailto:
         params["mailto"] = mailto
     r = polite_get(base, params=params, sleep=sleep, timeout=timeout, max_retries=max_retries)
@@ -182,7 +187,7 @@ def crossref_cursor_stream(
             "cursor": cursor,
         }
         if family_bias:
-            params["query.container-title"] = "Nature"
+            params["query.container-title"] = _PV_CONTAINER_BIAS
         if mailto:
             params["mailto"] = mailto
         try:
