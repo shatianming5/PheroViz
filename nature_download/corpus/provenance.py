@@ -49,11 +49,13 @@ def _load_json(path: Path, default: Any) -> Any:
 
 
 def _article_id(record: dict[str, Any]) -> str:
+    doi = normalize_doi(record.get("doi") or record.get("DOI"))
+    if doi and doi.startswith("10.7554/elife."):
+        return doi.split("/", 1)[1].replace(".", "-", 1)
     article_url = str(record.get("article_url") or record.get("url") or "")
     match = re.search(r"/articles/([^/?#]+)", article_url)
     if match:
         return match.group(1)
-    doi = normalize_doi(record.get("doi") or record.get("DOI"))
     if doi and "/" in doi:
         return doi.split("/", 1)[1]
     return "unknown"

@@ -11,7 +11,10 @@ from urllib.parse import unquote, urlparse, urlsplit
 
 
 SCHEMA_VERSION = "1.0"
-ALLOWED_JOURNALS = frozenset({"nature communications", "scientific reports"})
+# eLife added as a second CC-BY source-data publisher (Nature-portfolio siblings expose 0 source data); keeps the >=5-panel claim intact.
+ALLOWED_JOURNALS = frozenset(
+    {"nature communications", "scientific reports", "elife"}
+)
 ALLOWED_CC_BY_VERSIONS = frozenset({"3.0", "4.0"})
 LICENSE_META_NAMES = frozenset(
     {

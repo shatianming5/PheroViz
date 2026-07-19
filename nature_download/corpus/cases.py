@@ -449,11 +449,13 @@ def _read_manifest(path: Path) -> list[dict[str, Any]]:
 
 
 def _article_id(record: dict[str, Any]) -> str | None:
+    doi = normalize_doi(record.get("doi"))
+    if doi and doi.startswith("10.7554/elife."):
+        return doi.split("/", 1)[1].replace(".", "-", 1)
     article_url = str(record.get("article_url") or "")
     match = re.search(r"/articles/([^/?#]+)", article_url)
     if match:
         return match.group(1)
-    doi = normalize_doi(record.get("doi"))
     return doi.split("/", 1)[1] if doi and "/" in doi else None
 
 
