@@ -27,10 +27,20 @@ SCHEMA_VERSION = "1.0"
 #   Communications Physics     per-fig SD  0%
 # (An earlier broad `MOESM*.xlsx` regex over-counted supplementary xlsx and
 # falsely suggested the siblings qualified; corrected here.) eLife is the
-# non-Springer per-figure source-data publisher. All gates (CC-BY + per-figure
-# source data + >=5 panels) still validate every item.
+# non-Springer per-figure source-data publisher. EMBO Press journals hosted on
+# SpringerLink are also admitted because they expose CC-BY articles with
+# per-figure Source Data. All gates (CC-BY + per-figure source data + >=5
+# panels) still validate every item.
 ALLOWED_JOURNALS = frozenset(
-    {"nature communications", "scientific reports", "elife"}
+    {
+        "nature communications",
+        "scientific reports",
+        "elife",
+        "embo journal",
+        "molecular systems biology",
+        "embo reports",
+        "embo molecular medicine",
+    }
 )
 ALLOWED_CC_BY_VERSIONS = frozenset({"3.0", "4.0"})
 LICENSE_META_NAMES = frozenset(

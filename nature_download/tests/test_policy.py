@@ -266,6 +266,13 @@ def test_communications_siblings_are_not_allowed() -> None:
     assert is_allowed_journal("eLife")
 
 
+def test_embo_press_journals_are_allowed() -> None:
+    assert is_allowed_journal("EMBO Journal")
+    assert is_allowed_journal("Molecular Systems Biology")
+    assert is_allowed_journal("EMBO Reports")
+    assert is_allowed_journal("EMBO Molecular Medicine")
+
+
 def test_article_metadata_can_supply_exact_cc_by_evidence() -> None:
     html = (FIXTURES / "article_cc_by.html").read_text(encoding="utf-8")
     item = {
