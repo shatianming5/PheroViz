@@ -61,18 +61,22 @@ from app.services.model_client import ModelClient  # noqa: E402
 from app.services.multi_panel_runner import run_multi_panel  # noqa: E402
 
 EVALUATION_SCHEMA_VERSION = "1.1.0"
-CASE_DOI_SUBSTR = "13259"  # s41467-019-13259-2 Fig 1 (survey-confirmed composable)
+# Default case (survey-confirmed composable); override via argv:
+#   python3 agent/method_round_extreme_demo.py <doi_substr> <figure_no>
+CASE_DOI_SUBSTR = "13259"  # s41467-019-13259-2 Fig 1
 CASE_FIGURE_NO = 1
 PROPOSED = REPO / "nature_download/outputs/c2_extreme_proposals/proposed.jsonl"
 
 
-def load_case_panels() -> list[tuple[str, str, str]]:
+def load_case_panels(
+    doi_substr: str = CASE_DOI_SUBSTR, figure_no: int = CASE_FIGURE_NO
+) -> list[tuple[str, str, str]]:
     rows = [json.loads(line) for line in open(PROPOSED) if line.strip()]
     single = [
         r
         for r in rows
-        if CASE_DOI_SUBSTR in str(r.get("doi"))
-        and r.get("figure_no") == CASE_FIGURE_NO
+        if doi_substr in str(r.get("doi"))
+        and r.get("figure_no") == figure_no
         and len(r.get("panel_ids") or []) == 1
     ]
     out: list[tuple[str, str, str]] = []
@@ -113,10 +117,12 @@ def panel_expectation(pid: str, analysis) -> dict:
 
 
 def main() -> int:
+    doi_substr = sys.argv[1] if len(sys.argv) > 1 else CASE_DOI_SUBSTR
+    figure_no = int(sys.argv[2]) if len(sys.argv) > 2 else CASE_FIGURE_NO
     workdir = Path(tempfile.mkdtemp(prefix="mp_expect_"))
     run_out = workdir / "run"
-    panels_meta = load_case_panels()
-    print(f"case single-panel candidates: {len(panels_meta)}")
+    panels_meta = load_case_panels(doi_substr, figure_no)
+    print(f"case doi~{doi_substr} fig={figure_no}: single-panel candidates: {len(panels_meta)}")
 
     manifest_panels: list[dict] = []
     exp_panels: list[dict] = []
@@ -165,7 +171,7 @@ def main() -> int:
         return 2
 
     manifest = {
-        "figure_id": "s41467-019-13259-2-fig1",
+        "figure_id": f"doi-{doi_substr}-fig{figure_no}",
         "panels": manifest_panels,
         "evaluation_expectation": {
             "schema_version": EVALUATION_SCHEMA_VERSION,
