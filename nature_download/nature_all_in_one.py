@@ -189,7 +189,7 @@ def crossref_cursor_stream(
             r = polite_get(base, params=params, sleep=sleep, timeout=timeout, max_retries=max_retries)
         except requests.HTTPError as exc:
             status = getattr(exc.response, "status_code", None)
-            if status in (404, 500, 502, 503, 504):
+            if status in (404, 429, 500, 502, 503, 504):
                 msg = safe_console(f"[warn] Crossref cursor {status} for query {query!r}; skipping remainder")
                 if "console" in globals() and console:
                     console.log(msg)
