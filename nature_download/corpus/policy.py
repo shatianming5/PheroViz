@@ -11,8 +11,9 @@ from urllib.parse import unquote, urlparse, urlsplit
 
 
 SCHEMA_VERSION = "1.0"
-# CC-BY per-figure source-data publishers. Only Nature Communications and eLife
-# expose downloadable per-figure "Source Data" (xlsx) at meaningful rates.
+# CC-BY per-figure source-data publishers. Nature Communications, eLife, Life
+# Science Alliance, and the admitted EMBO Press journals expose downloadable
+# figure-local source data at meaningful rates.
 # The Nature-portfolio "Communications X" siblings were re-verified with the
 # harvester's OWN detector (find_source_data_links: <a> label matches
 # "Source Data") and expose ~0% per-figure Source Data (their xlsx are labelled
@@ -27,8 +28,10 @@ SCHEMA_VERSION = "1.0"
 #   Communications Physics     per-fig SD  0%
 # (An earlier broad `MOESM*.xlsx` regex over-counted supplementary xlsx and
 # falsely suggested the siblings qualified; corrected here.) eLife is the
-# non-Springer per-figure source-data publisher. EMBO Press journals hosted on
-# SpringerLink are also admitted because they expose CC-BY articles with
+# non-Springer per-figure source-data publisher. Life Science Alliance's
+# Silverchair HTML exposes source XLSX/CSV inside the owning figure container
+# (rather than merely as whole-article supplements). EMBO Press journals hosted
+# on SpringerLink are also admitted because they expose CC-BY articles with
 # per-figure Source Data. All gates (CC-BY + per-figure source data + >=5
 # panels) still validate every item.
 ALLOWED_JOURNALS = frozenset(
@@ -36,6 +39,7 @@ ALLOWED_JOURNALS = frozenset(
         "nature communications",
         "scientific reports",
         "elife",
+        "life science alliance",
         "embo journal",
         "the embo journal",
         "molecular systems biology",
