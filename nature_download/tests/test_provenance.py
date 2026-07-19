@@ -114,6 +114,42 @@ def test_checksum_validation_detects_mutation(workdir: Path) -> None:
     assert "checksum-mismatch:figures/fig_001.png" in errors
 
 
+def test_manifest_prefers_in_dir_copy_over_stale_relocated_original(
+    workdir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Regression: a consolidated/relocated corpus records CWD-relative paths that
+    # point at the ORIGINAL crawl location (e.g. "outputs/extreme_content/<id>/...").
+    # If that original still exists on disk, the bare recorded path would resolve
+    # to the stale file and then be rejected as outside-article-directory. The
+    # resolver must prefer the byte-identical copy inside THIS article directory.
+    monkeypatch.chdir(workdir)
+    merged_root = workdir / "content"
+    article = make_downloaded_article(merged_root)
+
+    stale_root = workdir / "extreme_content"
+    stale_article = stale_root / ARTICLE_ID
+    (stale_article / "figures").mkdir(parents=True)
+    (stale_article / "figures" / "fig_001.png").write_bytes(b"STALE original png")
+    (stale_article / "figures" / "fig_001.txt").write_text(
+        "stale caption", encoding="utf-8"
+    )
+
+    meta = article / "meta"
+    figures_meta = json.loads((meta / "figures.json").read_text(encoding="utf-8"))
+    figures_meta[0]["image_file"] = f"extreme_content/{ARTICLE_ID}/figures/fig_001.png"
+    figures_meta[0]["caption_file"] = f"extreme_content/{ARTICLE_ID}/figures/fig_001.txt"
+    (meta / "figures.json").write_text(json.dumps(figures_meta), encoding="utf-8")
+
+    manifest = build_article_manifest(accepted_record(), merged_root)
+    figure = next(e for e in manifest["files"] if e["kind"] == "figure")
+    assert figure["path"] == "figures/fig_001.png"
+    assert figure["sha256"] == sha256_file(article / "figures" / "fig_001.png")
+    assert figure["sha256"] != sha256_file(
+        stale_article / "figures" / "fig_001.png"
+    )
+    assert validate_article_manifest(manifest, content_root=merged_root) == []
+
+
 @pytest.mark.parametrize(
     ("mutation", "expected_error"),
     [

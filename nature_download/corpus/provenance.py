@@ -65,16 +65,22 @@ def _resolve_recorded_file(article_dir: Path, raw_path: Any, fallback_dir: str) 
     if not raw_path:
         return None
     path = Path(str(raw_path))
-    candidates = [path]
     if not path.is_absolute():
-        candidates.extend(
-            [
-                article_dir / path,
-                article_dir / fallback_dir / path.name,
-            ]
-        )
+        # Prefer resolving inside THIS article directory over the bare recorded
+        # path: a consolidated/relocated corpus records CWD-relative paths that
+        # point at the ORIGINAL location (e.g. "outputs/extreme_content/<doi>/...")
+        # which may still exist on disk and would otherwise be resolved and then
+        # rejected as outside-article-directory. The bare path is kept last so a
+        # genuinely external reference still fails closed via _relative_path.
+        candidates = [article_dir / path, article_dir / fallback_dir / path.name, path]
     else:
-        candidates.append(article_dir / fallback_dir / path.name)
+        # Prefer the copy inside THIS article directory over the recorded absolute
+        # path, so a consolidated/relocated corpus (e.g. an rsync copy) resolves to
+        # its own files rather than to stale originals still present elsewhere on
+        # disk. The recorded absolute path is kept as a fallback so a genuinely
+        # external reference still fails closed via _relative_path's
+        # outside-article-directory guard when no in-directory copy exists.
+        candidates = [article_dir / fallback_dir / path.name, path]
     for candidate in candidates:
         if candidate.is_file():
             return candidate.resolve()
