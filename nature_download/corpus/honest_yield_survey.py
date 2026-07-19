@@ -25,6 +25,10 @@ from corpus.proposals import (
     DEFAULT_MAX_ROWS,
     DEFAULT_MAX_COLUMNS,
 )
+from corpus.source_table_normalizer import (
+    NormalizerRejected,
+    normalize_source_sheet,
+)
 
 DEFAULT_PROPOSED = (
     Path(__file__).resolve().parents[1]
@@ -32,10 +36,11 @@ DEFAULT_PROPOSED = (
 )
 
 
-def survey(proposed: Path, min_panels: int = 5) -> dict:
+def survey(proposed: Path, min_panels: int = 5, use_normalizer: bool = False) -> dict:
     reject = collections.Counter()
     panels_total = 0
-    panels_ok = 0
+    panels_baseline = 0
+    panels_recovered = 0
     cases = []
     for line in proposed.read_text().splitlines():
         line = line.strip()
@@ -65,28 +70,54 @@ def survey(proposed: Path, min_panels: int = 5) -> dict:
                 )
                 analyze_table(frame)
                 n_ok += 1
-                panels_ok += 1
+                panels_baseline += 1
+                continue
             except ProposalRejected as exc:
-                reject[str(exc).split(":")[0]] += 1
+                base_reason = str(exc).split(":")[0]
             except Exception as exc:  # noqa: BLE001
-                reject["EXC:" + type(exc).__name__] += 1
+                base_reason = "EXC:" + type(exc).__name__
+            if not use_normalizer:
+                reject[base_reason] += 1
+                continue
+            # Candidate normalizer fallback (only when baseline rejects).
+            try:
+                res = normalize_source_sheet(Path(dp), sheet)
+                analyze_table(res.frame)
+                n_ok += 1
+                panels_recovered += 1
+            except NormalizerRejected as exc:
+                reject["norm:" + exc.reason] += 1
+            except ProposalRejected as exc:
+                reject["norm-analyze:" + str(exc).split(":")[0]] += 1
+            except Exception as exc:  # noqa: BLE001
+                reject["norm-EXC:" + type(exc).__name__] += 1
         cases.append((obj.get("case_id"), len(pans), n_ok))
+    panels_ok = panels_baseline + panels_recovered
     viable = [c for c in cases if c[2] >= min_panels]
-    return {
+    result = {
         "min_panels": min_panels,
+        "normalizer": use_normalizer,
         "cases": len(cases),
         "panels_total": panels_total,
-        "panels_honest_simple2d": panels_ok,
+        "panels_baseline_simple2d": panels_baseline,
         "panel_yield_pct": round(100 * panels_ok / max(1, panels_total), 2),
         "composable_cases": len(viable),
         "viable": viable,
         "reject_histogram": dict(reject.most_common()),
     }
+    if use_normalizer:
+        result["panels_normalizer_recovered"] = panels_recovered
+        result["panels_renderable_total"] = panels_ok
+    else:
+        result["panels_honest_simple2d"] = panels_baseline
+    return result
 
 
 def main(argv: list[str]) -> int:
-    proposed = Path(argv[1]) if len(argv) > 1 else DEFAULT_PROPOSED
-    result = survey(proposed)
+    args = [a for a in argv[1:] if not a.startswith("--")]
+    use_normalizer = "--normalizer" in argv or "--candidate" in argv
+    proposed = Path(args[0]) if args else DEFAULT_PROPOSED
+    result = survey(proposed, use_normalizer=use_normalizer)
     print(json.dumps(result, indent=2, ensure_ascii=False))
     return 0
 
