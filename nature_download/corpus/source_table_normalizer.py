@@ -92,6 +92,67 @@ def _nonnull(value: Any) -> bool:
     return value is not None and not (isinstance(value, str) and not value.strip())
 
 
+_INDEX_NAME_TOKENS = {
+    "#", "n", "no", "no.", "nr", "nr.", "num", "num.", "id", "idx", "index",
+    "number", "serial", "order", "obs", "rank", "row", "count",
+}
+_INDEX_NAME_WORDS = (
+    "animal", "mouse", "mice", "rat", "sample", "subject", "replicate", "rep",
+    "cell", "specimen", "patient", "donor", "individual", "fish", "worm",
+    "embryo", "larva", "fly", "well", "trial",
+)
+
+
+def _looks_like_index_name(name: Any) -> bool:
+    """True when a header reads like a row-index / replicate counter (e.g.
+    "Animal#", "No.", "Sample ID", "n") rather than a measured variable."""
+    nm = str(name).strip().lower()
+    if not nm:
+        return False
+    if nm.endswith("#"):
+        return True
+    if nm in _INDEX_NAME_TOKENS:
+        return True
+    compact = nm.replace(".", " ").replace("_", " ").replace("-", " ")
+    parts = [p for p in compact.split() if p]
+    if parts and parts[0] in _INDEX_NAME_WORDS:
+        if len(parts) == 1:
+            return True
+        if parts[-1] in _INDEX_NAME_TOKENS or parts[-1] in {
+            "no", "number", "id", "index",
+        }:
+            return True
+    return False
+
+
+def _is_replicate_index_column(name: Any, values: list[Any]) -> bool:
+    """A column that merely enumerates rows: its header reads like an index AND
+    its values form a contiguous integer run starting at 0 or 1 (a row counter).
+    Melting such a column as a wide category would inject the counter sequence as
+    a spurious data series, so it is dropped before a wide-categorical melt.
+
+    Conservative by construction: BOTH the header must look like an index AND the
+    values must be a clean 0/1-based contiguous integer run, so a real measured
+    variable that merely happens to be named ambiguously (or whose values are not
+    a perfect counter) is never dropped."""
+    if not _looks_like_index_name(name):
+        return False
+    nums: list[float] = []
+    for v in values:
+        if not _nonnull(v):
+            continue
+        n = _to_number(v)
+        if n is None:
+            return False  # any non-numeric content -> not a pure index counter
+        nums.append(n)
+    if len(nums) < 2:
+        return False
+    if not all(float(n).is_integer() for n in nums):
+        return False
+    ints = [int(n) for n in nums]
+    return ints[0] in (0, 1) and ints == list(range(ints[0], ints[0] + len(ints)))
+
+
 def _bounding_box(grid: list[list[Any]]) -> list[list[Any]]:
     """Trim only the OUTER empty rows/columns. Interior empty columns are kept
     because they act as separators between side-by-side sub-blocks."""
@@ -158,6 +219,7 @@ def normalize_grid(grid: list[list[Any]]) -> NormalizeResult:
         raise NormalizerRejected("normalizer-no-usable-block")
     block = usable[0]
     dropped = len(blocks) - 1
+    dropped_index_cols = 0
 
     # Optional leading label column: a column just left of the block whose header
     # is empty but whose data is mostly non-null strings -> row-label (x) column.
@@ -204,8 +266,21 @@ def normalize_grid(grid: list[list[Any]]) -> NormalizeResult:
         orientation = "long-labelled"
     elif all_string_headers and block_is_numeric:
         # WIDE categorical: each column is a category, rows are replicates.
+        # First drop replicate-index columns (e.g. "Animal#" = 1,2,3,...): they
+        # are row counters, and melting them would inject the counter sequence as
+        # a spurious data category alongside the real measurement series.
+        melt = [
+            (c, name)
+            for c, name in zip(block, names)
+            if not _is_replicate_index_column(
+                name, [r[c] if c < len(r) else None for r in data]
+            )
+        ]
+        dropped_index_cols = len(block) - len(melt)
+        if not melt:
+            raise NormalizerRejected("normalizer-only-index-columns")
         records = []
-        for c, name in zip(block, names):
+        for c, name in melt:
             for r in data:
                 v = _to_number(r[c] if c < len(r) else None)
                 if v is not None:
@@ -248,6 +323,10 @@ def normalize_grid(grid: list[list[Any]]) -> NormalizeResult:
         result.aggregated_replicates = frame["category"].duplicated().any()
     if dropped:
         result.notes.append(f"dropped {dropped} side-by-side sub-block(s)")
+    if dropped_index_cols:
+        result.notes.append(
+            f"dropped {dropped_index_cols} replicate-index column(s) before wide melt"
+        )
     return result
 
 

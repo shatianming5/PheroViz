@@ -91,3 +91,66 @@ def test_reject_no_numeric_header_row():
 def test_reject_empty_grid():
     with pytest.raises(NormalizerRejected):
         normalize_grid([[N, N], [N, N]])
+
+
+def test_wide_categorical_drops_leading_replicate_index_column():
+    # Mirrors real Fig3B: an "Animal#" replicate counter (1..N) sits left of two
+    # genotype series. The counter must be dropped, not melted as a 3rd category.
+    grid = [
+        ["Figure 3B", N, N],
+        ["Animal#", "WT", "KO"],
+        [1, 1.02, 1.01],
+        [2, 1.03, 1.01],
+        [3, 1.04, 1.00],
+        [4, 1.02, 1.01],
+        [5, 1.03, 1.00],
+    ]
+    res = normalize_grid(grid)
+    assert res.orientation == "wide-categorical"
+    assert set(res.frame["category"]) == {"WT", "KO"}
+    assert "Animal#" not in set(res.frame["category"])
+    assert any("replicate-index" in n for n in res.notes)
+    analysis = analyze_table(res.frame)
+    assert analysis.chart_family == "bar"
+    assert analysis.x == "category"
+
+
+def test_wide_categorical_keeps_index_named_column_with_noncounter_values():
+    # "No." header but values are NOT a 1..N counter -> a real measurement, kept.
+    grid = [
+        ["Fig", N, N],
+        ["No.", "WT", "KO"],
+        [10, 1.02, 1.01],
+        [25, 1.03, 1.01],
+        [40, 1.04, 1.00],
+    ]
+    res = normalize_grid(grid)
+    assert "No." in set(res.frame["category"])
+
+
+def test_wide_categorical_keeps_counter_valued_but_nonindex_named_column():
+    # "Dose" happens to be 1,2,3 but its name is a real variable -> kept
+    # (dropping requires BOTH an index-like name AND a clean counter run).
+    grid = [
+        ["Fig", N, N],
+        ["Dose", "WT", "KO"],
+        [1, 1.02, 1.01],
+        [2, 1.03, 1.01],
+        [3, 1.04, 1.00],
+    ]
+    res = normalize_grid(grid)
+    assert "Dose" in set(res.frame["category"])
+
+
+def test_wide_categorical_reject_when_only_index_columns():
+    # A block made up entirely of index counters has no real series -> fail closed.
+    grid = [
+        ["Fig", N],
+        ["Animal#", "#"],
+        [1, 1],
+        [2, 2],
+        [3, 3],
+    ]
+    with pytest.raises(NormalizerRejected) as exc:
+        normalize_grid(grid)
+    assert exc.value.reason == "normalizer-only-index-columns"
