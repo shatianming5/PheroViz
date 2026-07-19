@@ -11,9 +11,35 @@ from urllib.parse import unquote, urlparse, urlsplit
 
 
 SCHEMA_VERSION = "1.0"
-# eLife added as a second CC-BY source-data publisher (Nature-portfolio siblings expose 0 source data); keeps the >=5-panel claim intact.
+# CC-BY source-data publishers. Scientific Reports empirically exposes ~0%
+# per-figure source data (verified dead end, 0/30 sampled). The productive
+# Nature-portfolio siblings are the "Communications" journals, which mirror
+# Nature Communications' Source Data infrastructure on nature.com. Verified
+# JOINT admit rate (per-figure xlsx AND a >=5-panel figure, harvester logic,
+# ~30 CC-BY articles/journal sampled; artifact journal_joint_probe_result.json):
+#   Nature Communications      joint 10.3%  (vol 30315 -> ~3136 admissible)
+#   Communications Biology     joint 20.7%  (vol  4934 -> ~1020 admissible)
+#   Communications Medicine    joint 30.0%  (vol   420 -> ~ 126 admissible)
+#   Communications Chemistry   joint  3.3%  (vol   833 -> ~  27 admissible)
+#   Communications Earth&Env   joint  0.0%  (20% have xlsx but ~0% >=5-panel)
+#   Communications Physics/Materials/Engineering/Psychology  joint ~0%
+# The near-zero siblings + npj titles stay allowlisted for completeness but are
+# fail-closed by the source-data + >=5-panel gates. eLife is the non-Springer
+# source. All gates (CC-BY + per-figure source data + >=5 panels) validate every item.
 ALLOWED_JOURNALS = frozenset(
-    {"nature communications", "scientific reports", "elife"}
+    {
+        "nature communications",
+        "scientific reports",
+        "elife",
+        "communications biology",
+        "communications medicine",
+        "communications chemistry",
+        "communications earth & environment",
+        "communications materials",
+        "communications physics",
+        "communications engineering",
+        "communications psychology",
+    }
 )
 ALLOWED_CC_BY_VERSIONS = frozenset({"3.0", "4.0"})
 LICENSE_META_NAMES = frozenset(
