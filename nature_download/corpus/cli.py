@@ -192,8 +192,8 @@ def cmd_build_manifest(args: argparse.Namespace) -> None:
         f"valid={summary['valid']} invalid={summary['invalid']} "
         f"sha256={summary['manifest_sha256']} out={manifest_path}"
     )
-    # if invalid:
-    #     raise SystemExit(2)
+    if invalid:
+        raise SystemExit(2)
 
 
 def cmd_split(args: argparse.Namespace) -> None:
