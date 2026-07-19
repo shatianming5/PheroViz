@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import argparse
+
 from corpus.policy import is_allowed_journal
 import lsa_harvest
 
@@ -103,3 +105,31 @@ def test_parse_assets_requires_figure_local_source_data() -> None:
 
 def test_policy_allows_verified_lsa_journal() -> None:
     assert is_allowed_journal("Life Science Alliance")
+
+
+def test_run_treats_existing_article_as_a_successful_resume(
+    monkeypatch, tmp_path
+) -> None:
+    item = {
+        "DOI": "10.26508/lsa.202201499",
+        "license": [{"URL": "https://creativecommons.org/licenses/by/4.0/"}],
+    }
+    (tmp_path / "lsa.202201499").mkdir()
+    monkeypatch.setattr(lsa_harvest, "maybe_force_ipv4", lambda: False)
+    monkeypatch.setattr(
+        lsa_harvest,
+        "crossref_items",
+        lambda *args, **kwargs: iter([item]),
+    )
+    args = argparse.Namespace(
+        require_cc_by=True,
+        out=str(tmp_path),
+        min_panels=5,
+        from_date="2018-01-01",
+        until_date="2025-12-31",
+        max_articles=1,
+        sleep=0,
+        timeout=5,
+        max_retries=1,
+    )
+    assert lsa_harvest.run(args) == 0

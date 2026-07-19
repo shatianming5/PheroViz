@@ -715,6 +715,7 @@ def run(args: argparse.Namespace) -> int:
     skipped_path = out / "_lsa_skipped.txt"
     processed = load_processed(processed_path)
     admitted = 0
+    already_present = 0
     examined = 0
 
     session = requests.Session()
@@ -741,7 +742,10 @@ def run(args: argparse.Namespace) -> int:
                 continue
             article_id, _ = identity
             if (out / article_id).is_dir():
+                already_present += 1
                 print(f"[skip] {doi}: already present", flush=True)
+                if args.max_articles and admitted + already_present >= args.max_articles:
+                    break
                 continue
             if article_id in processed:
                 continue
@@ -775,8 +779,12 @@ def run(args: argparse.Namespace) -> int:
                 print(f"[skip] {doi}: {reason}", flush=True)
     finally:
         session.close()
-    print(f"[done] admitted={admitted} examined={examined}", flush=True)
-    return 0 if admitted or not args.max_articles else 1
+    print(
+        f"[done] admitted={admitted} already-present={already_present} "
+        f"examined={examined}",
+        flush=True,
+    )
+    return 0 if admitted or already_present or not args.max_articles else 1
 
 
 def build_parser() -> argparse.ArgumentParser:
