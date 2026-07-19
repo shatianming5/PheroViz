@@ -21,7 +21,8 @@ from corpus.policy import evaluate_crossref_item
 from corpus.provenance import build_article_manifest
 
 
-CROSSREF_URL = "https://api.crossref.org/journals/2050-084X/works"
+CROSSREF_URL = "https://api.crossref.org/works"
+CROSSREF_ISSN = "2050-084X"
 CROSSREF_MAILTO = "nature-vis-corpus@outlook.com"
 ELIFE_API_URL = "https://api.elifesciences.org/articles/"
 ELIFE_API_ACCEPT = (
@@ -138,18 +139,26 @@ def crossref_items(
     sleep: float,
     max_retries: int,
 ) -> Iterator[dict[str, Any]]:
-    cursor = "*"
+    # Crossref cursor deep-paging is BROKEN for this query: after ~2 pages it
+    # returns next-cursor identical to the current cursor (a cursor-loop), so it
+    # silently caps at 200 items even though a year has ~1500-2100 works. Use
+    # offset pagination on the main /works route with an issn filter instead;
+    # verified to enumerate the full year (Crossref allows offset up to 10000
+    # and eLife years are well under that). Dedup by DOI (offset windows can
+    # overlap slightly across versioned records); the harvester also dedups by
+    # article id via _processed.txt, so this is belt-and-suspenders.
+    seen_dois: set[str] = set()
+    offset = 0
     first_page = True
-    while cursor:
+    while offset < 10000:
         params = {
             "filter": (
+                f"issn:{CROSSREF_ISSN},"
                 f"from-pub-date:{from_date},until-pub-date:{until_date}"
             ),
             "rows": 100,
-            "cursor": cursor,
-            # NOTE: no sort/order — Crossref cursor deep-paging is meant to be
-            # used without sort; combining them can intermittently return an
-            # empty page. mailto puts us in the "polite pool" (fewer 429s).
+            "offset": offset,
+            # mailto puts us in the "polite pool" (fewer 429s).
             "mailto": CROSSREF_MAILTO,
             "select": (
                 "DOI,URL,container-title,published,published-online,"
@@ -185,11 +194,17 @@ def crossref_items(
         first_page = False
         if not items:
             return
-        yield from items
-        next_cursor = message.get("next-cursor")
-        if not next_cursor or next_cursor == cursor:
+        for item in items:
+            doi = str(item.get("DOI") or "").casefold()
+            if doi and doi in seen_dois:
+                continue
+            if doi:
+                seen_dois.add(doi)
+            yield item
+        if len(items) < 100:
             return
-        cursor = str(next_cursor)
+        offset += 100
+
 
 
 def is_cc_by_4(item: dict[str, Any]) -> bool:

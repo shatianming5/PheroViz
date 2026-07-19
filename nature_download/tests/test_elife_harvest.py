@@ -200,3 +200,50 @@ def test_fetch_article_assets_empty_when_no_figures(monkeypatch):
     )
     assert sources == []
     assert figures == []
+
+
+def test_crossref_items_offset_paginates_past_200(monkeypatch):
+    # Regression: Crossref cursor deep-paging on this query is broken (caps at
+    # ~200 via a cursor-loop). crossref_items must use offset paging on /works
+    # with an issn filter and walk the full year. Simulate 5 full pages (500
+    # works) + a short final page; assert we get them all, deduped, and that
+    # offset advances by 100 each call.
+    offsets_seen = []
+    pages = {
+        0: [{"DOI": f"10.7554/elife.{i}"} for i in range(0, 100)],
+        100: [{"DOI": f"10.7554/elife.{i}"} for i in range(100, 200)],
+        200: [{"DOI": f"10.7554/elife.{i}"} for i in range(200, 300)],
+        300: [{"DOI": f"10.7554/elife.{i}"} for i in range(300, 400)],
+        # 400: overlap one dup (399) then a short page -> terminate.
+        400: [{"DOI": "10.7554/elife.399"}]
+        + [{"DOI": f"10.7554/elife.{i}"} for i in range(400, 442)],
+    }
+
+    def fake_request(session, url, **kwargs):
+        params = kwargs["params"]
+        assert url == elife_harvest.CROSSREF_URL
+        assert f"issn:{elife_harvest.CROSSREF_ISSN}" in params["filter"]
+        assert "cursor" not in params
+        off = params["offset"]
+        offsets_seen.append(off)
+        return _FakeResponse({"message": {"items": pages.get(off, [])}})
+
+    monkeypatch.setattr(elife_harvest, "request_with_retries", fake_request)
+
+    items = list(
+        elife_harvest.crossref_items(
+            session=None,
+            from_date="2022-01-01",
+            until_date="2022-12-31",
+            timeout=10,
+            sleep=0,
+            max_retries=3,
+        )
+    )
+
+    # 400 full-page works + 43 on the short page, minus the 1 duplicated DOI.
+    assert len(items) == 442
+    assert len({str(i["DOI"]) for i in items}) == 442
+    # Offset advanced 0,100,...,400 and stopped after the short final page.
+    assert offsets_seen == [0, 100, 200, 300, 400]
+
