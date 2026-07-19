@@ -118,12 +118,34 @@ def polite_get(url: str, params=None, timeout=30, sleep=1.0, max_retries=3, head
         hdrs.update(headers)
     attempt = 0
     backoff = sleep if sleep else 0.5
+    # Rate-limit (429/503) is transient throttling, NOT a hard failure: ride it out
+    # with a dedicated, larger retry budget that honors Retry-After. Aborting the
+    # request on a 429 blip is what forced the cursor walk to restart from the top
+    # (re-walking already-processed DOIs -> ~0 net progress on throttled nodes).
+    rl_attempt = 0
+    rl_max = max(max_retries, 8)
     while True:
         attempt += 1
         try:
             resp = requests.get(url, params=params, headers=hdrs, timeout=timeout)
             if sleep:
                 time.sleep(sleep)
+            if resp.status_code in (429, 503):
+                rl_attempt += 1
+                if rl_attempt > rl_max:
+                    resp.raise_for_status()
+                ra = resp.headers.get("Retry-After")
+                try:
+                    wait = float(ra) if ra else 0.0
+                except (TypeError, ValueError):
+                    wait = 0.0
+                if wait <= 0:
+                    wait = min(60.0, max(5.0, backoff * (2 ** (rl_attempt - 1))))
+                print(safe_console(
+                    f"  [rate-limit {resp.status_code}] {url} ; waiting {wait:.1f}s "
+                    f"(rl {rl_attempt}/{rl_max})"))
+                time.sleep(wait)
+                continue
             resp.raise_for_status()
             return resp
         except Exception as e:
