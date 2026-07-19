@@ -8,7 +8,8 @@ analyze_table accept >=5 of them). It is the direct data-sufficiency question th
 C2 blocker turns on.
 
 Run from nature_download/:
-    python -m corpus.c2_p5plus_doi_clusters [--min-composable 5]
+    python -m corpus.c2_p5plus_doi_clusters [--min-composable 5] \
+        [--proposed outputs/<build>/proposed.jsonl] [--min-panels 5]
 """
 from __future__ import annotations
 
@@ -74,7 +75,14 @@ def main(argv: list[str]) -> int:
     min_comp = 5
     if "--min-composable" in argv:
         min_comp = int(argv[argv.index("--min-composable") + 1])
-    result = analyze(PROPOSED, min_composable=min_comp)
+    min_panels = 5
+    if "--min-panels" in argv:
+        min_panels = int(argv[argv.index("--min-panels") + 1])
+    proposed = PROPOSED
+    if "--proposed" in argv:
+        proposed = Path(argv[argv.index("--proposed") + 1])
+    result = analyze(proposed, min_panels=min_panels, min_composable=min_comp)
+    result["proposed_path"] = str(proposed)
     print(json.dumps(result, indent=2, default=str))
     return 0
 
