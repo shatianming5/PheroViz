@@ -11,35 +11,26 @@ from urllib.parse import unquote, urlparse, urlsplit
 
 
 SCHEMA_VERSION = "1.0"
-# CC-BY source-data publishers. Scientific Reports empirically exposes ~0%
-# per-figure source data (verified dead end, 0/30 sampled). The productive
-# Nature-portfolio siblings are the "Communications" journals, which mirror
-# Nature Communications' Source Data infrastructure on nature.com. Verified
-# JOINT admit rate (per-figure xlsx AND a >=5-panel figure, harvester logic,
-# ~30 CC-BY articles/journal sampled; artifact journal_joint_probe_result.json):
-#   Nature Communications      joint 10.3%  (vol 30315 -> ~3136 admissible)
-#   Communications Biology     joint 20.7%  (vol  4934 -> ~1020 admissible)
-#   Communications Medicine    joint 30.0%  (vol   420 -> ~ 126 admissible)
-#   Communications Chemistry   joint  3.3%  (vol   833 -> ~  27 admissible)
-#   Communications Earth&Env   joint  0.0%  (20% have xlsx but ~0% >=5-panel)
-#   Communications Physics/Materials/Engineering/Psychology  joint ~0%
-# The near-zero siblings + npj titles stay allowlisted for completeness but are
-# fail-closed by the source-data + >=5-panel gates. eLife is the non-Springer
-# source. All gates (CC-BY + per-figure source data + >=5 panels) validate every item.
+# CC-BY per-figure source-data publishers. Only Nature Communications and eLife
+# expose downloadable per-figure "Source Data" (xlsx) at meaningful rates.
+# The Nature-portfolio "Communications X" siblings were re-verified with the
+# harvester's OWN detector (find_source_data_links: <a> label matches
+# "Source Data") and expose ~0% per-figure Source Data (their xlsx are labelled
+# "Supplementary Data N", not per-figure Source Data). Scientific Reports and
+# the npj titles likewise expose ~0%. Measured (find_source_data_links + xlsx,
+# 25 CC-BY articles/journal, 2020-2023):
+#   Nature Communications      per-fig SD 28%, joint(>=5-panel) 4.0%  [ADMIT]
+#   Communications Biology     per-fig SD  0%   (xlsx = "Supplementary Data")
+#   Communications Medicine    per-fig SD  0%
+#   Communications Chemistry   per-fig SD  0%
+#   Communications Earth&Env   per-fig SD  0%
+#   Communications Physics     per-fig SD  0%
+# (An earlier broad `MOESM*.xlsx` regex over-counted supplementary xlsx and
+# falsely suggested the siblings qualified; corrected here.) eLife is the
+# non-Springer per-figure source-data publisher. All gates (CC-BY + per-figure
+# source data + >=5 panels) still validate every item.
 ALLOWED_JOURNALS = frozenset(
-    {
-        "nature communications",
-        "scientific reports",
-        "elife",
-        "communications biology",
-        "communications medicine",
-        "communications chemistry",
-        "communications earth & environment",
-        "communications materials",
-        "communications physics",
-        "communications engineering",
-        "communications psychology",
-    }
+    {"nature communications", "scientific reports", "elife"}
 )
 ALLOWED_CC_BY_VERSIONS = frozenset({"3.0", "4.0"})
 LICENSE_META_NAMES = frozenset(

@@ -251,16 +251,19 @@ def test_npj_series_is_allowed_but_bare_npj_is_not() -> None:
     assert not is_allowed_journal("Nature")
 
 
-def test_communications_siblings_are_allowed() -> None:
-    # Verified per-figure Source Data adoption on nature.com (Bio ~45%,
-    # Medicine ~72%, Earth & Environment ~20%, Chemistry ~10%).
-    assert is_allowed_journal("Communications Biology")
-    assert is_allowed_journal("Communications Medicine")
-    assert is_allowed_journal("Communications Chemistry")
-    assert is_allowed_journal("Communications Earth & Environment")
-    # Nature main and unrelated "Communications in ..." titles stay rejected.
-    assert not is_allowed_journal("Communications in Mathematical Physics")
-    assert not is_allowed_journal("Nature Medicine")
+def test_communications_siblings_are_not_allowed() -> None:
+    # Re-verified with the harvester's own find_source_data_links detector:
+    # the Nature-portfolio "Communications X" siblings expose ~0% per-figure
+    # Source Data (their xlsx are labelled "Supplementary Data N"), so they are
+    # NOT admitted. Only Nature Communications + eLife have per-figure Source Data.
+    assert not is_allowed_journal("Communications Biology")
+    assert not is_allowed_journal("Communications Medicine")
+    assert not is_allowed_journal("Communications Chemistry")
+    assert not is_allowed_journal("Communications Earth & Environment")
+    assert not is_allowed_journal("Communications Physics")
+    # The two verified per-figure source-data publishers stay allowed.
+    assert is_allowed_journal("Nature Communications")
+    assert is_allowed_journal("eLife")
 
 
 def test_article_metadata_can_supply_exact_cc_by_evidence() -> None:
