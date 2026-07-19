@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Harvest CC-BY eLife articles with XLSX source data and >=5-panel figures."""
+"""Harvest CC-BY eLife articles with tabular source data and >=5-panel figures."""
 
 from __future__ import annotations
 
 import argparse
 from datetime import date, datetime, timezone
+from html import unescape
 import json
 import os
 from pathlib import Path
@@ -18,6 +19,7 @@ import zipfile
 
 import requests
 
+from corpus.cases import ArchiveSafetyError, safe_extract_tables
 from corpus.policy import evaluate_crossref_item
 from corpus.provenance import build_article_manifest
 
@@ -44,7 +46,7 @@ CC_BY_4_PATTERN = re.compile(
 DOI_PATTERN = re.compile(r"^10\.7554/elife\.(\d+)$", re.I)
 SOURCE_DATA_PATTERN = re.compile(
     r"^/articles/(?P<id>\d+)/elife-(?P=id)-"
-    r"(?:[^/?#]+-)?data\d+(?:-[^/?#]+)*\.xlsx$",
+    r"(?:[^/?#]+-)?data\d+(?:-[^/?#]+)*\.(?:xlsx|csv|zip)$",
     re.I,
 )
 PANEL_GROUP_PATTERN = re.compile(
@@ -271,7 +273,10 @@ def _caption_to_text(node: Any) -> str:
         if isinstance(value, dict):
             text = value.get("text")
             if isinstance(text, str):
-                parts.append(text)
+                # eLife's API preserves rich-text tags in ``text`` (for example
+                # ``(<b>a–f</b>)``). Strip them before panel detection so those
+                # labels remain visible as ``(a–f)``.
+                parts.append(re.sub(r"<[^>]*>", "", unescape(text)))
             for key, child in value.items():
                 if key == "text":
                     continue
@@ -302,7 +307,8 @@ def _iter_figure_assets(payload: dict[str, Any]) -> Iterator[dict[str, Any]]:
     yield from walk(payload)
 
 
-def _asset_source_xlsx(asset: dict[str, Any], numeric_id: str) -> list[str]:
+def _asset_source_data(asset: dict[str, Any], numeric_id: str) -> list[str]:
+    """Return canonical table/ZIP source-data URLs for one API figure asset."""
     urls: list[str] = []
     for record in asset.get("sourceData") or []:
         if not isinstance(record, dict):
@@ -317,6 +323,10 @@ def _asset_source_xlsx(asset: dict[str, Any], numeric_id: str) -> list[str]:
         ):
             urls.append(parsed._replace(query="", fragment="").geturl())
     return urls
+
+
+def _source_extension(url: str) -> str:
+    return Path(unquote(urlparse(url).path)).suffix.casefold()
 
 
 def _asset_png_url(asset: dict[str, Any]) -> str | None:
@@ -344,10 +354,10 @@ def fetch_article_assets(
 
     The API (api.elifesciences.org) is programmatic-friendly and, unlike the
     HTML `/figures` page, is not aggressively rate-limited (403). Returns
-    ``(source_xlsx_urls, figures)`` where each figure dict carries
-    ``number``/``caption``/``panels``/``image_url``. Source data is collected
-    from every figure asset (including supplements); ``figures`` lists only the
-    numbered main figures (asset id ``fig<N>``).
+    ``(source_data_urls, figures)`` where each figure dict carries
+    ``number``/``caption``/``panels``/``image_url``/``source_urls``. Source
+    data is collected from every figure asset (including supplements);
+    ``figures`` lists only numbered main figures (asset id ``fig<N>``).
     """
     response = request_with_retries(
         session,
@@ -363,7 +373,8 @@ def fetch_article_assets(
     figures: list[dict[str, Any]] = []
     seen_numbers: set[int] = set()
     for asset in _iter_figure_assets(payload):
-        for url in _asset_source_xlsx(asset, numeric_id):
+        asset_sources = _asset_source_data(asset, numeric_id)
+        for url in asset_sources:
             if url not in seen_sources:
                 seen_sources.add(url)
                 sources.append(url)
@@ -378,7 +389,7 @@ def fetch_article_assets(
         if not png_url:
             continue
         caption = _caption_to_text(asset.get("caption"))
-        title = str(asset.get("title") or "")
+        title = re.sub(r"<[^>]*>", "", unescape(str(asset.get("title") or "")))
         caption_full = f"{title} {caption}".strip()
         seen_numbers.add(number)
         figures.append(
@@ -387,6 +398,7 @@ def fetch_article_assets(
                 "caption": caption_full,
                 "panels": panel_count(caption_full),
                 "image_url": png_url,
+                "source_urls": asset_sources,
             }
         )
     return sorted(seen_sources), sorted(
@@ -460,10 +472,16 @@ def harvest_article(
     eligible_figures = [figure for figure in figures if figure["panels"] >= 5]
     if not eligible_figures:
         return False, "insufficient-panels"
+    eligible_figures = [
+        figure for figure in eligible_figures if figure["source_urls"]
+    ]
+    if not eligible_figures:
+        return False, "no-eligible-figure-source-data"
     selected = max(
         eligible_figures,
         key=lambda figure: (figure["panels"], -figure["number"]),
     )
+    selected_sources = list(selected["source_urls"])
 
     base = out / article_id
     staging = out / f".{article_id}.partial"
@@ -477,7 +495,7 @@ def harvest_article(
     source_records: list[dict[str, Any]] = []
     figure_records: list[dict[str, Any]] = []
     try:
-        for source_url in sources:
+        for source_index, source_url in enumerate(selected_sources, start=1):
             name = Path(unquote(urlparse(source_url).path)).name
             saved = source_dir / name
             content_type = download_file(
@@ -489,19 +507,62 @@ def harvest_article(
                 sleep=sleep,
                 max_retries=max_retries,
             )
-            if not zipfile.is_zipfile(saved):
+            extension = _source_extension(source_url)
+            if extension == ".xlsx" and not zipfile.is_zipfile(saved):
                 raise ValueError(f"download is not a valid XLSX archive: {source_url}")
-            source_records.append(
-                {
-                    "label": f"eLife source data ({name})",
-                    "url": source_url,
-                    "saved_as": str(out / article_id / "source_data" / name),
-                    "saved_name": name,
-                    "orig_name": name,
-                    "content_name": None,
-                    "content_type": content_type,
-                }
-            )
+            if extension != ".zip":
+                source_records.append(
+                    {
+                        "label": f"eLife source data ({name})",
+                        "url": source_url,
+                        "saved_as": str(out / article_id / "source_data" / name),
+                        "saved_name": name,
+                        "orig_name": name,
+                        "content_name": None,
+                        "content_type": content_type,
+                    }
+                )
+                continue
+
+            # A ZIP only qualifies when it safely exposes a CSV/XLSX member.
+            # Reuse the corpus extractor rather than trusting filenames or
+            # unpacking untrusted archives directly.
+            extracted_dir = source_dir / f".{Path(name).stem}.extracted"
+            try:
+                extracted_tables = safe_extract_tables(saved, extracted_dir)
+            except ArchiveSafetyError as exc:
+                raise ValueError(
+                    f"invalid source-data ZIP ({exc.code}): {source_url}"
+                ) from exc
+            if not extracted_tables:
+                raise ValueError(
+                    f"ZIP source did not contain CSV/XLSX data: {source_url}"
+                )
+            for table_index, table in enumerate(extracted_tables, start=1):
+                target = source_dir / (
+                    f"{source_index:03d}_{table_index:03d}_{table.path.name}"
+                )
+                table.path.replace(target)
+                if (
+                    target.suffix.casefold() == ".xlsx"
+                    and not zipfile.is_zipfile(target)
+                ):
+                    raise ValueError(
+                        f"ZIP member is not a valid XLSX archive: {table.member_name}"
+                    )
+                source_records.append(
+                    {
+                        "label": f"eLife source data ({name})",
+                        "url": source_url,
+                        "saved_as": str(out / article_id / "source_data" / target.name),
+                        "saved_name": target.name,
+                        "orig_name": name,
+                        "content_name": table.member_name,
+                        "content_type": content_type,
+                    }
+                )
+            shutil.rmtree(extracted_dir, ignore_errors=True)
+            saved.unlink()
 
         figure_no = int(selected["number"])
         figure_tag = f"fig_{figure_no:03d}"
@@ -605,7 +666,11 @@ def run(args: argparse.Namespace) -> int:
     validate_dates(args.from_date, args.until_date)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    processed_path = out / "_processed.txt"
+    # Version the eLife checkpoint separately from the shared legacy checkpoint.
+    # v2 re-evaluates old no-source/panel skips after adding CSV/ZIP support and
+    # markup-aware panel counting, while existing article directories remain the
+    # authoritative resume guard.
+    processed_path = out / "_elife_processed_v2.txt"
     skipped_path = out / "_skipped.txt"
     processed = load_processed(processed_path)
     admitted = 0

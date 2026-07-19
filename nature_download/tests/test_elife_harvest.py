@@ -126,6 +126,14 @@ def test_caption_to_text_flattens_structured_nodes():
     assert elife_harvest._caption_to_text(node) == "Panel A. nested deeper"
 
 
+def test_caption_to_text_strips_eLife_markup_before_panel_counting():
+    caption = elife_harvest._caption_to_text(
+        [{"text": "(<b>a–c</b>) first. (<strong>d–f</strong>) second."}]
+    )
+    assert caption == "(a–c) first. (d–f) second."
+    assert elife_harvest.panel_count(caption) == 6
+
+
 def test_iter_figure_assets_walks_nested_figures_only():
     ids = [a.get("id") for a in elife_harvest._iter_figure_assets(API_PAYLOAD)]
     # Both figure blocks (nested + top-level) yield their assets; the table
@@ -133,15 +141,54 @@ def test_iter_figure_assets_walks_nested_figures_only():
     assert ids == ["fig1", "fig1s1", "fig2"]
 
 
-def test_asset_source_xlsx_filters_host_and_article():
+def test_asset_source_data_filters_host_and_article():
     asset = API_PAYLOAD["body"][1]["assets"][0]  # fig2
-    urls = elife_harvest._asset_source_xlsx(asset, "16349")
+    urls = elife_harvest._asset_source_data(asset, "16349")
     assert urls == [
         "https://cdn.elifesciences.org/articles/16349/"
         "elife-16349-fig2-data1-v1.xlsx"
     ]
     # Wrong article id must not match.
-    assert elife_harvest._asset_source_xlsx(asset, "99999") == []
+    assert elife_harvest._asset_source_data(asset, "99999") == []
+
+
+def test_asset_source_data_accepts_csv_and_table_zip():
+    asset = {
+        "sourceData": [
+            {
+                "uri": (
+                    "https://cdn.elifesciences.org/articles/44359/"
+                    "elife-44359-fig2-data1-v2.csv"
+                ),
+                "mediaType": "application/octet-stream",
+            },
+            {
+                "uri": (
+                    "https://cdn.elifesciences.org/articles/44359/"
+                    "elife-44359-fig5-data1-v2.zip"
+                ),
+                "mediaType": "application/zip",
+            },
+            {
+                "uri": (
+                    "https://cdn.elifesciences.org/articles/44359/"
+                    "elife-44359-fig2-data2-v2.docx"
+                ),
+                "mediaType": "application/vnd.openxmlformats-officedocument"
+                ".wordprocessingml.document",
+            },
+        ]
+    }
+    assert elife_harvest._asset_source_data(asset, "44359") == [
+        (
+            "https://cdn.elifesciences.org/articles/44359/"
+            "elife-44359-fig2-data1-v2.csv"
+        ),
+        (
+            "https://cdn.elifesciences.org/articles/44359/"
+            "elife-44359-fig5-data1-v2.zip"
+        ),
+    ]
 
 
 def test_asset_png_url_builds_iiif_default_png():
@@ -187,6 +234,8 @@ def test_fetch_article_assets_collects_sources_and_main_figures(monkeypatch):
     assert fig1["panels"] == 5  # (A)-(E)
     assert fig1["caption"].startswith("Neuronal AMPK regulates behaviour.")
     assert fig1["image_url"].endswith("/full/full/0/default.png")
+    assert fig1["source_urls"] == sources[:2]
+    assert figures[1]["source_urls"] == [sources[-1]]
 
 
 def test_fetch_article_assets_empty_when_no_figures(monkeypatch):
