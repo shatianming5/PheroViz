@@ -16,6 +16,16 @@ def test_panel_count_accepts_spaced_capital_parentheses() -> None:
     assert embo_harvest.panel_count("( A )( B )( C )( D )( E )") == 5
 
 
+def test_is_archive_junk_filters_os_generated_members() -> None:
+    # macOS AppleDouble resource-fork junk and Office lock temp files are junk...
+    assert embo_harvest.is_archive_junk("__MACOSX/Figure 6/6B/._Chemotaxis.xlsx")
+    assert embo_harvest.is_archive_junk("Figure 1/._Figure 1A-H.xlsx")
+    assert embo_harvest.is_archive_junk("Figure 6/6B/~$Chemotaxis.xlsx")
+    # ...but genuine per-figure source-data members are NOT junk.
+    assert not embo_harvest.is_archive_junk("Figure 6/6B/Chemotaxis.xlsx")
+    assert not embo_harvest.is_archive_junk("SourceData_Fig1.csv")
+
+
 def test_build_moesm_source_map_filters_to_downloadable_source_types() -> None:
     source_map = embo_harvest.build_moesm_source_map(
         sample_html(), "10.1038/s44320-026-00206-9"

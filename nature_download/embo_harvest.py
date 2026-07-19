@@ -66,6 +66,18 @@ SPRINGER_SOURCE_PATTERN = re.compile(
     r"(?P<ext>xlsx|csv|zip))(?:[?#][^\s\"'<>]*)?",
     re.I,
 )
+
+
+def is_archive_junk(member: str) -> bool:
+    """True for OS/app-generated junk zip members that are never real data:
+    macOS ``__MACOSX/`` resource-fork dirs, ``._``-prefixed AppleDouble shadow
+    files, and ``~$``-prefixed Microsoft Office lock/owner temp files."""
+    name = Path(member).name
+    return (
+        "__MACOSX" in Path(member).parts
+        or name.startswith("._")
+        or name.startswith("~$")
+    )
 FIG_IMAGE_PATTERN = re.compile(
     r"(?:https:)?//media\.springernature\.com/(?P<size>lw\d+|full)/"
     r"springer-static/image/art%3A(?P<doi>[^/\s\"'<>]+)/MediaObjects/"
@@ -466,6 +478,8 @@ def harvest_article(
             with zipfile.ZipFile(saved) as archive:
                 for member in archive.namelist():
                     member_name = Path(member).name
+                    if is_archive_junk(member):
+                        continue
                     if not member_name or Path(member_name).suffix.casefold() not in {".xlsx", ".csv"}:
                         continue
                     target = source_dir / f"{Path(name).stem}_{member_name}"
