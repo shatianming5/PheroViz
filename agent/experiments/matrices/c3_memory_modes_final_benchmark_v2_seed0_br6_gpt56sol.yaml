@@ -59,16 +59,16 @@ metric:
 materialization:
   schema_version: '1.1'
   outcome_inputs_read: false
-  repository_commit: 59bf0e90a1c402e53b91fe6b1063c35c3a099b26
+  repository_commit: c9ec2ce84e320e6117832da80ab0fd9082e511f0
   builder_path: agent/experiments/c3_matrix_builder.py
   builder_sha256: 9eb96194c398d713797b2e8a478b117e3392ed267f21e3aac565045b2895e195
   code_file_hashes:
     agent/experiments/c3_matrix_builder.py: 9eb96194c398d713797b2e8a478b117e3392ed267f21e3aac565045b2895e195
     agent/experiments/c3_runtime_materializer.py: 2cbefd9889136db011341cd2ec3ccec7ae2f542b4fe88e8847724211c49f28e2
-    agent/experiments/matrix.py: 84037ba4f8e669f59b46c9adcbef22e3eca9886cf3c294491c02a6b2e774a020
-    agent/experiments/manifest.py: e8053ec212b093fd7053016de26be1bfdb4e34385494421592878f57e1128ee5
-    agent/experiments/providers.py: 0138e1273dfbab87a20c504a57c9e9589b9e4f2d1e9a94b89ef94e2ccff882f9
-  code_bundle_hash: 0cea477d18a36e1fd99903e32d62b47445e94300084ceb9363d968e57403c115
+    agent/experiments/matrix.py: 0450a77960121758eb95133477efe7c9973e1bd0a8c7fb6eeb3ec93064027f23
+    agent/experiments/manifest.py: 96d2fd6c37e2a4eb84d8bd35693766adbae02f30f42530dba986da24cd2d3857
+    agent/experiments/providers.py: 88e17b493d492af32a68a86707cceab551f388f678dabc2239ed5301cfaafa86
+  code_bundle_hash: 198843bcf6f142209f7da81b491d8543c17b71a2c1b9e070fa8e182b237829bd
   parent_manifest_path: nature_download/outputs/combined_verified_400/final_benchmark_renderable_v1_seed0/benchmark_manifest.json
   parent_manifest_file_sha256: 6c6c5cb50603d899a9be0f41c9e562517c92ae15477610e9111f6504cd1757b3
   parent_manifest_semantic_sha256: 747a4587ce03c1bb3f7dbd6e0caa90ce30807098cf0db1407566dae4ef850bf6
