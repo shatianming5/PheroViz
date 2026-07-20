@@ -1,25 +1,23 @@
-"""Derive a legacy multi-panel comparison manifest from the sealed C2 benchmark.
+"""Derive a legacy multi-panel comparison manifest from a C2 source manifest.
 
-The sealed C2 testbed (``final_benchmark_renderable_v1_seed0/benchmark_manifest.json``)
-carries a top-level ``provenance`` block that requires the full corpus
-source-binding footprint (candidates / corpus manifests / evidence bundles) to be
-present and hash-matched before it will load under ``dataset_mode="sealed_benchmark"``.
-For the external-baseline head-to-head we only need the sealed *multi-panel* cases
-themselves -- the panels, their per-panel ``data_sha256`` integrity, and the full
-``evaluation_expectation`` -- because the comparison is scored by the same
-``app.evaluation`` evaluator regardless of how the corpus was assembled.
+The source can be either a sealed benchmark JSON manifest or a proposal JSONL
+corpus.  For the external-baseline head-to-head we only need the selected
+multi-panel cases themselves -- the panels, their per-panel ``data_sha256``
+integrity, and the full ``evaluation_expectation`` -- because the comparison is
+scored by the same ``app.evaluation`` evaluator regardless of how the corpus was
+assembled.
 
-This builder extracts the multi-panel cases verbatim and writes them as a
-provenance-free manifest that loads under ``dataset_mode="legacy"``. Under legacy
-mode ``verify_case_data_files`` STILL hash-verifies every panel's ``data_path``
-against its sealed ``data_sha256``, so the data the baselines and PheroViz see is
-byte-identical to the sealed testbed. Only the corpus-construction audit binding
-(validated separately at seal time) is omitted -- it is irrelevant to the
-apples-to-apples model comparison.
+This builder extracts the selected cases and writes them as a provenance-free
+manifest that loads under ``dataset_mode="legacy"``. It hash-pins every selected
+panel's source file (verifying pre-existing pins when supplied), so the data the
+baselines and PheroViz see is byte-identical to the source corpus. Only the
+corpus-construction audit binding (when present in a sealed source) is omitted --
+it is irrelevant to the apples-to-apples model comparison.
 
 Usage:
     python -m experiments.baseline_specs.build_c2_multipanel_baseline_manifest \
-        --sealed <benchmark_manifest.json> \
+        --sealed <benchmark_manifest.json|proposed.jsonl> \
+        --min-panels 5 \
         --out <derived_manifest.json>
 
 The command also prints (and optionally writes with ``--sources-out``) the unique
@@ -30,6 +28,7 @@ sha256, so the caller can materialize exactly those bytes on the cluster.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -37,22 +36,62 @@ from typing import Any, Dict, List, Mapping
 
 
 def _load(path: Path) -> Dict[str, Any]:
-    return json.loads(path.read_text(encoding="utf-8"))
+    raw = path.read_text(encoding="utf-8")
+    if path.suffix.lower() == ".jsonl":
+        cases: List[Dict[str, Any]] = []
+        for line_number, line in enumerate(raw.splitlines(), 1):
+            if not line.strip():
+                continue
+            try:
+                value = json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise SystemExit(
+                    f"source manifest line {line_number} is not valid JSON"
+                ) from exc
+            if not isinstance(value, dict):
+                raise SystemExit(
+                    f"source manifest line {line_number} is not an object"
+                )
+            cases.append(value)
+        return {"schema_version": "1.0", "cases": cases}
+    try:
+        value = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise SystemExit("source manifest is not valid JSON") from exc
+    if not isinstance(value, dict):
+        raise SystemExit("source manifest must be an object")
+    return value
 
 
-def _multi_panel_cases(sealed: Mapping[str, Any]) -> List[Dict[str, Any]]:
-    cases = sealed.get("cases")
+def _case_payload(case: Mapping[str, Any]) -> Mapping[str, Any]:
+    proposal_case = case.get("experiment_case")
+    if proposal_case is None:
+        return case
+    if not isinstance(proposal_case, Mapping):
+        raise SystemExit("proposal record has an invalid experiment_case")
+    return proposal_case
+
+
+def _multi_panel_cases(
+    source: Mapping[str, Any],
+    *,
+    min_panels: int,
+) -> List[Dict[str, Any]]:
+    cases = source.get("cases")
     if not isinstance(cases, list):
-        raise SystemExit("sealed manifest has no 'cases' list")
+        raise SystemExit("source manifest has no 'cases' list")
     selected: List[Dict[str, Any]] = []
     for case in cases:
         if not isinstance(case, Mapping):
             continue
-        panels = case.get("panels")
-        if isinstance(panels, list) and len(panels) > 1:
-            selected.append(dict(case))
+        payload = _case_payload(case)
+        panels = payload.get("panels")
+        if isinstance(panels, list) and len(panels) >= min_panels:
+            selected.append(dict(payload))
     if not selected:
-        raise SystemExit("no multi-panel cases found in sealed manifest")
+        raise SystemExit(
+            f"no cases with at least {min_panels} panels found in source manifest"
+        )
     return selected
 
 
@@ -74,18 +113,72 @@ def _unique_sources(cases: List[Dict[str, Any]]) -> List[Dict[str, str]]:
     return [{"data_path": p, "data_sha256": s} for p, s in sorted(seen.items())]
 
 
-def build(sealed_path: Path) -> tuple[Dict[str, Any], List[Dict[str, str]]]:
-    sealed = _load(sealed_path)
-    cases = _multi_panel_cases(sealed)
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def _bind_panel_data_hashes(cases: List[Dict[str, Any]]) -> None:
+    hashes: Dict[str, str] = {}
+    for case in cases:
+        panels = case.get("panels")
+        if not isinstance(panels, list):
+            raise SystemExit(f"case {case.get('case_id')!r} has no panels list")
+        for index, panel in enumerate(panels):
+            if not isinstance(panel, dict):
+                raise SystemExit(
+                    f"case {case.get('case_id')!r} panel {index} is not an object"
+                )
+            data_path = panel.get("data_path")
+            if not isinstance(data_path, str) or not data_path:
+                raise SystemExit(
+                    f"case {case.get('case_id')!r} panel {index} has no data_path"
+                )
+            path = Path(data_path)
+            if path.is_symlink() or not path.is_file():
+                raise SystemExit(
+                    f"case {case.get('case_id')!r} panel {index} data file is missing"
+                )
+            actual = hashes.get(data_path)
+            if actual is None:
+                actual = _sha256_file(path)
+                hashes[data_path] = actual
+            expected = panel.get("data_sha256")
+            if expected is not None and (
+                not isinstance(expected, str) or expected != actual
+            ):
+                raise SystemExit(
+                    f"case {case.get('case_id')!r} panel {index} data SHA-256 changed"
+                )
+            panel["data_sha256"] = actual
+
+
+def build(
+    source_path: Path,
+    *,
+    min_panels: int = 2,
+) -> tuple[Dict[str, Any], List[Dict[str, str]]]:
+    source = _load(source_path)
+    cases = _multi_panel_cases(source, min_panels=min_panels)
+    _bind_panel_data_hashes(cases)
+    source_hash = hashlib.sha256(source_path.read_bytes()).hexdigest()
     derived = {
-        "schema_version": sealed.get("schema_version", "1.0"),
+        "schema_version": source.get("schema_version", "1.0"),
         "derived_from": {
-            "sealed_manifest": str(sealed_path),
-            "sealed_manifest_hash": sealed.get("manifest_hash"),
-            "selection": "cases with len(panels) > 1",
+            "source_manifest": str(source_path),
+            "source_manifest_sha256": source_hash,
+            "source_kind": (
+                "sealed_benchmark"
+                if source.get("provenance") is not None
+                else "proposal_or_legacy"
+            ),
+            "selection": f"cases with len(panels) >= {min_panels}",
             "dataset_mode": "legacy",
             "note": (
-                "Provenance-free legacy view of the sealed multi-panel cases; "
+                "Provenance-free legacy view of selected multi-panel cases; "
                 "panel data_sha256 integrity is still enforced on load."
             ),
         },
@@ -134,9 +227,22 @@ def _rewrite_roots(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--sealed", required=True, type=Path)
+    parser.add_argument(
+        "--sealed",
+        "--source",
+        dest="source",
+        required=True,
+        type=Path,
+        help="Sealed JSON benchmark manifest or proposal JSONL source.",
+    )
     parser.add_argument("--out", required=True, type=Path)
     parser.add_argument("--sources-out", type=Path, default=None)
+    parser.add_argument(
+        "--min-panels",
+        type=int,
+        default=2,
+        help="Keep only cases with at least this many panels (default: 2).",
+    )
     parser.add_argument(
         "--rewrite-source-root",
         default=None,
@@ -154,8 +260,10 @@ def main(argv: list[str] | None = None) -> int:
             "--rewrite-source-root and --rewrite-target-root must be given "
             "together"
         )
+    if args.min_panels < 2:
+        raise SystemExit("--min-panels must be at least 2")
 
-    derived, sources = build(args.sealed)
+    derived, sources = build(args.source, min_panels=args.min_panels)
     if args.rewrite_source_root:
         _rewrite_roots(
             derived,

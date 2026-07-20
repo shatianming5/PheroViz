@@ -347,22 +347,26 @@ def _proposal_case_info(proposals: Iterable[Mapping[str, Any]]) -> list[tuple[st
     return cases
 
 
-def _sealed_case_info(
+def _manifest_case_info(
     manifest: Path,
     *,
     manifest_data_root: Path,
+    dataset_mode: str,
     case_kind: str,
     max_cases: int | None,
+    min_panels: int | None,
 ) -> list[tuple[str, int]]:
     try:
         cases = load_dataset_manifest(
             manifest,
-            dataset_mode="sealed_benchmark",
+            dataset_mode=dataset_mode,
             manifest_data_root=manifest_data_root,
             runtime_repo_root=REPO_ROOT,
         )
     except Exception as exc:
-        raise C2PipelineError(f"Sealed benchmark manifest validation failed: {exc}") from exc
+        raise C2PipelineError(
+            f"{dataset_mode} dataset manifest validation failed: {exc}"
+        ) from exc
     selected: list[DatasetCase] = list(cases)
     if case_kind == "single":
         selected = [case for case in selected if case.panel_count == 1]
@@ -371,6 +375,12 @@ def _sealed_case_info(
             case
             for case in selected
             if isinstance(case.panel_count, int) and case.panel_count > 1
+        ]
+    if min_panels is not None:
+        selected = [
+            case
+            for case in selected
+            if isinstance(case.panel_count, int) and case.panel_count >= min_panels
         ]
     selected.sort(key=lambda case: case.case_id)
     if max_cases is not None:
@@ -621,6 +631,14 @@ def _parser() -> argparse.ArgumentParser:
         type=Path,
         help="Previously assembled sealed benchmark_manifest.json to execute.",
     )
+    source.add_argument(
+        "--legacy-manifest",
+        type=Path,
+        help=(
+            "Previously materialized legacy manifest to execute. This is useful "
+            "for a hash-pinned multi-panel comparison view."
+        ),
+    )
     parser.add_argument(
         "--output",
         type=Path,
@@ -630,6 +648,12 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--python", default=sys.executable)
     parser.add_argument("--max-articles", type=int, default=None)
     parser.add_argument("--max-cases", type=int, default=None)
+    parser.add_argument(
+        "--min-panels",
+        type=int,
+        default=None,
+        help="Keep only cases with at least this many panels.",
+    )
     parser.add_argument(
         "--case-kind",
         choices=("all", "single", "multi"),
@@ -691,14 +715,16 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit("--max-articles must be positive")
     if args.max_cases is not None and args.max_cases < 1:
         raise SystemExit("--max-cases must be positive")
+    if args.min_panels is not None and args.min_panels < 1:
+        raise SystemExit("--min-panels must be positive")
     if args.rounds_per_case < 1:
         raise SystemExit("--rounds-per-case must be positive")
-    if args.normalizer_exploratory and args.dataset_manifest is not None:
+    if args.normalizer_exploratory and args.input is None:
         raise SystemExit(
-            "--normalizer-exploratory cannot be used with a sealed dataset manifest"
+            "--normalizer-exploratory cannot be used with an existing dataset manifest"
         )
-    if args.offline_defaults and args.dataset_manifest is not None:
-        raise SystemExit("--offline-defaults cannot be used for a sealed benchmark")
+    if args.offline_defaults and args.input is None:
+        raise SystemExit("--offline-defaults cannot be used for an existing dataset manifest")
     if args.offline_defaults and args.profile != "smoke":
         raise SystemExit("--offline-defaults requires --profile smoke")
     if args.offline_defaults and args.rounds_per_case != 1:
@@ -756,23 +782,62 @@ def main(argv: list[str] | None = None) -> int:
                 case_kind=args.case_kind,
                 max_cases=args.max_cases,
             )
+            if args.min_panels is not None:
+                selected_proposals = [
+                    proposal
+                    for proposal in selected_proposals
+                    if isinstance(
+                        (proposal.get("experiment_case") or {}).get("panel_count"),
+                        int,
+                    )
+                    and (proposal.get("experiment_case") or {})["panel_count"]
+                    >= args.min_panels
+                ]
+                if not selected_proposals:
+                    raise C2PipelineError(
+                        "Panel-count filtering produced no selected proposals."
+                    )
             selected_manifest = output_dir / "selected_proposed.jsonl"
             _write_jsonl(selected_manifest, selected_proposals)
             case_info = _proposal_case_info(selected_proposals)
             dataset_mode = "legacy"
             stage_report["selected_proposals"] = str(selected_manifest)
             stage_report["selected_cases"] = len(selected_proposals)
+        elif args.legacy_manifest is not None:
+            dataset_manifest = args.legacy_manifest.expanduser().resolve(strict=True)
+            if not dataset_manifest.is_file():
+                raise C2PipelineError(
+                    f"--legacy-manifest is not a file: {dataset_manifest}"
+                )
+            case_info = _manifest_case_info(
+                dataset_manifest,
+                manifest_data_root=manifest_data_root,
+                dataset_mode="legacy",
+                case_kind=args.case_kind,
+                max_cases=args.max_cases,
+                min_panels=args.min_panels,
+            )
+            selected_manifest = dataset_manifest
+            dataset_mode = "legacy"
+            stage_report = {
+                "mode": "legacy-manifest-execution",
+                "dataset_manifest": str(dataset_manifest),
+                "selected_cases": len(case_info),
+                "min_panels": args.min_panels,
+            }
         else:
             dataset_manifest = args.dataset_manifest.expanduser().resolve(strict=True)
             if not dataset_manifest.is_file():
                 raise C2PipelineError(
                     f"--dataset-manifest is not a file: {dataset_manifest}"
                 )
-            case_info = _sealed_case_info(
+            case_info = _manifest_case_info(
                 dataset_manifest,
                 manifest_data_root=manifest_data_root,
+                dataset_mode="sealed_benchmark",
                 case_kind=args.case_kind,
                 max_cases=args.max_cases,
+                min_panels=args.min_panels,
             )
             selected_manifest = dataset_manifest
             dataset_mode = "sealed_benchmark"
