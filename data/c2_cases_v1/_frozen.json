@@ -1,0 +1,60 @@
+{
+  "frozen_at": "2026-07-20T08:22:01.504461+00:00",
+  "unit": "panel_case",
+  "definition": "One row per (doi, figure, panel) whose source table is honestly composable under corpus.c2_p5plus_doi_clusters._panel_composable (simple-2D contract). Panel-level is the natural benchmark unit; the >=5-composable-panel figures form the P5+ compositional stratum.",
+  "source_proposals": "nature_download/outputs/c2_full_casecount_exploratory_20260720/corrected_sheet_binding/proposals/proposed.jsonl",
+  "source_proposals_sha256": "f84fbb64db2d563bbe77e485e5ce0a241c40a5dc76217f668106704b54b23f4a",
+  "manifest": "data/c2_cases_v1/_manifest.jsonl",
+  "manifest_sha256": "ae8838cd70ede12fffc9b50b6acaee81d2d0c8842dee65e1d51bb89e42163021",
+  "content_materialized": false,
+  "total_cases": 2544,
+  "unique_dois": 588,
+  "unique_figures": 680,
+  "provenance_tiers": {
+    "B_normalizer": 2403,
+    "A_raw": 141
+  },
+  "original_source_on_disk": {
+    "present": 2544,
+    "missing": 0
+  },
+  "panel_stratum_by_figure_composable_panels": {
+    "1": 193,
+    "2": 116,
+    "3": 80,
+    "4": 67,
+    "5+": 224
+  },
+  "p5plus": {
+    "cases": 1611,
+    "figures": 224,
+    "dois": 204,
+    "by_tier": {
+      "B_normalizer": 1538,
+      "A_raw": 73
+    }
+  },
+  "by_journal": {
+    "Nature Communications": 924,
+    "eLife": 630,
+    "The EMBO Journal": 359,
+    "EMBO Reports": 333,
+    "EMBO Molecular Medicine": 273,
+    "Molecular Systems Biology": 25
+  },
+  "by_year": {
+    "2016": 15,
+    "2017": 53,
+    "2018": 41,
+    "2019": 129,
+    "2020": 123,
+    "2021": 176,
+    "2022": 349,
+    "2023": 284,
+    "2024": 640,
+    "2025": 548,
+    "2026": 165,
+    "None": 21
+  },
+  "eligibility": "HONEST SCOPE: tier A_raw cases use the published sheet verbatim (sealed-eligible). tier B_normalizer cases apply the deterministic, fully-traceable source_table_normalizer to a ragged published sheet (raw sha256 + recipe + output sha256 all pinned); tier B is EXPLORATORY and requires approving the normalization step as part of the benchmark contract. No case is human-review-verified yet (eligible_for_experiment=0 upstream)."
+}
