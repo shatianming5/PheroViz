@@ -4,6 +4,8 @@ dataset_manifest_sha256: 6c6c5cb50603d899a9be0f41c9e562517c92ae15477610e9111f650
 dataset_mode: sealed_benchmark
 artifact_root: ../runs/production/c3_memory_modes_final_benchmark_v2_seed0_br6_gpt56sol
 provider: experiments.providers:UnifiedBenchmarkProvider
+provider_options:
+  manifest_data_root: /Users/tommy/Downloads/mayi/PheroViz
 methods:
 - name: memory_none
   schedule: iterative
