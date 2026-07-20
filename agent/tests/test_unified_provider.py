@@ -272,6 +272,36 @@ def test_canonical_unified_provider_import_path() -> None:
     assert UnifiedPheroVizProvider is PheroVizProvider
 
 
+def test_offline_defaults_provider_skips_model_credential_gate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for name in (
+        "MODEL_API_KEY",
+        "ANTHROPIC_AUTH_TOKEN",
+        "LLM_API_KEY",
+        "OPENAI_API_KEY",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+    provider = UnifiedBenchmarkProvider(offline_defaults=True)
+
+    provider.check_available()
+
+    assert provider.test_only is True
+    assert provider.single_provider.test_only is True
+    assert provider.multi_provider.test_only is True
+
+
+def test_provider_preflight_uses_matrix_backbone_without_llm_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("MODEL_API_BASE", "https://models.example.test")
+    monkeypatch.setenv("MODEL_API_KEY", "test-key")
+    monkeypatch.delenv("LLM_MODEL", raising=False)
+
+    PheroVizProvider().check_available()
+
+
 @pytest.mark.parametrize("panel_count", PANEL_COUNTS)
 @pytest.mark.parametrize("schedule", ["iterative", "best_of_n"])
 def test_unified_provider_routes_mixed_cases_with_exact_render_accounting(

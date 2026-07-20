@@ -1,8 +1,7 @@
-#!/bin/bash
-export ANTHROPIC_BASE_URL="http://1.14.177.180:4142"
-export ANTHROPIC_AUTH_TOKEN="sk-intern"
-export VLM_MODEL="claude-sonnet-5"
-export VLM_REQUIRED="1"
-export LLM_MODEL="gpt-5.6-sol"
+#!/usr/bin/env bash
+set -euo pipefail
 
-python3 -m experiments run experiments/matrices/c2_extreme_final_benchmark_v3_repaired.yaml
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PYTHON_BIN="${PYTHON:-python3}"
+
+exec "$PYTHON_BIN" "$SCRIPT_DIR/run_c2_v3.py" "$@"

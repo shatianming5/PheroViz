@@ -125,6 +125,42 @@ method failure 记零行。API/auth/import/dependency、畸形 marker、adapter 
 timeout，以及无法由 hash-bound static rejection 证明来源的 evaluator/config
 错误仍为 blocking failure；分类从不依赖 stderr/stdout/model 文本匹配。
 
+### C2 frozen-input runner
+
+`run_c2_v3.sh` 是 C2 的安全入口，委托给 `run_c2_v3.py`。它先验证冻结文章
+目录的 provenance，再依次执行 `build-cases`、`propose-cases`、matrix
+materialization，以及可选的 agent/render/Judge++ execution。按 panel 数分片
+matrix，因此每个 render budget 都是 `panel_count × rounds_per_case`，不会出现
+partial global round。
+
+`--input` 生成的 `proposed.jsonl` 永远是未审核的 legacy/exploratory input，
+不能声明为 sealed benchmark。生产运行必须先用 corpus 的两模型 review 和
+`assemble-benchmark` 生成 `benchmark_manifest.json`，再使用
+`--dataset-manifest`：
+
+```bash
+# Build strict proposals only; the output directory must be new.
+PYTHON=/path/to/python bash agent/run_c2_v3.sh \
+  --input data/c2_p5_4k \
+  --output nature_download/outputs/c2_proposal_materialization \
+  --profile benchmark --rounds-per-case 1
+
+# Run an already sealed manifest. MODEL_API_BASE and MODEL_API_KEY stay in env;
+# --model becomes the per-run LLM_MODEL value.
+export MODEL_API_BASE="https://model-gateway.example/v1"
+export MODEL_API_KEY="..."
+PYTHON=/path/to/python bash agent/run_c2_v3.sh \
+  --dataset-manifest nature_download/outputs/verified_c2/benchmark_manifest.json \
+  --manifest-data-root "$PWD" \
+  --output nature_download/outputs/c2_benchmark_run \
+  --profile benchmark --rounds-per-case 1 --model gpt-5.6-sol --execute
+```
+
+For a local no-key smoke test only, combine `--normalizer-exploratory`,
+`--offline-defaults`, `--profile smoke`, `--rounds-per-case 1`, and `--execute`.
+Those artifacts are explicitly `test_only` and are rejected by production
+aggregation.
+
 MatPlotAgent 与 nvAgent 的 paper-ready 单 panel 子轨分别由
 `experiments/baseline_specs/matplotagent-single-test-renderable-v1.json` 和
 `nvagent-single-test-renderable-v1.json` 声明。两者仅按公开接口和 parent case

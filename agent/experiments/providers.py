@@ -256,6 +256,7 @@ class SingleChainProvider:
         api_key_envs: Optional[Sequence[str]] = None,
         wall_clock_rounds: Optional[int] = None,
         manifest_data_root: Optional[str] = None,
+        offline_defaults: bool = False,
     ) -> None:
         self.api_key_envs = tuple(
             api_key_envs
@@ -268,6 +269,8 @@ class SingleChainProvider:
         )
         self.wall_clock_rounds = wall_clock_rounds
         self.manifest_data_root = manifest_data_root
+        self.offline_defaults = offline_defaults
+        self.test_only = offline_defaults
 
     def check_available(self) -> None:
         try:
@@ -277,6 +280,8 @@ class SingleChainProvider:
             raise ProviderUnavailableError(
                 "SingleChainProvider must run with agent/ on PYTHONPATH"
             ) from exc
+        if self.offline_defaults:
+            return
         single_chain_runner._load_env_file()
         if not any(os.getenv(name) for name in self.api_key_envs):
             joined = ", ".join(self.api_key_envs)
@@ -284,7 +289,12 @@ class SingleChainProvider:
                 f"No model credentials found in {joined}; run recorded as failed"
             )
         try:
-            ModelConfig.from_env()
+            # The matrix supplies the actual model as request.spec.backbone.
+            # Use a harmless preflight placeholder so --model does not also
+            # require an unrelated ambient LLM_MODEL setting.
+            ModelConfig.from_env(
+                model=os.getenv("LLM_MODEL") or "provider-preflight"
+            )
         except ModelClientError as exc:
             raise ProviderUnavailableError(str(exc)) from exc
 
@@ -316,6 +326,16 @@ class SingleChainProvider:
             rounds = configured
         if rounds < 1:
             raise ProviderExecutionError("Single-chain rounds must be positive")
+        if self.offline_defaults and (
+            str(
+                request.spec.method_config.get("initial_generation", "model_spec")
+            ).strip().lower()
+            not in {"default", "defaults"}
+            or rounds != 1
+        ):
+            raise ProviderExecutionError(
+                "offline_defaults requires initial_generation=defaults and one render"
+            )
 
         manifest_path = request.dataset_manifest_path
         try:
@@ -617,11 +637,13 @@ class SingleChainProvider:
                             and stage.get("model_metadata")
                         },
                     },
+                    test_only=self.test_only,
                 )
             )
         return ProviderBatch(
             candidates=candidates,
             stop=request.spec.schedule == "iterative",
+            test_only=self.test_only,
         )
 
 
@@ -726,6 +748,7 @@ def _multi_panel_checkpoint_candidate(
     render_timeout_seconds: int,
     previous_cumulative_wall_clock_seconds: float,
     output_dir: Path,
+    test_only: bool,
 ) -> CandidateResult:
     if checkpoint.get("global_round") != expected_round:
         raise ProviderExecutionError(
@@ -903,6 +926,7 @@ def _multi_panel_checkpoint_candidate(
             "served_models": served_models,
             "judge_models": judge_models,
         },
+        test_only=test_only,
     )
 
 
@@ -916,12 +940,15 @@ class MultiPanelProvider:
         self,
         wall_clock_rounds: Optional[int] = None,
         manifest_data_root: Optional[str] = None,
+        offline_defaults: bool = False,
     ) -> None:
         self.wall_clock_rounds = wall_clock_rounds
         self.manifest_data_root = manifest_data_root
+        self.offline_defaults = offline_defaults
+        self.test_only = offline_defaults
 
     def check_available(self) -> None:
-        SingleChainProvider().check_available()
+        SingleChainProvider(offline_defaults=self.offline_defaults).check_available()
 
     def generate(
         self,
@@ -1074,6 +1101,16 @@ class MultiPanelProvider:
             ).strip().lower()
         if rounds < 1:
             raise ProviderExecutionError("Multi-panel rounds must be positive")
+        if self.offline_defaults and (
+            str(
+                request.spec.method_config.get("initial_generation", "model_spec")
+            ).strip().lower()
+            not in {"default", "defaults"}
+            or rounds != 1
+        ):
+            raise ProviderExecutionError(
+                "offline_defaults requires initial_generation=defaults and one global round"
+            )
 
         output_dir = request.output_dir / "multi_panel"
         render_timeout_seconds = _render_timeout_seconds(request)
@@ -1182,6 +1219,7 @@ class MultiPanelProvider:
                     previous_cumulative_wall_clock
                 ),
                 output_dir=request.output_dir,
+                test_only=self.test_only,
             )
             previous_cumulative_wall_clock = float(
                 candidate.metadata["cumulative_wall_clock_seconds"]
@@ -1225,7 +1263,11 @@ class MultiPanelProvider:
                     "per provider call"
                 )
             return candidates[0]
-        return ProviderBatch(candidates=candidates, stop=True)
+        return ProviderBatch(
+            candidates=candidates,
+            stop=True,
+            test_only=self.test_only,
+        )
 
 
 PHEROVIZ_PROVIDER_IMPORT_PATH = (
@@ -1248,18 +1290,23 @@ class PheroVizProvider:
         api_key_envs: Optional[Sequence[str]] = None,
         wall_clock_rounds: Optional[int] = None,
         manifest_data_root: Optional[str] = None,
+        offline_defaults: bool = False,
         monotonic: Callable[[], float] = time.monotonic,
     ) -> None:
         self.manifest_data_root = manifest_data_root
         self._monotonic = monotonic
+        self.offline_defaults = offline_defaults
+        self.test_only = offline_defaults
         self.single_provider = SingleChainProvider(
             api_key_envs=api_key_envs,
             wall_clock_rounds=wall_clock_rounds,
             manifest_data_root=manifest_data_root,
+            offline_defaults=offline_defaults,
         )
         self.multi_provider = MultiPanelProvider(
             wall_clock_rounds=wall_clock_rounds,
             manifest_data_root=manifest_data_root,
+            offline_defaults=offline_defaults,
         )
         self._schedule_trajectory: Dict[str, Dict[str, float | int]] = {}
 
