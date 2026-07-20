@@ -1,0 +1,115 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44319-024-00304-5",
+ "journal": "EMBO Reports",
+ "year": 2024,
+ "published_date": "2024-11-07",
+ "article_url": "https://www.nature.com/articles/s44319-024-00304-5",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2024-11-07",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2024,
+      11,
+      7
+     ]
+    ],
+    "date-time": "2024-11-07T00:00:00Z",
+    "timestamp": 1730937600000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2024,
+     11,
+     7
+    ]
+   ],
+   "date-time": "2024-11-07T00:00:00Z",
+   "timestamp": 1730937600000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T17:36:25+00:00",
+ "manifest_generated_at": "2026-07-19T17:36:25+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_004.txt",
+   "sha256": "6cf4ee995f83cd1861295fc09acc7e735c35d3b0d5585c7003db3e8e489811cd",
+   "size_bytes": 1256,
+   "source_url": "https://link.springer.com/article/10.1038/s44319-024-00304-5",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_004.png",
+   "sha256": "5309a7e70e92689b215f903fd9ef4e50b03fa6d149b2460a82ed25669e16cd00",
+   "size_bytes": 221725,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44319-024-00304-5/MediaObjects/44319_2024_304_Fig4_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2024_304_MOESM5_ESM_Ch_arm_vs_periC_samples.xlsx",
+   "sha256": "7f0920e883a540915344c5047c67556e37a46be5a5d3496707a32e60933ff7c9",
+   "size_bytes": 9592,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-024-00304-5/MediaObjects/44319_2024_304_MOESM5_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2024_304_MOESM5_ESM_Ch_arm_vs_periC_samples.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2024_304_MOESM5_ESM_EVD_EM-seq_quant.xlsx",
+   "sha256": "94e66ee814b1e2ef5ddf6ed2e8b583227b7d8abfe8cb6b7e10d9a38839be5b9e",
+   "size_bytes": 11270,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-024-00304-5/MediaObjects/44319_2024_304_MOESM5_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2024_304_MOESM5_ESM_EVD_EM-seq_quant.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2024_304_MOESM5_ESM_extra_copies_EVD_TSD.csv",
+   "sha256": "51a0bf47617ec457b7b28617adab8a7b079a7221d0c9c01cbf34750a0165d6d6",
+   "size_bytes": 111,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-024-00304-5/MediaObjects/44319_2024_304_MOESM5_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2024_304_MOESM5_ESM_extra_copies_EVD_TSD.csv)"
+  }
+ ]
+}

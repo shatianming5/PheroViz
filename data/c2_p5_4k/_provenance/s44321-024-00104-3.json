@@ -1,0 +1,115 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44321-024-00104-3",
+ "journal": "EMBO Molecular Medicine",
+ "year": 2024,
+ "published_date": "2024-07-26",
+ "article_url": "https://www.nature.com/articles/s44321-024-00104-3",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2024-07-26",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2024,
+      7,
+      26
+     ]
+    ],
+    "date-time": "2024-07-26T00:00:00Z",
+    "timestamp": 1721952000000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2024,
+     7,
+     26
+    ]
+   ],
+   "date-time": "2024-07-26T00:00:00Z",
+   "timestamp": 1721952000000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T16:38:20+00:00",
+ "manifest_generated_at": "2026-07-19T16:38:20+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_001.txt",
+   "sha256": "a380ad20b8f094634b479fdcd5a531230f7f3a63a84bd86f99846713d3fc8152",
+   "size_bytes": 1730,
+   "source_url": "https://link.springer.com/article/10.1038/s44321-024-00104-3",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_001.png",
+   "sha256": "1ef3f7df01cc8bc46f25c0d8fdc8e8fdc4f88434f6199d50d1887770b26fb6c1",
+   "size_bytes": 1082773,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44321-024-00104-3/MediaObjects/44321_2024_104_Fig1_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2024_104_MOESM3_ESM_L vs NL GSEA contrast.csv",
+   "sha256": "2f4fd0aa27983674d05967f0c7b19a1fabbed3e1f652963523a4294cf6cff549",
+   "size_bytes": 1437647,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-024-00104-3/MediaObjects/44321_2024_104_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2024_104_MOESM3_ESM_L vs NL GSEA contrast.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2024_104_MOESM3_ESM_RNAseq L vs NL DEG.csv",
+   "sha256": "d9d7184ac46dc1c401495391affc7a64194f84cecb93541897df6e87d5112444",
+   "size_bytes": 1568089,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-024-00104-3/MediaObjects/44321_2024_104_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2024_104_MOESM3_ESM_RNAseq L vs NL DEG.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2024_104_MOESM3_ESM_Source_data_Figure_1D-G_Fura_Red.xlsx",
+   "sha256": "f07e02ac0b9bb0e83c805c12f5916ee8afee2e361ca17f4b2c579b4d09c9137b",
+   "size_bytes": 2007756,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-024-00104-3/MediaObjects/44321_2024_104_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2024_104_MOESM3_ESM_Source_data_Figure_1D-G_Fura_Red.xlsx)"
+  }
+ ]
+}

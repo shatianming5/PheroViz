@@ -1,0 +1,139 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44318-023-00021-0",
+ "journal": "The EMBO Journal",
+ "year": 2024,
+ "published_date": "2024-01-02",
+ "article_url": "https://www.nature.com/articles/s44318-023-00021-0",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2024-01-02",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2024,
+      1,
+      2
+     ]
+    ],
+    "date-time": "2024-01-02T00:00:00Z",
+    "timestamp": 1704153600000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2024,
+     1,
+     2
+    ]
+   ],
+   "date-time": "2024-01-02T00:00:00Z",
+   "timestamp": 1704153600000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T17:38:52+00:00",
+ "manifest_generated_at": "2026-07-19T17:38:52+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_003.txt",
+   "sha256": "58fbad003981be6b173813df33f13bcaedd7ec811dfcac7369cf6684f05e01b9",
+   "size_bytes": 3020,
+   "source_url": "https://link.springer.com/article/10.1038/s44318-023-00021-0",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_003.png",
+   "sha256": "46b0b09ace9a96a9fad5aa0663496737cf2a28cb18dfec258528869d909504cb",
+   "size_bytes": 513781,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44318-023-00021-0/MediaObjects/44318_2023_21_Fig3_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2023_21_MOESM10_ESM_Source Data_A549 Transgenic 52K 400mM Hex Treatment_% of cells with 52K NBs.xlsx",
+   "sha256": "bc6fe43a358972b999b58728b47bdb2f931871b527ecdc14539b30fbda2cb809",
+   "size_bytes": 10076,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-023-00021-0/MediaObjects/44318_2023_21_MOESM10_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2023_21_MOESM10_ESM_Source Data_A549 Transgenic 52K 400mM Hex Treatment_% of cells with 52K NBs.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2023_21_MOESM10_ESM_Source Data_A549 Transgenic 52K 75mM Hex Treatment_% of cells with 52K NBs.xlsx",
+   "sha256": "5b30cf1d911aac8036f56764a8311002d2ea71dd389c84e2d97a017fd46e692e",
+   "size_bytes": 10174,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-023-00021-0/MediaObjects/44318_2023_21_MOESM10_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2023_21_MOESM10_ESM_Source Data_A549 Transgenic 52K 75mM Hex Treatment_% of cells with 52K NBs.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2023_21_MOESM10_ESM_Source Data_A549 Transgenic 52K NB quantification_# of 52K NBs per cell.xlsx",
+   "sha256": "265993db0f01b1e9cf71a2b69902e805708952713a7641e1f766287ab7aa98fd",
+   "size_bytes": 14332,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-023-00021-0/MediaObjects/44318_2023_21_MOESM10_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2023_21_MOESM10_ESM_Source Data_A549 Transgenic 52K NB quantification_# of 52K NBs per cell.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2023_21_MOESM10_ESM_Source Data_A549 Transgenic 52K NB quantification_% of cells with 52K NBs.xlsx",
+   "sha256": "cb70e0e42496704d8ad01975449307f5307914959c295668e784cfc8fedf7a3a",
+   "size_bytes": 9910,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-023-00021-0/MediaObjects/44318_2023_21_MOESM10_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2023_21_MOESM10_ESM_Source Data_A549 Transgenic 52K NB quantification_% of cells with 52K NBs.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2023_21_MOESM10_ESM_Source Data_A549 Transgenic 52K NB quantification_Size of 52K NBs.xlsx",
+   "sha256": "d7ca12e0450b68c6a702318806ffc4ad8d69f9caef7e98806ec9c3b7f096b3cd",
+   "size_bytes": 59141,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-023-00021-0/MediaObjects/44318_2023_21_MOESM10_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2023_21_MOESM10_ESM_Source Data_A549 Transgenic 52K NB quantification_Size of 52K NBs.xlsx)"
+  }
+ ]
+}

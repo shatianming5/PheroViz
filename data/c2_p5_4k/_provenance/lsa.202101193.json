@@ -1,0 +1,91 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.26508/lsa.202101193",
+ "journal": "Life Science Alliance",
+ "year": 2022,
+ "published_date": "2022-04-01",
+ "article_url": "https://www.life-science-alliance.org/content/5/4/e202101193",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0/",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2022-01-12",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2022,
+      1,
+      12
+     ]
+    ],
+    "date-time": "2022-01-12T00:00:00Z",
+    "timestamp": 1641945600000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0/"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2022,
+     1,
+     12
+    ]
+   ],
+   "date-time": "2022-01-12T00:00:00Z",
+   "timestamp": 1641945600000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0/"
+ },
+ "retrieved_at": "2026-07-20T00:09:11+00:00",
+ "manifest_generated_at": "2026-07-20T00:09:11+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_002.txt",
+   "sha256": "7a1cc67eba8ecd40b28b4f1bd721fb402eca838483b86533f52fac74d02df8b8",
+   "size_bytes": 1294,
+   "source_url": "https://www.life-science-alliance.org/content/5/4/e202101193",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_002.png",
+   "sha256": "8662450aa23e7b5b558ae74fee4413164e75ee8c8cc5879ba09b07abe496e081",
+   "size_bytes": 686312,
+   "source_url": "https://www.life-science-alliance.org/content/lsa/5/4/e202101193/F3.large.jpg?download=true",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/inline-supplementary-material-3.xlsx",
+   "sha256": "2e96f2c691f770239bc6451db6947c8aa61998639003d1234f1b94c9b75ac87e",
+   "size_bytes": 10275,
+   "source_url": "https://www.life-science-alliance.org/content/lsa/5/4/e202101193/F3/DC2/embed/inline-supplementary-material-3.xlsx?download=true",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "Life Science Alliance source data ([LSA-2021-01193_SdataF2.2.xlsx])"
+  }
+ ]
+}

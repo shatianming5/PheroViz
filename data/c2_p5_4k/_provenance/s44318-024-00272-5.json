@@ -1,0 +1,103 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44318-024-00272-5",
+ "journal": "The EMBO Journal",
+ "year": 2024,
+ "published_date": "2024-10-17",
+ "article_url": "https://www.nature.com/articles/s44318-024-00272-5",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2024-10-17",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2024,
+      10,
+      17
+     ]
+    ],
+    "date-time": "2024-10-17T00:00:00Z",
+    "timestamp": 1729123200000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2024,
+     10,
+     17
+    ]
+   ],
+   "date-time": "2024-10-17T00:00:00Z",
+   "timestamp": 1729123200000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T17:37:42+00:00",
+ "manifest_generated_at": "2026-07-19T17:37:42+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_005.txt",
+   "sha256": "288efbba879c05e4ee146a5e4a13560400f0552c5bef4d5fe69587ae9f7156b4",
+   "size_bytes": 1948,
+   "source_url": "https://link.springer.com/article/10.1038/s44318-024-00272-5",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_005.png",
+   "sha256": "259dc707d2548d43d617511fae5698df834773b7a5e89a654418de18b5b02acb",
+   "size_bytes": 796693,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44318-024-00272-5/MediaObjects/44318_2024_272_Fig5_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2024_272_MOESM7_ESM_FRAP-Summary.xlsx",
+   "sha256": "6cf6a671a10b6558ea4429068c8db1ec9175b07bfea3ab286d5ac6bd8cb09f60",
+   "size_bytes": 28008,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-024-00272-5/MediaObjects/44318_2024_272_MOESM7_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2024_272_MOESM7_ESM_FRAP-Summary.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2024_272_MOESM7_ESM_mitophagy-activity_combined.xlsx",
+   "sha256": "2d5b83e73fe8431798e3fbdab5e0548761a377070ffa670b08c07321790c91b5",
+   "size_bytes": 10484,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-024-00272-5/MediaObjects/44318_2024_272_MOESM7_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2024_272_MOESM7_ESM_mitophagy-activity_combined.xlsx)"
+  }
+ ]
+}

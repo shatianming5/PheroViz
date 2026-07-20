@@ -1,0 +1,115 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44320-024-00011-2",
+ "journal": "Molecular Systems Biology",
+ "year": 2024,
+ "published_date": "2024-01-25",
+ "article_url": "https://www.nature.com/articles/s44320-024-00011-2",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2024-01-25",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2024,
+      1,
+      25
+     ]
+    ],
+    "date-time": "2024-01-25T00:00:00Z",
+    "timestamp": 1706140800000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2024,
+     1,
+     25
+    ]
+   ],
+   "date-time": "2024-01-25T00:00:00Z",
+   "timestamp": 1706140800000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T16:18:47+00:00",
+ "manifest_generated_at": "2026-07-19T16:18:47+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_006.txt",
+   "sha256": "46725867cb98a76a35f82ffd91e1c997da7e9ac8c055fec263f7d756f48a911c",
+   "size_bytes": 2286,
+   "source_url": "https://link.springer.com/article/10.1038/s44320-024-00011-2",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_006.png",
+   "sha256": "416f344230fcaf0373c11679353b115dfc68e5ebc56754c304627612900f354e",
+   "size_bytes": 489087,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44320-024-00011-2/MediaObjects/44320_2024_11_Fig6_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44320_2024_11_MOESM6_ESM_IFN concentration.xlsx",
+   "sha256": "100e0e9132c2e605fecbaa74067507ab74d0298447cfc2c426fec9cbd4e51472",
+   "size_bytes": 11823,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44320-024-00011-2/MediaObjects/44320_2024_11_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44320_2024_11_MOESM6_ESM_IFN concentration.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44320_2024_11_MOESM6_ESM_RT-qPCR_rel expression and fold change.xlsx",
+   "sha256": "566dae2be37fc6c0a204c07095934adeddd672d4f11cfbf04935d86d767ba2a6",
+   "size_bytes": 18486,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44320-024-00011-2/MediaObjects/44320_2024_11_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44320_2024_11_MOESM6_ESM_RT-qPCR_rel expression and fold change.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44320_2024_11_MOESM6_ESM_TEER.xlsx",
+   "sha256": "ed4de690b3b9cd9765a3b6c165b43b0c8bb02c6bc4c7a670bb6d397855d289ef",
+   "size_bytes": 11966,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44320-024-00011-2/MediaObjects/44320_2024_11_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44320_2024_11_MOESM6_ESM_TEER.xlsx)"
+  }
+ ]
+}

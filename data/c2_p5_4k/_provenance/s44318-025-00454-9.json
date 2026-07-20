@@ -1,0 +1,199 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44318-025-00454-9",
+ "journal": "The EMBO Journal",
+ "year": 2025,
+ "published_date": "2025-05-09",
+ "article_url": "https://www.nature.com/articles/s44318-025-00454-9",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2025-05-09",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2025,
+      5,
+      9
+     ]
+    ],
+    "date-time": "2025-05-09T00:00:00Z",
+    "timestamp": 1746748800000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2025,
+     5,
+     9
+    ]
+   ],
+   "date-time": "2025-05-09T00:00:00Z",
+   "timestamp": 1746748800000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T17:01:24+00:00",
+ "manifest_generated_at": "2026-07-19T17:01:24+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_001.txt",
+   "sha256": "2b5a37a430415add0e307b4f6d39cc66574afb9102cb1bea678c0eac6981165b",
+   "size_bytes": 2857,
+   "source_url": "https://link.springer.com/article/10.1038/s44318-025-00454-9",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_001.png",
+   "sha256": "ea1a5cf3a97586397071b27ab945defae39ce91466682af1117f795f3cde138d",
+   "size_bytes": 648253,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44318-025-00454-9/MediaObjects/44318_2025_454_Fig1_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_454_MOESM3_ESM_BHQ_induced_ER_Ca²⁺_drop.xlsx",
+   "sha256": "a640e8d65072f10f0358411ae40442366a54c396ec1eb773b6ecbb6750ac5841",
+   "size_bytes": 11545,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00454-9/MediaObjects/44318_2025_454_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_454_MOESM3_ESM_BHQ_induced_ER_Ca²⁺_drop.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_454_MOESM3_ESM_Basal_cytosolic_Ca²⁺_levels.xlsx",
+   "sha256": "3d316cb4df57e1b8347dae94cd1020fb32c2be80a69e557e0d97d04fc424299a",
+   "size_bytes": 11968,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00454-9/MediaObjects/44318_2025_454_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_454_MOESM3_ESM_Basal_cytosolic_Ca²⁺_levels.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_454_MOESM3_ESM_Basal_matrix_Ca²⁺_levels.xlsx",
+   "sha256": "57f398bd27c92ecf8d17124ea6cdf1dc9514f6df129ea66a41a2c62046aa1f92",
+   "size_bytes": 11895,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00454-9/MediaObjects/44318_2025_454_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_454_MOESM3_ESM_Basal_matrix_Ca²⁺_levels.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_454_MOESM3_ESM_Histamine_induced_ER_Ca²⁺_release.xlsx",
+   "sha256": "e86ea505330c5a72511ca2108390b08a1009d651baabec211897c469d8ff12ad",
+   "size_bytes": 11586,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00454-9/MediaObjects/44318_2025_454_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_454_MOESM3_ESM_Histamine_induced_ER_Ca²⁺_release.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_454_MOESM3_ESM_Mean_ER_Ca²⁺_traces.xlsx",
+   "sha256": "73f9634fd810046427ba7b072ea14908aa83ee250d25a4a6bd5ee7589dff7722",
+   "size_bytes": 33815,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00454-9/MediaObjects/44318_2025_454_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_454_MOESM3_ESM_Mean_ER_Ca²⁺_traces.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_454_MOESM3_ESM_Mean_cytosolic_Ca²⁺_traces.xlsx",
+   "sha256": "453685820d822d834a244824964801284b366b5e277c4f1e1cb10ef47e27db46",
+   "size_bytes": 23074,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00454-9/MediaObjects/44318_2025_454_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_454_MOESM3_ESM_Mean_cytosolic_Ca²⁺_traces.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_454_MOESM3_ESM_Mean_mitochondrial_Ca²⁺_traces.xlsx",
+   "sha256": "d11e31a67cd6d014676d35581e694f7c5591d2a0365170b61290d39b7e7f8198",
+   "size_bytes": 22540,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00454-9/MediaObjects/44318_2025_454_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_454_MOESM3_ESM_Mean_mitochondrial_Ca²⁺_traces.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_454_MOESM3_ESM_Representative_matrix_Ca²⁺_traces.xlsx",
+   "sha256": "93fc403b307b334c0b06724e99cdae3fae094e3f79b0527db09476d135864482",
+   "size_bytes": 14080,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00454-9/MediaObjects/44318_2025_454_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_454_MOESM3_ESM_Representative_matrix_Ca²⁺_traces.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_454_MOESM3_ESM_Δmax_cytosolic_Ca²⁺_levels.xlsx",
+   "sha256": "b3422ff7303e57b02c1467461a6eb75f0e8fb41ad118333793a620b7809dbd3e",
+   "size_bytes": 12916,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00454-9/MediaObjects/44318_2025_454_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_454_MOESM3_ESM_Δmax_cytosolic_Ca²⁺_levels.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_454_MOESM3_ESM_Δmax_matrix_Ca²⁺_levels.xlsx",
+   "sha256": "0098d7d7ca75ecdb87a9c227a877775b6c2bb76aefb411e17312e57ea713d7ec",
+   "size_bytes": 12812,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00454-9/MediaObjects/44318_2025_454_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_454_MOESM3_ESM_Δmax_matrix_Ca²⁺_levels.xlsx)"
+  }
+ ]
+}

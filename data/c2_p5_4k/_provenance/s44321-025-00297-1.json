@@ -1,0 +1,63 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44321-025-00297-1",
+ "journal": "EMBO Molecular Medicine",
+ "year": null,
+ "published_date": null,
+ "article_url": "https://www.nature.com/articles/s44321-025-00297-1",
+ "license": {
+  "url": null,
+  "normalized_url": null,
+  "license_id": null,
+  "version": null,
+  "effective_date": null,
+  "content_version": null,
+  "source": null,
+  "evidence": null
+ },
+ "license_source": null,
+ "license_evidence": null,
+ "retrieved_at": "2026-07-19T15:39:44+00:00",
+ "manifest_generated_at": "2026-07-19T15:39:44+00:00",
+ "journal_allowed": true,
+ "policy_accepted": false,
+ "require_cc_by": true,
+ "download_eligible": false,
+ "download_status": "rejected",
+ "rejection_reasons": [
+  "license-missing"
+ ],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_001.txt",
+   "sha256": "103dbbf495cd49cca478b9e9246f2790d25c3bf8ada5328635c514e01bc394ee",
+   "size_bytes": 1835,
+   "source_url": "https://link.springer.com/article/10.1038/s44321-025-00297-1",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_001.png",
+   "sha256": "6f5dd233b016e3e347d638d208bd2b630701e309dd08ef5cec9414f59e778356",
+   "size_bytes": 298498,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44321-025-00297-1/MediaObjects/44321_2025_297_Fig1_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2025_297_MOESM2_ESM_Figure 1A-H.xlsx",
+   "sha256": "e0bb9f89df7d10fa9197fd58f211927e32d1a64cae41495fa85cc90e27c17c36",
+   "size_bytes": 322171,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-025-00297-1/MediaObjects/44321_2025_297_MOESM2_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2025_297_MOESM2_ESM_Figure 1A-H.xlsx)"
+  }
+ ]
+}

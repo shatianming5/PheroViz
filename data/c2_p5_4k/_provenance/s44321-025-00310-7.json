@@ -1,0 +1,151 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44321-025-00310-7",
+ "journal": "EMBO Molecular Medicine",
+ "year": 2025,
+ "published_date": "2025-09-12",
+ "article_url": "https://www.nature.com/articles/s44321-025-00310-7",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2025-09-12",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2025,
+      9,
+      12
+     ]
+    ],
+    "date-time": "2025-09-12T00:00:00Z",
+    "timestamp": 1757635200000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2025,
+     9,
+     12
+    ]
+   ],
+   "date-time": "2025-09-12T00:00:00Z",
+   "timestamp": 1757635200000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T17:16:03+00:00",
+ "manifest_generated_at": "2026-07-19T17:16:03+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_002.txt",
+   "sha256": "d93fdf85b49dc1411d0a5aa8d4b0c0602aaa80a55efff15d0fbca892b61b4e48",
+   "size_bytes": 3099,
+   "source_url": "https://link.springer.com/article/10.1038/s44321-025-00310-7",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_002.png",
+   "sha256": "5225367064c3b12e67805acdb57046c80b583afa0ba2210504613b66449c6286",
+   "size_bytes": 655639,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44321-025-00310-7/MediaObjects/44321_2025_310_Fig2_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2025_310_MOESM4_ESM_ELISA-OVA-specific IgG titers.xlsx",
+   "sha256": "f9b8f0f685636f1058b34f83228f8ddba86082125f3c51529863a9c10abf54ba",
+   "size_bytes": 9272,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-025-00310-7/MediaObjects/44321_2025_310_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2025_310_MOESM4_ESM_ELISA-OVA-specific IgG titers.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2025_310_MOESM4_ESM_ELISA-The intracellular cAMP levels (E) and PKA activity (F) of FO B cells.xlsx",
+   "sha256": "7e4f2f3c95d888d43cea58e58f8401f90ae84eb720bf48d3ac089df5bd12968c",
+   "size_bytes": 10327,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-025-00310-7/MediaObjects/44321_2025_310_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2025_310_MOESM4_ESM_ELISA-The intracellular cAMP levels (E) and PKA activity (F) of FO B cells.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2025_310_MOESM4_ESM_LC-MS-Quantification of ARA in inguinal lymph nodes.xlsx",
+   "sha256": "f0a4bab950921d6798f00283c1fefca8cb9d80715acc3efe689e195d5f8cab4f",
+   "size_bytes": 8989,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-025-00310-7/MediaObjects/44321_2025_310_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2025_310_MOESM4_ESM_LC-MS-Quantification of ARA in inguinal lymph nodes.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2025_310_MOESM4_ESM_LC-MS-The significantly enhanced eicosanoids in mice's lymph nodes.xlsx",
+   "sha256": "b37b10646ac8cad916bec5aa7273de0a13fb8b1c7f3564853ce5c388fe279a8c",
+   "size_bytes": 10023,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-025-00310-7/MediaObjects/44321_2025_310_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2025_310_MOESM4_ESM_LC-MS-The significantly enhanced eicosanoids in mice's lymph nodes.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2025_310_MOESM4_ESM_flow cytometry-Mean fluorescence intensity (MFI) of CD86.xlsx",
+   "sha256": "d8459c6ca872473a17ff1e36fd6a3f79febbc3c5e3e393626d387fc07dae18e4",
+   "size_bytes": 8962,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-025-00310-7/MediaObjects/44321_2025_310_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2025_310_MOESM4_ESM_flow cytometry-Mean fluorescence intensity (MFI) of CD86.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2025_310_MOESM4_ESM_flow cytometry-Statistic data of CD19+IgG1+ B cells.xlsx",
+   "sha256": "4af9caea51aaee0fdbe4056cc7ded61d7a9d1625a2318c86193315c921dba7b8",
+   "size_bytes": 9080,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-025-00310-7/MediaObjects/44321_2025_310_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2025_310_MOESM4_ESM_flow cytometry-Statistic data of CD19+IgG1+ B cells.xlsx)"
+  }
+ ]
+}

@@ -1,0 +1,235 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44319-026-00858-6",
+ "journal": "EMBO Reports",
+ "year": 2026,
+ "published_date": "2026-07-10",
+ "article_url": "https://www.nature.com/articles/s44319-026-00858-6",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2026-07-10",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2026,
+      7,
+      10
+     ]
+    ],
+    "date-time": "2026-07-10T00:00:00Z",
+    "timestamp": 1783641600000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2026,
+     7,
+     10
+    ]
+   ],
+   "date-time": "2026-07-10T00:00:00Z",
+   "timestamp": 1783641600000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T17:23:54+00:00",
+ "manifest_generated_at": "2026-07-19T17:23:54+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_008.txt",
+   "sha256": "71524a1ed6b6775edd957187cca84a47923311155606a4ff79b052e9a220e3c4",
+   "size_bytes": 2074,
+   "source_url": "https://link.springer.com/article/10.1038/s44319-026-00858-6",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_008.png",
+   "sha256": "ec138676ff4b5b0dc186628857eaf216d5d5fcf3c049032f64229e9db1e8aa64",
+   "size_bytes": 1207770,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44319-026-00858-6/MediaObjects/44319_2026_858_Fig8_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_858_MOESM6_ESM_5E quantification_ATP coupled respiration.xlsx",
+   "sha256": "e41b5ab687724f9e762a73bb32aeb1024536246b6d21f4533183807f4c6bf412",
+   "size_bytes": 10435,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00858-6/MediaObjects/44319_2026_858_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_858_MOESM6_ESM_5E quantification_ATP coupled respiration.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_858_MOESM6_ESM_5E quantification_basal respiration.xlsx",
+   "sha256": "bfe11c62e105de5ed212a3ae4678552f3bc4927e4f05062540166b052b1d55b1",
+   "size_bytes": 10421,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00858-6/MediaObjects/44319_2026_858_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_858_MOESM6_ESM_5E quantification_basal respiration.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_858_MOESM6_ESM_5E quantification_maximal respiration.xlsx",
+   "sha256": "cc241891df84e6286a44c6a5d6afbe1a26121877f31b298a9d632b37e377ef13",
+   "size_bytes": 10437,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00858-6/MediaObjects/44319_2026_858_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_858_MOESM6_ESM_5E quantification_maximal respiration.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_858_MOESM6_ESM_5E quantification_proton leak.xlsx",
+   "sha256": "992d47431f9c6c74e50a5bdef725b2358fa3701abbbd07afddc4099d321cda52",
+   "size_bytes": 10422,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00858-6/MediaObjects/44319_2026_858_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_858_MOESM6_ESM_5E quantification_proton leak.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_858_MOESM6_ESM_5E_kinetic data.xlsx",
+   "sha256": "b170c41be584c3d66fbead6823ca1df88b05ef1baf12c512a72ca3998a727870",
+   "size_bytes": 11633,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00858-6/MediaObjects/44319_2026_858_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_858_MOESM6_ESM_5E_kinetic data.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_858_MOESM6_ESM_5F_kinetic data OCR.xlsx",
+   "sha256": "9331e5dd4fa35acb08f2fb8ee1f1de3f65a8c9fd0b7f74ad03808a44cef00d9a",
+   "size_bytes": 12106,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00858-6/MediaObjects/44319_2026_858_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_858_MOESM6_ESM_5F_kinetic data OCR.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_858_MOESM6_ESM_5F_kinetic data glycoPER.xlsx",
+   "sha256": "2393fc070f2f1ab284b5a9b2fe861b83c8147f1d55655301b3c1d2937100bcdb",
+   "size_bytes": 11357,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00858-6/MediaObjects/44319_2026_858_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_858_MOESM6_ESM_5F_kinetic data glycoPER.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_858_MOESM6_ESM_5G quantification_basal respiration.xlsx",
+   "sha256": "a6184ad3b8a5df542d2268ec48ec64592feda47593ac7fc6914dc9854a62a469",
+   "size_bytes": 10518,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00858-6/MediaObjects/44319_2026_858_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_858_MOESM6_ESM_5G quantification_basal respiration.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_858_MOESM6_ESM_5H quantification_basal glycolysis.xlsx",
+   "sha256": "ecbb4224158ba205d227406f30f7e57f3cbbcc3dcbbf37fe4ac7d6c10941e0c6",
+   "size_bytes": 10472,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00858-6/MediaObjects/44319_2026_858_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_858_MOESM6_ESM_5H quantification_basal glycolysis.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_858_MOESM6_ESM_5I quantification.xlsx",
+   "sha256": "1607e93541081b1f4e4383d8ad3e521989ee7f7b738c657ce5798543ae924483",
+   "size_bytes": 10493,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00858-6/MediaObjects/44319_2026_858_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_858_MOESM6_ESM_5I quantification.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_858_MOESM6_ESM_5I_kinetic data.xlsx",
+   "sha256": "8ea4a812c1912b781bce6aa148fb889bed9e054568986b64bb0b810603639043",
+   "size_bytes": 23642,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00858-6/MediaObjects/44319_2026_858_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_858_MOESM6_ESM_5I_kinetic data.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_858_MOESM6_ESM_5J quantification.xlsx",
+   "sha256": "d33ead515e1f618d91a582305e6d4ba7437c0527807c7e1218363918ef587048",
+   "size_bytes": 10469,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00858-6/MediaObjects/44319_2026_858_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_858_MOESM6_ESM_5J quantification.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_858_MOESM6_ESM_5J_kinetic data.xlsx",
+   "sha256": "e39767e09b1114f45c3d1771901ec8409456094b81a9aa219bfd9936afea674d",
+   "size_bytes": 23913,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00858-6/MediaObjects/44319_2026_858_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_858_MOESM6_ESM_5J_kinetic data.xlsx)"
+  }
+ ]
+}

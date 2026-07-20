@@ -1,0 +1,151 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44319-025-00595-2",
+ "journal": "EMBO Reports",
+ "year": 2025,
+ "published_date": "2025-10-15",
+ "article_url": "https://www.nature.com/articles/s44319-025-00595-2",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2025-10-15",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2025,
+      10,
+      15
+     ]
+    ],
+    "date-time": "2025-10-15T00:00:00Z",
+    "timestamp": 1760486400000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2025,
+     10,
+     15
+    ]
+   ],
+   "date-time": "2025-10-15T00:00:00Z",
+   "timestamp": 1760486400000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T17:12:17+00:00",
+ "manifest_generated_at": "2026-07-19T17:12:18+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_001.txt",
+   "sha256": "d13937be29879fb0654bc53eb9f5826ce570edaa79285af98fc89faa360b0558",
+   "size_bytes": 2894,
+   "source_url": "https://link.springer.com/article/10.1038/s44319-025-00595-2",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_001.png",
+   "sha256": "fd9f7beb30ed7f3726e062ab3617e7d969fe8879de3a69789ecf33645db3b163",
+   "size_bytes": 610283,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44319-025-00595-2/MediaObjects/44319_2025_595_Fig1_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2025_595_MOESM3_ESM_1A_Selected_Genes_Expression_RNASeq.xlsx",
+   "sha256": "091c5c60c402c0aa16f9c10cd01032481e1063d4ce1da72ef4c76fe1cdc154c4",
+   "size_bytes": 14412,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-025-00595-2/MediaObjects/44319_2025_595_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2025_595_MOESM3_ESM_1A_Selected_Genes_Expression_RNASeq.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2025_595_MOESM3_ESM_1B_Selected_Genes_Expression_RNASeq.xlsx",
+   "sha256": "f8a39eee78f3ec6e4d6b621bc3f20e5df2acad797f96796a05e12d0405806064",
+   "size_bytes": 15973,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-025-00595-2/MediaObjects/44319_2025_595_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2025_595_MOESM3_ESM_1B_Selected_Genes_Expression_RNASeq.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2025_595_MOESM3_ESM_1D_Reprogramming_Success_Rate_Quantification.xlsx",
+   "sha256": "9e45c4131533a1718575d863fb7be7dbd2a9d68012a30a85e33c5d00c93c54a9",
+   "size_bytes": 10010,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-025-00595-2/MediaObjects/44319_2025_595_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2025_595_MOESM3_ESM_1D_Reprogramming_Success_Rate_Quantification.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2025_595_MOESM3_ESM_1E_Morphology_counts.xlsx",
+   "sha256": "13a07e41431807cd9e15ce2de509d452f2e08289a5343e33e75bbece819d1b86",
+   "size_bytes": 10640,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-025-00595-2/MediaObjects/44319_2025_595_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2025_595_MOESM3_ESM_1E_Morphology_counts.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2025_595_MOESM3_ESM_1G_Pluripotency_Fibroblast_Markers_Expression.xlsx",
+   "sha256": "3552e6162257c8c61b86cfb6543dd920a10e46c0d61ce3c148a5875d399a533a",
+   "size_bytes": 15400,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-025-00595-2/MediaObjects/44319_2025_595_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2025_595_MOESM3_ESM_1G_Pluripotency_Fibroblast_Markers_Expression.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2025_595_MOESM3_ESM_1H_Pluripotency_Primed_Markers_qPCR.xlsx",
+   "sha256": "1e561cbc6bde12f570901286737bb300cc31ac3cd309092a07a0f1cbd7887a2d",
+   "size_bytes": 15036,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-025-00595-2/MediaObjects/44319_2025_595_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2025_595_MOESM3_ESM_1H_Pluripotency_Primed_Markers_qPCR.xlsx)"
+  }
+ ]
+}

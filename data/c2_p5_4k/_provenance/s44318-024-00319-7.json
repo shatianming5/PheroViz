@@ -1,0 +1,139 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44318-024-00319-7",
+ "journal": "The EMBO Journal",
+ "year": 2025,
+ "published_date": "2025-01-03",
+ "article_url": "https://www.nature.com/articles/s44318-024-00319-7",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2025-01-03",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2025,
+      1,
+      3
+     ]
+    ],
+    "date-time": "2025-01-03T00:00:00Z",
+    "timestamp": 1735862400000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2025,
+     1,
+     3
+    ]
+   ],
+   "date-time": "2025-01-03T00:00:00Z",
+   "timestamp": 1735862400000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T17:10:20+00:00",
+ "manifest_generated_at": "2026-07-19T17:10:20+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_002.txt",
+   "sha256": "75a66f440ebbe5950b6defa79f8d3aaa0a71efebb640b0301251ab2ba173e4d0",
+   "size_bytes": 2612,
+   "source_url": "https://link.springer.com/article/10.1038/s44318-024-00319-7",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_002.png",
+   "sha256": "7cd802a3e004fe0024d070938c31c63bc1cc2294b8af3929126f4204b5607f62",
+   "size_bytes": 658040,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44318-024-00319-7/MediaObjects/44318_2024_319_Fig2_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2024_319_MOESM4_ESM_Numerical data CAIX MHC I   .xlsx",
+   "sha256": "28bb4e2574e784d0d37d89ec0ac3a6889cb5eb1f065dfc6024ba85f2ca7c6f08",
+   "size_bytes": 9959,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-024-00319-7/MediaObjects/44318_2024_319_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2024_319_MOESM4_ESM_Numerical data CAIX MHC I   .xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2024_319_MOESM4_ESM_Numerical data GLUT 1 quantification tumor sections .xlsx",
+   "sha256": "a2d90a337beb01fcec366e55b16d56f76ecfd96abfcf813d8308a63bbda7b8f2",
+   "size_bytes": 10605,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-024-00319-7/MediaObjects/44318_2024_319_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2024_319_MOESM4_ESM_Numerical data GLUT 1 quantification tumor sections .xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2024_319_MOESM4_ESM_Numerical data HT29 MHC I subtypes qPCR .xlsx",
+   "sha256": "42517074ee95097fafb755480d5a520da5a153d9c68dfaa14c95c746aaba41ec",
+   "size_bytes": 10352,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-024-00319-7/MediaObjects/44318_2024_319_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2024_319_MOESM4_ESM_Numerical data HT29 MHC I subtypes qPCR .xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2024_319_MOESM4_ESM_Numerical data MHC I quantification flow cytometry .xlsx",
+   "sha256": "2cca5f6a83b893556bb25d5370314d7dfe82a85b766bf797a4ce84593008e04d",
+   "size_bytes": 10755,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-024-00319-7/MediaObjects/44318_2024_319_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2024_319_MOESM4_ESM_Numerical data MHC I quantification flow cytometry .xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2024_319_MOESM4_ESM_Numerical data MHC I quantification tumor sections .xlsx",
+   "sha256": "a7e465cf6174cb0d9d52e3127c29bc42e354c606e1043bab352f1340139b0918",
+   "size_bytes": 9962,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-024-00319-7/MediaObjects/44318_2024_319_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2024_319_MOESM4_ESM_Numerical data MHC I quantification tumor sections .xlsx)"
+  }
+ ]
+}

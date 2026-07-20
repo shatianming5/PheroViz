@@ -1,0 +1,43 @@
+{
+  "dataset": "c2_p5_4k",
+  "description": "Frozen C2 evaluation dataset: real published multi-panel (>=5 panel) CC-BY figures with per-figure Source Data.",
+  "frozen_at": "2026-07-20T00:42:37.232952+00:00",
+  "git_branch": "copilot/c2-source-pilot-terra",
+  "git_commit": "5d8b05881635f67ee31dcc40d1d0b5eb40bb5938",
+  "n_articles": 4000,
+  "cap": 4000,
+  "by_journal": {
+    "eLife": 2176,
+    "The EMBO Journal": 467,
+    "Nature Communications": 437,
+    "EMBO Reports": 395,
+    "EMBO Molecular Medicine": 339,
+    "Molecular Systems Biology": 123,
+    "Life Science Alliance": 63
+  },
+  "by_year": {
+    "2014": 9,
+    "2015": 24,
+    "2016": 190,
+    "2017": 248,
+    "2018": 252,
+    "2019": 288,
+    "2020": 362,
+    "2021": 435,
+    "2022": 369,
+    "2023": 441,
+    "2024": 588,
+    "2025": 501,
+    "2026": 291,
+    "?": 2
+  },
+  "manifest_sha256": "1f69a7c1e52c9f7cba4fb7f102eeee97af39910df1526ad4a91fc7ef8ada8b7d",
+  "source_roots": [
+    "nature_download/outputs/extreme_content",
+    "nature_download/outputs/nature_content",
+    "nature_download/outputs/elife_2020_2026",
+    "nature_download/outputs/extreme_merged"
+  ],
+  "eligibility": "CC-BY, >=5 panels, per-figure source data present",
+  "content_materialized": false
+}

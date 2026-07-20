@@ -1,0 +1,91 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.7554/elife.103729",
+ "journal": "eLife",
+ "year": 2025,
+ "published_date": "2025-05-27",
+ "article_url": "https://elifesciences.org/articles/103729",
+ "license": {
+  "url": "http://creativecommons.org/licenses/by/4.0/",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2025-05-27",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2025,
+      5,
+      27
+     ]
+    ],
+    "date-time": "2025-05-27T00:00:00Z",
+    "timestamp": 1748304000000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "http://creativecommons.org/licenses/by/4.0/"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2025,
+     5,
+     27
+    ]
+   ],
+   "date-time": "2025-05-27T00:00:00Z",
+   "timestamp": 1748304000000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "http://creativecommons.org/licenses/by/4.0/"
+ },
+ "retrieved_at": "2026-07-20T00:34:48+00:00",
+ "manifest_generated_at": "2026-07-20T00:34:48+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_007.txt",
+   "sha256": "e6e46d6ebbe61e287f8770106a7fb87c3a98fd520ab7502f134ecd95f25a59e4",
+   "size_bytes": 1046,
+   "source_url": "https://elifesciences.org/articles/103729/figures",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_007.png",
+   "sha256": "f950ec68084db28e3221dbc33b62fe7bd6e1777ec308e6788911c20543ce0554",
+   "size_bytes": 1889218,
+   "source_url": "https://iiif.elifesciences.org/lax:103729%2Felife-103729-fig7-v1.tif/full/full/0/default.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_001_Figure 7B-7F_virulence enzymes activity raw data.xlsx",
+   "sha256": "7dd8bbc136c35c5e437108856f4a120afa7075c7a513e3792fb15a672525a464",
+   "size_bytes": 12194,
+   "source_url": "https://cdn.elifesciences.org/articles/103729/elife-103729-fig7-data1-v1.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-103729-fig7-data1-v1.zip)"
+  }
+ ]
+}

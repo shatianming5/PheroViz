@@ -1,0 +1,91 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44320-023-00006-5",
+ "journal": "Molecular Systems Biology",
+ "year": 2024,
+ "published_date": "2024-01-15",
+ "article_url": "https://www.nature.com/articles/s44320-023-00006-5",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2024-01-15",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2024,
+      1,
+      15
+     ]
+    ],
+    "date-time": "2024-01-15T00:00:00Z",
+    "timestamp": 1705276800000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2024,
+     1,
+     15
+    ]
+   ],
+   "date-time": "2024-01-15T00:00:00Z",
+   "timestamp": 1705276800000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T16:51:07+00:00",
+ "manifest_generated_at": "2026-07-19T16:51:07+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_001.txt",
+   "sha256": "fce0d147c1dcacb6ad80bbf6774318db77daa2e77f3a6d395fa0e68c0ade21ac",
+   "size_bytes": 1146,
+   "source_url": "https://link.springer.com/article/10.1038/s44320-023-00006-5",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_001.png",
+   "sha256": "2d58be5849d2e2c64ea130f99d7a0c58666ec513bae4f0e16cc9a10e5451e644",
+   "size_bytes": 1365035,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44320-023-00006-5/MediaObjects/44320_2023_6_Fig1_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44320_2023_6_MOESM3_ESM_Fig 2F.xlsx",
+   "sha256": "690bd868a1cabfe7f003db49b5a6a0c9f8619110a57bb5a47884af40bef22098",
+   "size_bytes": 9874,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44320-023-00006-5/MediaObjects/44320_2023_6_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44320_2023_6_MOESM3_ESM_Fig 2F.xlsx)"
+  }
+ ]
+}

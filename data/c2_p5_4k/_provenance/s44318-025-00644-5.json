@@ -1,0 +1,235 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44318-025-00644-5",
+ "journal": "The EMBO Journal",
+ "year": 2025,
+ "published_date": "2025-11-26",
+ "article_url": "https://www.nature.com/articles/s44318-025-00644-5",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2025-11-26",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2025,
+      11,
+      26
+     ]
+    ],
+    "date-time": "2025-11-26T00:00:00Z",
+    "timestamp": 1764115200000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2025,
+     11,
+     26
+    ]
+   ],
+   "date-time": "2025-11-26T00:00:00Z",
+   "timestamp": 1764115200000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T17:14:13+00:00",
+ "manifest_generated_at": "2026-07-19T17:14:13+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_002.txt",
+   "sha256": "2f9a524945811c1b1cba625d2da733f5b818c122673e8a413797876a8000f6e4",
+   "size_bytes": 1773,
+   "source_url": "https://link.springer.com/article/10.1038/s44318-025-00644-5",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_002.png",
+   "sha256": "638dfb154e7911da09b85217c63c492717af1a97c1759d03567ddeb4d52c13fc",
+   "size_bytes": 625460,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44318-025-00644-5/MediaObjects/44318_2025_644_Fig2_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_644_MOESM4_ESM_ApparentKDs_transposed.csv",
+   "sha256": "8cad589469a69ea2e4a5d51c0667dcbee8b0b5dfc31bfcbf66ec2d34938f8e76",
+   "size_bytes": 1029,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00644-5/MediaObjects/44318_2025_644_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_644_MOESM4_ESM_ApparentKDs_transposed.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_644_MOESM4_ESM_BmaxAB-ImmL_ratio_average.csv",
+   "sha256": "55fd654515c32d1c0de2ff3e0d4fd8aea891bc965e173ae3f4d0c65dc1922197",
+   "size_bytes": 312,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00644-5/MediaObjects/44318_2025_644_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_644_MOESM4_ESM_BmaxAB-ImmL_ratio_average.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_644_MOESM4_ESM_BmaxAB:ImmL for all peptides.csv",
+   "sha256": "d1bdce9836d6804bd4d364f2b54ed00fe1bc2503b8a265c2f8ee99ded797b00b",
+   "size_bytes": 4078,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00644-5/MediaObjects/44318_2025_644_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_644_MOESM4_ESM_BmaxAB:ImmL for all peptides.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_644_MOESM4_ESM_Denatured KD.csv",
+   "sha256": "6f62cfd8862c7cba5039547921de59581a4f18a9469faf0e4fbe3c15cdc8bf41",
+   "size_bytes": 43,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00644-5/MediaObjects/44318_2025_644_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_644_MOESM4_ESM_Denatured KD.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_644_MOESM4_ESM_Denatured N4 10 08 20 (AB Binding).csv",
+   "sha256": "e84aafe74ec65eabb1ef690a4e0f2bdc24ccdb90a83a452932dd5452f6cd1b00",
+   "size_bytes": 57621,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00644-5/MediaObjects/44318_2025_644_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_644_MOESM4_ESM_Denatured N4 10 08 20 (AB Binding).csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_644_MOESM4_ESM_Denatured N4 10 08 20 Binding Level.csv",
+   "sha256": "b8681e77a8320ed725294dad66184927de92326a920272671fdcb61c4293fc41",
+   "size_bytes": 192,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00644-5/MediaObjects/44318_2025_644_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_644_MOESM4_ESM_Denatured N4 10 08 20 Binding Level.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_644_MOESM4_ESM_KD_active_calculated.csv",
+   "sha256": "3182b408e32b5f2ee35d9f0aeeec7bf93be1c157a21e5996ca5b6f0d4fdc093e",
+   "size_bytes": 2201,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00644-5/MediaObjects/44318_2025_644_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_644_MOESM4_ESM_KD_active_calculated.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_644_MOESM4_ESM_KDsactive.csv",
+   "sha256": "14994185cc3bad4481867597c02fc368ffbbe582677fab4f7c8b59cf28143247",
+   "size_bytes": 1812,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00644-5/MediaObjects/44318_2025_644_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_644_MOESM4_ESM_KDsactive.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_644_MOESM4_ESM_N4 10 08 20 (AB Binding).csv",
+   "sha256": "0435f22c5b09a57c4c11476809ed338b213cbd2dd50b3ab8f37da7f504e7a36a",
+   "size_bytes": 76261,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00644-5/MediaObjects/44318_2025_644_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_644_MOESM4_ESM_N4 10 08 20 (AB Binding).csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_644_MOESM4_ESM_N4 10 08 20 Binding Level.csv",
+   "sha256": "a1b153aa6c92e9ed84e2bfe2c5997c09c92d104b60ad8cddd8909cd7ab3aa5ac",
+   "size_bytes": 204,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00644-5/MediaObjects/44318_2025_644_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_644_MOESM4_ESM_N4 10 08 20 Binding Level.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_644_MOESM4_ESM_N4 Immobilisation Level vs TCR Bmax.xlsx",
+   "sha256": "1cc983467de5205d42ef99144b6ce449e5b8e70f60b26c0f685b15d4e64ec4fb",
+   "size_bytes": 10796,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00644-5/MediaObjects/44318_2025_644_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_644_MOESM4_ESM_N4 Immobilisation Level vs TCR Bmax.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_644_MOESM4_ESM_V-OVA 17-12-20 (AB Binding) 1370 RU.csv",
+   "sha256": "104d364ac7992663b08c09c5c2caa74482a4755e8e166fea57bc0224d392dbe6",
+   "size_bytes": 67590,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00644-5/MediaObjects/44318_2025_644_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_644_MOESM4_ESM_V-OVA 17-12-20 (AB Binding) 1370 RU.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_644_MOESM4_ESM_V-OVA 17-12-20 Binding Level.csv",
+   "sha256": "9423ecab587f021d76a23ae196c0d2692dd487bf5603232d9e6afce169621286",
+   "size_bytes": 171,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00644-5/MediaObjects/44318_2025_644_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_644_MOESM4_ESM_V-OVA 17-12-20 Binding Level.csv)"
+  }
+ ]
+}

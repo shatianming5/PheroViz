@@ -222,7 +222,7 @@ def copy_article(cand: dict, dest_dir: Path, overwrite: bool) -> None:
 
 
 def freeze(cands: dict[str, dict], dest: Path, cap: int | None, overwrite: bool,
-           with_sha: bool) -> dict:
+           with_sha: bool, copy_content: bool = True) -> dict:
     # deterministic order: by DOI so the frozen set is reproducible
     items = sorted(cands.items(), key=lambda kv: kv[0])
     if cap is not None:
@@ -236,7 +236,11 @@ def freeze(cands: dict[str, dict], dest: Path, cap: int | None, overwrite: bool,
     manifest_rows = []
     for i, (doi, cand) in enumerate(items, 1):
         aid = cand["article_id"]
-        copy_article(cand, dest / aid, overwrite)
+        # ``--manifest-only`` pins the git-tracked definition (manifest URLs +
+        # source-data bytes+sha256 + provenance) without duplicating the heavy
+        # binaries locally; the content stays reproducible from the manifest.
+        if copy_content:
+            copy_article(cand, dest / aid, overwrite)
         # small provenance copy for git
         with (prov_out / f"{aid}.json").open("w") as fh:
             json.dump(cand["prov"], fh, ensure_ascii=False, indent=1)
@@ -266,6 +270,7 @@ def freeze(cands: dict[str, dict], dest: Path, cap: int | None, overwrite: bool,
         "manifest_sha256": man_sha,
         "source_roots": [str(r.relative_to(REPO)) for r in DEFAULT_ROOTS],
         "eligibility": "CC-BY, >=5 panels, per-figure source data present",
+        "content_materialized": copy_content,
     }
     with (dest / "_frozen.json").open("w") as fh:
         json.dump(frozen, fh, ensure_ascii=False, indent=2)
@@ -327,6 +332,10 @@ def main() -> int:
     ap.add_argument("--dry-run", action="store_true", help="report union only, no copy")
     ap.add_argument("--overwrite", action="store_true", help="recopy existing article dirs")
     ap.add_argument("--no-sha", action="store_true", help="skip sha256 (faster, for testing)")
+    ap.add_argument("--manifest-only", action="store_true",
+                    help="pin the git-tracked definition (manifest+provenance) "
+                         "WITHOUT copying heavy binaries locally (disk-safe; "
+                         "content stays reproducible from manifest URLs+sha256)")
     ap.add_argument("--roots", nargs="*", default=None)
     args = ap.parse_args()
 
@@ -353,9 +362,11 @@ def main() -> int:
         return 3
 
     eff_cap = None if cap is None else min(cap, n)
-    print(f"\nFreezing -> {dest}  (cap={eff_cap}, sha256={'off' if args.no_sha else 'on'})",
+    mode = "manifest-only" if args.manifest_only else "full-copy"
+    print(f"\nFreezing -> {dest}  (cap={eff_cap}, sha256={'off' if args.no_sha else 'on'}, mode={mode})",
           flush=True)
-    frozen = freeze(cands, dest, eff_cap, args.overwrite, not args.no_sha)
+    frozen = freeze(cands, dest, eff_cap, args.overwrite, not args.no_sha,
+                    copy_content=not args.manifest_only)
     print(f"\nFROZEN {frozen['n_articles']} articles -> {dest}")
     print("manifest sha256:", frozen["manifest_sha256"])
     print("by journal:", json.dumps(frozen["by_journal"], ensure_ascii=False))

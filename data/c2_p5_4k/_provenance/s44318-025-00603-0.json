@@ -1,0 +1,103 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44318-025-00603-0",
+ "journal": "The EMBO Journal",
+ "year": 2025,
+ "published_date": "2025-11-03",
+ "article_url": "https://www.nature.com/articles/s44318-025-00603-0",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2025-11-03",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2025,
+      11,
+      3
+     ]
+    ],
+    "date-time": "2025-11-03T00:00:00Z",
+    "timestamp": 1762128000000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2025,
+     11,
+     3
+    ]
+   ],
+   "date-time": "2025-11-03T00:00:00Z",
+   "timestamp": 1762128000000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T18:36:26+00:00",
+ "manifest_generated_at": "2026-07-19T18:36:26+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_003.txt",
+   "sha256": "639bce10b5777749eedb92b5d5678b47d69ce3641f5e11acf1637c57ce118c6d",
+   "size_bytes": 1741,
+   "source_url": "https://link.springer.com/article/10.1038/s44318-025-00603-0",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_003.png",
+   "sha256": "e76daa7e1aed60ddc83961671b1caca60f4416e7e592a6a9379154832d8d9483",
+   "size_bytes": 1360507,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44318-025-00603-0/MediaObjects/44318_2025_603_Fig3_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_603_MOESM8_ESM_DFT2_Xenograft_Imatinib_IHC_Quantification.xlsx",
+   "sha256": "42f093b210ce57859e8b474ea400518f2ebc6289fcd58b927bb30b03cce46bc9",
+   "size_bytes": 11166,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00603-0/MediaObjects/44318_2025_603_MOESM8_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_603_MOESM8_ESM_DFT2_Xenograft_Imatinib_IHC_Quantification.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_603_MOESM8_ESM_DFT2_Xenograft_Imatinib_Tumour_Volume_Weights.xlsx",
+   "sha256": "c104b8939af8c0cde59028018e8c558131d8020df3306445e349953f750cfb2f",
+   "size_bytes": 18151,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00603-0/MediaObjects/44318_2025_603_MOESM8_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_603_MOESM8_ESM_DFT2_Xenograft_Imatinib_Tumour_Volume_Weights.xlsx)"
+  }
+ ]
+}

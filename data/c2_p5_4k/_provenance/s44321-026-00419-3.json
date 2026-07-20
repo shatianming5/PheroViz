@@ -1,0 +1,127 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44321-026-00419-3",
+ "journal": "EMBO Molecular Medicine",
+ "year": 2026,
+ "published_date": "2026-04-27",
+ "article_url": "https://www.nature.com/articles/s44321-026-00419-3",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2026-04-27",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2026,
+      4,
+      27
+     ]
+    ],
+    "date-time": "2026-04-27T00:00:00Z",
+    "timestamp": 1777248000000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2026,
+     4,
+     27
+    ]
+   ],
+   "date-time": "2026-04-27T00:00:00Z",
+   "timestamp": 1777248000000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T16:53:47+00:00",
+ "manifest_generated_at": "2026-07-19T16:53:47+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_001.txt",
+   "sha256": "efc69a420c7d3cfd53b544b0ddaf2fc6c998c62d6492404eee38ef385d781ec5",
+   "size_bytes": 3077,
+   "source_url": "https://link.springer.com/article/10.1038/s44321-026-00419-3",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_001.png",
+   "sha256": "1b2ec3f7a0c024bd3f71d9f6cd1236875691be7132f21623aaeecebcec4a7133",
+   "size_bytes": 2057687,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44321-026-00419-3/MediaObjects/44321_2026_419_Fig1_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2026_419_MOESM16_ESM_HE sample grouping.xlsx",
+   "sha256": "5068e0011eca5d4bfd21899c2bc915a635a062a56048a09008f07d6440d173b7",
+   "size_bytes": 10933,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-026-00419-3/MediaObjects/44321_2026_419_MOESM16_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2026_419_MOESM16_ESM_HE sample grouping.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2026_419_MOESM16_ESM_RawData-HE-Eosinophil.xlsx",
+   "sha256": "4ac863210396969fd3c28215c5375b3a69b5180f3a5a52a194cfded2b19f30fc",
+   "size_bytes": 9860,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-026-00419-3/MediaObjects/44321_2026_419_MOESM16_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2026_419_MOESM16_ESM_RawData-HE-Eosinophil.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2026_419_MOESM16_ESM_RawData-HE-Neutrophil.xlsx",
+   "sha256": "b9e203134c161916fe4c105921ea43943d4be2a9c5a62841225d94386f533faf",
+   "size_bytes": 9860,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-026-00419-3/MediaObjects/44321_2026_419_MOESM16_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2026_419_MOESM16_ESM_RawData-HE-Neutrophil.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2026_419_MOESM16_ESM_RawData-Immunofluorescence-HIF1α.xlsx",
+   "sha256": "28b861a0c7ef18087168282aec16cfd13fa0dd73df5b01894c36740da7fe97b3",
+   "size_bytes": 11473,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-026-00419-3/MediaObjects/44321_2026_419_MOESM16_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2026_419_MOESM16_ESM_RawData-Immunofluorescence-HIF1α.xlsx)"
+  }
+ ]
+}

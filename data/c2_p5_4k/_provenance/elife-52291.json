@@ -1,0 +1,127 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.7554/elife.52291",
+ "journal": "eLife",
+ "year": 2020,
+ "published_date": "2020-01-06",
+ "article_url": "https://elifesciences.org/articles/52291",
+ "license": {
+  "url": "http://creativecommons.org/licenses/by/4.0/",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2020-01-06",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2020,
+      1,
+      6
+     ]
+    ],
+    "date-time": "2020-01-06T00:00:00Z",
+    "timestamp": 1578268800000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "http://creativecommons.org/licenses/by/4.0/"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2020,
+     1,
+     6
+    ]
+   ],
+   "date-time": "2020-01-06T00:00:00Z",
+   "timestamp": 1578268800000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "http://creativecommons.org/licenses/by/4.0/"
+ },
+ "retrieved_at": "2026-07-20T00:02:33+00:00",
+ "manifest_generated_at": "2026-07-20T00:02:33+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_004.txt",
+   "sha256": "e2bff8b98167db58d0da57ddcbe505b1ff34004d69dfef86bf0f1d5ea7b37f1c",
+   "size_bytes": 2753,
+   "source_url": "https://elifesciences.org/articles/52291/figures",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_004.png",
+   "sha256": "d665e118144ed1d68e5bd5c2728a75c74db877d2048cabf9c8f349f3c2076021",
+   "size_bytes": 549296,
+   "source_url": "https://iiif.elifesciences.org/lax/52291%2Felife-52291-fig4-v2.tif/full/full/0/default.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_001_Source Data Fig 4S3A Quantification of MPZ-ecto peptide GFP IP.xlsx",
+   "sha256": "929bd623a47d4b47e9726f910f75864990527e995a3e4ee5794fb4dcb9d89e5d",
+   "size_bytes": 48805,
+   "source_url": "https://cdn.elifesciences.org/articles/52291/elife-52291-fig4-data1-v2.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-52291-fig4-data1-v2.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/002_001_Source Data Fig 4C C8 glo HCT116 ecto peptides.xlsx",
+   "sha256": "bf27b2daf555216880d0a78ded9b1da5aefea1d077121aabfffb914d7c09d65f",
+   "size_bytes": 58341,
+   "source_url": "https://cdn.elifesciences.org/articles/52291/elife-52291-fig4-data2-v2.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-52291-fig4-data2-v2.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/003_001_Source Data 4E - qPCR for HCT116 ecto peptides.xlsx",
+   "sha256": "739826d242a8f5026a369c33c6b3547fe9b3bef16f64a3d797706d3846dd6730",
+   "size_bytes": 75098,
+   "source_url": "https://cdn.elifesciences.org/articles/52291/elife-52291-fig4-data3-v2.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-52291-fig4-data3-v2.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/004_001_Source Data Fig 4H Annexin V MPZ-ecto peptides.xlsx",
+   "sha256": "b5362924db48585d5ac03d59e035284a3647eeb97830f7ad4236b377f8f8b39a",
+   "size_bytes": 35946,
+   "source_url": "https://cdn.elifesciences.org/articles/52291/elife-52291-fig4-data4-v2.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-52291-fig4-data4-v2.zip)"
+  }
+ ]
+}

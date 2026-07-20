@@ -1,0 +1,163 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44318-026-00847-4",
+ "journal": "The EMBO Journal",
+ "year": 2026,
+ "published_date": "2026-07-08",
+ "article_url": "https://www.nature.com/articles/s44318-026-00847-4",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2026-07-08",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2026,
+      7,
+      8
+     ]
+    ],
+    "date-time": "2026-07-08T00:00:00Z",
+    "timestamp": 1783468800000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2026,
+     7,
+     8
+    ]
+   ],
+   "date-time": "2026-07-08T00:00:00Z",
+   "timestamp": 1783468800000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T17:38:02+00:00",
+ "manifest_generated_at": "2026-07-19T17:38:02+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_005.txt",
+   "sha256": "3c8a94526aba544a51dd18d4a40616cb3553e1f40de5ab4aa8ae0317156972ea",
+   "size_bytes": 3761,
+   "source_url": "https://link.springer.com/article/10.1038/s44318-026-00847-4",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_005.png",
+   "sha256": "7e757786fa8fbe6b33237c9fa78e1d00d10b6365cd0556fbf5a9c9045bf49738",
+   "size_bytes": 922271,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44318-026-00847-4/MediaObjects/44318_2026_847_Fig5_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2026_847_MOESM6_ESM_Survival Data elav_AGESxBRP FlySam2.0 + mcd8-GFP control +-10mM Auxin D1-D15 females.xlsx",
+   "sha256": "3c967ad1c4a4872bb989907fc8f57880cfa61688803f49278563b473b7e74afb",
+   "size_bytes": 15600,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-026-00847-4/MediaObjects/44318_2026_847_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2026_847_MOESM6_ESM_Survival Data elav_AGESxBRP FlySam2.0 + mcd8-GFP control +-10mM Auxin D1-D15 females.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2026_847_MOESM6_ESM_Survival Data elav_AGESxBRP FlySam2.0 + mcd8-GFP control +-10mM Auxin D1-D15 males.xlsx",
+   "sha256": "2d94cc445ffb5d3751735a969697a7647be85aaae16f9bcff61a8541e753ece1",
+   "size_bytes": 15525,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-026-00847-4/MediaObjects/44318_2026_847_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2026_847_MOESM6_ESM_Survival Data elav_AGESxBRP FlySam2.0 + mcd8-GFP control +-10mM Auxin D1-D15 males.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2026_847_MOESM6_ESM_Survival Data vt30559_AGESxAtg5-RNAi + control +10mM Auxin dev-D15 females.xlsx",
+   "sha256": "7f0337d58564c48db031744354bc3c9d5d34ecebd31f4e97a96695ed6d733618",
+   "size_bytes": 13436,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-026-00847-4/MediaObjects/44318_2026_847_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2026_847_MOESM6_ESM_Survival Data vt30559_AGESxAtg5-RNAi + control +10mM Auxin dev-D15 females.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2026_847_MOESM6_ESM_Survival Data vt30559_AGESxAtg5-RNAi + control +10mM Auxin dev-D15 males.xlsx",
+   "sha256": "1907f9c67a438080cd68a8b5e91ae006e09fa172015e5896d9569f58031a257a",
+   "size_bytes": 13554,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-026-00847-4/MediaObjects/44318_2026_847_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2026_847_MOESM6_ESM_Survival Data vt30559_AGESxAtg5-RNAi + control +10mM Auxin dev-D15 males.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2026_847_MOESM6_ESM_elav_AGESxBRP-OE FlySam2.0_+10mM Auxin D15_BRP-Nc82 quantification.xlsx",
+   "sha256": "06378dc539012e65030980c482384a27df99be4a609797b65acbb8673a012c09",
+   "size_bytes": 9461,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-026-00847-4/MediaObjects/44318_2026_847_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2026_847_MOESM6_ESM_elav_AGESxBRP-OE FlySam2.0_+10mM Auxin D15_BRP-Nc82 quantification.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2026_847_MOESM6_ESM_elav_AGESxmcd8-GFP_+10mM Auxin D15_GFP quantification.xlsx",
+   "sha256": "46a5049e20ffa138d54ea68ae6689d7614c50fea5bf7db9fcdb2e69551a5b457",
+   "size_bytes": 9222,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-026-00847-4/MediaObjects/44318_2026_847_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2026_847_MOESM6_ESM_elav_AGESxmcd8-GFP_+10mM Auxin D15_GFP quantification.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2026_847_MOESM6_ESM_vt_AGESxAtg5-RNAi_+10mM Auxin development-D15_BRP Nc82 quantification.xlsx",
+   "sha256": "156aef67fe1cf81e1ac13014690a5861a8ff1050806338c4628e12b9e0e0fd8d",
+   "size_bytes": 10114,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-026-00847-4/MediaObjects/44318_2026_847_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2026_847_MOESM6_ESM_vt_AGESxAtg5-RNAi_+10mM Auxin development-D15_BRP Nc82 quantification.xlsx)"
+  }
+ ]
+}

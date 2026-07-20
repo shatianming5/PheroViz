@@ -1,0 +1,439 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44319-026-00720-9",
+ "journal": "EMBO Reports",
+ "year": 2026,
+ "published_date": "2026-02-27",
+ "article_url": "https://www.nature.com/articles/s44319-026-00720-9",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2026-02-27",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2026,
+      2,
+      27
+     ]
+    ],
+    "date-time": "2026-02-27T00:00:00Z",
+    "timestamp": 1772150400000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2026,
+     2,
+     27
+    ]
+   ],
+   "date-time": "2026-02-27T00:00:00Z",
+   "timestamp": 1772150400000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T18:18:46+00:00",
+ "manifest_generated_at": "2026-07-19T18:18:46+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_003.txt",
+   "sha256": "054cc9f59add51775392afcaf64228dcb53c1388d9914e8dc079ec87d6a6a7e8",
+   "size_bytes": 1950,
+   "source_url": "https://link.springer.com/article/10.1038/s44319-026-00720-9",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_003.png",
+   "sha256": "99bcc41235a6eea4b8744d112a895d577948b002f525fa2fcb5f9e2acfae4ab9",
+   "size_bytes": 639547,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44319-026-00720-9/MediaObjects/44319_2026_720_Fig3_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_720_MOESM15_ESM_25.01.17 BV2 iC3b hapto raw results.xlsx",
+   "sha256": "34225e8d4a3c0810f5cd7947dd6ab4c3b6c43733f06f3cf6b230e7722e75846d",
+   "size_bytes": 25943,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00720-9/MediaObjects/44319_2026_720_MOESM15_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_720_MOESM15_ESM_25.01.17 BV2 iC3b hapto raw results.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_720_MOESM15_ESM_25.01.17 BV2 iC3b hapto well 1 away tracks.csv",
+   "sha256": "acce2d4ea121a47009f8d9155260c69d2a44b674b93409f97ea7bdb4e63abb40",
+   "size_bytes": 100433,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00720-9/MediaObjects/44319_2026_720_MOESM15_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_720_MOESM15_ESM_25.01.17 BV2 iC3b hapto well 1 away tracks.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_720_MOESM15_ESM_25.01.17 BV2 iC3b hapto well 1 toward tracks.csv",
+   "sha256": "2e76a8f013baa6b51c1cf455ea510f0649eb81c1f0b3ea9469a2020f6ffc32a9",
+   "size_bytes": 85563,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00720-9/MediaObjects/44319_2026_720_MOESM15_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_720_MOESM15_ESM_25.01.17 BV2 iC3b hapto well 1 toward tracks.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_720_MOESM15_ESM_25.01.17 BV2 iC3b hapto well 2 away tracks.csv",
+   "sha256": "4d827bf0508cc5f6c452a4908bfcc2e65e41db38d8428b024a857d39936fa89c",
+   "size_bytes": 81132,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00720-9/MediaObjects/44319_2026_720_MOESM15_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_720_MOESM15_ESM_25.01.17 BV2 iC3b hapto well 2 away tracks.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_720_MOESM15_ESM_25.01.17 BV2 iC3b hapto well 2 toward tracks.csv",
+   "sha256": "2b379a3f24d00c057f7246213b0e85e19225792c9405b67b038bbf16a8a7ae12",
+   "size_bytes": 81858,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00720-9/MediaObjects/44319_2026_720_MOESM15_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_720_MOESM15_ESM_25.01.17 BV2 iC3b hapto well 2 toward tracks.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_720_MOESM15_ESM_25.01.24 BV2 iC3b hapto raw results.xlsx",
+   "sha256": "c1d18d8cd32ef26cd799665374ea4d42e512db0fc86812d8399a262521678624",
+   "size_bytes": 19918,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00720-9/MediaObjects/44319_2026_720_MOESM15_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_720_MOESM15_ESM_25.01.24 BV2 iC3b hapto raw results.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_720_MOESM15_ESM_25.01.24 BV2 iC3b hapto well 1 away tracks.csv",
+   "sha256": "5f5e2584bb9bf674bb69208ee6a5970d4fc63bbdc3cfb3a6dbeeaa67180de994",
+   "size_bytes": 32604,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00720-9/MediaObjects/44319_2026_720_MOESM15_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_720_MOESM15_ESM_25.01.24 BV2 iC3b hapto well 1 away tracks.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_720_MOESM15_ESM_25.01.24 BV2 iC3b hapto well 1 toward tracks.csv",
+   "sha256": "272974c433c73c02fc7e8c2b676385eea0589aee784355cafe4c2edfd30da09d",
+   "size_bytes": 38275,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00720-9/MediaObjects/44319_2026_720_MOESM15_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_720_MOESM15_ESM_25.01.24 BV2 iC3b hapto well 1 toward tracks.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_720_MOESM15_ESM_25.01.24 BV2 iC3b hapto well 2 away tracks.csv",
+   "sha256": "6deb608746478605037a952577fd0b37f29f96e0b7414c3d9ab5d547a3abd163",
+   "size_bytes": 50125,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00720-9/MediaObjects/44319_2026_720_MOESM15_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_720_MOESM15_ESM_25.01.24 BV2 iC3b hapto well 2 away tracks.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_720_MOESM15_ESM_25.01.24 BV2 iC3b hapto well 2 toward tracks.csv",
+   "sha256": "54dc1993922265472f460e7af01a017ea7ce0dfce81117faff314c11dc20aada",
+   "size_bytes": 44068,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00720-9/MediaObjects/44319_2026_720_MOESM15_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_720_MOESM15_ESM_25.01.24 BV2 iC3b hapto well 2 toward tracks.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_720_MOESM15_ESM_25.01.25 BV2 iC3b hapto raw results.xlsx",
+   "sha256": "68efcde82c3d086a9eedc263313a4e1affb8659fd0f67bec97aa27c00fbcb621",
+   "size_bytes": 19630,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00720-9/MediaObjects/44319_2026_720_MOESM15_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_720_MOESM15_ESM_25.01.25 BV2 iC3b hapto raw results.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_720_MOESM15_ESM_25.01.25 BV2 iC3b hapto well 1 away tracks.csv",
+   "sha256": "2929a351f0a40576f77dedd7b4aec796fd4bd66d48afe98a1de8bae6df2ab695",
+   "size_bytes": 41868,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00720-9/MediaObjects/44319_2026_720_MOESM15_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_720_MOESM15_ESM_25.01.25 BV2 iC3b hapto well 1 away tracks.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_720_MOESM15_ESM_25.01.25 BV2 iC3b hapto well 1 toward tracks.csv",
+   "sha256": "04d245397188e1c6b96d13e96ce8efd80fc4cd1cafc4c84eb660c6541fda1c85",
+   "size_bytes": 28350,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00720-9/MediaObjects/44319_2026_720_MOESM15_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_720_MOESM15_ESM_25.01.25 BV2 iC3b hapto well 1 toward tracks.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_720_MOESM15_ESM_25.01.25 BV2 iC3b hapto well 2 away tracks.csv",
+   "sha256": "3c33e9f1a5e93db9143a950fc139be9f4dc5c72eef8ca068ce8a4a2fbc40399f",
+   "size_bytes": 4831,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00720-9/MediaObjects/44319_2026_720_MOESM15_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_720_MOESM15_ESM_25.01.25 BV2 iC3b hapto well 2 away tracks.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_720_MOESM15_ESM_25.01.25 BV2 iC3b hapto well 2 toward tracks.csv",
+   "sha256": "b3986a917334c697a17a128b18fe9866def7326863df4743e582539428629be8",
+   "size_bytes": 49042,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00720-9/MediaObjects/44319_2026_720_MOESM15_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_720_MOESM15_ESM_25.01.25 BV2 iC3b hapto well 2 toward tracks.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_720_MOESM15_ESM_25.01.26 BV2 iC3b hapto CK666 raw results.xlsx",
+   "sha256": "6626e4c5868ce711e840de862104ff741a849d91bdb44546d4429bcaaba970a2",
+   "size_bytes": 21225,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00720-9/MediaObjects/44319_2026_720_MOESM15_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_720_MOESM15_ESM_25.01.26 BV2 iC3b hapto CK666 raw results.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_720_MOESM15_ESM_25.01.26 BV2 iC3b hapto CK666 well 1 away tracks.csv",
+   "sha256": "3fa2dfe66d573250a48c933183245615daa97f9d73af393c5180a7b051a972f5",
+   "size_bytes": 57552,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00720-9/MediaObjects/44319_2026_720_MOESM15_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_720_MOESM15_ESM_25.01.26 BV2 iC3b hapto CK666 well 1 away tracks.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_720_MOESM15_ESM_25.01.26 BV2 iC3b hapto CK666 well 1 toward tracks.csv",
+   "sha256": "5f2ac7c969b5a2d30e0fa679ab85776bc8574f4e0ce985f2fb86f6b2f16ee996",
+   "size_bytes": 43968,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00720-9/MediaObjects/44319_2026_720_MOESM15_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_720_MOESM15_ESM_25.01.26 BV2 iC3b hapto CK666 well 1 toward tracks.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_720_MOESM15_ESM_25.01.26 BV2 iC3b hapto CK666 well 2 away tracks.csv",
+   "sha256": "9ee8bfd4b700d736b837aff2ce9c128b7c484f5e735dd2031b845b35a1749d7a",
+   "size_bytes": 32319,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00720-9/MediaObjects/44319_2026_720_MOESM15_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_720_MOESM15_ESM_25.01.26 BV2 iC3b hapto CK666 well 2 away tracks.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_720_MOESM15_ESM_25.01.26 BV2 iC3b hapto CK666 well 2 toward tracks.csv",
+   "sha256": "bfa3497020f3b7ba547f380133581522cc022271e327eb46e1ed45e1c0f58cef",
+   "size_bytes": 29604,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00720-9/MediaObjects/44319_2026_720_MOESM15_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_720_MOESM15_ESM_25.01.26 BV2 iC3b hapto CK666 well 2 toward tracks.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_720_MOESM15_ESM_25.02.08 BV2 iC3b hapto CK666 raw results.xlsx",
+   "sha256": "54928e8c601efd5c954333a034da37d43cefbd2fbc977b5ae252f2ff7cff5c94",
+   "size_bytes": 19369,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00720-9/MediaObjects/44319_2026_720_MOESM15_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_720_MOESM15_ESM_25.02.08 BV2 iC3b hapto CK666 raw results.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_720_MOESM15_ESM_25.02.08 BV2 iC3b hapto CK666 well 1 away tracks.csv",
+   "sha256": "b30bd2b8024863b3437e2c7eb986b4bacf6933d8762427027264579387e0f7da",
+   "size_bytes": 33314,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00720-9/MediaObjects/44319_2026_720_MOESM15_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_720_MOESM15_ESM_25.02.08 BV2 iC3b hapto CK666 well 1 away tracks.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_720_MOESM15_ESM_25.02.08 BV2 iC3b hapto CK666 well 1 toward tracks.csv",
+   "sha256": "c5e7563b3171e662d9c18f3e238edcb508f9fa1890220b725e8e05acaaf1c950",
+   "size_bytes": 43820,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00720-9/MediaObjects/44319_2026_720_MOESM15_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_720_MOESM15_ESM_25.02.08 BV2 iC3b hapto CK666 well 1 toward tracks.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_720_MOESM15_ESM_25.02.08 BV2 iC3b hapto CK666 well 2 away tracks.csv",
+   "sha256": "c42cfcc29eefcf20c9bfd2bd68f67196de8fd91423d9ce69543f01af5015bfb7",
+   "size_bytes": 25735,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00720-9/MediaObjects/44319_2026_720_MOESM15_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_720_MOESM15_ESM_25.02.08 BV2 iC3b hapto CK666 well 2 away tracks.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_720_MOESM15_ESM_25.02.08 BV2 iC3b hapto CK666 well 2 toward tracks.csv",
+   "sha256": "34734952503b274a95adfcad034b597670100dd4e6a841c63534d9aee7f021d5",
+   "size_bytes": 15573,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00720-9/MediaObjects/44319_2026_720_MOESM15_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_720_MOESM15_ESM_25.02.08 BV2 iC3b hapto CK666 well 2 toward tracks.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_720_MOESM15_ESM_25.02.09 BV2 iC3b hapto CK666 raw results.xlsx",
+   "sha256": "9112f03d56c57de27960d36b391cf1f9c6744eea4537b131ca913b9912375a82",
+   "size_bytes": 18813,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00720-9/MediaObjects/44319_2026_720_MOESM15_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_720_MOESM15_ESM_25.02.09 BV2 iC3b hapto CK666 raw results.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_720_MOESM15_ESM_25.02.09 BV2 iC3b hapto CK666 well 1 away tracks.csv",
+   "sha256": "c9fbcb6daac3c1324956e61abb58d650d0b99268edce4a7a199ec98036381b65",
+   "size_bytes": 26665,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00720-9/MediaObjects/44319_2026_720_MOESM15_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_720_MOESM15_ESM_25.02.09 BV2 iC3b hapto CK666 well 1 away tracks.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_720_MOESM15_ESM_25.02.09 BV2 iC3b hapto CK666 well 1 toward tracks.csv",
+   "sha256": "544c170b1a35f214d7f7d7595983fdf4a55c4bd70b902e704710ea8adb92de04",
+   "size_bytes": 18054,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00720-9/MediaObjects/44319_2026_720_MOESM15_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_720_MOESM15_ESM_25.02.09 BV2 iC3b hapto CK666 well 1 toward tracks.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_720_MOESM15_ESM_25.02.09 BV2 iC3b hapto CK666 well 2 away tracks.csv",
+   "sha256": "c273d332d9291ec803e2d33e02aacf23b3ce760f1d1e2caf2e762e50b1ae4951",
+   "size_bytes": 21667,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00720-9/MediaObjects/44319_2026_720_MOESM15_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_720_MOESM15_ESM_25.02.09 BV2 iC3b hapto CK666 well 2 away tracks.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_720_MOESM15_ESM_25.02.09 BV2 iC3b hapto CK666 well 2 toward tracks.csv",
+   "sha256": "a43b9e1076666ad5225f4b6ef0d71df84784ad70d1d63a2c188aa163e124ed90",
+   "size_bytes": 36540,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00720-9/MediaObjects/44319_2026_720_MOESM15_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_720_MOESM15_ESM_25.02.09 BV2 iC3b hapto CK666 well 2 toward tracks.csv)"
+  }
+ ]
+}

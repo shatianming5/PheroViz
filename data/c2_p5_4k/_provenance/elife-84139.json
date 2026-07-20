@@ -1,0 +1,127 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.7554/elife.84139",
+ "journal": "eLife",
+ "year": 2023,
+ "published_date": "2023-04-21",
+ "article_url": "https://elifesciences.org/articles/84139",
+ "license": {
+  "url": "http://creativecommons.org/licenses/by/4.0/",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2023-04-21",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2023,
+      4,
+      21
+     ]
+    ],
+    "date-time": "2023-04-21T00:00:00Z",
+    "timestamp": 1682035200000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "http://creativecommons.org/licenses/by/4.0/"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2023,
+     4,
+     21
+    ]
+   ],
+   "date-time": "2023-04-21T00:00:00Z",
+   "timestamp": 1682035200000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "http://creativecommons.org/licenses/by/4.0/"
+ },
+ "retrieved_at": "2026-07-19T23:38:48+00:00",
+ "manifest_generated_at": "2026-07-19T23:38:48+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_001.txt",
+   "sha256": "01b4392b21183b316296e3805d09ba478075f2579cc52f2e4cbfd12641c661cc",
+   "size_bytes": 1890,
+   "source_url": "https://elifesciences.org/articles/84139/figures",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_001.png",
+   "sha256": "edc6f893f594761fe99c9d54340480aed9eaa1422dca236a93e794ff974c4f7d",
+   "size_bytes": 14846486,
+   "source_url": "https://iiif.elifesciences.org/lax:84139%2Felife-84139-fig1-v2.tif/full/full/0/default.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_001_Figure 1 - source data 1. Quantification of ring diameter.xlsx",
+   "sha256": "745ec3d499e4107fb84fe48d66028907cbd5c3771c2d2cc0336ac8bb45807c11",
+   "size_bytes": 17788,
+   "source_url": "https://cdn.elifesciences.org/articles/84139/elife-84139-fig1-data1-v2.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-84139-fig1-data1-v2.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/002_001_Figure 1 - source data 2. Quantification of ring diameters from human and mouse myotubes on PREM.xlsx",
+   "sha256": "d8e722dfc856ae36dbd6e4a62a58c465fbefd7c879961c3c94105a704063aa8a",
+   "size_bytes": 9270,
+   "source_url": "https://cdn.elifesciences.org/articles/84139/elife-84139-fig1-data2-v2.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-84139-fig1-data2-v2.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/003_001_Figure 1 - source data 3. Quantification of the number of caveolae composing a ring from differentiated myotubes.xlsx",
+   "sha256": "b3dd636171fca6bb91ac24671d94350fc183d82216ca8ec8870d2d783e3d771d",
+   "size_bytes": 8982,
+   "source_url": "https://cdn.elifesciences.org/articles/84139/elife-84139-fig1-data3-v2.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-84139-fig1-data3-v2.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/004_001_Figure 1 - source data 4. Quantification of the average caveolae diameter from differentiated mouse or human myotubes.xlsx",
+   "sha256": "3b8fc919fe662741acbc48f2237ec4ac053bf71c88361c4fee3a0e15e28ee6e9",
+   "size_bytes": 13711,
+   "source_url": "https://cdn.elifesciences.org/articles/84139/elife-84139-fig1-data4-v2.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-84139-fig1-data4-v2.zip)"
+  }
+ ]
+}

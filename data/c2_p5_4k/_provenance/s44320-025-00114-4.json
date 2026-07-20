@@ -1,0 +1,87 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44320-025-00114-4",
+ "journal": "Molecular Systems Biology",
+ "year": null,
+ "published_date": null,
+ "article_url": "https://www.nature.com/articles/s44320-025-00114-4",
+ "license": {
+  "url": null,
+  "normalized_url": null,
+  "license_id": null,
+  "version": null,
+  "effective_date": null,
+  "content_version": null,
+  "source": null,
+  "evidence": null
+ },
+ "license_source": null,
+ "license_evidence": null,
+ "retrieved_at": "2026-07-19T15:38:50+00:00",
+ "manifest_generated_at": "2026-07-19T15:38:50+00:00",
+ "journal_allowed": true,
+ "policy_accepted": false,
+ "require_cc_by": true,
+ "download_eligible": false,
+ "download_status": "rejected",
+ "rejection_reasons": [
+  "license-missing"
+ ],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_006.txt",
+   "sha256": "f817fe7fe3cca776e2f1dc2e62e276d4fcfc47f1fd9c9a34b2bf343c654c4a85",
+   "size_bytes": 2545,
+   "source_url": "https://link.springer.com/article/10.1038/s44320-025-00114-4",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_006.png",
+   "sha256": "e6773444658b43d71903929ddfea46759e50eee533c64daa1dd7d7416ddcce95",
+   "size_bytes": 363976,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44320-025-00114-4/MediaObjects/44320_2025_114_Fig6_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44320_2025_114_MOESM14_ESM_Chemotaxis.xlsx",
+   "sha256": "e5fd2ed324205ca56787198c46fc622eea1353d4c3988e92d1b9d64a0ef4e467",
+   "size_bytes": 12019,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44320-025-00114-4/MediaObjects/44320_2025_114_MOESM14_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44320_2025_114_MOESM14_ESM_Chemotaxis.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44320_2025_114_MOESM14_ESM_memoryXoxidation.xlsx",
+   "sha256": "8ae72701a8b9da6e6711ce0ed017cc8d5cdf2c772539b13201c90ce0cc72f913",
+   "size_bytes": 22024,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44320-025-00114-4/MediaObjects/44320_2025_114_MOESM14_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44320_2025_114_MOESM14_ESM_memoryXoxidation.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44320_2025_114_MOESM14_ESM_memoryXprotein.xlsx",
+   "sha256": "9a91af86e15779601362bf96cfc1004155646d8916ed96baaa8e48ec3bd64791",
+   "size_bytes": 24961,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44320-025-00114-4/MediaObjects/44320_2025_114_MOESM14_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44320_2025_114_MOESM14_ESM_memoryXprotein.xlsx)"
+  }
+ ]
+}

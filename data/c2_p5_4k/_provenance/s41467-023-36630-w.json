@@ -1,0 +1,91 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s41467-023-36630-w",
+ "journal": "Nature Communications",
+ "year": 2023,
+ "published_date": "2023-03-02",
+ "article_url": "https://www.nature.com/articles/s41467-023-36630-w",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2023-03-02",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2023,
+      3,
+      2
+     ]
+    ],
+    "date-time": "2023-03-02T00:00:00Z",
+    "timestamp": 1677715200000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2023,
+     3,
+     2
+    ]
+   ],
+   "date-time": "2023-03-02T00:00:00Z",
+   "timestamp": 1677715200000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-18T22:44:51+00:00",
+ "manifest_generated_at": "2026-07-18T22:46:51+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_003.txt",
+   "sha256": "0a4ac1c48ce314b3df736e4fc2732dc9d368fb611b890c99d94f0b0b1b22d0ab",
+   "size_bytes": 1539,
+   "source_url": "https://www.nature.com/articles/s41467-023-36630-w/figures/3",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_003.png",
+   "sha256": "72e4861ae75d570993da1e4c2c5f155c880db45ae396e0f3b3f6c72fa0616b51",
+   "size_bytes": 214873,
+   "source_url": "https://media.springernature.com/full/springer-static/image/art%3A10.1038%2Fs41467-023-36630-w/MediaObjects/41467_2023_36630_Fig3_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/41467_2023_36630_MOESM4_ESM.xlsx",
+   "sha256": "e971213dd6b77c6bbdfe6e63addde785c7609e6e461a0b797be708881b793f01",
+   "size_bytes": 148578,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs41467-023-36630-w/MediaObjects/41467_2023_36630_MOESM4_ESM.xlsx",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "Source Data (download XLSX )"
+  }
+ ]
+}

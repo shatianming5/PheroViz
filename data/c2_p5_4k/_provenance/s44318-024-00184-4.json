@@ -1,0 +1,151 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44318-024-00184-4",
+ "journal": "The EMBO Journal",
+ "year": 2024,
+ "published_date": "2024-07-31",
+ "article_url": "https://www.nature.com/articles/s44318-024-00184-4",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2024-07-31",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2024,
+      7,
+      31
+     ]
+    ],
+    "date-time": "2024-07-31T00:00:00Z",
+    "timestamp": 1722384000000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2024,
+     7,
+     31
+    ]
+   ],
+   "date-time": "2024-07-31T00:00:00Z",
+   "timestamp": 1722384000000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T18:18:53+00:00",
+ "manifest_generated_at": "2026-07-19T18:18:53+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_010.txt",
+   "sha256": "7a20b15765ccffae15e049dee0451260056b837edd3f0c60b2a932c4cd884e83",
+   "size_bytes": 3268,
+   "source_url": "https://link.springer.com/article/10.1038/s44318-024-00184-4",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_010.png",
+   "sha256": "f355262c6c38166da48625349ff3f56a6c0e06ef5d4b0c6d71c65339af08293f",
+   "size_bytes": 1141847,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44318-024-00184-4/MediaObjects/44318_2024_184_Fig10_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2024_184_MOESM13_ESM_Dclk1 IF quantification on TgAtf4 vs WT mice + Nb D7.xlsx",
+   "sha256": "f35ed14f61795c672f36af729f85591f0af25a8c99b6a0693207a9bc0a578d22",
+   "size_bytes": 14974,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-024-00184-4/MediaObjects/44318_2024_184_MOESM13_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2024_184_MOESM13_ESM_Dclk1 IF quantification on TgAtf4 vs WT mice + Nb D7.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2024_184_MOESM13_ESM_Dclk1 countings on TgATF4 vs WT organoids.xlsx",
+   "sha256": "a5ce0c40f86566027fd5c7585ac0e135ab21b92d7386dbd4dbfc4a5ccbd5a9ea",
+   "size_bytes": 23146,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-024-00184-4/MediaObjects/44318_2024_184_MOESM13_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2024_184_MOESM13_ESM_Dclk1 countings on TgATF4 vs WT organoids.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2024_184_MOESM13_ESM_Parasite count on WT vs TgAtf4 mice + Nb.xlsx",
+   "sha256": "909b6f7828238da43177d5b7db21d9595c2234a317f1dfa78ad98cdd2d7d9261",
+   "size_bytes": 8374,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-024-00184-4/MediaObjects/44318_2024_184_MOESM13_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2024_184_MOESM13_ESM_Parasite count on WT vs TgAtf4 mice + Nb.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2024_184_MOESM13_ESM_Quantification of Dclk1 WB TgATF4 mice with IL13 D4.xlsx",
+   "sha256": "9b34985f76f6721f65daa15d20c261086df1712c44b83471565362f8ddceff1b",
+   "size_bytes": 11666,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-024-00184-4/MediaObjects/44318_2024_184_MOESM13_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2024_184_MOESM13_ESM_Quantification of Dclk1 WB TgATF4 mice with IL13 D4.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2024_184_MOESM13_ESM_qPCR Atf4 target genes Mice TgAtf4.xlsx",
+   "sha256": "55adf8b1464b18cf6d94697eabe7e0cf41d44626512488abe8f07c02f53ce52f",
+   "size_bytes": 9737,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-024-00184-4/MediaObjects/44318_2024_184_MOESM13_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2024_184_MOESM13_ESM_qPCR Atf4 target genes Mice TgAtf4.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2024_184_MOESM13_ESM_qPCR analysis on TgAtf4 vs WT Mice + Nb.xlsx",
+   "sha256": "86ec4bcdad52f139cc45111fcf500c55c6a1287a1715c9a9e5e770949a0ed36d",
+   "size_bytes": 9363,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-024-00184-4/MediaObjects/44318_2024_184_MOESM13_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2024_184_MOESM13_ESM_qPCR analysis on TgAtf4 vs WT Mice + Nb.xlsx)"
+  }
+ ]
+}

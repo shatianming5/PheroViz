@@ -1,0 +1,10 @@
+# C2 4k dataset — heavy per-article content (figures/source_data/meta) is kept on
+# local disk for the pipeline but NOT committed. Git tracks only the dataset
+# definition below; the content is reproducible from _manifest.jsonl URLs+sha256.
+*
+!.gitignore
+!README.md
+!_manifest.jsonl
+!_frozen.json
+!_provenance/
+!_provenance/**

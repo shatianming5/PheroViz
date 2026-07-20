@@ -1,0 +1,103 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44321-025-00330-3",
+ "journal": "EMBO Molecular Medicine",
+ "year": 2025,
+ "published_date": "2025-11-04",
+ "article_url": "https://www.nature.com/articles/s44321-025-00330-3",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2025-11-04",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2025,
+      11,
+      4
+     ]
+    ],
+    "date-time": "2025-11-04T00:00:00Z",
+    "timestamp": 1762214400000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2025,
+     11,
+     4
+    ]
+   ],
+   "date-time": "2025-11-04T00:00:00Z",
+   "timestamp": 1762214400000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T16:45:21+00:00",
+ "manifest_generated_at": "2026-07-19T16:45:21+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_001.txt",
+   "sha256": "351763813e4a96250c6f37171032303e5baac59b73c2b730eb03c3f8ff5d0c5d",
+   "size_bytes": 1944,
+   "source_url": "https://link.springer.com/article/10.1038/s44321-025-00330-3",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_001.png",
+   "sha256": "df63c117c939588ddbffb0211bece74e458fc90c9ffcb9755a0d475b25798d51",
+   "size_bytes": 1362291,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44321-025-00330-3/MediaObjects/44321_2025_330_Fig1_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2025_330_MOESM6_ESM_Quantification of lumen area in fold change human organoids.xlsx",
+   "sha256": "86e48a39b8cb64619d68714ab431ff9b9eeb8a5d2010543cd71ae8ca3a7556a5",
+   "size_bytes": 9957,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-025-00330-3/MediaObjects/44321_2025_330_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2025_330_MOESM6_ESM_Quantification of lumen area in fold change human organoids.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2025_330_MOESM6_ESM_Quantification of lumen area in fold change pig organoids.xlsx",
+   "sha256": "6ef672fe27b8250843f17a020fcd7b5de5aa29343aaf8633acfd41e68ac843b3",
+   "size_bytes": 9985,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-025-00330-3/MediaObjects/44321_2025_330_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2025_330_MOESM6_ESM_Quantification of lumen area in fold change pig organoids.xlsx)"
+  }
+ ]
+}

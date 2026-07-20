@@ -1,0 +1,91 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44318-024-00093-6",
+ "journal": "The EMBO Journal",
+ "year": 2024,
+ "published_date": "2024-04-10",
+ "article_url": "https://www.nature.com/articles/s44318-024-00093-6",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2024-04-10",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2024,
+      4,
+      10
+     ]
+    ],
+    "date-time": "2024-04-10T00:00:00Z",
+    "timestamp": 1712707200000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2024,
+     4,
+     10
+    ]
+   ],
+   "date-time": "2024-04-10T00:00:00Z",
+   "timestamp": 1712707200000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T17:31:38+00:00",
+ "manifest_generated_at": "2026-07-19T17:31:38+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_007.txt",
+   "sha256": "7dd989acef70ca1d691aed515ade9d5eedc96a314e3cf9b6575818d2343a5a7c",
+   "size_bytes": 1173,
+   "source_url": "https://link.springer.com/article/10.1038/s44318-024-00093-6",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_007.png",
+   "sha256": "1c069eb012214aac7a824281e8684781b4dee2bcb74af3fe535200427fa7c225",
+   "size_bytes": 728336,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44318-024-00093-6/MediaObjects/44318_2024_93_Fig7_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2024_93_MOESM12_ESM_Mean nuclear CENPA intensity.xlsx",
+   "sha256": "d7f8d65ce08fdcc586c0d435a1e024bf78a051fc8f311cb49fa6f2add62788df",
+   "size_bytes": 24217,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-024-00093-6/MediaObjects/44318_2024_93_MOESM12_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2024_93_MOESM12_ESM_Mean nuclear CENPA intensity.xlsx)"
+  }
+ ]
+}

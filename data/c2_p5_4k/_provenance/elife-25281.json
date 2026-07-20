@@ -1,0 +1,91 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.7554/elife.25281",
+ "journal": "eLife",
+ "year": 2017,
+ "published_date": "2017-10-04",
+ "article_url": "https://elifesciences.org/articles/25281",
+ "license": {
+  "url": "http://creativecommons.org/licenses/by/4.0/",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2017-10-04",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2017,
+      10,
+      4
+     ]
+    ],
+    "date-time": "2017-10-04T00:00:00Z",
+    "timestamp": 1507075200000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "http://creativecommons.org/licenses/by/4.0/"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2017,
+     10,
+     4
+    ]
+   ],
+   "date-time": "2017-10-04T00:00:00Z",
+   "timestamp": 1507075200000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "http://creativecommons.org/licenses/by/4.0/"
+ },
+ "retrieved_at": "2026-07-19T23:54:45+00:00",
+ "manifest_generated_at": "2026-07-19T23:54:45+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_004.txt",
+   "sha256": "509884a425402e600adf142e3165a14522e6614be0cd6c3142e66c62088ba9dc",
+   "size_bytes": 786,
+   "source_url": "https://elifesciences.org/articles/25281/figures",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_004.png",
+   "sha256": "ca0d26953593f5f403ce2871fcd8a3ccc54683bd14d30b354a143ce6da3e9b15",
+   "size_bytes": 1264532,
+   "source_url": "https://iiif.elifesciences.org/lax/25281%2Felife-25281-fig4-v3.tif/full/full/0/default.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/elife-25281-fig4-data1-v3.xlsx",
+   "sha256": "ed2de8868fa1a2ff79157fa6177891bb089d1756a2cc8072ec2f0c8d2d15c39d",
+   "size_bytes": 49479,
+   "source_url": "https://cdn.elifesciences.org/articles/25281/elife-25281-fig4-data1-v3.xlsx",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-25281-fig4-data1-v3.xlsx)"
+  }
+ ]
+}

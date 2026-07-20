@@ -1,0 +1,367 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.7554/elife.54148",
+ "journal": "eLife",
+ "year": 2020,
+ "published_date": "2020-07-02",
+ "article_url": "https://elifesciences.org/articles/54148",
+ "license": {
+  "url": "http://creativecommons.org/licenses/by/4.0/",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2020-07-02",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2020,
+      7,
+      2
+     ]
+    ],
+    "date-time": "2020-07-02T00:00:00Z",
+    "timestamp": 1593648000000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "http://creativecommons.org/licenses/by/4.0/"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2020,
+     7,
+     2
+    ]
+   ],
+   "date-time": "2020-07-02T00:00:00Z",
+   "timestamp": 1593648000000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "http://creativecommons.org/licenses/by/4.0/"
+ },
+ "retrieved_at": "2026-07-19T23:26:16+00:00",
+ "manifest_generated_at": "2026-07-19T23:26:16+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_003.txt",
+   "sha256": "4c775f69229e437721cb04d252c408ffec1075f0313c40fc4ce00d64f6a1dd0c",
+   "size_bytes": 2039,
+   "source_url": "https://elifesciences.org/articles/54148/figures",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_003.png",
+   "sha256": "f58939c37076791276b3c4d2a55fed7a4fa2748d981d5b3282b190e9b3f1fe80",
+   "size_bytes": 479752,
+   "source_url": "https://iiif.elifesciences.org/lax/54148%2Felife-54148-fig3-v1.tif/full/full/0/default.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_001_Parameters-Classic-Model-SWA-Mouse-1.csv",
+   "sha256": "9efe04d03c6bf1bddafb61b4f425cc3d779bd8f629b6be45742b9dbb7fd17b9e",
+   "size_bytes": 721,
+   "source_url": "https://cdn.elifesciences.org/articles/54148/elife-54148-fig3-data1-v1.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-54148-fig3-data1-v1.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_002_Parameters-Classic-Model-SWA-Mouse-2.csv",
+   "sha256": "e313977c8c3894d168dbd076e5c65ae8dc0c240d01a51985cbe6049dbb1a0c32",
+   "size_bytes": 912,
+   "source_url": "https://cdn.elifesciences.org/articles/54148/elife-54148-fig3-data1-v1.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-54148-fig3-data1-v1.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_003_Parameters-Classic-Model-SWA-Mouse-3.csv",
+   "sha256": "b76f82198f248b7f37bf74b4703cb111e02d68a158a75c950ebc67c59744af39",
+   "size_bytes": 707,
+   "source_url": "https://cdn.elifesciences.org/articles/54148/elife-54148-fig3-data1-v1.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-54148-fig3-data1-v1.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_004_Parameters-Classic-Model-SWA-Mouse-4.csv",
+   "sha256": "a6e638012425a2fdd73122bbc11ed69dd7b6af45c86af405b5386dd66514086c",
+   "size_bytes": 620,
+   "source_url": "https://cdn.elifesciences.org/articles/54148/elife-54148-fig3-data1-v1.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-54148-fig3-data1-v1.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_005_Parameters-Classic-Model-SWA-Mouse-5.csv",
+   "sha256": "661a77dfe566bded2c228760927645056aab28a9208c465aec5beab1c3b11a7f",
+   "size_bytes": 718,
+   "source_url": "https://cdn.elifesciences.org/articles/54148/elife-54148-fig3-data1-v1.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-54148-fig3-data1-v1.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_006_Parameters-Classic-Model-SWA-Mouse-6.csv",
+   "sha256": "599955fe494b2e148c06814d80eb6bb76885f07641ec6353fe3a3ae4cfe157be",
+   "size_bytes": 917,
+   "source_url": "https://cdn.elifesciences.org/articles/54148/elife-54148-fig3-data1-v1.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-54148-fig3-data1-v1.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_007_Parameters-FR-Model-SWA-Mouse-1.csv",
+   "sha256": "7277c4ca35c6558134dc3c47ea63e01b3202ae2afc52894810a854f193654bf9",
+   "size_bytes": 716,
+   "source_url": "https://cdn.elifesciences.org/articles/54148/elife-54148-fig3-data1-v1.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-54148-fig3-data1-v1.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_008_Parameters-FR-Model-SWA-Mouse-2.csv",
+   "sha256": "2f7ade7e5f8ac77c2961cb69ae3e8e6a78d3d76801584b19554db6efcf5da95d",
+   "size_bytes": 931,
+   "source_url": "https://cdn.elifesciences.org/articles/54148/elife-54148-fig3-data1-v1.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-54148-fig3-data1-v1.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_009_Parameters-FR-Model-SWA-Mouse-3.csv",
+   "sha256": "810504621ba5cebea47842d40b0d397c7f7f7c3725a98de28653524a1020266a",
+   "size_bytes": 733,
+   "source_url": "https://cdn.elifesciences.org/articles/54148/elife-54148-fig3-data1-v1.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-54148-fig3-data1-v1.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_010_Parameters-FR-Model-SWA-Mouse-4.csv",
+   "sha256": "ce4373d81288cad5444417069aae0f63bf392a84cd0dd5666522bca5e7e0028d",
+   "size_bytes": 624,
+   "source_url": "https://cdn.elifesciences.org/articles/54148/elife-54148-fig3-data1-v1.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-54148-fig3-data1-v1.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_011_Parameters-FR-Model-SWA-Mouse-5.csv",
+   "sha256": "fbd8d88e2451c568825ead938553f2f48b9dbf2ef41f6f9f9e7af5896d740ea5",
+   "size_bytes": 720,
+   "source_url": "https://cdn.elifesciences.org/articles/54148/elife-54148-fig3-data1-v1.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-54148-fig3-data1-v1.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_012_Parameters-FR-Model-SWA-Mouse-6.csv",
+   "sha256": "3c6a1e438cf713b910055a2ac4439b36622351739fa086eafd6354a554416792",
+   "size_bytes": 946,
+   "source_url": "https://cdn.elifesciences.org/articles/54148/elife-54148-fig3-data1-v1.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-54148-fig3-data1-v1.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_013_Process-S-Classic-Model-SWA-Mouse-1.csv",
+   "sha256": "af8ba89126e64319e1fe8c07449f33bb93f652ccbfd8a80e8193db174e561ef3",
+   "size_bytes": 4206366,
+   "source_url": "https://cdn.elifesciences.org/articles/54148/elife-54148-fig3-data1-v1.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-54148-fig3-data1-v1.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_014_Process-S-Classic-Model-SWA-Mouse-2.csv",
+   "sha256": "d7947a2bdbac0ff5f047ced8b3bbd3ba98ce48a013dc54d2d867081c92f3744d",
+   "size_bytes": 5395803,
+   "source_url": "https://cdn.elifesciences.org/articles/54148/elife-54148-fig3-data1-v1.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-54148-fig3-data1-v1.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_015_Process-S-Classic-Model-SWA-Mouse-3.csv",
+   "sha256": "581ad43c667554bc9e2534490a2eed2440fd629fa92e573d9960e321488fea47",
+   "size_bytes": 4206140,
+   "source_url": "https://cdn.elifesciences.org/articles/54148/elife-54148-fig3-data1-v1.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-54148-fig3-data1-v1.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_016_Process-S-Classic-Model-SWA-Mouse-4.csv",
+   "sha256": "72ff1d7ca63e8ba1b03a8135b0d5a2c89d187130bca91a6f420bcae539581b66",
+   "size_bytes": 3611947,
+   "source_url": "https://cdn.elifesciences.org/articles/54148/elife-54148-fig3-data1-v1.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-54148-fig3-data1-v1.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_017_Process-S-Classic-Model-SWA-Mouse-5.csv",
+   "sha256": "226858c923970c7405d9628cace81e130954c40b3d7fd2e0a97b35b18a05d2e6",
+   "size_bytes": 4206179,
+   "source_url": "https://cdn.elifesciences.org/articles/54148/elife-54148-fig3-data1-v1.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-54148-fig3-data1-v1.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_018_Process-S-Classic-Model-SWA-Mouse-6.csv",
+   "sha256": "c85b27e1d3c8acd5e44edbcc079ea9aee5b38b2bed1aaf8bea583580abc55243",
+   "size_bytes": 5395265,
+   "source_url": "https://cdn.elifesciences.org/articles/54148/elife-54148-fig3-data1-v1.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-54148-fig3-data1-v1.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_019_Process-S-FR-Model-SWA-Mouse-1.csv",
+   "sha256": "70753945a827740fa4b56b2671cfc01d13952d2c39199ad459e851ea2dfe2b07",
+   "size_bytes": 3909057,
+   "source_url": "https://cdn.elifesciences.org/articles/54148/elife-54148-fig3-data1-v1.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-54148-fig3-data1-v1.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_020_Process-S-FR-Model-SWA-Mouse-2.csv",
+   "sha256": "5080b4a1fb973dc813128bd5b84930f597000910f5117ee84c99d5056a0ccb3a",
+   "size_bytes": 5099040,
+   "source_url": "https://cdn.elifesciences.org/articles/54148/elife-54148-fig3-data1-v1.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-54148-fig3-data1-v1.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_021_Process-S-FR-Model-SWA-Mouse-3.csv",
+   "sha256": "c846471c2ca8faa9432557e589592cc4e01d7fc502586c3d04d4c0d796fc4ec3",
+   "size_bytes": 3909356,
+   "source_url": "https://cdn.elifesciences.org/articles/54148/elife-54148-fig3-data1-v1.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-54148-fig3-data1-v1.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_022_Process-S-FR-Model-SWA-Mouse-4.csv",
+   "sha256": "617f9378adf5fd1a7a1a35af557037f615a4cb7f2fd1adaa834201010bc9c756",
+   "size_bytes": 3314192,
+   "source_url": "https://cdn.elifesciences.org/articles/54148/elife-54148-fig3-data1-v1.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-54148-fig3-data1-v1.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_023_Process-S-FR-Model-SWA-Mouse-5.csv",
+   "sha256": "0bf737f081e2a24a082d64998e932126f1bd4a7aeba180f539a600bc1955a1c0",
+   "size_bytes": 3908321,
+   "source_url": "https://cdn.elifesciences.org/articles/54148/elife-54148-fig3-data1-v1.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-54148-fig3-data1-v1.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_024_Process-S-FR-Model-SWA-Mouse-6.csv",
+   "sha256": "25675fdd262b874aa38536fce405e38826ca71ec95b80309f4dc026fc8b13115",
+   "size_bytes": 5098606,
+   "source_url": "https://cdn.elifesciences.org/articles/54148/elife-54148-fig3-data1-v1.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-54148-fig3-data1-v1.zip)"
+  }
+ ]
+}

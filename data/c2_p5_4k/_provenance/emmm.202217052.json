@@ -1,0 +1,91 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.15252/emmm.202217052",
+ "journal": "EMBO Molecular Medicine",
+ "year": 2023,
+ "published_date": "2023-05-08",
+ "article_url": "https://link.springer.com/article/10.15252/emmm.202217052",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0/",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2023-03-30",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2023,
+      3,
+      30
+     ]
+    ],
+    "date-time": "2023-03-30T00:00:00Z",
+    "timestamp": 1680134400000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0/"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2023,
+     3,
+     30
+    ]
+   ],
+   "date-time": "2023-03-30T00:00:00Z",
+   "timestamp": 1680134400000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0/"
+ },
+ "retrieved_at": "2026-07-19T23:43:57+00:00",
+ "manifest_generated_at": "2026-07-19T23:43:57+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_008.txt",
+   "sha256": "2251c4766f24f64e94858fb780522f41a490155e38525fe2f5964e331f332f3c",
+   "size_bytes": 2286,
+   "source_url": "https://link.springer.com/article/10.15252/emmm.202217052",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_008.png",
+   "sha256": "0bbc5e936f118b3db6f4eb3e6920cd24543f95933c5ad15a553c90b00be688e3",
+   "size_bytes": 745230,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.15252%2Femmm.202217052/MediaObjects/44321_2023_BFEMMM202217052_Fig8_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2023_BFEMMM202217052_MOESM3_ESM.xlsx",
+   "sha256": "5972cde983f3ff2d8eff2e5fc5b207756d94e18093be0ee3d0ccfb712b9845a4",
+   "size_bytes": 81257,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.15252%2Femmm.202217052/MediaObjects/44321_2023_BFEMMM202217052_MOESM3_ESM.xlsx",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2023_BFEMMM202217052_MOESM3_ESM.xlsx)"
+  }
+ ]
+}

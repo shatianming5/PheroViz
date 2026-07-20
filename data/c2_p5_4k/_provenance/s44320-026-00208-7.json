@@ -1,0 +1,91 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44320-026-00208-7",
+ "journal": "Molecular Systems Biology",
+ "year": 2026,
+ "published_date": "2026-04-11",
+ "article_url": "https://www.nature.com/articles/s44320-026-00208-7",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2026-04-11",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2026,
+      4,
+      11
+     ]
+    ],
+    "date-time": "2026-04-11T00:00:00Z",
+    "timestamp": 1775865600000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2026,
+     4,
+     11
+    ]
+   ],
+   "date-time": "2026-04-11T00:00:00Z",
+   "timestamp": 1775865600000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T17:03:45+00:00",
+ "manifest_generated_at": "2026-07-19T17:03:45+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_002.txt",
+   "sha256": "2253d4d2f51da29cd8f7b97010aec6a7d9bfad5c78c65bfcde4cacb2dcdaf776",
+   "size_bytes": 2010,
+   "source_url": "https://link.springer.com/article/10.1038/s44320-026-00208-7",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_002.png",
+   "sha256": "0b48466f37d88d03fffdc5b1d8d607bc0009aa2a5296b757d32bf7db27dbd1f7",
+   "size_bytes": 1242042,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44320-026-00208-7/MediaObjects/44320_2026_208_Fig2_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44320_2026_208_MOESM3_ESM_fs.kidney proximal convoluted tubule epithelial cell_Hydra_new.csv",
+   "sha256": "53ccef7cef82d0196d0a5fc58af644ddac6113a42a9e3dcdbfcca180afb0e83b",
+   "size_bytes": 585764,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44320-026-00208-7/MediaObjects/44320_2026_208_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44320_2026_208_MOESM3_ESM_fs.kidney proximal convoluted tubule epithelial cell_Hydra_new.csv)"
+  }
+ ]
+}

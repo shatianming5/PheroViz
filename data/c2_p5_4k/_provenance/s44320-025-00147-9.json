@@ -1,0 +1,151 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44320-025-00147-9",
+ "journal": "Molecular Systems Biology",
+ "year": 2025,
+ "published_date": "2025-09-16",
+ "article_url": "https://www.nature.com/articles/s44320-025-00147-9",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2025-09-16",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2025,
+      9,
+      16
+     ]
+    ],
+    "date-time": "2025-09-16T00:00:00Z",
+    "timestamp": 1757980800000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2025,
+     9,
+     16
+    ]
+   ],
+   "date-time": "2025-09-16T00:00:00Z",
+   "timestamp": 1757980800000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T16:16:13+00:00",
+ "manifest_generated_at": "2026-07-19T16:16:13+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_001.txt",
+   "sha256": "d60a00a053c29b8a26aaab27a8aaefbcac6584e97e7980ca13c5ebd1a1c7a27d",
+   "size_bytes": 2157,
+   "source_url": "https://link.springer.com/article/10.1038/s44320-025-00147-9",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_001.png",
+   "sha256": "5c2b0dc6005d79e26f0d939b0d174c014920222410aa6bfadf72fc27ee25876f",
+   "size_bytes": 659412,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44320-025-00147-9/MediaObjects/44320_2025_147_Fig1_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44320_2025_147_MOESM8_ESM_Source data for description of the target dataset with the number of virus isolates proteins and residues per viral realm.csv",
+   "sha256": "c8765cdd11a4c717f9bdb3d3815a1ab755d2fcdd194a17b1e3c2a5e38672ad6d",
+   "size_bytes": 11912150,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44320-025-00147-9/MediaObjects/44320_2025_147_MOESM8_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44320_2025_147_MOESM8_ESM_Source data for description of the target dataset with the number of virus isolates proteins and residues per viral realm.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44320_2025_147_MOESM8_ESM_Source data for percentage of ColabFold and ESMFold models with very high, high, low and very low average pLDDT score.csv",
+   "sha256": "c8765cdd11a4c717f9bdb3d3815a1ab755d2fcdd194a17b1e3c2a5e38672ad6d",
+   "size_bytes": 11912150,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44320-025-00147-9/MediaObjects/44320_2025_147_MOESM8_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44320_2025_147_MOESM8_ESM_Source data for percentage of ColabFold and ESMFold models with very high, high, low and very low average pLDDT score.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44320_2025_147_MOESM8_ESM_Source data for the distribution of differences in average pLDDT scores between ColabFold and ESMFold models.csv",
+   "sha256": "81e3d4bc65628d83720375c8c8d79f670019403df43b2bffaa6c87d64c8f7b41",
+   "size_bytes": 7098516,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44320-025-00147-9/MediaObjects/44320_2025_147_MOESM8_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44320_2025_147_MOESM8_ESM_Source data for the distribution of differences in average pLDDT scores between ColabFold and ESMFold models.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44320_2025_147_MOESM8_ESM_Summary table for description of the target dataset with the number of virus isolates proteins and residues per viral realm.csv",
+   "sha256": "e1d76b97a5199954cb0b29da508f651e1201ef6a5fce5314f31b8ec30cab271e",
+   "size_bytes": 250,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44320-025-00147-9/MediaObjects/44320_2025_147_MOESM8_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44320_2025_147_MOESM8_ESM_Summary table for description of the target dataset with the number of virus isolates proteins and residues per viral realm.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44320_2025_147_MOESM8_ESM_Summary table for percentage of ColabFold and ESMFold models with very high, high, low and very low average pLDDT score.csv",
+   "sha256": "91b146d5b8e61f72136111d24cd05170c906fe23aaf2b819cf1d8f822a829636",
+   "size_bytes": 274,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44320-025-00147-9/MediaObjects/44320_2025_147_MOESM8_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44320_2025_147_MOESM8_ESM_Summary table for percentage of ColabFold and ESMFold models with very high, high, low and very low average pLDDT score.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44320_2025_147_MOESM8_ESM_Summary table for the difference in pLDDT scores for ColabFold and ESMFold predictions with and without PDB sequence homologs.csv",
+   "sha256": "e2354bed323905d58977a5cecb673ff96432e79abe1d1d251595b98d59f4b3c7",
+   "size_bytes": 418,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44320-025-00147-9/MediaObjects/44320_2025_147_MOESM8_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44320_2025_147_MOESM8_ESM_Summary table for the difference in pLDDT scores for ColabFold and ESMFold predictions with and without PDB sequence homologs.csv)"
+  }
+ ]
+}

@@ -1,0 +1,163 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44318-025-00687-8",
+ "journal": "The EMBO Journal",
+ "year": 2026,
+ "published_date": "2026-01-20",
+ "article_url": "https://www.nature.com/articles/s44318-025-00687-8",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2026-01-20",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2026,
+      1,
+      20
+     ]
+    ],
+    "date-time": "2026-01-20T00:00:00Z",
+    "timestamp": 1768867200000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2026,
+     1,
+     20
+    ]
+   ],
+   "date-time": "2026-01-20T00:00:00Z",
+   "timestamp": 1768867200000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T18:34:49+00:00",
+ "manifest_generated_at": "2026-07-19T18:34:49+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_001.txt",
+   "sha256": "555a1cc620d7615eca9302448ddc8720d01fb44b6154570e89d8063da5cca7d8",
+   "size_bytes": 2933,
+   "source_url": "https://link.springer.com/article/10.1038/s44318-025-00687-8",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_001.png",
+   "sha256": "38ab0070d2310b463820f97ec2be8b742f6ac7d9a4f126cda4164191c2b871e3",
+   "size_bytes": 689644,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44318-025-00687-8/MediaObjects/44318_2025_687_Fig1_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_687_MOESM14_ESM_Correlation heatmap of genomic tsRNAs_rsRNAs and mitocondrail tsRNAs_rsRNAs.xlsx",
+   "sha256": "7109b0b3710f57d44f22edf8651556344bb52ac1a828d8918a3c5e56177e5b78",
+   "size_bytes": 56675,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00687-8/MediaObjects/44318_2025_687_MOESM14_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_687_MOESM14_ESM_Correlation heatmap of genomic tsRNAs_rsRNAs and mitocondrail tsRNAs_rsRNAs.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_687_MOESM14_ESM_Coverage plots for sperm head sncRNAs.xlsx",
+   "sha256": "64b3d3e2fbbcc95191b706141a2baa6388deda5f4527adcfbebd2cd391bac8c1",
+   "size_bytes": 38841,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00687-8/MediaObjects/44318_2025_687_MOESM14_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_687_MOESM14_ESM_Coverage plots for sperm head sncRNAs.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_687_MOESM14_ESM_Coverage plots for sperm sncRNAs.xlsx",
+   "sha256": "577cf97bd3841b2d7b7774ce84c3119af8f731b0a69c3cae24db0a7afbed03c1",
+   "size_bytes": 28387,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00687-8/MediaObjects/44318_2025_687_MOESM14_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_687_MOESM14_ESM_Coverage plots for sperm sncRNAs.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_687_MOESM14_ESM_PCOA plots for sperm head tsRNA and rsRNA.xlsx",
+   "sha256": "62b5aec78211ff6d06fdd94af8cb5faf685262a036e4b65610afce81dede6ccb",
+   "size_bytes": 10040,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00687-8/MediaObjects/44318_2025_687_MOESM14_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_687_MOESM14_ESM_PCOA plots for sperm head tsRNA and rsRNA.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_687_MOESM14_ESM_PCOA_plots for mouse tsRNA and rsRNAs .xlsx",
+   "sha256": "2b8671acc7819dd2bee26014099896d5675d8f2705501ed0dee5cdeb02773aab",
+   "size_bytes": 10715,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00687-8/MediaObjects/44318_2025_687_MOESM14_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_687_MOESM14_ESM_PCOA_plots for mouse tsRNA and rsRNAs .xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_687_MOESM14_ESM_Separated PCOA analysis for gemonic and mitochondrial tsRNAs_rsRNAs .xlsx",
+   "sha256": "9185e2b7199203b2f876e1676df6640430a2e10e4698d66dc2b9256bbc8ec2b3",
+   "size_bytes": 12081,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00687-8/MediaObjects/44318_2025_687_MOESM14_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_687_MOESM14_ESM_Separated PCOA analysis for gemonic and mitochondrial tsRNAs_rsRNAs .xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_687_MOESM14_ESM_sncRNA composition in sperm head_piechart.xlsx",
+   "sha256": "dc64883a2e8c48646437e0c5bc739540ae2ab5291e09d5d986f82289cf76af3b",
+   "size_bytes": 8576,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00687-8/MediaObjects/44318_2025_687_MOESM14_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_687_MOESM14_ESM_sncRNA composition in sperm head_piechart.xlsx)"
+  }
+ ]
+}

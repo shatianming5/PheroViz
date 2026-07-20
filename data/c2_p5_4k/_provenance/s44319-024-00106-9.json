@@ -1,0 +1,175 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44319-024-00106-9",
+ "journal": "EMBO Reports",
+ "year": 2024,
+ "published_date": "2024-02-29",
+ "article_url": "https://www.nature.com/articles/s44319-024-00106-9",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2024-02-29",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2024,
+      2,
+      29
+     ]
+    ],
+    "date-time": "2024-02-29T00:00:00Z",
+    "timestamp": 1709164800000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2024,
+     2,
+     29
+    ]
+   ],
+   "date-time": "2024-02-29T00:00:00Z",
+   "timestamp": 1709164800000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T18:06:04+00:00",
+ "manifest_generated_at": "2026-07-19T18:06:04+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_003.txt",
+   "sha256": "301a1e8b6b1111f617b1cf7e6d31926ef2d12d7c826de028fb243294b9274137",
+   "size_bytes": 3705,
+   "source_url": "https://link.springer.com/article/10.1038/s44319-024-00106-9",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_003.png",
+   "sha256": "5b542de9298bcfa5b312b72135b44a26afc4dca44800d206e056ce99b16e4d6d",
+   "size_bytes": 878684,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44319-024-00106-9/MediaObjects/44319_2024_106_Fig3_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2024_106_MOESM6_ESM_CENP-E intensity rescue_partial destabilization of MT.xlsx",
+   "sha256": "7abcb28e8e9d4591cbbd03a28e65d4de09d2459c1a0b0e9de19ca0e5f9c7a2fe",
+   "size_bytes": 31346,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-024-00106-9/MediaObjects/44319_2024_106_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2024_106_MOESM6_ESM_CENP-E intensity rescue_partial destabilization of MT.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2024_106_MOESM6_ESM_CENP-E intensity_CKAP5-853-2032-GFP-WT vs KK_AA mutant.xlsx",
+   "sha256": "d413c765fe766a70d091662e68dc097ed6d1599e0676cdc739b36f5ed70758e6",
+   "size_bytes": 31791,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-024-00106-9/MediaObjects/44319_2024_106_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2024_106_MOESM6_ESM_CENP-E intensity_CKAP5-853-2032-GFP-WT vs KK_AA mutant.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2024_106_MOESM6_ESM_Intensity of CENP-E_10µM paclitaxel_30min.xlsx",
+   "sha256": "dcff5d5a97f97e14831bfd4e157b869d90b47a8e40c8198b491c13e390006c88",
+   "size_bytes": 29900,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-024-00106-9/MediaObjects/44319_2024_106_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2024_106_MOESM6_ESM_Intensity of CENP-E_10µM paclitaxel_30min.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2024_106_MOESM6_ESM_Inter KT distance.xlsx",
+   "sha256": "838aedf33283f0f3a7846fef7ec4425bfe9530c978574bb0c3c72b0f2cfc6554",
+   "size_bytes": 31394,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-024-00106-9/MediaObjects/44319_2024_106_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2024_106_MOESM6_ESM_Inter KT distance.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2024_106_MOESM6_ESM_MT plus end intensity rescue.xlsx",
+   "sha256": "dac5a24c4e8229f691982a73fdeee0ca946bd1a13a53ca6143dc4f8bc76f761a",
+   "size_bytes": 23873,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-024-00106-9/MediaObjects/44319_2024_106_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2024_106_MOESM6_ESM_MT plus end intensity rescue.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2024_106_MOESM6_ESM_Percentage of cells with atleast one merotelic attachment.xlsx",
+   "sha256": "e28178b4bacf02d7a150dd6d3602b0bdb23bda4cd05e25b8f209f0f4157b8df6",
+   "size_bytes": 8662,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-024-00106-9/MediaObjects/44319_2024_106_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2024_106_MOESM6_ESM_Percentage of cells with atleast one merotelic attachment.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2024_106_MOESM6_ESM_Tubulin plus end intensity.xlsx",
+   "sha256": "5087a193a6d611ba343ef01a0603ad79f466fbd98ffaed014e7ad7a0bb7f000d",
+   "size_bytes": 21784,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-024-00106-9/MediaObjects/44319_2024_106_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2024_106_MOESM6_ESM_Tubulin plus end intensity.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2024_106_MOESM6_ESM_percentatge of cells with asymmetric spindle.xlsx",
+   "sha256": "b241f8bba7709693c36292be30f9709adcc19721476f7abee5dcf83b412b9a85",
+   "size_bytes": 8652,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-024-00106-9/MediaObjects/44319_2024_106_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2024_106_MOESM6_ESM_percentatge of cells with asymmetric spindle.xlsx)"
+  }
+ ]
+}

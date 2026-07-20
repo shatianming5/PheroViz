@@ -1,0 +1,127 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44318-026-00729-9",
+ "journal": "The EMBO Journal",
+ "year": 2026,
+ "published_date": "2026-03-11",
+ "article_url": "https://www.nature.com/articles/s44318-026-00729-9",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2026-03-11",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2026,
+      3,
+      11
+     ]
+    ],
+    "date-time": "2026-03-11T00:00:00Z",
+    "timestamp": 1773187200000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2026,
+     3,
+     11
+    ]
+   ],
+   "date-time": "2026-03-11T00:00:00Z",
+   "timestamp": 1773187200000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T18:06:09+00:00",
+ "manifest_generated_at": "2026-07-19T18:06:09+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_001.txt",
+   "sha256": "6250c0575fd62295c5c7dc08e330a324658dd0ed04d575c75365cd00a75d6694",
+   "size_bytes": 3744,
+   "source_url": "https://link.springer.com/article/10.1038/s44318-026-00729-9",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_001.png",
+   "sha256": "7e2bd72fd5f624b03d887bddb9b1dc346c9e5dab4aa91c9971b6bc1605b4d7aa",
+   "size_bytes": 1057990,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44318-026-00729-9/MediaObjects/44318_2026_729_Fig1_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2026_729_MOESM3_ESM_Fig1A_LBR.xlsx",
+   "sha256": "732fb9b0c4ec5807a660f5b4876989c5f27723986e22aa6141569db6a342094d",
+   "size_bytes": 9806,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-026-00729-9/MediaObjects/44318_2026_729_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2026_729_MOESM3_ESM_Fig1A_LBR.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2026_729_MOESM3_ESM_Fig1B_EdU.xlsx",
+   "sha256": "45583e5be07b131f0b77d56978f81aeeac07de28f94ebf857759ffa4dfb8533d",
+   "size_bytes": 9954,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-026-00729-9/MediaObjects/44318_2026_729_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2026_729_MOESM3_ESM_Fig1B_EdU.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2026_729_MOESM3_ESM_Fig1K_TPM.xlsx",
+   "sha256": "74fe0e846718f53cc099631a5f499f49dec941662ff4c4c9fa8593dd2d6fbb4d",
+   "size_bytes": 10304,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-026-00729-9/MediaObjects/44318_2026_729_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2026_729_MOESM3_ESM_Fig1K_TPM.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2026_729_MOESM3_ESM_Fig1L_c4heatmap_TPM_panther.csv",
+   "sha256": "aabf5b60890e7078f8fe729077dacc629416eb2f7107d9a14ec1a333bd828698",
+   "size_bytes": 30773,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-026-00729-9/MediaObjects/44318_2026_729_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2026_729_MOESM3_ESM_Fig1L_c4heatmap_TPM_panther.csv)"
+  }
+ ]
+}

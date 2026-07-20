@@ -1,0 +1,103 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44319-025-00406-8",
+ "journal": "EMBO Reports",
+ "year": 2025,
+ "published_date": "2025-03-07",
+ "article_url": "https://www.nature.com/articles/s44319-025-00406-8",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2025-03-07",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2025,
+      3,
+      7
+     ]
+    ],
+    "date-time": "2025-03-07T00:00:00Z",
+    "timestamp": 1741305600000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2025,
+     3,
+     7
+    ]
+   ],
+   "date-time": "2025-03-07T00:00:00Z",
+   "timestamp": 1741305600000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T18:17:34+00:00",
+ "manifest_generated_at": "2026-07-19T18:17:34+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_002.txt",
+   "sha256": "e72de5334fb7a5256acf0f3a9f8de168532ccdc258a15a1a31243f65ace90ccc",
+   "size_bytes": 1430,
+   "source_url": "https://link.springer.com/article/10.1038/s44319-025-00406-8",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_002.png",
+   "sha256": "f51d0624ddde4e271c1a07904f71b5bfa067f4884d43e8b765a5ffbb429fc353",
+   "size_bytes": 338990,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44319-025-00406-8/MediaObjects/44319_2025_406_Fig2_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2025_406_MOESM6_ESM_Quantification of Figure 2a.xlsx",
+   "sha256": "7bba05d48cecb548b9d90771b21dbea4f447bf8fb5b051e89cb316d6c4e0c21c",
+   "size_bytes": 8487,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-025-00406-8/MediaObjects/44319_2025_406_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2025_406_MOESM6_ESM_Quantification of Figure 2a.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2025_406_MOESM6_ESM_Rescue high resolution respirometry quantification.xlsx",
+   "sha256": "87b1d26e1c5dbfbd02b7b86ba9b265c376e36f93b21466d113d659e6d75d267d",
+   "size_bytes": 8476,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-025-00406-8/MediaObjects/44319_2025_406_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2025_406_MOESM6_ESM_Rescue high resolution respirometry quantification.xlsx)"
+  }
+ ]
+}

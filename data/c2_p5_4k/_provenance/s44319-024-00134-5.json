@@ -1,0 +1,103 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44319-024-00134-5",
+ "journal": "EMBO Reports",
+ "year": 2024,
+ "published_date": "2024-04-23",
+ "article_url": "https://www.nature.com/articles/s44319-024-00134-5",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2024-04-23",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2024,
+      4,
+      23
+     ]
+    ],
+    "date-time": "2024-04-23T00:00:00Z",
+    "timestamp": 1713830400000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2024,
+     4,
+     23
+    ]
+   ],
+   "date-time": "2024-04-23T00:00:00Z",
+   "timestamp": 1713830400000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T17:59:39+00:00",
+ "manifest_generated_at": "2026-07-19T17:59:39+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_005.txt",
+   "sha256": "af1729de3f3cb688ac3e1dea709a2d6a2327691fbd6d12f78df7c9bbd97f98d9",
+   "size_bytes": 2453,
+   "source_url": "https://link.springer.com/article/10.1038/s44319-024-00134-5",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_005.png",
+   "sha256": "ee500de8ca387b24b5b141a72086bf7e4418460464428a9361e73000afcd636c",
+   "size_bytes": 782528,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44319-024-00134-5/MediaObjects/44319_2024_134_Fig5_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2024_134_MOESM8_ESM_FRAP quantification.xlsx",
+   "sha256": "0913f3de62bbb785646742076e08149253ea934cb9fbd4ed1adebc671aaf138d",
+   "size_bytes": 127012,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-024-00134-5/MediaObjects/44319_2024_134_MOESM8_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2024_134_MOESM8_ESM_FRAP quantification.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2024_134_MOESM8_ESM_Quantification of nucleolar optical thickness.xlsx",
+   "sha256": "c35b566554e5dbf4856d7251ba5ad14d2dad9ec5aa82069fc8ad44420499c0a6",
+   "size_bytes": 108131,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-024-00134-5/MediaObjects/44319_2024_134_MOESM8_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2024_134_MOESM8_ESM_Quantification of nucleolar optical thickness.xlsx)"
+  }
+ ]
+}

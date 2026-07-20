@@ -1,0 +1,91 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44321-024-00034-0",
+ "journal": "EMBO Molecular Medicine",
+ "year": 2024,
+ "published_date": "2024-03-06",
+ "article_url": "https://www.nature.com/articles/s44321-024-00034-0",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2024-03-06",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2024,
+      3,
+      6
+     ]
+    ],
+    "date-time": "2024-03-06T00:00:00Z",
+    "timestamp": 1709683200000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2024,
+     3,
+     6
+    ]
+   ],
+   "date-time": "2024-03-06T00:00:00Z",
+   "timestamp": 1709683200000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T16:55:07+00:00",
+ "manifest_generated_at": "2026-07-19T16:55:08+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_002.txt",
+   "sha256": "52de8d51d8f199e6de8b7354594aed5a91578b2bcf4dbdd530de80ded4fadc0e",
+   "size_bytes": 1223,
+   "source_url": "https://link.springer.com/article/10.1038/s44321-024-00034-0",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_002.png",
+   "sha256": "f0bb18b49a39438ecdb6878e460d60e468568a3815389d2c552ff359b2d1b23c",
+   "size_bytes": 489875,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44321-024-00034-0/MediaObjects/44321_2024_34_Fig2_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2024_34_MOESM3_ESM_Tumor volumes and Body Weight Loss.xlsx",
+   "sha256": "dd77488e18d8ba319dfb441d22f55e59e958322fd5ba5b267833e4f397f32e58",
+   "size_bytes": 36737,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-024-00034-0/MediaObjects/44321_2024_34_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2024_34_MOESM3_ESM_Tumor volumes and Body Weight Loss.xlsx)"
+  }
+ ]
+}

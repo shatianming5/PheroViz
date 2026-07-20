@@ -1,0 +1,139 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44318-024-00190-6",
+ "journal": "The EMBO Journal",
+ "year": 2024,
+ "published_date": "2024-08-14",
+ "article_url": "https://www.nature.com/articles/s44318-024-00190-6",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2024-08-14",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2024,
+      8,
+      14
+     ]
+    ],
+    "date-time": "2024-08-14T00:00:00Z",
+    "timestamp": 1723593600000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2024,
+     8,
+     14
+    ]
+   ],
+   "date-time": "2024-08-14T00:00:00Z",
+   "timestamp": 1723593600000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T17:13:11+00:00",
+ "manifest_generated_at": "2026-07-19T17:13:11+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_001.txt",
+   "sha256": "e48d7697f8d36f4431ecf008c4ca05a47a04fb0e9d3f6f0b54ba1927d449d6b1",
+   "size_bytes": 2658,
+   "source_url": "https://link.springer.com/article/10.1038/s44318-024-00190-6",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_001.png",
+   "sha256": "ec00c6e8eaf80d53a0d000778068e1756e8ccb276b960c8e1614e83712cd3a82",
+   "size_bytes": 899773,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44318-024-00190-6/MediaObjects/44318_2024_190_Fig1_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2024_190_MOESM4_ESM_1E-particle density.xlsx",
+   "sha256": "073bca7824f941271ece9f2d7acc21ea86ba27b99ae8ac6f4bc98ddd14837b2e",
+   "size_bytes": 10301,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-024-00190-6/MediaObjects/44318_2024_190_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2024_190_MOESM4_ESM_1E-particle density.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2024_190_MOESM4_ESM_1F-stoichiometry distribution-2nM.xlsx",
+   "sha256": "a6c41a665a80b3c20c2129daee680518ab3e4a5657fed223ec9a678b705186fd",
+   "size_bytes": 81003,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-024-00190-6/MediaObjects/44318_2024_190_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2024_190_MOESM4_ESM_1F-stoichiometry distribution-2nM.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2024_190_MOESM4_ESM_1G-stoichiometry distribution-20nM.xlsx",
+   "sha256": "318909a83893856851fb7a41c1ff55de4ca2bc21bc71e9a14455bc0211e1d3a6",
+   "size_bytes": 203015,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-024-00190-6/MediaObjects/44318_2024_190_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2024_190_MOESM4_ESM_1G-stoichiometry distribution-20nM.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2024_190_MOESM4_ESM_1H-oligomeric species-2nM.xlsx",
+   "sha256": "d7ea20581d25d3a95c9ad86c12b8a5e22d4f614a60cd2f4e84f4ecd6d4d75df6",
+   "size_bytes": 10067,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-024-00190-6/MediaObjects/44318_2024_190_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2024_190_MOESM4_ESM_1H-oligomeric species-2nM.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2024_190_MOESM4_ESM_1I-oligomeric species-20nM.xlsx",
+   "sha256": "783ccce3da73b2466ab511e6d8ad37d590a693d3db56e3df57fc99c9dbea9114",
+   "size_bytes": 10392,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-024-00190-6/MediaObjects/44318_2024_190_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2024_190_MOESM4_ESM_1I-oligomeric species-20nM.xlsx)"
+  }
+ ]
+}

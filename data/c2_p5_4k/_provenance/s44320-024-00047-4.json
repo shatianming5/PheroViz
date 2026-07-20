@@ -1,0 +1,163 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44320-024-00047-4",
+ "journal": "Molecular Systems Biology",
+ "year": 2024,
+ "published_date": "2024-06-13",
+ "article_url": "https://www.nature.com/articles/s44320-024-00047-4",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2024-06-13",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2024,
+      6,
+      13
+     ]
+    ],
+    "date-time": "2024-06-13T00:00:00Z",
+    "timestamp": 1718236800000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2024,
+     6,
+     13
+    ]
+   ],
+   "date-time": "2024-06-13T00:00:00Z",
+   "timestamp": 1718236800000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T16:55:58+00:00",
+ "manifest_generated_at": "2026-07-19T16:55:58+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_003.txt",
+   "sha256": "2f9ff157b1689b240c856da8007e1ed026b7352bf95314846cfefc8716df6a3c",
+   "size_bytes": 3610,
+   "source_url": "https://link.springer.com/article/10.1038/s44320-024-00047-4",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_003.png",
+   "sha256": "0ff97f3de73c8810f8c82f6c0eb143a24fcd578be9abe2496c204af61c009550",
+   "size_bytes": 1214415,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44320-024-00047-4/MediaObjects/44320_2024_47_Fig3_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44320_2024_47_MOESM10_ESM_SimulatedRepCell_p38_NFkB_MKK4_MKK6_ExpRepCell_p38_NFkB.xlsx",
+   "sha256": "c24df31e1c29343eeef4953b89dbe9634b56e54ec2154cefa9b3869df22edf83",
+   "size_bytes": 48918,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44320-024-00047-4/MediaObjects/44320_2024_47_MOESM10_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44320_2024_47_MOESM10_ESM_SimulatedRepCell_p38_NFkB_MKK4_MKK6_ExpRepCell_p38_NFkB.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44320_2024_47_MOESM8_ESM_FlowCytometry_pp38_MFI.xlsx",
+   "sha256": "c585dfb275d861b7b2f86b751588508dcf32dc85dc32aee93c7d0fe730c03e3c",
+   "size_bytes": 11301,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44320-024-00047-4/MediaObjects/44320_2024_47_MOESM8_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44320_2024_47_MOESM8_ESM_FlowCytometry_pp38_MFI.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44320_2024_47_MOESM8_ESM_Fraction_p38active_KTRMicroscopy_FlowCytometry.xlsx",
+   "sha256": "4a10a383ba0e7f5e0fc58fd3a915755d7699402d21d9a64b95dfb58c51d1f2bd",
+   "size_bytes": 10455,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44320-024-00047-4/MediaObjects/44320_2024_47_MOESM8_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44320_2024_47_MOESM8_ESM_Fraction_p38active_KTRMicroscopy_FlowCytometry.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44320_2024_47_MOESM8_ESM_LiveCellMicroscopy_p38Activities.xlsx",
+   "sha256": "210b65f56de404cfdc2bdcb2ed1e267c48aacc8b5731efa5aaf0024f9cbd4a55",
+   "size_bytes": 1992020,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44320-024-00047-4/MediaObjects/44320_2024_47_MOESM8_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44320_2024_47_MOESM8_ESM_LiveCellMicroscopy_p38Activities.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44320_2024_47_MOESM8_ESM_WesternBlotQuantification_pp38_pMK2_pCREB_IkBa.xlsx",
+   "sha256": "9618eb7c38126510160d5b1307fd2287e0dd6aeb4952b6e15f850d9b282936f3",
+   "size_bytes": 14716,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44320-024-00047-4/MediaObjects/44320_2024_47_MOESM8_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44320_2024_47_MOESM8_ESM_WesternBlotQuantification_pp38_pMK2_pCREB_IkBa.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44320_2024_47_MOESM8_ESM_pp38_pMK2_fromWesternBlotting.xlsx",
+   "sha256": "4c6aa03835d9996e8d020bc1545f672f88bfaae5d2a7359792e75afe81c5078e",
+   "size_bytes": 17971,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44320-024-00047-4/MediaObjects/44320_2024_47_MOESM8_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44320_2024_47_MOESM8_ESM_pp38_pMK2_fromWesternBlotting.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44320_2024_47_MOESM9_ESM_Fraction_p38Responders_NFkBresponders_Microscopy.xlsx",
+   "sha256": "e7b0bd816e737b15799c2234af54fbdf7b08252477ee607bcf609ba6e3ce108d",
+   "size_bytes": 10758,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44320-024-00047-4/MediaObjects/44320_2024_47_MOESM9_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44320_2024_47_MOESM9_ESM_Fraction_p38Responders_NFkBresponders_Microscopy.xlsx)"
+  }
+ ]
+}

@@ -1,0 +1,211 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44321-024-00130-1",
+ "journal": "EMBO Molecular Medicine",
+ "year": 2024,
+ "published_date": "2024-09-11",
+ "article_url": "https://www.nature.com/articles/s44321-024-00130-1",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2024-09-11",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2024,
+      9,
+      11
+     ]
+    ],
+    "date-time": "2024-09-11T00:00:00Z",
+    "timestamp": 1726012800000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2024,
+     9,
+     11
+    ]
+   ],
+   "date-time": "2024-09-11T00:00:00Z",
+   "timestamp": 1726012800000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T16:55:53+00:00",
+ "manifest_generated_at": "2026-07-19T16:55:53+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_006.txt",
+   "sha256": "40fc1f4a68e8b3d8fe0f0d4eb9783a8fac35cfeda2ef0cb047341207a1cf2686",
+   "size_bytes": 2698,
+   "source_url": "https://link.springer.com/article/10.1038/s44321-024-00130-1",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_006.png",
+   "sha256": "74a77fd4d35a74e5757d08dd6136081272271282affca2c7a79379b9572a0256",
+   "size_bytes": 547277,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44321-024-00130-1/MediaObjects/44321_2024_130_Fig6_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2024_130_MOESM7_ESM_HNF4aKO_IL6_SAA ELISA.xlsx",
+   "sha256": "effe7b4dbff0d312c827b8eb71b55f2466e50eeb4116373d53a20aa667fb4164",
+   "size_bytes": 17621,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-024-00130-1/MediaObjects/44321_2024_130_MOESM7_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2024_130_MOESM7_ESM_HNF4aKO_IL6_SAA ELISA.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2024_130_MOESM7_ESM_HNF4aKO_IL6_SAP ELISA.xlsx",
+   "sha256": "cc63fecb05bc286c6a8912f8e9bb0e7c6a8c02041c219e110bd542ee8f36a48b",
+   "size_bytes": 19586,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-024-00130-1/MediaObjects/44321_2024_130_MOESM7_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2024_130_MOESM7_ESM_HNF4aKO_IL6_SAP ELISA.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2024_130_MOESM7_ESM_IL6+Dex SAA ELISA.xlsx",
+   "sha256": "27a35b29b4589c323ea84dbf625fee9855ca52c5cc68436d318df0e9ec33bc73",
+   "size_bytes": 18023,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-024-00130-1/MediaObjects/44321_2024_130_MOESM7_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2024_130_MOESM7_ESM_IL6+Dex SAA ELISA.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2024_130_MOESM7_ESM_IL6+Dex survival.xlsx",
+   "sha256": "60347735e781c70a62b96f1cb0070824f0dba1fb1787c67d8afc5c86502cdcee",
+   "size_bytes": 10767,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-024-00130-1/MediaObjects/44321_2024_130_MOESM7_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2024_130_MOESM7_ESM_IL6+Dex survival.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2024_130_MOESM7_ESM_RNA-Seq normcounts_sample Saa1 Apcs.xlsx",
+   "sha256": "6a99b6e4d92fe4e4351edf6ba074d2675316a25a829a1323fd8806352672124d",
+   "size_bytes": 9797,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-024-00130-1/MediaObjects/44321_2024_130_MOESM7_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2024_130_MOESM7_ESM_RNA-Seq normcounts_sample Saa1 Apcs.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2024_130_MOESM7_ESM_Sublethal lethal CLP SAP ELISA.xlsx",
+   "sha256": "d29ba5e5ac61b52e9271801b309af042fabb49f8f864ff4985a79c111817e7ab",
+   "size_bytes": 20496,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-024-00130-1/MediaObjects/44321_2024_130_MOESM7_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2024_130_MOESM7_ESM_Sublethal lethal CLP SAP ELISA.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2024_130_MOESM7_ESM_Sublethal lethal IL6 Apcs PBS qPCR.xlsx",
+   "sha256": "36c1fb6824b2e7bd034c98ee8f62d05ab44f589e2f490396003a17b69c658727",
+   "size_bytes": 9500,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-024-00130-1/MediaObjects/44321_2024_130_MOESM7_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2024_130_MOESM7_ESM_Sublethal lethal IL6 Apcs PBS qPCR.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2024_130_MOESM7_ESM_Sublethal lethal IL6 Apcs qPCR.xlsx",
+   "sha256": "e3fa3a37fbe3171b3d9c8ba6908d1790a536e4a31ce346c95b7d252c582fff0e",
+   "size_bytes": 11504,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-024-00130-1/MediaObjects/44321_2024_130_MOESM7_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2024_130_MOESM7_ESM_Sublethal lethal IL6 Apcs qPCR.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2024_130_MOESM7_ESM_Sublethal lethal IL6 ELISA.xlsx",
+   "sha256": "32c4f9832491b711eef76fa527ecd5db5e4a63972ee0cf46808a664d4bebaa2f",
+   "size_bytes": 16923,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-024-00130-1/MediaObjects/44321_2024_130_MOESM7_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2024_130_MOESM7_ESM_Sublethal lethal IL6 ELISA.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2024_130_MOESM7_ESM_SublethalCLP_lethalCLP_IL6_body temperature 2.xlsx",
+   "sha256": "7b4bebe4c318d2f8788f8fcac32b62562fa2d02b233b1118f92b76c936639eb0",
+   "size_bytes": 11948,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-024-00130-1/MediaObjects/44321_2024_130_MOESM7_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2024_130_MOESM7_ESM_SublethalCLP_lethalCLP_IL6_body temperature 2.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2024_130_MOESM7_ESM_SublethalCLP_lethalCLP_IL6_body temperature.xlsx",
+   "sha256": "139edd98ab542dc0372faa0c4709650e6a2a37bb7edf86121ca9803e3ffea362",
+   "size_bytes": 11712,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-024-00130-1/MediaObjects/44321_2024_130_MOESM7_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2024_130_MOESM7_ESM_SublethalCLP_lethalCLP_IL6_body temperature.xlsx)"
+  }
+ ]
+}

@@ -1,0 +1,139 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44321-026-00408-6",
+ "journal": "EMBO Molecular Medicine",
+ "year": 2026,
+ "published_date": "2026-04-06",
+ "article_url": "https://www.nature.com/articles/s44321-026-00408-6",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2026-04-06",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2026,
+      4,
+      6
+     ]
+    ],
+    "date-time": "2026-04-06T00:00:00Z",
+    "timestamp": 1775433600000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2026,
+     4,
+     6
+    ]
+   ],
+   "date-time": "2026-04-06T00:00:00Z",
+   "timestamp": 1775433600000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T15:56:29+00:00",
+ "manifest_generated_at": "2026-07-19T15:56:29+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_001.txt",
+   "sha256": "23c965631fe729207c7847e5f91e331356aa8fd24edb2911943cc01f3ba42a98",
+   "size_bytes": 2145,
+   "source_url": "https://link.springer.com/article/10.1038/s44321-026-00408-6",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_001.png",
+   "sha256": "86c3da45f71439771934ad1c6cd15d0dd273a9157cffd8b7ed50bb717d255373",
+   "size_bytes": 501661,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44321-026-00408-6/MediaObjects/44321_2026_408_Fig1_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2026_408_MOESM3_ESM_Fig 1B-Lactate concentrations (mM) from LC-MS.xlsx",
+   "sha256": "f165a470d23d252ae0191033e8bac33a31a3fc2e4561f260dd78b2066822641e",
+   "size_bytes": 9984,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-026-00408-6/MediaObjects/44321_2026_408_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2026_408_MOESM3_ESM_Fig 1B-Lactate concentrations (mM) from LC-MS.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2026_408_MOESM3_ESM_Fig 1C-Lac-Phe concentrations (┬╡M) from LC-MS.xlsx",
+   "sha256": "09a926ad3eb178bcb56577ee6a6e7f24bf5662df3da3d65ec2417a160237273e",
+   "size_bytes": 9574,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-026-00408-6/MediaObjects/44321_2026_408_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2026_408_MOESM3_ESM_Fig 1C-Lac-Phe concentrations (┬╡M) from LC-MS.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2026_408_MOESM3_ESM_Fig 1D-Lac-Phe concentrations (┬╡M) from LC-MS (Arm B, Baseline vs. D56).xlsx",
+   "sha256": "b9748715936ec1e810b87fe7ba37e7acdaa05b350f3376ee239dc48093ff73cf",
+   "size_bytes": 9895,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-026-00408-6/MediaObjects/44321_2026_408_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2026_408_MOESM3_ESM_Fig 1D-Lac-Phe concentrations (┬╡M) from LC-MS (Arm B, Baseline vs. D56).xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2026_408_MOESM3_ESM_Fig 1E-Lac-Phe concentrations (┬╡M) from LC-MS (Arm B, Baseline vs. D225).xlsx",
+   "sha256": "1a7433bf62604e2f3c56dd0a93a4630e192c84d1e89d649ceec0250715b8ac3d",
+   "size_bytes": 9818,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-026-00408-6/MediaObjects/44321_2026_408_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2026_408_MOESM3_ESM_Fig 1E-Lac-Phe concentrations (┬╡M) from LC-MS (Arm B, Baseline vs. D225).xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2026_408_MOESM3_ESM_Fig 1F-Lac-Phe concentrations (┬╡M) from LC-MS (biomarker protocol specimens).xlsx",
+   "sha256": "a68b24d7329dd8a26dd198ffe2a859d12ac10a3a2d56f6de45c8b382d63aafd6",
+   "size_bytes": 10566,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-026-00408-6/MediaObjects/44321_2026_408_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2026_408_MOESM3_ESM_Fig 1F-Lac-Phe concentrations (┬╡M) from LC-MS (biomarker protocol specimens).xlsx)"
+  }
+ ]
+}

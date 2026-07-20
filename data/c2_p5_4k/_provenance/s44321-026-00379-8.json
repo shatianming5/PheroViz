@@ -1,0 +1,199 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44321-026-00379-8",
+ "journal": "EMBO Molecular Medicine",
+ "year": 2026,
+ "published_date": "2026-02-16",
+ "article_url": "https://www.nature.com/articles/s44321-026-00379-8",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2026-02-16",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2026,
+      2,
+      16
+     ]
+    ],
+    "date-time": "2026-02-16T00:00:00Z",
+    "timestamp": 1771200000000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2026,
+     2,
+     16
+    ]
+   ],
+   "date-time": "2026-02-16T00:00:00Z",
+   "timestamp": 1771200000000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T17:24:37+00:00",
+ "manifest_generated_at": "2026-07-19T17:24:37+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_001.txt",
+   "sha256": "b6958ca2c0172a3fa8cc754b39fb0765875e1a3a885b3ca8086a64c7577db640",
+   "size_bytes": 2851,
+   "source_url": "https://link.springer.com/article/10.1038/s44321-026-00379-8",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_001.png",
+   "sha256": "9dd8e397f7653b4993f2fbb8b1040c9ab910d1fdc2c2576d0da8bf6aafa73978",
+   "size_bytes": 429504,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44321-026-00379-8/MediaObjects/44321_2026_379_Fig1_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2026_379_MOESM4_ESM_ELISA hIL-6 hPBEC H3N2.xlsx",
+   "sha256": "b4e49fa5f51dd915294a86f2b3c64f52cf560c10ebfd9ec0cc8fa7059b78d553",
+   "size_bytes": 18119,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-026-00379-8/MediaObjects/44321_2026_379_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2026_379_MOESM4_ESM_ELISA hIL-6 hPBEC H3N2.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2026_379_MOESM4_ESM_ELISA hIL-6.xlsx",
+   "sha256": "bb3cf57c248bf4bce331a64fd47241558ebef503709e6696d7cba5f6daf40478",
+   "size_bytes": 20156,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-026-00379-8/MediaObjects/44321_2026_379_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2026_379_MOESM4_ESM_ELISA hIL-6.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2026_379_MOESM4_ESM_Neuraminidase assay.xlsx",
+   "sha256": "c6cc6b1b98e815eed2fd9b50723b783d04240b1b05e12cb7f3cd13f00fa56e90",
+   "size_bytes": 18081,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-026-00379-8/MediaObjects/44321_2026_379_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2026_379_MOESM4_ESM_Neuraminidase assay.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2026_379_MOESM4_ESM_Plaque assay H1N1p.xlsx",
+   "sha256": "d9c2a328d1188e5bc053449b112be5a41e0f04e7b7d268bfc672a6e2d3decdbd",
+   "size_bytes": 17433,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-026-00379-8/MediaObjects/44321_2026_379_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2026_379_MOESM4_ESM_Plaque assay H1N1p.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2026_379_MOESM4_ESM_Plaque assay H3N2.xlsx",
+   "sha256": "a82248f87e23b85b2ca181ab8dfaaa336e4f8cdfa774d22273c78b8af6b38df8",
+   "size_bytes": 17462,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-026-00379-8/MediaObjects/44321_2026_379_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2026_379_MOESM4_ESM_Plaque assay H3N2.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2026_379_MOESM4_ESM_Plaque assay IBV.xlsx",
+   "sha256": "901896ca22279fd38abab78efb6146f3acf7380b2b88586d9e53f1da46bf95e9",
+   "size_bytes": 17413,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-026-00379-8/MediaObjects/44321_2026_379_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2026_379_MOESM4_ESM_Plaque assay IBV.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2026_379_MOESM4_ESM_Plaque assay PR8.xlsx",
+   "sha256": "6c5845ed9922fcb4932d591e2113770f863bfcba88f2559a7478b196b32e93ac",
+   "size_bytes": 17279,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-026-00379-8/MediaObjects/44321_2026_379_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2026_379_MOESM4_ESM_Plaque assay PR8.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2026_379_MOESM4_ESM_Plaque assay hPBEC H3N2.xlsx",
+   "sha256": "6d589899b8ce4d208efed632be530959463e5dbf6f002bd605f915acdf13ec62",
+   "size_bytes": 17586,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-026-00379-8/MediaObjects/44321_2026_379_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2026_379_MOESM4_ESM_Plaque assay hPBEC H3N2.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2026_379_MOESM4_ESM_Plaque assay hPBEC Victoria.xlsx",
+   "sha256": "fe12da8e35277697606e305334825246773dd83f61d26e5ac0daf6ffe4ced330",
+   "size_bytes": 18885,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-026-00379-8/MediaObjects/44321_2026_379_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2026_379_MOESM4_ESM_Plaque assay hPBEC Victoria.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2026_379_MOESM4_ESM_Protein array.xlsx",
+   "sha256": "71c104eef9b8ea619a1d478416cbf569e7a7ea76f01b5012fa04bd3e88feaeaf",
+   "size_bytes": 17490,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44321-026-00379-8/MediaObjects/44321_2026_379_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2026_379_MOESM4_ESM_Protein array.xlsx)"
+  }
+ ]
+}

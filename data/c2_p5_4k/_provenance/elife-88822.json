@@ -1,0 +1,91 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.7554/elife.88822",
+ "journal": "eLife",
+ "year": 2023,
+ "published_date": "2023-11-21",
+ "article_url": "https://elifesciences.org/articles/88822",
+ "license": {
+  "url": "http://creativecommons.org/licenses/by/4.0/",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2023-11-21",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2023,
+      11,
+      21
+     ]
+    ],
+    "date-time": "2023-11-21T00:00:00Z",
+    "timestamp": 1700524800000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "http://creativecommons.org/licenses/by/4.0/"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2023,
+     11,
+     21
+    ]
+   ],
+   "date-time": "2023-11-21T00:00:00Z",
+   "timestamp": 1700524800000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "http://creativecommons.org/licenses/by/4.0/"
+ },
+ "retrieved_at": "2026-07-20T00:24:07+00:00",
+ "manifest_generated_at": "2026-07-20T00:24:07+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_001.txt",
+   "sha256": "e048e71e638fd6e66c4fa382abdee3467391d2aa81a5b9c4968753c9f88637f0",
+   "size_bytes": 1465,
+   "source_url": "https://elifesciences.org/articles/88822/figures",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_001.png",
+   "sha256": "372e4268ed312e4cd74c58951a19f615dc58f1853ee755ee87e5114875b5c9b7",
+   "size_bytes": 2131017,
+   "source_url": "https://iiif.elifesciences.org/lax:88822%2Felife-88822-fig1-v1.tif/full/full/0/default.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_001_Figure 1 ΓÇô source data 1 PSII oxidation in Chlamy.xlsx",
+   "sha256": "e5601fd0a7d993ec8ce94a2118fe080f092b5c711a014eada784988f23501009",
+   "size_bytes": 15751,
+   "source_url": "https://cdn.elifesciences.org/articles/88822/elife-88822-fig1-data1-v1.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-88822-fig1-data1-v1.zip)"
+  }
+ ]
+}

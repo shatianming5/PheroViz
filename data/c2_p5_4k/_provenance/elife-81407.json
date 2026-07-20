@@ -1,0 +1,211 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.7554/elife.81407",
+ "journal": "eLife",
+ "year": 2023,
+ "published_date": "2023-02-23",
+ "article_url": "https://elifesciences.org/articles/81407",
+ "license": {
+  "url": "http://creativecommons.org/licenses/by/4.0/",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2023-02-23",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2023,
+      2,
+      23
+     ]
+    ],
+    "date-time": "2023-02-23T00:00:00Z",
+    "timestamp": 1677110400000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "http://creativecommons.org/licenses/by/4.0/"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2023,
+     2,
+     23
+    ]
+   ],
+   "date-time": "2023-02-23T00:00:00Z",
+   "timestamp": 1677110400000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "http://creativecommons.org/licenses/by/4.0/"
+ },
+ "retrieved_at": "2026-07-20T00:30:23+00:00",
+ "manifest_generated_at": "2026-07-20T00:30:23+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_001.txt",
+   "sha256": "f5f106a5bcae571e70ec0c8c5aba8e4d18943767ca45577dc05e74b67617a508",
+   "size_bytes": 1732,
+   "source_url": "https://elifesciences.org/articles/81407/figures",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_001.png",
+   "sha256": "6d0843e0e83589543530bb83606bb51d83675a6392497b993a576ddfe5a3974e",
+   "size_bytes": 587048,
+   "source_url": "https://iiif.elifesciences.org/lax:81407%2Felife-81407-fig1-v3.tif/full/full/0/default.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_001_Avg. backward movement (distance).csv",
+   "sha256": "4fcf491612954991ba8626c9cc3e31f28505abb580ed7c8b3ed90a07ecfbf68f",
+   "size_bytes": 537,
+   "source_url": "https://cdn.elifesciences.org/articles/81407/elife-81407-fig1-data1-v3.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-81407-fig1-data1-v3.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_002_Avg. Backward movement (time).csv",
+   "sha256": "b3bce2d9bd31af14762ed40370163ef22c39e80329c923360b5373f74c199885",
+   "size_bytes": 452,
+   "source_url": "https://cdn.elifesciences.org/articles/81407/elife-81407-fig1-data1-v3.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-81407-fig1-data1-v3.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_003_Avg. forward movement (distance).csv",
+   "sha256": "cf45ff41935fc4f61b9d3bce60ef928cdcea58628725729df3ecad053f7e0b88",
+   "size_bytes": 650,
+   "source_url": "https://cdn.elifesciences.org/articles/81407/elife-81407-fig1-data1-v3.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-81407-fig1-data1-v3.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_004_Avg. forward movement (time).csv",
+   "sha256": "1d0bce622802439178c16881cc156397e22e5ac6428e4d42ea8416691319b1c3",
+   "size_bytes": 563,
+   "source_url": "https://cdn.elifesciences.org/articles/81407/elife-81407-fig1-data1-v3.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-81407-fig1-data1-v3.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_005_Reversal Frequency.csv",
+   "sha256": "ab456a7a446fdcad576b1cbf0c9d3e4790f8dd6c8d5b980733419ad1f28cce53",
+   "size_bytes": 525,
+   "source_url": "https://cdn.elifesciences.org/articles/81407/elife-81407-fig1-data1-v3.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-81407-fig1-data1-v3.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_006_Speed.csv",
+   "sha256": "07f37d5d0d8a653f749dfe623edd603da676d0ec0f24904c81704d52b316e7ca",
+   "size_bytes": 601,
+   "source_url": "https://cdn.elifesciences.org/articles/81407/elife-81407-fig1-data1-v3.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-81407-fig1-data1-v3.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_007_Time observed.csv",
+   "sha256": "6ee5ba68ec2efc955d094dd9fd60db25f3403bb9f0db4acbf695d6bb2b60bfc7",
+   "size_bytes": 592,
+   "source_url": "https://cdn.elifesciences.org/articles/81407/elife-81407-fig1-data1-v3.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-81407-fig1-data1-v3.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_008_Total backward distance covered.csv",
+   "sha256": "82b4499a2216388fa0640cde69eff840584c7990e643b128082e3c62a5360e82",
+   "size_bytes": 572,
+   "source_url": "https://cdn.elifesciences.org/articles/81407/elife-81407-fig1-data1-v3.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-81407-fig1-data1-v3.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_009_Total Distance Travelled.csv",
+   "sha256": "2bc545e8130e23402f2d8a3cd2552c9956b4a1b0ed85263cb596cfcb856f8777",
+   "size_bytes": 588,
+   "source_url": "https://cdn.elifesciences.org/articles/81407/elife-81407-fig1-data1-v3.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-81407-fig1-data1-v3.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_010_Total forward distance covered.csv",
+   "sha256": "0c51fab917d868a4192b55486332e15e5f3446ec5c4a1fc4f74406eb00765151",
+   "size_bytes": 647,
+   "source_url": "https://cdn.elifesciences.org/articles/81407/elife-81407-fig1-data1-v3.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-81407-fig1-data1-v3.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/002_001_figure 1 source data 2.xlsx",
+   "sha256": "3952c0f8b672acd711a8e4e6da07ce2545c9c2e9186b3f1374a88fd00d359d1c",
+   "size_bytes": 9244,
+   "source_url": "https://cdn.elifesciences.org/articles/81407/elife-81407-fig1-data2-v3.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-81407-fig1-data2-v3.zip)"
+  }
+ ]
+}

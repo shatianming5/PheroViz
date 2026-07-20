@@ -1,0 +1,127 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44318-025-00672-1",
+ "journal": "The EMBO Journal",
+ "year": 2026,
+ "published_date": "2026-01-03",
+ "article_url": "https://www.nature.com/articles/s44318-025-00672-1",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2026-01-03",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2026,
+      1,
+      3
+     ]
+    ],
+    "date-time": "2026-01-03T00:00:00Z",
+    "timestamp": 1767398400000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2026,
+     1,
+     3
+    ]
+   ],
+   "date-time": "2026-01-03T00:00:00Z",
+   "timestamp": 1767398400000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T18:07:44+00:00",
+ "manifest_generated_at": "2026-07-19T18:07:44+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_001.txt",
+   "sha256": "82f2bd9c729991548b9c1e8e544e6eb5a33f89db0047b4d9a74d0000eb38c1d5",
+   "size_bytes": 2298,
+   "source_url": "https://link.springer.com/article/10.1038/s44318-025-00672-1",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_001.png",
+   "sha256": "6575ff02bcb413ab91a0556ccfd393101b9b15cf27ddd070921a4e674736559d",
+   "size_bytes": 1433777,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44318-025-00672-1/MediaObjects/44318_2025_672_Fig1_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_672_MOESM3_ESM_DKO_HA-TEC addback_ALIX QUANT.xlsx",
+   "sha256": "73a6ebc335570661e60d1dddac5d6d33d1e78309c7337d9d877681d67c907d91",
+   "size_bytes": 55123,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00672-1/MediaObjects/44318_2025_672_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_672_MOESM3_ESM_DKO_HA-TEC addback_ALIX QUANT.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_672_MOESM3_ESM_HeLa TECPR1KO_LLOMe_ALIX_Gal COLOC_Cell profiler.xlsx",
+   "sha256": "8f52dad767932370990fd9cf10ea150162d65789dd4a38a65e4658273601933b",
+   "size_bytes": 196836,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00672-1/MediaObjects/44318_2025_672_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_672_MOESM3_ESM_HeLa TECPR1KO_LLOMe_ALIX_Gal COLOC_Cell profiler.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_672_MOESM3_ESM_HeLa TECPR1KO_LLOMe_ALIX_QUANTIFICATION.xlsx",
+   "sha256": "10b59482aec69dc233094d858adfcbab2eebbb36edd561a82d21c0f578515cd4",
+   "size_bytes": 68449,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00672-1/MediaObjects/44318_2025_672_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_672_MOESM3_ESM_HeLa TECPR1KO_LLOMe_ALIX_QUANTIFICATION.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44318_2025_672_MOESM3_ESM_IST1-EGFP_lysosomal accumulation_HeLa WT_DKO.xlsx",
+   "sha256": "ff1490b68eacd1630430fc80b6f24801ef9950ba8739adf86ff25a626386529a",
+   "size_bytes": 161060,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44318-025-00672-1/MediaObjects/44318_2025_672_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44318_2025_672_MOESM3_ESM_IST1-EGFP_lysosomal accumulation_HeLa WT_DKO.xlsx)"
+  }
+ ]
+}

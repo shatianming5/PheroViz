@@ -1,0 +1,103 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44319-024-00208-4",
+ "journal": "EMBO Reports",
+ "year": 2024,
+ "published_date": "2024-07-18",
+ "article_url": "https://www.nature.com/articles/s44319-024-00208-4",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2024-07-18",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2024,
+      7,
+      18
+     ]
+    ],
+    "date-time": "2024-07-18T00:00:00Z",
+    "timestamp": 1721260800000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2024,
+     7,
+     18
+    ]
+   ],
+   "date-time": "2024-07-18T00:00:00Z",
+   "timestamp": 1721260800000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T17:42:17+00:00",
+ "manifest_generated_at": "2026-07-19T17:42:17+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_002.txt",
+   "sha256": "f425eda26ffa8b7a49501ea974999f0a01c5f329e234748337bcceeb390f4480",
+   "size_bytes": 895,
+   "source_url": "https://link.springer.com/article/10.1038/s44319-024-00208-4",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_002.png",
+   "sha256": "8ad34ace8a5cbc9177693c49115bf9c8749c09c9128aa15fd0f61459000ace29",
+   "size_bytes": 962124,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44319-024-00208-4/MediaObjects/44319_2024_208_Fig2_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2024_208_MOESM3_ESM_SourceData_2D_Relative mRNA accumulation.xlsx",
+   "sha256": "132237082aa3dd2c0366449bce377bf64e34f5b85d5dc7b02dabcdaae3ba9057",
+   "size_bytes": 11588,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-024-00208-4/MediaObjects/44319_2024_208_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2024_208_MOESM3_ESM_SourceData_2D_Relative mRNA accumulation.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2024_208_MOESM3_ESM_SourceData_2E_Relative mRNA accumulation.xlsx",
+   "sha256": "32d30530ac87de20f2233e93064e5426204e0545618ca1b7f8aa9b648b8a6bee",
+   "size_bytes": 11037,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-024-00208-4/MediaObjects/44319_2024_208_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2024_208_MOESM3_ESM_SourceData_2E_Relative mRNA accumulation.xlsx)"
+  }
+ ]
+}

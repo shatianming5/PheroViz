@@ -1,0 +1,187 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.15252/emmm.202114150",
+ "journal": "EMBO Molecular Medicine",
+ "year": 2021,
+ "published_date": "2021-08-09",
+ "article_url": "https://link.springer.com/article/10.15252/emmm.202114150",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0/",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2021-06-16",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2021,
+      6,
+      16
+     ]
+    ],
+    "date-time": "2021-06-16T00:00:00Z",
+    "timestamp": 1623801600000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0/"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2021,
+     6,
+     16
+    ]
+   ],
+   "date-time": "2021-06-16T00:00:00Z",
+   "timestamp": 1623801600000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0/"
+ },
+ "retrieved_at": "2026-07-19T23:18:27+00:00",
+ "manifest_generated_at": "2026-07-19T23:18:27+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_002.txt",
+   "sha256": "abfadebf8c0573b107ed28214efb5b53132f99602fa628214887726aac7c6ce7",
+   "size_bytes": 3801,
+   "source_url": "https://link.springer.com/article/10.15252/emmm.202114150",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_002.png",
+   "sha256": "db508de14c588005f97949c0319920dda9603406e26e677e0d5b5284edf44f27",
+   "size_bytes": 605299,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.15252%2Femmm.202114150/MediaObjects/44321_2021_BFEMMM202114150_Fig2_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2021_BFEMMM202114150_MOESM3_ESM_A RNAseq Naïve_LPS vs Naïve_unstimulated.xlsx",
+   "sha256": "b8fc5347a763f03b813a91e5ce70a83b11fa483db437c02318701a8a2688474e",
+   "size_bytes": 9732947,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.15252%2Femmm.202114150/MediaObjects/44321_2021_BFEMMM202114150_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2021_BFEMMM202114150_MOESM3_ESM_A RNAseq Naïve_LPS vs Naïve_unstimulated.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2021_BFEMMM202114150_MOESM3_ESM_B RNAseq_SC-conv_LPS vs SC-conv_unstimulated.xlsx",
+   "sha256": "a62e1a9595a96290ed4a1c0d39e87078151fadfb4d1acfca11750b91014db658",
+   "size_bytes": 9956439,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.15252%2Femmm.202114150/MediaObjects/44321_2021_BFEMMM202114150_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2021_BFEMMM202114150_MOESM3_ESM_B RNAseq_SC-conv_LPS vs SC-conv_unstimulated.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2021_BFEMMM202114150_MOESM3_ESM_C RNAseq_Naïve_SP vs Naïve_unstimulated.xlsx",
+   "sha256": "47f4754b691c96ae5a59596a13ca49f8bdd31abf3664118e4cf79f810437dc6b",
+   "size_bytes": 9030543,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.15252%2Femmm.202114150/MediaObjects/44321_2021_BFEMMM202114150_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2021_BFEMMM202114150_MOESM3_ESM_C RNAseq_Naïve_SP vs Naïve_unstimulated.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2021_BFEMMM202114150_MOESM3_ESM_D RNAseq_SC-conv_SP vs SC-conv_unstimulated.xlsx",
+   "sha256": "3a216a28d45f3d4dcf1d421caad192731480e3ab00251cb32fc92f0ca716e48f",
+   "size_bytes": 9436462,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.15252%2Femmm.202114150/MediaObjects/44321_2021_BFEMMM202114150_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2021_BFEMMM202114150_MOESM3_ESM_D RNAseq_SC-conv_SP vs SC-conv_unstimulated.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2021_BFEMMM202114150_MOESM3_ESM_E RNAseq_SC-conv_SP vs SC-conv_LPS.xlsx",
+   "sha256": "9d0d8c33b807e3de31ea189f54e4e6d6c972374ba38f35c15ebb39e4bfc2c7ea",
+   "size_bytes": 9331400,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.15252%2Femmm.202114150/MediaObjects/44321_2021_BFEMMM202114150_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2021_BFEMMM202114150_MOESM3_ESM_E RNAseq_SC-conv_SP vs SC-conv_LPS.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2021_BFEMMM202114150_MOESM3_ESM_F RNAseq_SC-conv_SP vs Naïve_SP.xlsx",
+   "sha256": "e0afb8d01b377667e938fbf82dfe6104865e88d07c66e744a18f5877950cc7b2",
+   "size_bytes": 8919203,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.15252%2Femmm.202114150/MediaObjects/44321_2021_BFEMMM202114150_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2021_BFEMMM202114150_MOESM3_ESM_F RNAseq_SC-conv_SP vs Naïve_SP.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2021_BFEMMM202114150_MOESM3_ESM_G RNAseq_SC-conv_LPS vs Naïve_LPS.xlsx",
+   "sha256": "dcd6222fcd62c74ab0ee199e07a6af3a81f74f72b659d10691de6c39497d106f",
+   "size_bytes": 8851836,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.15252%2Femmm.202114150/MediaObjects/44321_2021_BFEMMM202114150_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2021_BFEMMM202114150_MOESM3_ESM_G RNAseq_SC-conv_LPS vs Naïve_LPS.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2021_BFEMMM202114150_MOESM3_ESM_H RNAseq_SC-conv_unstimulated vs Naïve_unstimulated.xlsx",
+   "sha256": "b516f4228950ee88e22dd659cd6b781bdbe6624f2623df056b41a83021770633",
+   "size_bytes": 8843995,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.15252%2Femmm.202114150/MediaObjects/44321_2021_BFEMMM202114150_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2021_BFEMMM202114150_MOESM3_ESM_H RNAseq_SC-conv_unstimulated vs Naïve_unstimulated.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44321_2021_BFEMMM202114150_MOESM3_ESM_I miRNA_SC-conv_unstimulated vs Naïve_unstimulated.xlsx",
+   "sha256": "1412eba12eb0dcccab21192050c2cfed03ad7c8b7d9fbef96bf5e3451f175291",
+   "size_bytes": 153988,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.15252%2Femmm.202114150/MediaObjects/44321_2021_BFEMMM202114150_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44321_2021_BFEMMM202114150_MOESM3_ESM_I miRNA_SC-conv_unstimulated vs Naïve_unstimulated.xlsx)"
+  }
+ ]
+}

@@ -1,0 +1,211 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44319-025-00521-6",
+ "journal": "EMBO Reports",
+ "year": 2025,
+ "published_date": "2025-07-18",
+ "article_url": "https://www.nature.com/articles/s44319-025-00521-6",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2025-07-18",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2025,
+      7,
+      18
+     ]
+    ],
+    "date-time": "2025-07-18T00:00:00Z",
+    "timestamp": 1752796800000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2025,
+     7,
+     18
+    ]
+   ],
+   "date-time": "2025-07-18T00:00:00Z",
+   "timestamp": 1752796800000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T17:49:59+00:00",
+ "manifest_generated_at": "2026-07-19T17:49:59+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_001.txt",
+   "sha256": "07702f3a2134b3004183bdf7dc3c958798512b17e31e5bdf7f93900f14e0d981",
+   "size_bytes": 3529,
+   "source_url": "https://link.springer.com/article/10.1038/s44319-025-00521-6",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_001.png",
+   "sha256": "898b52a8def515bc1c83492c8c548f4819e9e721dfef58e59bc9df0cf9984ad2",
+   "size_bytes": 913376,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44319-025-00521-6/MediaObjects/44319_2025_521_Fig1_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2025_521_MOESM10_ESM_Fig1A_DP_VS_baseline_5type_piestats_2024-05-24.csv",
+   "sha256": "97762508a51631e97f268efb3d5a73ae347844f2d4a5b47edecabd7e84d0c3f7",
+   "size_bytes": 148,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-025-00521-6/MediaObjects/44319_2025_521_MOESM10_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2025_521_MOESM10_ESM_Fig1A_DP_VS_baseline_5type_piestats_2024-05-24.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2025_521_MOESM10_ESM_Fig1A_Melonama_VS_melanocyte_5type_piestats_2024-05-24.csv",
+   "sha256": "99f377c4cf9eb7bb4a76d735d566231301cd4ff4e8b4f1b82dcd32cbeb413827",
+   "size_bytes": 1109648,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-025-00521-6/MediaObjects/44319_2025_521_MOESM10_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2025_521_MOESM10_ESM_Fig1A_Melonama_VS_melanocyte_5type_piestats_2024-05-24.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2025_521_MOESM10_ESM_Fig1A_Nevus_VS_melanocyte_5type_piestats_2024-05-24.csv",
+   "sha256": "c44c960ee6481a02726a14d3386ddfd01f2c5c8974d4e75c77693f7a5b8b87bc",
+   "size_bytes": 968363,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-025-00521-6/MediaObjects/44319_2025_521_MOESM10_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2025_521_MOESM10_ESM_Fig1A_Nevus_VS_melanocyte_5type_piestats_2024-05-24.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2025_521_MOESM10_ESM_Fig1A_nevus_VS_melanoma_5type_piestats_2024-05-24.csv",
+   "sha256": "3da9a0797e0761bcbf78cb94ff78937568e890950edc5733ccb01f93a4e00450",
+   "size_bytes": 249019,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-025-00521-6/MediaObjects/44319_2025_521_MOESM10_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2025_521_MOESM10_ESM_Fig1A_nevus_VS_melanoma_5type_piestats_2024-05-24.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2025_521_MOESM10_ESM_Fig1B_DP_SkipandDonw_DEAS_hist_plot_2024-05-24.csv",
+   "sha256": "3253a77a7a6a732f1abad2b52ac7a0caae998e3f26ec02b4b9d59ce4159e82a5",
+   "size_bytes": 7409534,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-025-00521-6/MediaObjects/44319_2025_521_MOESM10_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2025_521_MOESM10_ESM_Fig1B_DP_SkipandDonw_DEAS_hist_plot_2024-05-24.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2025_521_MOESM10_ESM_Fig1C_isoform_numbers_2024-05-20.csv",
+   "sha256": "00a0daccb5d82e678952906ffa90b7b3394abbd5a731580dd96fa8a211f93f61",
+   "size_bytes": 1412,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-025-00521-6/MediaObjects/44319_2025_521_MOESM10_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2025_521_MOESM10_ESM_Fig1C_isoform_numbers_2024-05-20.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2025_521_MOESM10_ESM_Fig1D_isoform_intersct_2024-05-20.csv",
+   "sha256": "7ba5326e0696a08eee504474671715efb1626d8aad6d1986b036d119031be126",
+   "size_bytes": 6918783,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-025-00521-6/MediaObjects/44319_2025_521_MOESM10_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2025_521_MOESM10_ESM_Fig1D_isoform_intersct_2024-05-20.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2025_521_MOESM10_ESM_Fig1E_DEI_BBH_ecdf_2024-05-20.csv",
+   "sha256": "087d905c247515869a9193553e04e6d2e192306384b4699301be81256da4e94d",
+   "size_bytes": 3260,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-025-00521-6/MediaObjects/44319_2025_521_MOESM10_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2025_521_MOESM10_ESM_Fig1E_DEI_BBH_ecdf_2024-05-20.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2025_521_MOESM10_ESM_Fig1G_geneset_upsets_2024-05-20.csv",
+   "sha256": "4d6e105526f77b165a7b8a7b8030f972f950fb8c64d90c8c176f435a1741e5ab",
+   "size_bytes": 398333,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-025-00521-6/MediaObjects/44319_2025_521_MOESM10_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2025_521_MOESM10_ESM_Fig1G_geneset_upsets_2024-05-20.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2025_521_MOESM10_ESM_Fig1f_DEI_barplot_2024-05-20.csv",
+   "sha256": "957820452e67b2a7597b08810c93ba3027eaa21f990d98c194b8efcdf4a07927",
+   "size_bytes": 10957,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-025-00521-6/MediaObjects/44319_2025_521_MOESM10_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2025_521_MOESM10_ESM_Fig1f_DEI_barplot_2024-05-20.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2025_521_MOESM10_ESM_Fig1h_DEI_point_2024-05-20.csv",
+   "sha256": "fcc020aa76098e0d532f788577cb9611afb8fcfd84d234be679ad029009c1d93",
+   "size_bytes": 255224,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-025-00521-6/MediaObjects/44319_2025_521_MOESM10_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2025_521_MOESM10_ESM_Fig1h_DEI_point_2024-05-20.csv)"
+  }
+ ]
+}

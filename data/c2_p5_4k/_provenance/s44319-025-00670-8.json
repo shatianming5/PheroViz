@@ -1,0 +1,91 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44319-025-00670-8",
+ "journal": "EMBO Reports",
+ "year": 2025,
+ "published_date": "2025-12-08",
+ "article_url": "https://www.nature.com/articles/s44319-025-00670-8",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2025-12-08",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2025,
+      12,
+      8
+     ]
+    ],
+    "date-time": "2025-12-08T00:00:00Z",
+    "timestamp": 1765152000000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2025,
+     12,
+     8
+    ]
+   ],
+   "date-time": "2025-12-08T00:00:00Z",
+   "timestamp": 1765152000000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T18:15:11+00:00",
+ "manifest_generated_at": "2026-07-19T18:15:12+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_008.txt",
+   "sha256": "bc2dca5864517531cf1f71e523c1eb628a42a5ce4bb356137d00802b1b5e7893",
+   "size_bytes": 1199,
+   "source_url": "https://link.springer.com/article/10.1038/s44319-025-00670-8",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_008.png",
+   "sha256": "8b20112e4f2e8aca6327e2fffef2c868421cc98a8508cc2a234758c6ef1434c8",
+   "size_bytes": 323225,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44319-025-00670-8/MediaObjects/44319_2025_670_Fig8_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2025_670_MOESM13_ESM_Sperm penetration time in fertilized oocytes.xlsx",
+   "sha256": "3ef44183ffe7778c83ad977ef35b602913e75131bb4129f0fa725f3b79267249",
+   "size_bytes": 41785,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-025-00670-8/MediaObjects/44319_2025_670_MOESM13_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2025_670_MOESM13_ESM_Sperm penetration time in fertilized oocytes.xlsx)"
+  }
+ ]
+}

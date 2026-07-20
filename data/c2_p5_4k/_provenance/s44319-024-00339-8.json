@@ -1,0 +1,115 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44319-024-00339-8",
+ "journal": "EMBO Reports",
+ "year": 2025,
+ "published_date": "2025-01-03",
+ "article_url": "https://www.nature.com/articles/s44319-024-00339-8",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2025-01-03",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2025,
+      1,
+      3
+     ]
+    ],
+    "date-time": "2025-01-03T00:00:00Z",
+    "timestamp": 1735862400000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2025,
+     1,
+     3
+    ]
+   ],
+   "date-time": "2025-01-03T00:00:00Z",
+   "timestamp": 1735862400000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T17:34:17+00:00",
+ "manifest_generated_at": "2026-07-19T17:34:17+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_001.txt",
+   "sha256": "822bc6ffcd61125ca6c1548ae959716bd89e81030cc68f92f517c7c4261408bb",
+   "size_bytes": 4370,
+   "source_url": "https://link.springer.com/article/10.1038/s44319-024-00339-8",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_001.png",
+   "sha256": "5525c7f41ce03d77bc27e8a00ebe5ddda80e2bdb5c2e7cbca31672b9256b9280",
+   "size_bytes": 959777,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44319-024-00339-8/MediaObjects/44319_2024_339_Fig1_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2024_339_MOESM8_ESM_Pathway_enrichment.xlsx",
+   "sha256": "67f32ee6543b28b64217fe030f41e62840b58b64e75781e2731f434b344993ba",
+   "size_bytes": 515569,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-024-00339-8/MediaObjects/44319_2024_339_MOESM8_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2024_339_MOESM8_ESM_Pathway_enrichment.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2024_339_MOESM8_ESM_Venn_Diagrams.xlsx",
+   "sha256": "4d68f89c18fb947645b23e86e2f25595232a4b9bf35655fdd6e75fac82a044cc",
+   "size_bytes": 11308,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-024-00339-8/MediaObjects/44319_2024_339_MOESM8_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2024_339_MOESM8_ESM_Venn_Diagrams.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2024_339_MOESM8_ESM_Volcano_plots.xlsx",
+   "sha256": "6de2db1354c92a756cf730023b043196629db539b76669c9b515a3b70922fbde",
+   "size_bytes": 502128,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-024-00339-8/MediaObjects/44319_2024_339_MOESM8_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2024_339_MOESM8_ESM_Volcano_plots.xlsx)"
+  }
+ ]
+}

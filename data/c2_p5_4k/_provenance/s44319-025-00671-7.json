@@ -1,0 +1,91 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44319-025-00671-7",
+ "journal": "EMBO Reports",
+ "year": 2025,
+ "published_date": "2025-12-10",
+ "article_url": "https://www.nature.com/articles/s44319-025-00671-7",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2025-12-10",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2025,
+      12,
+      10
+     ]
+    ],
+    "date-time": "2025-12-10T00:00:00Z",
+    "timestamp": 1765324800000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2025,
+     12,
+     10
+    ]
+   ],
+   "date-time": "2025-12-10T00:00:00Z",
+   "timestamp": 1765324800000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T18:25:56+00:00",
+ "manifest_generated_at": "2026-07-19T18:25:56+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_006.txt",
+   "sha256": "92ad732b56e6475d079b4b6ce3d59e1b0d519185d8714f79589850e0e9132dc4",
+   "size_bytes": 1563,
+   "source_url": "https://link.springer.com/article/10.1038/s44319-025-00671-7",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_006.png",
+   "sha256": "e35b3c5fa9e3563f90602c4b61573802a2866a45828b5df7215675168a3d8c1e",
+   "size_bytes": 1520349,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44319-025-00671-7/MediaObjects/44319_2025_671_Fig6_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2025_671_MOESM14_ESM_6B Quantifications of the ciliary WDR47 intensity in the individual motile cilium.xlsx",
+   "sha256": "dbf2ad64cb2927337f0bf04f2074fa7b98a5b2fe1619e5d376dc1059c4dfb654",
+   "size_bytes": 14489,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-025-00671-7/MediaObjects/44319_2025_671_MOESM14_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2025_671_MOESM14_ESM_6B Quantifications of the ciliary WDR47 intensity in the individual motile cilium.xlsx)"
+  }
+ ]
+}

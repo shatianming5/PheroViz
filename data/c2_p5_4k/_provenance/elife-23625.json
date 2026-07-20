@@ -1,0 +1,175 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.7554/elife.23625",
+ "journal": "eLife",
+ "year": 2018,
+ "published_date": "2018-01-17",
+ "article_url": "https://elifesciences.org/articles/23625",
+ "license": {
+  "url": "http://creativecommons.org/licenses/by/4.0/",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2018-01-17",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2018,
+      1,
+      17
+     ]
+    ],
+    "date-time": "2018-01-17T00:00:00Z",
+    "timestamp": 1516147200000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "http://creativecommons.org/licenses/by/4.0/"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2018,
+     1,
+     17
+    ]
+   ],
+   "date-time": "2018-01-17T00:00:00Z",
+   "timestamp": 1516147200000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "http://creativecommons.org/licenses/by/4.0/"
+ },
+ "retrieved_at": "2026-07-19T23:52:52+00:00",
+ "manifest_generated_at": "2026-07-19T23:52:52+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_005.txt",
+   "sha256": "cc2f46b083376a85a2e48a621e90471819a994224e6a680a46b023055a916c83",
+   "size_bytes": 3207,
+   "source_url": "https://elifesciences.org/articles/23625/figures",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_005.png",
+   "sha256": "10dc9b350969773f6e51e77c2ca65c8e23fcc6ba04f9e746ae56b745af976a60",
+   "size_bytes": 2280694,
+   "source_url": "https://iiif.elifesciences.org/lax/23625%2Felife-23625-fig5-v2.tif/full/full/0/default.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_001_Col Stats of stromule velocities.csv",
+   "sha256": "09aa022d119a2d5b6ff3090b93d76f8c8c5d62f8dad7065e14704982acd002c2",
+   "size_bytes": 2104,
+   "source_url": "https://cdn.elifesciences.org/articles/23625/elife-23625-fig5-data1-v2.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-23625-fig5-data1-v2.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/001_002_Ordinary one-way ANOVA of stromule velocities.csv",
+   "sha256": "84f1ace8543d9915308be1b590cdf773df12f2a49daa85d1d1dbe251cecbbc75",
+   "size_bytes": 1178,
+   "source_url": "https://cdn.elifesciences.org/articles/23625/elife-23625-fig5-data1-v2.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-23625-fig5-data1-v2.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/002_001_Col Stats of 710 Azimuthal MRL.csv",
+   "sha256": "d75749d6c02420ce2bd46ab68ffa09424d445e0a3420ca75da3dd77ded4acb17",
+   "size_bytes": 654,
+   "source_url": "https://cdn.elifesciences.org/articles/23625/elife-23625-fig5-data2-v2.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-23625-fig5-data2-v2.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/002_002_Col Stats of 710 Curvature.csv",
+   "sha256": "bb4c81d0c1abf069917a585a15fc640d5fa6db1ac1373c623c628edb87c1325a",
+   "size_bytes": 700,
+   "source_url": "https://cdn.elifesciences.org/articles/23625/elife-23625-fig5-data2-v2.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-23625-fig5-data2-v2.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/002_003_Col Stats of 710 Length.csv",
+   "sha256": "9bf528c4ff7c37663f4700424659d643b3cde95d454f8a83916ecb3796cde5c7",
+   "size_bytes": 614,
+   "source_url": "https://cdn.elifesciences.org/articles/23625/elife-23625-fig5-data2-v2.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-23625-fig5-data2-v2.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/002_004_Mann-Whitney test of 710 Curvature.csv",
+   "sha256": "3db7d252225489066dfa12fec909444789f3503e0c4e6d5347760259a047f536",
+   "size_bytes": 591,
+   "source_url": "https://cdn.elifesciences.org/articles/23625/elife-23625-fig5-data2-v2.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-23625-fig5-data2-v2.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/002_005_Mann-Whitney test of Identify outliers of 710 Length.csv",
+   "sha256": "8ab7c06903243fdcb4750f1a826d199126b9e8b4f4de952e8b236104d85b5d01",
+   "size_bytes": 631,
+   "source_url": "https://cdn.elifesciences.org/articles/23625/elife-23625-fig5-data2-v2.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-23625-fig5-data2-v2.zip)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/002_006_Welch's t test of 710 Azimuthal MRL.csv",
+   "sha256": "f58030f43e6b861018e466cc8882a5a50d2dee563ecff5aae932a08723dfaf43",
+   "size_bytes": 698,
+   "source_url": "https://cdn.elifesciences.org/articles/23625/elife-23625-fig5-data2-v2.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "eLife source data (elife-23625-fig5-data2-v2.zip)"
+  }
+ ]
+}

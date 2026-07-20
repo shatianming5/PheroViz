@@ -1,0 +1,115 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.1038/s44319-026-00875-5",
+ "journal": "EMBO Reports",
+ "year": 2026,
+ "published_date": "2026-07-16",
+ "article_url": "https://www.nature.com/articles/s44319-026-00875-5",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2026-07-16",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2026,
+      7,
+      16
+     ]
+    ],
+    "date-time": "2026-07-16T00:00:00Z",
+    "timestamp": 1784160000000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2026,
+     7,
+     16
+    ]
+   ],
+   "date-time": "2026-07-16T00:00:00Z",
+   "timestamp": 1784160000000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "retrieved_at": "2026-07-19T18:01:01+00:00",
+ "manifest_generated_at": "2026-07-19T18:01:01+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_004.txt",
+   "sha256": "2228aa10b1de5144cf91736997f00e8c113938facc6f79ed202523fc62bdffeb",
+   "size_bytes": 1343,
+   "source_url": "https://link.springer.com/article/10.1038/s44319-026-00875-5",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_004.png",
+   "sha256": "b238dcc0bee64a39c8ccad6df62149ee6c62c10dae4495cdd2ff3c1dba050b33",
+   "size_bytes": 424342,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.1038%2Fs44319-026-00875-5/MediaObjects/44319_2026_875_Fig4_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_875_MOESM6_ESM_Panel_AB_geneage_withlogFC.csv",
+   "sha256": "8edca935e2b967e06f3a48a639bc00f3fb6ab00a8b92b2af73fdb21d6cd70f99",
+   "size_bytes": 706807,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00875-5/MediaObjects/44319_2026_875_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_875_MOESM6_ESM_Panel_AB_geneage_withlogFC.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_875_MOESM6_ESM_Panel_C_dnds.csv",
+   "sha256": "97ada19c02874a0887b0905ff7c8af7b17c1b8268b0bab131fd5fc4dfd39b697",
+   "size_bytes": 238112,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00875-5/MediaObjects/44319_2026_875_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_875_MOESM6_ESM_Panel_C_dnds.csv)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44319_2026_875_MOESM6_ESM_Panel_DE_together_popgen.csv",
+   "sha256": "b8fa538a8ba5a5f0b63653f672b600ffbb5081d42f94b105127ce14415c53afa",
+   "size_bytes": 1494375,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs44319-026-00875-5/MediaObjects/44319_2026_875_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44319_2026_875_MOESM6_ESM_Panel_DE_together_popgen.csv)"
+  }
+ ]
+}

@@ -1,0 +1,139 @@
+{
+ "schema_version": "1.0",
+ "doi": "10.15252/msb.202311670",
+ "journal": "Molecular Systems Biology",
+ "year": 2023,
+ "published_date": "2023-11-09",
+ "article_url": "https://link.springer.com/article/10.15252/msb.202311670",
+ "license": {
+  "url": "https://creativecommons.org/licenses/by/4.0/",
+  "normalized_url": "https://creativecommons.org/licenses/by/4.0/",
+  "license_id": "CC-BY-4.0",
+  "version": "4.0",
+  "effective_date": "2023-10-10",
+  "content_version": "vor",
+  "source": "crossref",
+  "evidence": {
+   "start": {
+    "date-parts": [
+     [
+      2023,
+      10,
+      10
+     ]
+    ],
+    "date-time": "2023-10-10T00:00:00Z",
+    "timestamp": 1696896000000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "https://creativecommons.org/licenses/by/4.0/"
+  }
+ },
+ "license_source": "crossref",
+ "license_evidence": {
+  "start": {
+   "date-parts": [
+    [
+     2023,
+     10,
+     10
+    ]
+   ],
+   "date-time": "2023-10-10T00:00:00Z",
+   "timestamp": 1696896000000
+  },
+  "content-version": "vor",
+  "delay-in-days": 0,
+  "URL": "https://creativecommons.org/licenses/by/4.0/"
+ },
+ "retrieved_at": "2026-07-19T23:07:03+00:00",
+ "manifest_generated_at": "2026-07-19T23:07:03+00:00",
+ "journal_allowed": true,
+ "policy_accepted": true,
+ "require_cc_by": true,
+ "download_eligible": true,
+ "download_status": "downloaded",
+ "rejection_reasons": [],
+ "source_data_origin": "supplementary_information",
+ "files": [
+  {
+   "kind": "caption",
+   "path": "figures/fig_003.txt",
+   "sha256": "a521221f680a9a0d2d0d4b6a6492031e2244389b29a5d5bd4ac2dce27c27fa4f",
+   "size_bytes": 1012,
+   "source_url": "https://link.springer.com/article/10.15252/msb.202311670",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "figure",
+   "path": "figures/fig_003.png",
+   "sha256": "31f6466c659c57f2dc04c83acda5ad6cf8335bc36c19f1321126d085bc3e4ab2",
+   "size_bytes": 950505,
+   "source_url": "https://media.springernature.com/lw1200/springer-static/image/art%3A10.15252%2Fmsb.202311670/MediaObjects/44320_2023_BFMSB202311670_Fig3_HTML.png",
+   "download_status": "downloaded",
+   "rejection_reason": null
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44320_2023_BFMSB202311670_MOESM3_ESM_DatasetEV1_neighbor_specific_genes.xlsx",
+   "sha256": "fc7e4f3e005d750b44420505a5cac7b77ea7287dddabe52e92d4f16a6aada0ae",
+   "size_bytes": 77211,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.15252%2Fmsb.202311670/MediaObjects/44320_2023_BFMSB202311670_MOESM3_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44320_2023_BFMSB202311670_MOESM3_ESM_DatasetEV1_neighbor_specific_genes.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44320_2023_BFMSB202311670_MOESM4_ESM_DatasetEV2_comparison_with_NicheNet.xlsx",
+   "sha256": "1816eacc16eebefb62ae1fd5044555c72148b80f509e483160c49c3254e4e9a3",
+   "size_bytes": 15545,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.15252%2Fmsb.202311670/MediaObjects/44320_2023_BFMSB202311670_MOESM4_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44320_2023_BFMSB202311670_MOESM4_ESM_DatasetEV2_comparison_with_NicheNet.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44320_2023_BFMSB202311670_MOESM5_ESM_DatasetEV3_useful_heterotypic_spots.xlsx",
+   "sha256": "277e656af1d46ba876207b7a153e88a441116a18f0c0f0f5f4c9f726a35e073a",
+   "size_bytes": 12379,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.15252%2Fmsb.202311670/MediaObjects/44320_2023_BFMSB202311670_MOESM5_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44320_2023_BFMSB202311670_MOESM5_ESM_DatasetEV3_useful_heterotypic_spots.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44320_2023_BFMSB202311670_MOESM6_ESM_DatasetEV4_cell_type_markers.xlsx",
+   "sha256": "634d3f80ac8a77b2d95de9a1b97f2c0d65f7eb7a4c158802e58586a1a434818c",
+   "size_bytes": 14761,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.15252%2Fmsb.202311670/MediaObjects/44320_2023_BFMSB202311670_MOESM6_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44320_2023_BFMSB202311670_MOESM6_ESM_DatasetEV4_cell_type_markers.xlsx)"
+  },
+  {
+   "kind": "source_data",
+   "path": "source_data/44320_2023_BFMSB202311670_MOESM7_ESM_DatasetEV5_expression_origin.xlsx",
+   "sha256": "14b45931d5c452847427885972b22f9883b7488236ab75be1666bcd05e20ff79",
+   "size_bytes": 18698,
+   "source_url": "https://static-content.springer.com/esm/art%3A10.15252%2Fmsb.202311670/MediaObjects/44320_2023_BFMSB202311670_MOESM7_ESM.zip",
+   "download_status": "downloaded",
+   "rejection_reason": null,
+   "source_data_origin": "supplementary_information",
+   "verification_status": "source-provided",
+   "verification_evidence": "EMBO source data (44320_2023_BFMSB202311670_MOESM7_ESM_DatasetEV5_expression_origin.xlsx)"
+  }
+ ]
+}
