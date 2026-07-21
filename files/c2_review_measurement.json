@@ -1,0 +1,46 @@
+{
+  "measurement": "C2 strict-proposal review pass-rate (EXPLORATORY, not sealed benchmark)",
+  "batches": {
+    "casecount_strict": {
+      "single_reviewed": 168,
+      "single_accepted": 41,
+      "multi_reviewed": 32,
+      "multi_accepted": 5
+    },
+    "full_strict": {
+      "single_reviewed": 100,
+      "single_accepted": 24,
+      "multi_reviewed": 16,
+      "multi_accepted": 1
+    }
+  },
+  "single_pass_rate": 0.243,
+  "multi_pass_rate": 0.125,
+  "N_verified_multi_DOI": 5,
+  "verified_multi_DOI": [
+    "elife.95867",
+    "elife.97860",
+    "s44318-025-00510-4",
+    "s44318-025-00634-7",
+    "s44319-025-00373-0"
+  ],
+  "K_target": {
+    "optimistic_single_contrast": 12,
+    "two_contrast_holm": 15
+  },
+  "gate": "N=5 < K=12 -> underpowered by 7",
+  "reject_fixability_casecount": {
+    "single_rejects": 127,
+    "two_judge_agree": 94,
+    "consensus_family_on_agree": {
+      "line": 8,
+      "bar": 47,
+      "scatter": 39
+    },
+    "dominant_reason": "model-proposed-correction 111/127 = wide-format x/y binding errors, NOT cheap chart-family relabel",
+    "type_A_categorical_x_relabel": 73,
+    "type_B_nonaxis_linear_x_binding_broken": 49,
+    "family_already_correct_but_rejected": 42
+  },
+  "integrity_note": "code_dirty casecount=True/full=False; both are pass-rate MEASUREMENTS not sealed benchmarks. Fix path = judge-INDEPENDENT wide->long melt in proposer (uncertain yield). NEVER use judge x/y as proposal label (leakage)."
+}
