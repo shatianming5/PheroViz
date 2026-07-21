@@ -355,6 +355,7 @@ def _manifest_case_info(
     case_kind: str,
     max_cases: int | None,
     min_panels: int | None,
+    min_dois: int | None,
 ) -> list[tuple[str, int]]:
     try:
         cases = load_dataset_manifest(
@@ -387,6 +388,18 @@ def _manifest_case_info(
         selected = selected[:max_cases]
     if not selected:
         raise C2PipelineError("Case selection produced no sealed benchmark cases.")
+    if min_dois is not None:
+        selected_dois = {
+            str(case.payload.get("doi") or "").strip().casefold()
+            for case in selected
+            if str(case.payload.get("doi") or "").strip()
+        }
+        if len(selected_dois) < min_dois:
+            raise C2PipelineError(
+                "Selected sealed benchmark cases contain only "
+                f"{len(selected_dois)} independent DOI clusters; "
+                f"--min-dois requires {min_dois}."
+            )
     return [
         (case.case_id, int(case.panel_count))
         for case in selected
@@ -655,6 +668,15 @@ def _parser() -> argparse.ArgumentParser:
         help="Keep only cases with at least this many panels.",
     )
     parser.add_argument(
+        "--min-dois",
+        type=int,
+        default=None,
+        help=(
+            "For a sealed dataset manifest, require this many independent DOI "
+            "clusters after all case filters."
+        ),
+    )
+    parser.add_argument(
         "--case-kind",
         choices=("all", "single", "multi"),
         default="all",
@@ -717,6 +739,10 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit("--max-cases must be positive")
     if args.min_panels is not None and args.min_panels < 1:
         raise SystemExit("--min-panels must be positive")
+    if args.min_dois is not None and args.min_dois < 1:
+        raise SystemExit("--min-dois must be positive")
+    if args.min_dois is not None and args.dataset_manifest is None:
+        raise SystemExit("--min-dois requires --dataset-manifest")
     if args.rounds_per_case < 1:
         raise SystemExit("--rounds-per-case must be positive")
     if args.normalizer_exploratory and args.input is None:
@@ -816,6 +842,7 @@ def main(argv: list[str] | None = None) -> int:
                 case_kind=args.case_kind,
                 max_cases=args.max_cases,
                 min_panels=args.min_panels,
+                min_dois=args.min_dois,
             )
             selected_manifest = dataset_manifest
             dataset_mode = "legacy"
@@ -838,6 +865,7 @@ def main(argv: list[str] | None = None) -> int:
                 case_kind=args.case_kind,
                 max_cases=args.max_cases,
                 min_panels=args.min_panels,
+                min_dois=args.min_dois,
             )
             selected_manifest = dataset_manifest
             dataset_mode = "sealed_benchmark"
@@ -845,6 +873,7 @@ def main(argv: list[str] | None = None) -> int:
                 "mode": "sealed-benchmark-execution",
                 "dataset_manifest": str(dataset_manifest),
                 "selected_cases": len(case_info),
+                "min_dois": args.min_dois,
             }
 
         matrices = _write_matrices(

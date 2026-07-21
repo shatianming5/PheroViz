@@ -23,6 +23,11 @@ from .proposals import (
     DEFAULT_MAX_COLUMNS,
     DEFAULT_MAX_FILE_BYTES,
     DEFAULT_MAX_ROWS,
+    PROPOSAL_RULE_V3,
+    PROPOSAL_RULE_V4,
+    WIDE_MELT_BINDING_MODE,
+    WIDE_MELT_GROUP_COLUMN,
+    WIDE_MELT_VALUE_COLUMN,
     _multi_panel_proposals,
     _resolve_proposal_rule_version,
     propose_single_candidate,
@@ -69,6 +74,34 @@ REVIEW_RUBRIC_V2: dict[str, Any] = {
         "chart_family": "string: line, bar, or scatter",
     },
 }
+REVIEW_RUBRIC_V3: dict[str, Any] = {
+    **REVIEW_RUBRIC_V2,
+    "rubric_version": "proposal-external-validation-v3",
+    "instructions": [
+        *REVIEW_RUBRIC_V2["instructions"],
+        (
+            "For proposal.binding_mode=wide_melt, treat the listed source-table "
+            "value columns as an in-memory long table with "
+            "__wide_group__ (their headers) and __wide_value__ (their numeric "
+            "cells). Return those exact virtual names when the proposal is valid."
+        ),
+    ],
+    "output_schema": {
+        **REVIEW_RUBRIC_V2["output_schema"],
+        "x": (
+            "string: exact table column, or __wide_group__ for a "
+            "proposal.binding_mode=wide_melt"
+        ),
+        "y": (
+            "array of unique exact table columns, or [__wide_value__] for a "
+            "proposal.binding_mode=wide_melt"
+        ),
+    },
+}
+REVIEW_RUBRIC_V4: dict[str, Any] = {
+    **REVIEW_RUBRIC_V3,
+    "rubric_version": "proposal-external-validation-v4",
+}
 REVIEW_RUBRIC = REVIEW_RUBRIC_V2
 
 
@@ -97,6 +130,8 @@ def _sha256_json(value: Any) -> str:
 
 REVIEW_RUBRIC_V1_HASH = _sha256_json(REVIEW_RUBRIC_V1)
 REVIEW_RUBRIC_V2_HASH = _sha256_json(REVIEW_RUBRIC_V2)
+REVIEW_RUBRIC_V3_HASH = _sha256_json(REVIEW_RUBRIC_V3)
+REVIEW_RUBRIC_V4_HASH = _sha256_json(REVIEW_RUBRIC_V4)
 REVIEW_RUBRIC_HASH = REVIEW_RUBRIC_V2_HASH
 REVIEW_RUBRICS = {
     REVIEW_RUBRIC_V1_HASH: (
@@ -105,6 +140,14 @@ REVIEW_RUBRICS = {
     ),
     REVIEW_RUBRIC_V2_HASH: (
         REVIEW_RUBRIC_V2,
+        frozenset({"line", "bar", "scatter"}),
+    ),
+    REVIEW_RUBRIC_V3_HASH: (
+        REVIEW_RUBRIC_V3,
+        frozenset({"line", "bar", "scatter"}),
+    ),
+    REVIEW_RUBRIC_V4_HASH: (
+        REVIEW_RUBRIC_V4,
         frozenset({"line", "bar", "scatter"}),
     ),
 }
@@ -333,6 +376,7 @@ def _proposal_expected(
         intent, Mapping
     ):
         raise ReviewError("experiment-case-schema-invalid")
+    binding_mode = intent.get("binding_mode", "direct")
     x = intent.get("x")
     raw_series = intent.get("series")
     raw_y = intent.get("y")
@@ -348,7 +392,37 @@ def _proposal_expected(
         raise ReviewError("experiment-case-schema-invalid")
     if len(set(y)) != len(y):
         raise ReviewError("experiment-case-schema-invalid")
-    return {"chart_family": chart_family, "x": x, "y": list(y)}
+    if binding_mode == WIDE_MELT_BINDING_MODE:
+        wide_melt = intent.get("wide_melt")
+        columns = (
+            wide_melt.get("source_value_columns")
+            if isinstance(wide_melt, Mapping)
+            else None
+        )
+        if (
+            x != WIDE_MELT_GROUP_COLUMN
+            or y != [WIDE_MELT_VALUE_COLUMN]
+            or not isinstance(columns, list)
+            or len(columns) < 2
+            or not all(isinstance(column, str) and column for column in columns)
+            or len(set(columns)) != len(columns)
+        ):
+            raise ReviewError("experiment-case-wide-melt-invalid")
+        return {
+            "chart_family": chart_family,
+            "x": x,
+            "y": list(y),
+            "binding_mode": WIDE_MELT_BINDING_MODE,
+            "source_value_columns": list(columns),
+        }
+    if binding_mode != "direct":
+        raise ReviewError("experiment-case-binding-mode-invalid")
+    return {
+        "chart_family": chart_family,
+        "x": x,
+        "y": list(y),
+        "binding_mode": "direct",
+    }
 
 
 def _fixed_prompt(
@@ -557,7 +631,13 @@ def _single_binding(
                 allowed_chart_families=allowed_chart_families,
             )
             header, rows = _sample_table(source)
-            if expected["x"] not in header or any(
+            if expected["binding_mode"] == WIDE_MELT_BINDING_MODE:
+                if any(
+                    column not in header
+                    for column in expected["source_value_columns"]
+                ):
+                    raise ReviewError("proposal-wide-melt-column-not-in-table")
+            elif expected["x"] not in header or any(
                 column not in header for column in expected["y"]
             ):
                 raise ReviewError("proposal-column-not-in-table")
@@ -939,7 +1019,20 @@ def review_proposals(
             raise ReviewError("resume-review-rubric-invalid-or-mixed")
         active_rubric_hash = next(iter(existing_rubric_hashes))
     else:
-        active_rubric_hash = REVIEW_RUBRIC_HASH
+        rule_versions = {
+            _resolve_proposal_rule_version(proposal)
+            for proposal in by_id.values()
+            if proposal.get("proposal_type") in {"single_panel", "multi_panel"}
+        }
+        active_rubric_hash = (
+            REVIEW_RUBRIC_V4_HASH
+            if PROPOSAL_RULE_V4 in rule_versions
+            else (
+                REVIEW_RUBRIC_V3_HASH
+                if PROPOSAL_RULE_V3 in rule_versions
+                else REVIEW_RUBRIC_HASH
+            )
+        )
     active_rubric, active_chart_families = REVIEW_RUBRICS[
         active_rubric_hash
     ]

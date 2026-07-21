@@ -23,6 +23,9 @@ class C2BenchmarkBuildError(RuntimeError):
     """Raised when inputs cannot safely enter the sealed benchmark builder."""
 
 
+DEFAULT_MINIMUM_QUALIFIED_DOIS = 62
+
+
 def _sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -281,6 +284,15 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--seed", type=int, required=True)
     parser.add_argument("--minimum-multi-panels", type=int, default=5)
     parser.add_argument(
+        "--minimum-qualified-dois",
+        type=int,
+        default=DEFAULT_MINIMUM_QUALIFIED_DOIS,
+        help=(
+            "Require at least this many independent verified DOI clusters among "
+            "P>=minimum-multi-panels multi-panel cases (default: %(default)s)."
+        ),
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Validate local review/candidate bindings without writing a manifest.",
@@ -296,6 +308,8 @@ def main(argv: list[str] | None = None) -> int:
             raise C2BenchmarkBuildError(f"--repo-root is not a Git checkout: {repo_root}")
         if args.minimum_multi_panels < 2:
             raise C2BenchmarkBuildError("--minimum-multi-panels must be at least 2")
+        if args.minimum_qualified_dois < 1:
+            raise C2BenchmarkBuildError("--minimum-qualified-dois must be positive")
         if not (
             len(args.proposed) == len(args.reviews) == len(args.evidence)
         ):
@@ -393,16 +407,20 @@ def main(argv: list[str] | None = None) -> int:
             "benchmark_manifest": str(manifest_path),
             "benchmark_manifest_sha256": summary.get("benchmark_manifest_sha256"),
             "minimum_multi_panels": args.minimum_multi_panels,
+            "minimum_qualified_dois": args.minimum_qualified_dois,
             "qualified_multi_cases": len(qualified),
             "qualified_multi_dois": len(qualified_dois),
             "qualified_case_ids": sorted(str(case.get("case_id")) for case in qualified),
             **preflight,
         }
         print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
-        if not qualified:
+        if len(qualified_dois) < args.minimum_qualified_dois:
             raise C2BenchmarkBuildError(
-                "Assembly succeeded but contains no verified multi-panel case at "
-                f"P>={args.minimum_multi_panels}; do not launch C2-extreme."
+                "Assembly produced only "
+                f"{len(qualified_dois)} qualified independent DOI clusters at "
+                f"P>={args.minimum_multi_panels}; "
+                f"the C2 gate requires {args.minimum_qualified_dois}. "
+                "Do not launch C2-extreme."
             )
         return 0
     except C2BenchmarkBuildError as exc:

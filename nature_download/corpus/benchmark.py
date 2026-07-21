@@ -17,6 +17,8 @@ from .proposals import (
     DEFAULT_MAX_ROWS,
     PROPOSAL_RULE_V1,
     PROPOSAL_RULE_V2,
+    PROPOSAL_RULE_V3,
+    PROPOSAL_RULE_V4,
     _multi_panel_proposals,
     _resolve_proposal_rule_version,
     propose_single_candidate,
@@ -1219,6 +1221,8 @@ def derive_multi_review_batch(
                 rank = {
                     PROPOSAL_RULE_V1: 1,
                     PROPOSAL_RULE_V2: 2,
+                    PROPOSAL_RULE_V3: 3,
+                    PROPOSAL_RULE_V4: 4,
                 }
                 existing_rank = rank[_resolve_proposal_rule_version(existing)]
                 incoming_rank = rank[_resolve_proposal_rule_version(proposal)]

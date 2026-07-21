@@ -732,10 +732,14 @@ return spec_out
                     x = ov.get('x')
                     y = ov.get('y')
                     grp = ov.get('group')
+                    mark = str(ov.get('mark') or '').lower()
                     if not y or y not in data.columns:
                         continue
                     keys = [col for col in [x, grp] if col and col in data.columns]
                     if not keys:
+                        continue
+                    if mark in {'scatter', 'bubble'}:
+                        aggregate_info[ov_id] = {'keys': keys, 'agg': 'none'}
                         continue
                     needs_agg = data.duplicated(keys).any()
                     agg_func = 'mean' if ratio_flags.get(ov_id) else 'sum'
@@ -995,6 +999,7 @@ return spec_out
                     linewidths=style_cfg.get('edgewidth', 0.4),
                     zorder=base_z,
                 )
+                sc.set_gid(str(y))
                 return [sc]
 """
             ),
@@ -1418,8 +1423,6 @@ if ax_right:
         "notes": "L4 defaults: axes, legend, theme",
     },
 }
-
-
 
 
 

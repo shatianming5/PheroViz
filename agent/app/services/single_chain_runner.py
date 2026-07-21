@@ -151,6 +151,80 @@ def _profile_df(df: pd.DataFrame) -> Dict[str, Any]:
     return {"columns": columns, "n": int(df.shape[0])}
 
 
+_WIDE_MELT_BINDING_MODE = "wide_melt"
+_WIDE_MELT_GROUP_COLUMN = "__wide_group__"
+_WIDE_MELT_VALUE_COLUMN = "__wide_value__"
+
+
+def _materialize_sealed_wide_melt(
+    df: pd.DataFrame,
+    intent: Mapping[str, Any],
+) -> tuple[pd.DataFrame, dict[str, Any] | None]:
+    """Materialize the V3 source-only wide-table binding before rendering/scoring."""
+    if intent.get("binding_mode") != _WIDE_MELT_BINDING_MODE:
+        return df, None
+    raw_contract = intent.get("wide_melt")
+    if not isinstance(raw_contract, Mapping):
+        raise ValueError("wide_melt binding requires an intent.wide_melt object")
+    group_column = raw_contract.get("group_column")
+    value_column = raw_contract.get("value_column")
+    source_value_columns = raw_contract.get("source_value_columns")
+    dropped_index_columns = raw_contract.get("dropped_index_columns")
+    if (
+        group_column != _WIDE_MELT_GROUP_COLUMN
+        or value_column != _WIDE_MELT_VALUE_COLUMN
+        or not isinstance(source_value_columns, list)
+        or not source_value_columns
+        or not isinstance(dropped_index_columns, list)
+        or any(not isinstance(column, str) or not column for column in source_value_columns)
+        or any(not isinstance(column, str) or not column for column in dropped_index_columns)
+        or len(set(source_value_columns)) != len(source_value_columns)
+        or len(set(dropped_index_columns)) != len(dropped_index_columns)
+    ):
+        raise ValueError("wide_melt binding contract is invalid")
+    source_columns = list(source_value_columns)
+    raw_columns = [str(column) for column in df.columns]
+    if (
+        group_column in raw_columns
+        or value_column in raw_columns
+        or any(column not in raw_columns for column in source_columns)
+        or set(source_columns) & set(dropped_index_columns)
+    ):
+        raise ValueError("wide_melt binding source columns are invalid")
+    expected_dropped = [
+        column for column in raw_columns if column not in set(source_columns)
+    ]
+    if dropped_index_columns != expected_dropped:
+        raise ValueError("wide_melt binding does not account for every source column")
+
+    cleaned = df.replace(r"^\s*$", pd.NA, regex=True).dropna(how="all")
+    values = cleaned.loc[:, source_columns].copy()
+    for column in source_columns:
+        numeric_values = pd.to_numeric(values[column], errors="coerce")
+        if numeric_values.notna().sum() != values[column].dropna().shape[0]:
+            raise ValueError(
+                f"wide_melt source value column is not numeric: {column!r}"
+            )
+        values[column] = numeric_values
+    materialized = values.melt(
+        var_name=group_column,
+        value_name=value_column,
+    ).dropna(subset=[value_column]).reset_index(drop=True)
+    if materialized.empty:
+        raise ValueError("wide_melt binding produced no numeric observations")
+    binding = {
+        "mode": _WIDE_MELT_BINDING_MODE,
+        "implementation": "sealed-wide-melt-v1",
+        "source_rows": int(df.shape[0]),
+        "source_columns": raw_columns,
+        "source_value_columns": source_columns,
+        "dropped_index_columns": list(dropped_index_columns),
+        "materialized_rows": int(materialized.shape[0]),
+        "materialized_columns": [group_column, value_column],
+    }
+    return materialized, binding
+
+
 def _get_model_client() -> ModelClient:
     _load_env_file()
     global _LLM_CLIENT, _MODEL_CLIENT
@@ -1153,7 +1227,16 @@ def iter_chain(
 
     emit("run_directory_ready", {"path": str(active_run_dir), "panel_id": panel_id})
 
-    df = _load_tabular(excel_path, sheet)
+    raw_df = _load_tabular(excel_path, sheet)
+    base_intent: Dict[str, Any] = {
+        "chart_family": chart_family,
+        "user_goal": user_goal,
+    }
+    if intent:
+        merged: Dict[str, Any] = base_intent.copy()
+        merged.update(intent)
+        base_intent = merged
+    df, data_binding = _materialize_sealed_wide_melt(raw_df, base_intent)
     profile = _profile_df(df)
     df_columns = [str(c) for c in df.columns]
     df_dtypes = {str(c): str(df[c].dtype) for c in df.columns}
@@ -1162,14 +1245,12 @@ def iter_chain(
 
     emit(
         "data_loaded",
-        {"rows": row_count, "columns": df_columns},
+        {
+            "rows": row_count,
+            "columns": df_columns,
+            "data_binding": data_binding,
+        },
     )
-
-    base_intent: Dict[str, Any] = {"chart_family": chart_family, "user_goal": user_goal}
-    if intent:
-        merged: Dict[str, Any] = base_intent.copy()
-        merged.update(intent)
-        base_intent = merged
 
     draft_spec = derive_spec(base_intent, profile)
     if read_constraints:
@@ -1214,6 +1295,7 @@ def iter_chain(
         "df_dtypes": df_dtypes,
         "df_unique_counts": df_unique_counts,
         "row_count": row_count,
+        "data_binding": data_binding,
     }
     if evaluation_expectation is not None:
         from app.evaluation import validate_expectation
@@ -1852,6 +1934,7 @@ def iter_chain(
             "panel_id": panel_id,
             "panel_group": panel_group,
             "chart_meta_class": chart_class,
+            "data_binding": data_binding,
             "render_count": round_idx,
             "run_config": {
                 "initial_generation": generation_mode,

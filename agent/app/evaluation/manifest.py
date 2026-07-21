@@ -88,6 +88,13 @@ def _visible_label(value: Any) -> Optional[str]:
     return label
 
 
+def _explicit_artist_id(value: Any) -> Optional[str]:
+    if value is None:
+        return None
+    identifier = str(value).strip()
+    return identifier or None
+
+
 def _color_hex(value: Any) -> Optional[str]:
     try:
         return mcolors.to_hex(mcolors.to_rgba(value), keep_alpha=True).lower()
@@ -167,7 +174,7 @@ def _line_payload(line: Line2D, config: MetricConfig, kind: str = "line") -> dic
     y = json_value(np.asarray(line.get_ydata(orig=True)), config.float_precision)
     colors = _artist_colors(line)
     return {
-        "explicit_id": _visible_label(line.get_gid()),
+        "explicit_id": _explicit_artist_id(line.get_gid()),
         "kind": kind,
         "label": _visible_label(line.get_label()),
         "x": x,
@@ -245,7 +252,9 @@ def _errorbar_payload(container: ErrorbarContainer, config: MetricConfig) -> Opt
     if label:
         payload["label"] = label
     if hasattr(container, "get_gid"):
-        payload["explicit_id"] = _visible_label(container.get_gid()) or payload["explicit_id"]
+        payload["explicit_id"] = (
+            _explicit_artist_id(container.get_gid()) or payload["explicit_id"]
+        )
     payload["metadata"]["artist_class"] = type(container).__name__
     return payload
 
@@ -264,7 +273,11 @@ def _bar_payload(container: BarContainer, ax: Any, config: MetricConfig) -> dict
             if color is not None
         }
     )
-    explicit_id = _visible_label(container.get_gid()) if hasattr(container, "get_gid") else None
+    explicit_id = (
+        _explicit_artist_id(container.get_gid())
+        if hasattr(container, "get_gid")
+        else None
+    )
     x_json = json_value(x, config.float_precision)
     y_json = json_value(y, config.float_precision)
     return {
@@ -288,7 +301,11 @@ def _bar_payload(container: BarContainer, ax: Any, config: MetricConfig) -> dict
     }
 
 
-def _scatter_payload(collection: PathCollection, config: MetricConfig) -> dict:
+def _scatter_payload(
+    collection: PathCollection,
+    ax: Any,
+    config: MetricConfig,
+) -> dict:
     offsets = np.ma.asarray(collection.get_offsets())
     if offsets.ndim == 2 and offsets.shape[1] >= 2:
         x = json_value(offsets[:, 0], config.float_precision)
@@ -299,7 +316,7 @@ def _scatter_payload(collection: PathCollection, config: MetricConfig) -> dict:
     value = json_value(values, config.float_precision) if values is not None else y
     colors = _artist_colors(collection)
     return {
-        "explicit_id": _visible_label(collection.get_gid()),
+        "explicit_id": _explicit_artist_id(collection.get_gid()),
         "kind": "scatter",
         "label": _visible_label(collection.get_label()),
         "x": x,
@@ -316,7 +333,7 @@ def _scatter_payload(collection: PathCollection, config: MetricConfig) -> dict:
             "point_count": len(x),
             "zorder": json_value(collection.get_zorder(), config.float_precision),
         },
-        "x_labels": [],
+        "x_labels": _positions_to_tick_labels(ax, x, config.float_precision),
     }
 
 
@@ -328,7 +345,7 @@ def _poly_payload(collection: PolyCollection, config: MetricConfig) -> dict:
     y = json_value([point[1] for point in vertices], config.float_precision)
     colors = _artist_colors(collection)
     return {
-        "explicit_id": _visible_label(collection.get_gid()),
+        "explicit_id": _explicit_artist_id(collection.get_gid()),
         "kind": "poly",
         "label": _visible_label(collection.get_label()),
         "x": x,
@@ -365,7 +382,7 @@ def _image_payload(image: AxesImage, config: MetricConfig) -> dict:
     )
     cmap = image.get_cmap()
     return {
-        "explicit_id": _visible_label(image.get_gid()),
+        "explicit_id": _explicit_artist_id(image.get_gid()),
         "kind": "image",
         "label": _visible_label(image.get_label()),
         "x": json_value(x, config.float_precision),
@@ -443,7 +460,7 @@ def _extract_series(
         if id(collection) in skipped_collections:
             continue
         if isinstance(collection, PathCollection):
-            payloads.append(_scatter_payload(collection, config))
+            payloads.append(_scatter_payload(collection, ax, config))
         elif isinstance(collection, PolyCollection):
             payloads.append(_poly_payload(collection, config))
 

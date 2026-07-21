@@ -15,6 +15,8 @@ from nature_download.corpus.proposals import (
     DEFAULT_MAX_FILE_BYTES,
     DEFAULT_MAX_ROWS,
     PROPOSAL_RULE_V2,
+    PROPOSAL_RULE_V3,
+    PROPOSAL_RULE_V4,
     _multi_panel_proposals,
     propose_single_candidate,
 )
@@ -320,6 +322,99 @@ def test_v2_scatter_proposal_is_reviewed_and_validated(
         == reviews_module.REVIEW_RUBRIC_V2_HASH
     )
     assert all("line, bar, or scatter" in call["prompt"] for call in calls)
+    validate_review_artifacts(
+        proposed_path=source,
+        reviews_path=output / "reviews.jsonl",
+        evidence_path=output / "evidence.json",
+    )
+
+
+def test_v3_wide_melt_proposal_is_reviewable_without_source_mutation(
+    workdir: Path,
+) -> None:
+    candidate = make_single(workdir, candidate_id="wide-a")
+    table = Path(candidate["source_table"]["path"])
+    table.write_text("WT,KO\n1.0,2.0\n1.1,2.1\n", encoding="utf-8")
+    candidate["source_table"] = {**descriptor(table), "sheet_name": None}
+    proposal = propose_single_candidate(
+        candidate,
+        input_candidates_sha256="f" * 64,
+        code_commit="a" * 40,
+        max_file_bytes=DEFAULT_MAX_FILE_BYTES,
+        max_rows=DEFAULT_MAX_ROWS,
+        max_columns=DEFAULT_MAX_COLUMNS,
+        rule_version=PROPOSAL_RULE_V3,
+    )
+    source = workdir / "proposed.jsonl"
+    output = workdir / "reviews"
+    write_proposed(source, [proposal])
+
+    def wide_output(prompt: str, model: str) -> dict[str, Any]:
+        return {
+            "valid": True,
+            "chart_family": "scatter",
+            "x": "__wide_group__",
+            "y": ["__wide_value__"],
+            "reason": "Exact deterministic wide-to-long binding.",
+        }
+
+    factory, _ = factory_for(wide_output)
+    result = review_proposals(
+        proposed_path=source,
+        output_root=output,
+        judge_models=MODELS,
+        client_factory=factory,
+        git_state=CLEAN_GIT,
+    )
+    assert result["summary"]["single_accepted"] == 1
+    assert result["summary"]["rubric_hash"] == reviews_module.REVIEW_RUBRIC_V3_HASH
+    validate_review_artifacts(
+        proposed_path=source,
+        reviews_path=output / "reviews.jsonl",
+        evidence_path=output / "evidence.json",
+    )
+
+
+def test_v4_proposal_selects_v4_review_rubric(workdir: Path) -> None:
+    candidate = make_single(workdir, candidate_id="wide-v4")
+    table = Path(candidate["source_table"]["path"])
+    table.write_text(
+        "WT,KO\n1.0,2.0\n1.1,2.1\n1.2,2.2\n1.3,2.3\n1.4,2.4\n",
+        encoding="utf-8",
+    )
+    candidate["source_table"] = {**descriptor(table), "sheet_name": None}
+    proposal = propose_single_candidate(
+        candidate,
+        input_candidates_sha256="f" * 64,
+        code_commit="a" * 40,
+        max_file_bytes=DEFAULT_MAX_FILE_BYTES,
+        max_rows=DEFAULT_MAX_ROWS,
+        max_columns=DEFAULT_MAX_COLUMNS,
+        rule_version=PROPOSAL_RULE_V4,
+    )
+    source = workdir / "proposed-v4.jsonl"
+    output = workdir / "reviews-v4"
+    write_proposed(source, [proposal])
+
+    def wide_output(prompt: str, model: str) -> dict[str, Any]:
+        return {
+            "valid": True,
+            "chart_family": "scatter",
+            "x": "__wide_group__",
+            "y": ["__wide_value__"],
+            "reason": "Exact deterministic wide-to-long binding.",
+        }
+
+    factory, _ = factory_for(wide_output)
+    result = review_proposals(
+        proposed_path=source,
+        output_root=output,
+        judge_models=MODELS,
+        client_factory=factory,
+        git_state=CLEAN_GIT,
+    )
+    assert result["summary"]["single_accepted"] == 1
+    assert result["summary"]["rubric_hash"] == reviews_module.REVIEW_RUBRIC_V4_HASH
     validate_review_artifacts(
         proposed_path=source,
         reviews_path=output / "reviews.jsonl",

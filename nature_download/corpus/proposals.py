@@ -33,11 +33,111 @@ DEFAULT_MAX_ROWS = 100_000
 DEFAULT_MAX_COLUMNS = 64
 PROPOSAL_RULE_V1 = "simple-2d-v1"
 PROPOSAL_RULE_V2 = "simple-2d-v2"
+PROPOSAL_RULE_V3 = "simple-2d-v3"
+PROPOSAL_RULE_V4 = "simple-2d-v4"
 CURRENT_PROPOSAL_RULE = PROPOSAL_RULE_V2
+WIDE_MELT_BINDING_MODE = "wide_melt"
+WIDE_MELT_GROUP_COLUMN = "__wide_group__"
+WIDE_MELT_VALUE_COLUMN = "__wide_value__"
+GROUPED_DOT_PLOT_MIN_VALUES = 5
 MAX_BAR_CATEGORICAL_X = 200
 RENDERABILITY_POLICY_ID = "outcome-independent-static-renderability-v1"
 RENDERABILITY_POLICY_HASH = (
     "283f0520bf1fda98773958602be6206c1776c573a00273391dbfeb6acd565cec"
+)
+CONTROLLED_NUMERIC_COLUMN_PATTERN = re.compile(
+    r"(?i)(?:^|[^a-z])"
+    r"(?:dose|dosage|concentration|conc|wavelength|frequency|freq|"
+    r"voltage|current|temperature|temp|position)"
+    r"(?:$|[^a-z])"
+)
+SCATTERING_VECTOR_COLUMN_PATTERN = re.compile(
+    r"(?i)^\s*q\s*[\(\[]\s*(?:å|a|angstrom)\s*[-−–]?\s*1\s*[\)\]]\s*$"
+)
+DIRECT_GROUP_RESPONSE_PATTERN = re.compile(
+    r"(?i)(?:^|[^a-z])(?:number|size|ph)(?:$|[^a-z])"
+)
+V4_TEMPORAL_NAME_PATTERN = re.compile(
+    r"(?i)(?:^|[^a-z])"
+    r"(?:time|timing|duration|elapsed|latency)"
+    r"(?:$|[^a-z])"
+)
+TEMPORAL_UNIT_NAMES = frozenset(
+    {
+        "ms",
+        "msec",
+        "s",
+        "sec",
+        "second",
+        "seconds",
+        "min",
+        "minute",
+        "minutes",
+        "h",
+        "hr",
+        "hour",
+        "hours",
+        "day",
+        "days",
+        "week",
+        "weeks",
+        "month",
+        "months",
+        "year",
+        "years",
+    }
+)
+MEASUREMENT_COLUMN_PATTERN = re.compile(
+    r"(?i)(?:^|[^a-z])"
+    r"(?:value|signal|response|measurement|mean|median|average|"
+    r"intensity|count|score|density|level|ratio|rate|length|distance|"
+    r"area|volume|mass|weight|height|width|diameter|angle|depth|"
+    r"fraction|parameter|data)"
+    r"(?:$|[^a-z])"
+)
+INDEX_HEADER_TOKENS = frozenset(
+    {
+        "#",
+        "n",
+        "no",
+        "no.",
+        "nr",
+        "nr.",
+        "num",
+        "num.",
+        "id",
+        "idx",
+        "index",
+        "number",
+        "serial",
+        "order",
+        "obs",
+        "rank",
+        "row",
+        "count",
+    }
+)
+INDEX_HEADER_WORDS = (
+    "animal",
+    "mouse",
+    "mice",
+    "rat",
+    "sample",
+    "subject",
+    "replicate",
+    "rep",
+    "cell",
+    "specimen",
+    "patient",
+    "donor",
+    "individual",
+    "fish",
+    "worm",
+    "embryo",
+    "larva",
+    "fly",
+    "well",
+    "trial",
 )
 RENDERABILITY_RULE_ID = "bar-column-categorical-x-cardinality"
 BAR_CARDINALITY_REJECTION = "bar_categorical_x_exceeds_200"
@@ -120,6 +220,8 @@ def _resolve_proposal_rule_version(proposal: dict[str, Any]) -> str:
     if not isinstance(value, str) or value not in {
         PROPOSAL_RULE_V1,
         PROPOSAL_RULE_V2,
+        PROPOSAL_RULE_V3,
+        PROPOSAL_RULE_V4,
     }:
         raise ValueError("proposal-rule-version-unsupported")
     return value
@@ -147,6 +249,9 @@ class TableAnalysis:
     rows: int
     columns: int
     non_null_y: dict[str, int]
+    binding_mode: str = "direct"
+    wide_value_columns: tuple[str, ...] = ()
+    dropped_index_columns: tuple[str, ...] = ()
 
 
 def _canonical_json(value: Any) -> str:
@@ -203,9 +308,15 @@ def _renderability_audit(
     )
     identities: set[str] = set()
     if bar_series_count:
-        resolved_x = frame[analysis.x].tolist()
-        for _ in analysis.y:
-            identities.update(_value_identity(value) for value in resolved_x)
+        if analysis.binding_mode == WIDE_MELT_BINDING_MODE:
+            identities.update(
+                _value_identity(value)
+                for value in analysis.wide_value_columns
+            )
+        else:
+            resolved_x = frame[analysis.x].tolist()
+            for _ in analysis.y:
+                identities.update(_value_identity(value) for value in resolved_x)
         unique_categorical_x: int | None = len(identities)
         if unique_categorical_x > MAX_BAR_CATEGORICAL_X:
             decision = "rejected"
@@ -469,6 +580,203 @@ def _column_profile(name: str, series: Any) -> ColumnProfile:
     )
 
 
+def _looks_like_index_header(name: str) -> bool:
+    normalized = str(name).strip().casefold()
+    if not normalized:
+        return False
+    if normalized.endswith("#") or normalized in INDEX_HEADER_TOKENS:
+        return True
+    compact = re.sub(r"[._-]+", " ", normalized)
+    parts = [part for part in compact.split() if part]
+    if not parts or parts[0] not in INDEX_HEADER_WORDS:
+        return False
+    return (
+        len(parts) == 1
+        or parts[-1] in INDEX_HEADER_TOKENS
+        or parts[-1] in {"no", "number", "id", "index"}
+    )
+
+
+def _is_replicate_index_column(name: str, series: Any) -> bool:
+    """Recognize an integer replicate/row counter without guessing from values alone."""
+
+    if not _looks_like_index_header(name):
+        return False
+    nonempty = series.dropna()
+    if len(nonempty) < 2:
+        return False
+    numeric = pd.to_numeric(nonempty, errors="coerce")
+    if numeric.isna().any() or not all(float(value).is_integer() for value in numeric):
+        return False
+    values = [int(value) for value in numeric]
+    minimum = min(values)
+    maximum = max(values)
+    if minimum not in (0, 1) or set(values) != set(range(minimum, maximum + 1)):
+        return False
+    # A row counter may be globally shuffled while preserving the complete
+    # 0/1-based range. It may also restart for each treatment block
+    # (1,2,3,1,2,3), but cannot jump within a block.
+    if len(set(values)) == len(values):
+        return len(values) == maximum - minimum + 1
+    return all(
+        current == previous + 1 or current == minimum
+        for previous, current in zip(values, values[1:], strict=False)
+    )
+
+
+def _is_identifier_column_v4(name: str, series: Any) -> bool:
+    """Recognize a named integer identifier even when its order is arbitrary."""
+
+    # A bare ``Count`` is conventionally a measured frequency, not an entity
+    # identifier. Keep it eligible as y even when its values are small ints.
+    if str(name).strip().casefold() == "count":
+        return False
+    if _is_replicate_index_column(name, series):
+        return True
+    if not _looks_like_index_header(name):
+        return False
+    nonempty = series.dropna()
+    if len(nonempty) < 2:
+        return False
+    numeric = pd.to_numeric(nonempty, errors="coerce")
+    if numeric.isna().any() or not all(float(value).is_integer() for value in numeric):
+        return False
+    values = [int(value) for value in numeric]
+    if min(values) < 0:
+        return False
+    # Header evidence is required. Given it, a compact integer label domain is
+    # an identifier even if source rows were sorted by a different variable.
+    return max(values) <= max(50, len(values) * 4)
+
+
+def _is_controlled_numeric_column(profile: ColumnProfile) -> bool:
+    normalized = profile.name.strip().casefold()
+    return normalized in {
+        "msec",
+        "ms",
+        "sec",
+        "second",
+        "seconds",
+        "min",
+        "minute",
+        "minutes",
+        "hr",
+        "hour",
+        "hours",
+    } or bool(
+        CONTROLLED_NUMERIC_COLUMN_PATTERN.search(profile.name)
+        or SCATTERING_VECTOR_COLUMN_PATTERN.search(profile.name)
+    )
+
+
+def _is_group_label_header(profile: ColumnProfile) -> bool:
+    """Conservatively identify a wide-table column header as a group label."""
+
+    name = profile.name.strip()
+    normalized = name.casefold()
+    if (
+        not name
+        or profile.explicit_temporal
+        or _is_controlled_numeric_column(profile)
+        or bool(MEASUREMENT_COLUMN_PATTERN.search(name))
+    ):
+        return False
+    if any(marker in name for marker in ("+", ";", "/", "[", "]")):
+        return True
+    if normalized in {
+        "wt",
+        "ko",
+        "control",
+        "vehicle",
+        "treated",
+        "untreated",
+        "mutant",
+        "wildtype",
+        "wild-type",
+    }:
+        return True
+    compact = re.sub(r"[^a-z0-9]+", "", normalized)
+    return bool(compact) and len(compact) <= 16 and not any(
+        token in compact
+        for token in (
+            "value",
+            "signal",
+            "response",
+            "measure",
+            "intensity",
+            "density",
+            "ratio",
+            "length",
+            "distance",
+            "volume",
+            "weight",
+            "height",
+            "width",
+        )
+    )
+
+
+def _is_v4_temporal_profile(profile: ColumnProfile) -> bool:
+    if profile.temporal_valid:
+        return True
+    if not profile.numeric or not V4_TEMPORAL_NAME_PATTERN.search(profile.name):
+        return False
+    unit = _extract_unit(profile.name)
+    return unit is None or unit.strip().casefold() in TEMPORAL_UNIT_NAMES
+
+
+def _has_many_group_observations(
+    frame: Any,
+    *,
+    x_column: str,
+    y_columns: tuple[str, ...],
+) -> bool:
+    if len(y_columns) < 1:
+        return False
+    observed = frame[x_column].notna() & frame[list(y_columns)].notna().any(axis=1)
+    counts = frame.loc[observed].groupby(x_column, dropna=True).size()
+    return (
+        len(counts) >= 2
+        and not counts.empty
+        and int(counts.min()) >= GROUPED_DOT_PLOT_MIN_VALUES
+    )
+
+
+def _v4_direct_group_supports_dot_plot(
+    frame: Any,
+    *,
+    x_column: str,
+    y_columns: tuple[str, ...],
+    profiles: dict[str, ColumnProfile],
+) -> bool:
+    """Require a response-like y header for multi-series direct group tables."""
+
+    if not _has_many_group_observations(
+        frame,
+        x_column=x_column,
+        y_columns=y_columns,
+    ):
+        return False
+    if len(y_columns) == 1:
+        return True
+    return any(
+        bool(MEASUREMENT_COLUMN_PATTERN.search(name))
+        or bool(DIRECT_GROUP_RESPONSE_PATTERN.search(name))
+        or not _is_group_label_header(profiles[name])
+        for name in y_columns
+    )
+
+
+def _v4_numeric_x_requires_scatter(
+    frame: Any,
+    profile: ColumnProfile,
+) -> bool:
+    if _is_controlled_numeric_column(profile):
+        return False
+    values = pd.to_numeric(frame[profile.name].dropna(), errors="coerce")
+    return bool(values.notna().all() and values.duplicated().any())
+
+
 def _extract_unit(column: str) -> str | None:
     for pattern in (PAREN_UNIT_PATTERN, BRACKET_UNIT_PATTERN):
         match = pattern.search(column)
@@ -478,18 +786,329 @@ def _extract_unit(column: str) -> str | None:
     return match.group(1) if match else None
 
 
+def _direct_table_analysis(
+    *,
+    headers: list[str],
+    profiles: dict[str, ColumnProfile],
+    rows: int,
+    x_profile: ColumnProfile,
+    x_mode: str,
+    chart_family: str,
+    excluded_index_columns: tuple[str, ...] = (),
+    excluded_non_numeric_columns: tuple[str, ...] = (),
+) -> TableAnalysis:
+    excluded = set(excluded_index_columns) | set(excluded_non_numeric_columns)
+    remaining = [
+        profile
+        for name, profile in profiles.items()
+        if name != x_profile.name and name not in excluded
+    ]
+    if any(not profile.numeric for profile in remaining):
+        raise ProposalRejected("non-numeric-y-column")
+    if len(remaining) < 1:
+        raise ProposalRejected("numeric-y-column-missing")
+    if len(remaining) > 4:
+        raise ProposalRejected("too-many-y-columns")
+    units = {
+        name: unit
+        for name in headers
+        if (unit := _extract_unit(name)) is not None
+    }
+    return TableAnalysis(
+        x=x_profile.name,
+        y=tuple(profile.name for profile in remaining),
+        x_mode=x_mode,
+        chart_family=chart_family,
+        units=units,
+        rows=rows,
+        columns=len(headers),
+        non_null_y={
+            profile.name: profile.non_null_count for profile in remaining
+        },
+        dropped_index_columns=excluded_index_columns,
+    )
+
+
+def _analyze_table_v3_or_v4(
+    frame: Any,
+    *,
+    headers: list[str],
+    profiles: dict[str, ColumnProfile],
+    v4: bool,
+) -> TableAnalysis:
+    invalid_temporal = [
+        name
+        for name, profile in profiles.items()
+        if profile.explicit_temporal and not profile.temporal_valid
+    ]
+    if invalid_temporal:
+        raise ProposalRejected("explicit-temporal-column-invalid")
+
+    if v4:
+        temporal = [
+            profile
+            for profile in profiles.values()
+            if _is_v4_temporal_profile(profile)
+        ]
+    else:
+        temporal = [
+            profile for profile in profiles.values() if profile.temporal_valid
+        ]
+    categorical = [
+        profile for profile in profiles.values() if profile.categorical
+    ]
+    run_order = [
+        profile
+        for profile in profiles.values()
+        if RUN_ORDER_COLUMN_PATTERN.fullmatch(profile.name.strip())
+    ]
+    index_detector = _is_identifier_column_v4 if v4 else _is_replicate_index_column
+    index_columns = tuple(
+        name
+        for name, profile in profiles.items()
+        if profile.numeric and index_detector(name, frame[name])
+    )
+
+    if len(run_order) > 1:
+        raise ProposalRejected("x-column-ambiguous-run-order")
+    if run_order:
+        x_profile = run_order[0]
+        if not x_profile.monotonic_numeric:
+            raise ProposalRejected("explicit-run-order-column-invalid")
+        return _direct_table_analysis(
+            headers=headers,
+            profiles=profiles,
+            rows=len(frame.index),
+            x_profile=x_profile,
+            x_mode="linear",
+            chart_family="scatter",
+            excluded_index_columns=tuple(
+                name for name in index_columns if name != x_profile.name
+            ),
+        )
+    if len(temporal) > 1:
+        raise ProposalRejected("x-column-ambiguous-temporal")
+    if temporal:
+        x_profile = temporal[0]
+        return _direct_table_analysis(
+            headers=headers,
+            profiles=profiles,
+            rows=len(frame.index),
+            x_profile=x_profile,
+            x_mode="temporal",
+            chart_family="line",
+            excluded_index_columns=tuple(
+                name for name in index_columns if name != x_profile.name
+            ),
+            excluded_non_numeric_columns=(
+                tuple(
+                    profile.name
+                    for profile in profiles.values()
+                    if profile.categorical
+                )
+                if v4
+                else ()
+            ),
+        )
+    if len(categorical) > 1:
+        raise ProposalRejected("x-column-ambiguous-categorical")
+    if len(categorical) == 1:
+        x_profile = categorical[0]
+        excluded_index_columns = index_columns
+        y_columns = tuple(
+            profile.name
+            for name, profile in profiles.items()
+            if name != x_profile.name
+            and name not in excluded_index_columns
+            and profile.numeric
+        )
+        return _direct_table_analysis(
+            headers=headers,
+            profiles=profiles,
+            rows=len(frame.index),
+            x_profile=x_profile,
+            x_mode="categorical",
+            chart_family=(
+                "scatter"
+                if v4
+                and _v4_direct_group_supports_dot_plot(
+                    frame,
+                    x_column=x_profile.name,
+                    y_columns=y_columns,
+                    profiles=profiles,
+                )
+                else "bar"
+            ),
+            excluded_index_columns=excluded_index_columns,
+        )
+
+    measurements = [
+        profile
+        for name, profile in profiles.items()
+        if profile.numeric and name not in index_columns
+    ]
+    if (
+        len(measurements) >= 2
+        and all(_is_group_label_header(profile) for profile in measurements)
+    ):
+        wide_columns = tuple(profile.name for profile in measurements)
+        # V3 preserved a dot for any repeated group value. V4 distinguishes
+        # aggregate tables from individual-point tables deterministically.
+        if v4:
+            chart_family = (
+                "scatter"
+                if all(
+                    profile.non_null_count >= GROUPED_DOT_PLOT_MIN_VALUES
+                    for profile in measurements
+                )
+                else "bar"
+            )
+        else:
+            chart_family = (
+                "bar"
+                if all(profile.non_null_count <= 1 for profile in measurements)
+                else "scatter"
+            )
+        return TableAnalysis(
+            x=WIDE_MELT_GROUP_COLUMN,
+            y=(WIDE_MELT_VALUE_COLUMN,),
+            x_mode="categorical",
+            chart_family=chart_family,
+            units={},
+            rows=len(frame.index),
+            columns=len(headers),
+            non_null_y={
+                WIDE_MELT_VALUE_COLUMN: sum(
+                    profile.non_null_count for profile in measurements
+                )
+            },
+            binding_mode=WIDE_MELT_BINDING_MODE,
+            wide_value_columns=wide_columns,
+            dropped_index_columns=index_columns,
+        )
+
+    if len(measurements) == 2 and not any(
+        _is_controlled_numeric_column(profile) for profile in measurements
+    ):
+        monotonic = [
+            profile for profile in measurements if profile.monotonic_numeric
+        ]
+        x_profile = monotonic[0] if len(monotonic) == 1 else measurements[0]
+        return _direct_table_analysis(
+            headers=headers,
+            profiles=profiles,
+            rows=len(frame.index),
+            x_profile=x_profile,
+            x_mode="linear",
+            chart_family="scatter",
+            excluded_index_columns=index_columns,
+        )
+
+    controlled = [
+        profile
+        for profile in measurements
+        if profile.monotonic_numeric
+        and _is_controlled_numeric_column(profile)
+    ]
+    if len(controlled) == 1:
+        return _direct_table_analysis(
+            headers=headers,
+            profiles=profiles,
+            rows=len(frame.index),
+            x_profile=controlled[0],
+            x_mode="linear",
+            chart_family="line",
+            excluded_index_columns=index_columns,
+        )
+
+    # Preserve the v2 fallback for structures that are neither a confident
+    # grouped-wide table nor a two-measurement correlation.
+    monotonic = [
+        profile
+        for profile in profiles.values()
+        if profile.monotonic_numeric
+    ]
+    if len(monotonic) != 1:
+        raise ProposalRejected(
+            "x-column-not-found"
+            if not monotonic
+            else "x-column-ambiguous-monotonic-numeric"
+        )
+    x_profile = monotonic[0]
+    return _direct_table_analysis(
+        headers=headers,
+        profiles=profiles,
+        rows=len(frame.index),
+        x_profile=x_profile,
+        x_mode="linear",
+        chart_family=(
+            "scatter"
+            if v4 and _v4_numeric_x_requires_scatter(frame, x_profile)
+            else "line"
+        ),
+        excluded_index_columns=tuple(
+            name for name in index_columns if name != x_profile.name
+        ),
+    )
+
+
+def _analyze_table_v3(
+    frame: Any,
+    *,
+    headers: list[str],
+    profiles: dict[str, ColumnProfile],
+) -> TableAnalysis:
+    return _analyze_table_v3_or_v4(
+        frame,
+        headers=headers,
+        profiles=profiles,
+        v4=False,
+    )
+
+
+def _analyze_table_v4(
+    frame: Any,
+    *,
+    headers: list[str],
+    profiles: dict[str, ColumnProfile],
+) -> TableAnalysis:
+    return _analyze_table_v3_or_v4(
+        frame,
+        headers=headers,
+        profiles=profiles,
+        v4=True,
+    )
+
+
 def analyze_table(
     frame: Any,
     *,
     rule_version: str = PROPOSAL_RULE_V1,
 ) -> TableAnalysis:
-    if rule_version not in {PROPOSAL_RULE_V1, PROPOSAL_RULE_V2}:
+    if rule_version not in {
+        PROPOSAL_RULE_V1,
+        PROPOSAL_RULE_V2,
+        PROPOSAL_RULE_V3,
+        PROPOSAL_RULE_V4,
+    }:
         raise ValueError(f"unsupported proposal rule version: {rule_version}")
     headers = _validate_headers(frame.columns)
     profiles = {
         name: _column_profile(name, frame[name])
         for name in headers
     }
+    if rule_version == PROPOSAL_RULE_V3:
+        return _analyze_table_v3(
+            frame,
+            headers=headers,
+            profiles=profiles,
+        )
+    if rule_version == PROPOSAL_RULE_V4:
+        return _analyze_table_v4(
+            frame,
+            headers=headers,
+            profiles=profiles,
+        )
     invalid_temporal = [
         name
         for name, profile in profiles.items()
@@ -625,6 +1244,12 @@ def _user_goal(candidate: dict[str, Any], analysis: TableAnalysis) -> str:
         "bar": "bar chart",
         "scatter": "scatter plot",
     }[analysis.chart_family]
+    if analysis.binding_mode == WIDE_MELT_BINDING_MODE:
+        groups = ", ".join(f"`{name}`" for name in analysis.wide_value_columns)
+        return (
+            f"Create a {verb} for Figure {figure_no}{panel_id} showing values "
+            f"grouped by the source-table column headers {groups}."
+        )
     y_names = ", ".join(f"`{name}`" for name in analysis.y)
     return (
         f"Create a {verb} for Figure {figure_no}{panel_id} showing "
@@ -672,6 +1297,20 @@ def propose_single_candidate(
         "x_scale": analysis.x_mode,
         "units": analysis.units,
     }
+    if analysis.binding_mode == WIDE_MELT_BINDING_MODE:
+        intent.update(
+            {
+                "binding_mode": WIDE_MELT_BINDING_MODE,
+                "wide_melt": {
+                    "group_column": WIDE_MELT_GROUP_COLUMN,
+                    "value_column": WIDE_MELT_VALUE_COLUMN,
+                    "source_value_columns": list(analysis.wide_value_columns),
+                    "dropped_index_columns": list(
+                        analysis.dropped_index_columns
+                    ),
+                },
+            }
+        )
     experiment_case = {
         "case_id": candidate.get("candidate_id"),
         "panel_count": 1,
@@ -716,6 +1355,11 @@ def propose_single_candidate(
                 ],
                 "units": analysis.units,
                 "non_null_y": analysis.non_null_y,
+                "binding_mode": analysis.binding_mode,
+                "wide_value_columns": list(analysis.wide_value_columns),
+                "dropped_index_columns": list(
+                    analysis.dropped_index_columns
+                ),
             },
             "input_candidates_sha256": input_candidates_sha256,
             "code_commit": code_commit,
@@ -936,9 +1580,17 @@ def propose_cases(
     max_file_bytes: int = DEFAULT_MAX_FILE_BYTES,
     max_rows: int = DEFAULT_MAX_ROWS,
     max_columns: int = DEFAULT_MAX_COLUMNS,
+    rule_version: str = CURRENT_PROPOSAL_RULE,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
     if min(max_file_bytes, max_rows, max_columns) < 1:
         raise ValueError("proposal limits must be positive")
+    if rule_version not in {
+        PROPOSAL_RULE_V1,
+        PROPOSAL_RULE_V2,
+        PROPOSAL_RULE_V3,
+        PROPOSAL_RULE_V4,
+    }:
+        raise ValueError(f"unsupported proposal rule version: {rule_version}")
     _validate_renderability_policy()
     source_path = Path(candidates_path)
     input_hash = sha256_file(source_path)
@@ -990,7 +1642,7 @@ def propose_cases(
                     max_file_bytes=max_file_bytes,
                     max_rows=max_rows,
                     max_columns=max_columns,
-                    rule_version=CURRENT_PROPOSAL_RULE,
+                    rule_version=rule_version,
                 )
             )
         except ProposalRejected as exc:
@@ -1051,7 +1703,7 @@ def propose_cases(
         "input_candidates": str(source_path.resolve()),
         "input_candidates_sha256": input_hash,
         "code_commit": commit,
-        "proposal_rule_version": CURRENT_PROPOSAL_RULE,
+        "proposal_rule_version": rule_version,
         "renderability_policy_id": RENDERABILITY_POLICY_ID,
         "renderability_policy_hash": RENDERABILITY_POLICY_HASH,
         "max_unique_categorical_x_per_bar_panel": (

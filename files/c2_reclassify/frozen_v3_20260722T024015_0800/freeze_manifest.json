@@ -1,0 +1,70 @@
+{
+  "created_at_utc": "2026-07-21T18:42:57.376965+00:00",
+  "inputs": [
+    {
+      "eligible_for_experiment_true": 0,
+      "frozen_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v3_20260722T024015_0800/priority_casecount_strict.proposed.jsonl",
+      "frozen_sha256": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49",
+      "label": "priority_casecount_strict",
+      "multi_parents": 20,
+      "records": 147,
+      "scope": "historic-reject-selected diagnostic subset",
+      "singles": 127,
+      "source_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/reproposed_strict_rejects_casecount_strict.jsonl",
+      "source_sha256": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49"
+    },
+    {
+      "eligible_for_experiment_true": 0,
+      "frozen_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v3_20260722T024015_0800/priority_full_strict.proposed.jsonl",
+      "frozen_sha256": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131",
+      "label": "priority_full_strict",
+      "multi_parents": 9,
+      "records": 85,
+      "scope": "historic-reject-selected diagnostic subset",
+      "singles": 76,
+      "source_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/reproposed_strict_rejects_full_strict.jsonl",
+      "source_sha256": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131"
+    },
+    {
+      "eligible_for_experiment_true": 0,
+      "frozen_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v3_20260722T024015_0800/full_casecount_strict.proposed.jsonl",
+      "frozen_sha256": "78d1d8703ac87a92fbb2a2dde89e81fde34ed39fd2561dc5d16879e6c219bdb2",
+      "label": "full_casecount_strict",
+      "multi_parents": 32,
+      "records": 200,
+      "scope": "full supplied strict batch; not the sealed C2 universe",
+      "singles": 168,
+      "source_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/reproposed_strict_full_casecount_strict.jsonl",
+      "source_sha256": "78d1d8703ac87a92fbb2a2dde89e81fde34ed39fd2561dc5d16879e6c219bdb2"
+    },
+    {
+      "eligible_for_experiment_true": 0,
+      "frozen_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v3_20260722T024015_0800/full_full_strict.proposed.jsonl",
+      "frozen_sha256": "e1c3ae8455fd4e440b6d190e8ab106a89cf73951bcf4540a40cb6c2f1039bb10",
+      "label": "full_full_strict",
+      "multi_parents": 16,
+      "records": 116,
+      "scope": "full supplied strict batch; not the sealed C2 universe",
+      "singles": 100,
+      "source_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/reproposed_strict_full_full_strict.jsonl",
+      "source_sha256": "e1c3ae8455fd4e440b6d190e8ab106a89cf73951bcf4540a40cb6c2f1039bb10"
+    }
+  ],
+  "integrity_note": "This freeze copies and hash-binds current V3 proposal inputs only. It does not read review records, judge/model outputs, or evidence. Priority inputs are historic-reject-selected diagnostic subsets and cannot support a final sealed-C2 universe claim.",
+  "known_stale_predecessor_inputs": {
+    "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/inputs/casecount_strict.proposed.jsonl": {
+      "current_sha256": "485e36ca4e32be0e9b58a0327088301813928a47627c38518ee02fac3a32f353",
+      "recorded_sha256": "485e36ca4e32be0e9b58a0327088301813928a47627c38518ee02fac3a32f353"
+    },
+    "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/inputs/full_strict.proposed.jsonl": {
+      "current_sha256": "f2b364455fa69d5360a5925b8fc2a9516f1c2da99e099e46c36b73cfdbf618d6",
+      "recorded_sha256": "f2b364455fa69d5360a5925b8fc2a9516f1c2da99e099e46c36b73cfdbf618d6"
+    }
+  },
+  "manifest_sha256": "f2d7417a5df6171bc2dca24192fec2ae73fd0e5c372980d99ce57dfc8acf6999",
+  "proposal_rule_version": "simple-2d-v3",
+  "requires_fresh_review": true,
+  "review_rubric_required": "proposal-external-validation-v3",
+  "schema_version": "c2-v3-review-freeze-v1",
+  "stale_review_or_evidence_reuse_forbidden": true
+}

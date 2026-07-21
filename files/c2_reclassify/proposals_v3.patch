@@ -1,0 +1,916 @@
+diff --git a/nature_download/corpus/benchmark.py b/nature_download/corpus/benchmark.py
+index c6487e2..0bacdf6 100644
+--- a/nature_download/corpus/benchmark.py
++++ b/nature_download/corpus/benchmark.py
+@@ -17,6 +17,7 @@ from .proposals import (
+     DEFAULT_MAX_ROWS,
+     PROPOSAL_RULE_V1,
+     PROPOSAL_RULE_V2,
++    PROPOSAL_RULE_V3,
+     _multi_panel_proposals,
+     _resolve_proposal_rule_version,
+     propose_single_candidate,
+@@ -1219,6 +1220,7 @@ def derive_multi_review_batch(
+                 rank = {
+                     PROPOSAL_RULE_V1: 1,
+                     PROPOSAL_RULE_V2: 2,
++                    PROPOSAL_RULE_V3: 3,
+                 }
+                 existing_rank = rank[_resolve_proposal_rule_version(existing)]
+                 incoming_rank = rank[_resolve_proposal_rule_version(proposal)]
+diff --git a/nature_download/corpus/proposals.py b/nature_download/corpus/proposals.py
+index c3d4d77..ba3e01a 100644
+--- a/nature_download/corpus/proposals.py
++++ b/nature_download/corpus/proposals.py
+@@ -33,12 +33,73 @@ DEFAULT_MAX_ROWS = 100_000
+ DEFAULT_MAX_COLUMNS = 64
+ PROPOSAL_RULE_V1 = "simple-2d-v1"
+ PROPOSAL_RULE_V2 = "simple-2d-v2"
++PROPOSAL_RULE_V3 = "simple-2d-v3"
+ CURRENT_PROPOSAL_RULE = PROPOSAL_RULE_V2
++WIDE_MELT_BINDING_MODE = "wide_melt"
++WIDE_MELT_GROUP_COLUMN = "__wide_group__"
++WIDE_MELT_VALUE_COLUMN = "__wide_value__"
+ MAX_BAR_CATEGORICAL_X = 200
+ RENDERABILITY_POLICY_ID = "outcome-independent-static-renderability-v1"
+ RENDERABILITY_POLICY_HASH = (
+     "283f0520bf1fda98773958602be6206c1776c573a00273391dbfeb6acd565cec"
+ )
++CONTROLLED_NUMERIC_COLUMN_PATTERN = re.compile(
++    r"(?i)(?:^|[^a-z])"
++    r"(?:dose|dosage|concentration|conc|wavelength|frequency|freq|"
++    r"voltage|current|temperature|temp|position)"
++    r"(?:$|[^a-z])"
++)
++MEASUREMENT_COLUMN_PATTERN = re.compile(
++    r"(?i)(?:^|[^a-z])"
++    r"(?:value|signal|response|measurement|mean|median|average|"
++    r"intensity|count|score|density|level|ratio|rate|length|distance|"
++    r"area|volume|mass|weight|height|width|diameter|angle|depth)"
++    r"(?:$|[^a-z])"
++)
++INDEX_HEADER_TOKENS = frozenset(
++    {
++        "#",
++        "n",
++        "no",
++        "no.",
++        "nr",
++        "nr.",
++        "num",
++        "num.",
++        "id",
++        "idx",
++        "index",
++        "number",
++        "serial",
++        "order",
++        "obs",
++        "rank",
++        "row",
++        "count",
++    }
++)
++INDEX_HEADER_WORDS = (
++    "animal",
++    "mouse",
++    "mice",
++    "rat",
++    "sample",
++    "subject",
++    "replicate",
++    "rep",
++    "cell",
++    "specimen",
++    "patient",
++    "donor",
++    "individual",
++    "fish",
++    "worm",
++    "embryo",
++    "larva",
++    "fly",
++    "well",
++    "trial",
++)
+ RENDERABILITY_RULE_ID = "bar-column-categorical-x-cardinality"
+ BAR_CARDINALITY_REJECTION = "bar_categorical_x_exceeds_200"
+ RENDERABILITY_POLICY: dict[str, Any] = {
+@@ -120,6 +181,7 @@ def _resolve_proposal_rule_version(proposal: dict[str, Any]) -> str:
+     if not isinstance(value, str) or value not in {
+         PROPOSAL_RULE_V1,
+         PROPOSAL_RULE_V2,
++        PROPOSAL_RULE_V3,
+     }:
+         raise ValueError("proposal-rule-version-unsupported")
+     return value
+@@ -147,6 +209,9 @@ class TableAnalysis:
+     rows: int
+     columns: int
+     non_null_y: dict[str, int]
++    binding_mode: str = "direct"
++    wide_value_columns: tuple[str, ...] = ()
++    dropped_index_columns: tuple[str, ...] = ()
+ 
+ 
+ def _canonical_json(value: Any) -> str:
+@@ -203,9 +268,15 @@ def _renderability_audit(
+     )
+     identities: set[str] = set()
+     if bar_series_count:
+-        resolved_x = frame[analysis.x].tolist()
+-        for _ in analysis.y:
+-            identities.update(_value_identity(value) for value in resolved_x)
++        if analysis.binding_mode == WIDE_MELT_BINDING_MODE:
++            identities.update(
++                _value_identity(value)
++                for value in analysis.wide_value_columns
++            )
++        else:
++            resolved_x = frame[analysis.x].tolist()
++            for _ in analysis.y:
++                identities.update(_value_identity(value) for value in resolved_x)
+         unique_categorical_x: int | None = len(identities)
+         if unique_categorical_x > MAX_BAR_CATEGORICAL_X:
+             decision = "rejected"
+@@ -469,6 +540,114 @@ def _column_profile(name: str, series: Any) -> ColumnProfile:
+     )
+ 
+ 
++def _looks_like_index_header(name: str) -> bool:
++    normalized = str(name).strip().casefold()
++    if not normalized:
++        return False
++    if normalized.endswith("#") or normalized in INDEX_HEADER_TOKENS:
++        return True
++    compact = re.sub(r"[._-]+", " ", normalized)
++    parts = [part for part in compact.split() if part]
++    if not parts or parts[0] not in INDEX_HEADER_WORDS:
++        return False
++    return (
++        len(parts) == 1
++        or parts[-1] in INDEX_HEADER_TOKENS
++        or parts[-1] in {"no", "number", "id", "index"}
++    )
++
++
++def _is_replicate_index_column(name: str, series: Any) -> bool:
++    """Recognize an integer replicate/row counter without guessing from values alone."""
++
++    if not _looks_like_index_header(name):
++        return False
++    nonempty = series.dropna()
++    if len(nonempty) < 2:
++        return False
++    numeric = pd.to_numeric(nonempty, errors="coerce")
++    if numeric.isna().any() or not all(float(value).is_integer() for value in numeric):
++        return False
++    values = [int(value) for value in numeric]
++    minimum = min(values)
++    maximum = max(values)
++    if minimum not in (0, 1) or set(values) != set(range(minimum, maximum + 1)):
++        return False
++    # A row counter may be globally shuffled while preserving the complete
++    # 0/1-based range. It may also restart for each treatment block
++    # (1,2,3,1,2,3), but cannot jump within a block.
++    if len(set(values)) == len(values):
++        return len(values) == maximum - minimum + 1
++    return all(
++        current == previous + 1 or current == minimum
++        for previous, current in zip(values, values[1:], strict=False)
++    )
++
++
++def _is_controlled_numeric_column(profile: ColumnProfile) -> bool:
++    normalized = profile.name.strip().casefold()
++    return normalized in {
++        "msec",
++        "ms",
++        "sec",
++        "second",
++        "seconds",
++        "min",
++        "minute",
++        "minutes",
++        "hr",
++        "hour",
++        "hours",
++    } or bool(CONTROLLED_NUMERIC_COLUMN_PATTERN.search(profile.name))
++
++
++def _is_group_label_header(profile: ColumnProfile) -> bool:
++    """Conservatively identify a wide-table column header as a group label."""
++
++    name = profile.name.strip()
++    normalized = name.casefold()
++    if (
++        not name
++        or profile.explicit_temporal
++        or _is_controlled_numeric_column(profile)
++        or bool(MEASUREMENT_COLUMN_PATTERN.search(name))
++    ):
++        return False
++    if any(marker in name for marker in ("+", ";", "/", "[", "]")):
++        return True
++    if normalized in {
++        "wt",
++        "ko",
++        "control",
++        "vehicle",
++        "treated",
++        "untreated",
++        "mutant",
++        "wildtype",
++        "wild-type",
++    }:
++        return True
++    compact = re.sub(r"[^a-z0-9]+", "", normalized)
++    return bool(compact) and len(compact) <= 16 and not any(
++        token in compact
++        for token in (
++            "value",
++            "signal",
++            "response",
++            "measure",
++            "intensity",
++            "density",
++            "ratio",
++            "length",
++            "distance",
++            "volume",
++            "weight",
++            "height",
++            "width",
++        )
++    )
++
++
+ def _extract_unit(column: str) -> str | None:
+     for pattern in (PAREN_UNIT_PATTERN, BRACKET_UNIT_PATTERN):
+         match = pattern.search(column)
+@@ -478,18 +657,243 @@ def _extract_unit(column: str) -> str | None:
+     return match.group(1) if match else None
+ 
+ 
++def _direct_table_analysis(
++    *,
++    headers: list[str],
++    profiles: dict[str, ColumnProfile],
++    rows: int,
++    x_profile: ColumnProfile,
++    x_mode: str,
++    chart_family: str,
++    excluded_index_columns: tuple[str, ...] = (),
++) -> TableAnalysis:
++    excluded = set(excluded_index_columns)
++    remaining = [
++        profile
++        for name, profile in profiles.items()
++        if name != x_profile.name and name not in excluded
++    ]
++    if any(not profile.numeric for profile in remaining):
++        raise ProposalRejected("non-numeric-y-column")
++    if len(remaining) < 1:
++        raise ProposalRejected("numeric-y-column-missing")
++    if len(remaining) > 4:
++        raise ProposalRejected("too-many-y-columns")
++    units = {
++        name: unit
++        for name in headers
++        if (unit := _extract_unit(name)) is not None
++    }
++    return TableAnalysis(
++        x=x_profile.name,
++        y=tuple(profile.name for profile in remaining),
++        x_mode=x_mode,
++        chart_family=chart_family,
++        units=units,
++        rows=rows,
++        columns=len(headers),
++        non_null_y={
++            profile.name: profile.non_null_count for profile in remaining
++        },
++        dropped_index_columns=excluded_index_columns,
++    )
++
++
++def _analyze_table_v3(
++    frame: Any,
++    *,
++    headers: list[str],
++    profiles: dict[str, ColumnProfile],
++) -> TableAnalysis:
++    invalid_temporal = [
++        name
++        for name, profile in profiles.items()
++        if profile.explicit_temporal and not profile.temporal_valid
++    ]
++    if invalid_temporal:
++        raise ProposalRejected("explicit-temporal-column-invalid")
++
++    temporal = [
++        profile for profile in profiles.values() if profile.temporal_valid
++    ]
++    categorical = [
++        profile for profile in profiles.values() if profile.categorical
++    ]
++    run_order = [
++        profile
++        for profile in profiles.values()
++        if RUN_ORDER_COLUMN_PATTERN.fullmatch(profile.name.strip())
++    ]
++    index_columns = tuple(
++        name
++        for name, profile in profiles.items()
++        if profile.numeric and _is_replicate_index_column(name, frame[name])
++    )
++
++    if len(run_order) > 1:
++        raise ProposalRejected("x-column-ambiguous-run-order")
++    if run_order:
++        x_profile = run_order[0]
++        if not x_profile.monotonic_numeric:
++            raise ProposalRejected("explicit-run-order-column-invalid")
++        return _direct_table_analysis(
++            headers=headers,
++            profiles=profiles,
++            rows=len(frame.index),
++            x_profile=x_profile,
++            x_mode="linear",
++            chart_family="scatter",
++            excluded_index_columns=tuple(
++                name for name in index_columns if name != x_profile.name
++            ),
++        )
++    if len(temporal) > 1:
++        raise ProposalRejected("x-column-ambiguous-temporal")
++    if temporal:
++        x_profile = temporal[0]
++        return _direct_table_analysis(
++            headers=headers,
++            profiles=profiles,
++            rows=len(frame.index),
++            x_profile=x_profile,
++            x_mode="temporal",
++            chart_family="line",
++            excluded_index_columns=tuple(
++                name for name in index_columns if name != x_profile.name
++            ),
++        )
++    if len(categorical) > 1:
++        raise ProposalRejected("x-column-ambiguous-categorical")
++    if len(categorical) == 1:
++        x_profile = categorical[0]
++        return _direct_table_analysis(
++            headers=headers,
++            profiles=profiles,
++            rows=len(frame.index),
++            x_profile=x_profile,
++            x_mode="categorical",
++            chart_family="bar",
++            excluded_index_columns=index_columns,
++        )
++
++    measurements = [
++        profile
++        for name, profile in profiles.items()
++        if profile.numeric and name not in index_columns
++    ]
++    if (
++        len(measurements) >= 2
++        and all(_is_group_label_header(profile) for profile in measurements)
++    ):
++        wide_columns = tuple(profile.name for profile in measurements)
++        # Replicate-valued groups are represented as a dot plot. A one-value-per-
++        # group table has no dots to preserve, so a bar is the only direct family.
++        chart_family = (
++            "bar"
++            if all(profile.non_null_count <= 1 for profile in measurements)
++            else "scatter"
++        )
++        return TableAnalysis(
++            x=WIDE_MELT_GROUP_COLUMN,
++            y=(WIDE_MELT_VALUE_COLUMN,),
++            x_mode="categorical",
++            chart_family=chart_family,
++            units={},
++            rows=len(frame.index),
++            columns=len(headers),
++            non_null_y={
++                WIDE_MELT_VALUE_COLUMN: sum(
++                    profile.non_null_count for profile in measurements
++                )
++            },
++            binding_mode=WIDE_MELT_BINDING_MODE,
++            wide_value_columns=wide_columns,
++            dropped_index_columns=index_columns,
++        )
++
++    if len(measurements) == 2 and not any(
++        _is_controlled_numeric_column(profile) for profile in measurements
++    ):
++        monotonic = [
++            profile for profile in measurements if profile.monotonic_numeric
++        ]
++        x_profile = monotonic[0] if len(monotonic) == 1 else measurements[0]
++        return _direct_table_analysis(
++            headers=headers,
++            profiles=profiles,
++            rows=len(frame.index),
++            x_profile=x_profile,
++            x_mode="linear",
++            chart_family="scatter",
++            excluded_index_columns=index_columns,
++        )
++
++    controlled = [
++        profile
++        for profile in measurements
++        if profile.monotonic_numeric
++        and _is_controlled_numeric_column(profile)
++    ]
++    if len(controlled) == 1:
++        return _direct_table_analysis(
++            headers=headers,
++            profiles=profiles,
++            rows=len(frame.index),
++            x_profile=controlled[0],
++            x_mode="linear",
++            chart_family="line",
++            excluded_index_columns=index_columns,
++        )
++
++    # Preserve the v2 fallback for structures that are neither a confident
++    # grouped-wide table nor a two-measurement correlation.
++    monotonic = [
++        profile
++        for profile in profiles.values()
++        if profile.monotonic_numeric
++    ]
++    if len(monotonic) != 1:
++        raise ProposalRejected(
++            "x-column-not-found"
++            if not monotonic
++            else "x-column-ambiguous-monotonic-numeric"
++        )
++    x_profile = monotonic[0]
++    return _direct_table_analysis(
++        headers=headers,
++        profiles=profiles,
++        rows=len(frame.index),
++        x_profile=x_profile,
++        x_mode="linear",
++        chart_family="line",
++        excluded_index_columns=tuple(
++            name for name in index_columns if name != x_profile.name
++        ),
++    )
++
++
+ def analyze_table(
+     frame: Any,
+     *,
+     rule_version: str = PROPOSAL_RULE_V1,
+ ) -> TableAnalysis:
+-    if rule_version not in {PROPOSAL_RULE_V1, PROPOSAL_RULE_V2}:
++    if rule_version not in {
++        PROPOSAL_RULE_V1,
++        PROPOSAL_RULE_V2,
++        PROPOSAL_RULE_V3,
++    }:
+         raise ValueError(f"unsupported proposal rule version: {rule_version}")
+     headers = _validate_headers(frame.columns)
+     profiles = {
+         name: _column_profile(name, frame[name])
+         for name in headers
+     }
++    if rule_version == PROPOSAL_RULE_V3:
++        return _analyze_table_v3(
++            frame,
++            headers=headers,
++            profiles=profiles,
++        )
+     invalid_temporal = [
+         name
+         for name, profile in profiles.items()
+@@ -625,6 +1029,12 @@ def _user_goal(candidate: dict[str, Any], analysis: TableAnalysis) -> str:
+         "bar": "bar chart",
+         "scatter": "scatter plot",
+     }[analysis.chart_family]
++    if analysis.binding_mode == WIDE_MELT_BINDING_MODE:
++        groups = ", ".join(f"`{name}`" for name in analysis.wide_value_columns)
++        return (
++            f"Create a {verb} for Figure {figure_no}{panel_id} showing values "
++            f"grouped by the source-table column headers {groups}."
++        )
+     y_names = ", ".join(f"`{name}`" for name in analysis.y)
+     return (
+         f"Create a {verb} for Figure {figure_no}{panel_id} showing "
+@@ -672,6 +1082,20 @@ def propose_single_candidate(
+         "x_scale": analysis.x_mode,
+         "units": analysis.units,
+     }
++    if analysis.binding_mode == WIDE_MELT_BINDING_MODE:
++        intent.update(
++            {
++                "binding_mode": WIDE_MELT_BINDING_MODE,
++                "wide_melt": {
++                    "group_column": WIDE_MELT_GROUP_COLUMN,
++                    "value_column": WIDE_MELT_VALUE_COLUMN,
++                    "source_value_columns": list(analysis.wide_value_columns),
++                    "dropped_index_columns": list(
++                        analysis.dropped_index_columns
++                    ),
++                },
++            }
++        )
+     experiment_case = {
+         "case_id": candidate.get("candidate_id"),
+         "panel_count": 1,
+@@ -716,6 +1140,11 @@ def propose_single_candidate(
+                 ],
+                 "units": analysis.units,
+                 "non_null_y": analysis.non_null_y,
++                "binding_mode": analysis.binding_mode,
++                "wide_value_columns": list(analysis.wide_value_columns),
++                "dropped_index_columns": list(
++                    analysis.dropped_index_columns
++                ),
+             },
+             "input_candidates_sha256": input_candidates_sha256,
+             "code_commit": code_commit,
+@@ -936,9 +1365,16 @@ def propose_cases(
+     max_file_bytes: int = DEFAULT_MAX_FILE_BYTES,
+     max_rows: int = DEFAULT_MAX_ROWS,
+     max_columns: int = DEFAULT_MAX_COLUMNS,
++    rule_version: str = CURRENT_PROPOSAL_RULE,
+ ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
+     if min(max_file_bytes, max_rows, max_columns) < 1:
+         raise ValueError("proposal limits must be positive")
++    if rule_version not in {
++        PROPOSAL_RULE_V1,
++        PROPOSAL_RULE_V2,
++        PROPOSAL_RULE_V3,
++    }:
++        raise ValueError(f"unsupported proposal rule version: {rule_version}")
+     _validate_renderability_policy()
+     source_path = Path(candidates_path)
+     input_hash = sha256_file(source_path)
+@@ -990,7 +1426,7 @@ def propose_cases(
+                     max_file_bytes=max_file_bytes,
+                     max_rows=max_rows,
+                     max_columns=max_columns,
+-                    rule_version=CURRENT_PROPOSAL_RULE,
++                    rule_version=rule_version,
+                 )
+             )
+         except ProposalRejected as exc:
+@@ -1051,7 +1487,7 @@ def propose_cases(
+         "input_candidates": str(source_path.resolve()),
+         "input_candidates_sha256": input_hash,
+         "code_commit": commit,
+-        "proposal_rule_version": CURRENT_PROPOSAL_RULE,
++        "proposal_rule_version": rule_version,
+         "renderability_policy_id": RENDERABILITY_POLICY_ID,
+         "renderability_policy_hash": RENDERABILITY_POLICY_HASH,
+         "max_unique_categorical_x_per_bar_panel": (
+diff --git a/nature_download/corpus/reviews.py b/nature_download/corpus/reviews.py
+index 88632c1..76f23f0 100644
+--- a/nature_download/corpus/reviews.py
++++ b/nature_download/corpus/reviews.py
+@@ -23,6 +23,10 @@ from .proposals import (
+     DEFAULT_MAX_COLUMNS,
+     DEFAULT_MAX_FILE_BYTES,
+     DEFAULT_MAX_ROWS,
++    PROPOSAL_RULE_V3,
++    WIDE_MELT_BINDING_MODE,
++    WIDE_MELT_GROUP_COLUMN,
++    WIDE_MELT_VALUE_COLUMN,
+     _multi_panel_proposals,
+     _resolve_proposal_rule_version,
+     propose_single_candidate,
+@@ -69,6 +73,30 @@ REVIEW_RUBRIC_V2: dict[str, Any] = {
+         "chart_family": "string: line, bar, or scatter",
+     },
+ }
++REVIEW_RUBRIC_V3: dict[str, Any] = {
++    **REVIEW_RUBRIC_V2,
++    "rubric_version": "proposal-external-validation-v3",
++    "instructions": [
++        *REVIEW_RUBRIC_V2["instructions"],
++        (
++            "For proposal.binding_mode=wide_melt, treat the listed source-table "
++            "value columns as an in-memory long table with "
++            "__wide_group__ (their headers) and __wide_value__ (their numeric "
++            "cells). Return those exact virtual names when the proposal is valid."
++        ),
++    ],
++    "output_schema": {
++        **REVIEW_RUBRIC_V2["output_schema"],
++        "x": (
++            "string: exact table column, or __wide_group__ for a "
++            "proposal.binding_mode=wide_melt"
++        ),
++        "y": (
++            "array of unique exact table columns, or [__wide_value__] for a "
++            "proposal.binding_mode=wide_melt"
++        ),
++    },
++}
+ REVIEW_RUBRIC = REVIEW_RUBRIC_V2
+ 
+ 
+@@ -97,6 +125,7 @@ def _sha256_json(value: Any) -> str:
+ 
+ REVIEW_RUBRIC_V1_HASH = _sha256_json(REVIEW_RUBRIC_V1)
+ REVIEW_RUBRIC_V2_HASH = _sha256_json(REVIEW_RUBRIC_V2)
++REVIEW_RUBRIC_V3_HASH = _sha256_json(REVIEW_RUBRIC_V3)
+ REVIEW_RUBRIC_HASH = REVIEW_RUBRIC_V2_HASH
+ REVIEW_RUBRICS = {
+     REVIEW_RUBRIC_V1_HASH: (
+@@ -107,6 +136,10 @@ REVIEW_RUBRICS = {
+         REVIEW_RUBRIC_V2,
+         frozenset({"line", "bar", "scatter"}),
+     ),
++    REVIEW_RUBRIC_V3_HASH: (
++        REVIEW_RUBRIC_V3,
++        frozenset({"line", "bar", "scatter"}),
++    ),
+ }
+ 
+ 
+@@ -333,6 +366,7 @@ def _proposal_expected(
+         intent, Mapping
+     ):
+         raise ReviewError("experiment-case-schema-invalid")
++    binding_mode = intent.get("binding_mode", "direct")
+     x = intent.get("x")
+     raw_series = intent.get("series")
+     raw_y = intent.get("y")
+@@ -348,7 +382,37 @@ def _proposal_expected(
+         raise ReviewError("experiment-case-schema-invalid")
+     if len(set(y)) != len(y):
+         raise ReviewError("experiment-case-schema-invalid")
+-    return {"chart_family": chart_family, "x": x, "y": list(y)}
++    if binding_mode == WIDE_MELT_BINDING_MODE:
++        wide_melt = intent.get("wide_melt")
++        columns = (
++            wide_melt.get("source_value_columns")
++            if isinstance(wide_melt, Mapping)
++            else None
++        )
++        if (
++            x != WIDE_MELT_GROUP_COLUMN
++            or y != [WIDE_MELT_VALUE_COLUMN]
++            or not isinstance(columns, list)
++            or len(columns) < 2
++            or not all(isinstance(column, str) and column for column in columns)
++            or len(set(columns)) != len(columns)
++        ):
++            raise ReviewError("experiment-case-wide-melt-invalid")
++        return {
++            "chart_family": chart_family,
++            "x": x,
++            "y": list(y),
++            "binding_mode": WIDE_MELT_BINDING_MODE,
++            "source_value_columns": list(columns),
++        }
++    if binding_mode != "direct":
++        raise ReviewError("experiment-case-binding-mode-invalid")
++    return {
++        "chart_family": chart_family,
++        "x": x,
++        "y": list(y),
++        "binding_mode": "direct",
++    }
+ 
+ 
+ def _fixed_prompt(
+@@ -557,7 +621,13 @@ def _single_binding(
+                 allowed_chart_families=allowed_chart_families,
+             )
+             header, rows = _sample_table(source)
+-            if expected["x"] not in header or any(
++            if expected["binding_mode"] == WIDE_MELT_BINDING_MODE:
++                if any(
++                    column not in header
++                    for column in expected["source_value_columns"]
++                ):
++                    raise ReviewError("proposal-wide-melt-column-not-in-table")
++            elif expected["x"] not in header or any(
+                 column not in header for column in expected["y"]
+             ):
+                 raise ReviewError("proposal-column-not-in-table")
+@@ -939,7 +1009,15 @@ def review_proposals(
+             raise ReviewError("resume-review-rubric-invalid-or-mixed")
+         active_rubric_hash = next(iter(existing_rubric_hashes))
+     else:
+-        active_rubric_hash = REVIEW_RUBRIC_HASH
++        active_rubric_hash = (
++            REVIEW_RUBRIC_V3_HASH
++            if any(
++                _resolve_proposal_rule_version(proposal) == PROPOSAL_RULE_V3
++                for proposal in by_id.values()
++                if proposal.get("proposal_type") in {"single_panel", "multi_panel"}
++            )
++            else REVIEW_RUBRIC_HASH
++        )
+     active_rubric, active_chart_families = REVIEW_RUBRICS[
+         active_rubric_hash
+     ]
+diff --git a/nature_download/tests/test_proposals.py b/nature_download/tests/test_proposals.py
+index 7206625..1f1b0ae 100644
+--- a/nature_download/tests/test_proposals.py
++++ b/nature_download/tests/test_proposals.py
+@@ -6,6 +6,7 @@ from pathlib import Path
+ 
+ from jsonschema import Draft202012Validator
+ from openpyxl import Workbook
++import pandas as pd
+ import pytest
+ 
+ from nature_download.corpus.proposals import (
+@@ -16,9 +17,11 @@ from nature_download.corpus.proposals import (
+     MAX_BAR_CATEGORICAL_X,
+     PROPOSAL_RULE_V1,
+     PROPOSAL_RULE_V2,
++    PROPOSAL_RULE_V3,
+     RENDERABILITY_POLICY_HASH,
+     RENDERABILITY_POLICY_ID,
+     ProposalRejected,
++    analyze_table,
+     propose_cases,
+     propose_single_candidate,
+     write_proposal_outputs,
+@@ -383,6 +386,106 @@ def test_unique_monotonic_numeric_generates_line(workdir: Path) -> None:
+     assert proposed[0]["experiment_case"]["intent"]["x"] == "Distance"
+ 
+ 
++def test_v3_wide_groups_use_explicit_in_memory_melt_contract(
++    workdir: Path,
++) -> None:
++    table = workdir / "wide-groups.csv"
++    table.write_text(
++        "WT,KO\n1.0,2.0\n1.1,2.1\n",
++        encoding="utf-8",
++    )
++    proposal = propose_single_candidate(
++        candidate_for(table, candidate_id="wide-groups"),
++        input_candidates_sha256="f" * 64,
++        code_commit="a" * 40,
++        max_file_bytes=DEFAULT_MAX_FILE_BYTES,
++        max_rows=DEFAULT_MAX_ROWS,
++        max_columns=DEFAULT_MAX_COLUMNS,
++        rule_version=PROPOSAL_RULE_V3,
++    )
++    case = proposal["experiment_case"]
++    assert case["chart_family"] == "scatter"
++    assert case["intent"]["x"] == "__wide_group__"
++    assert case["intent"]["series"] == ["__wide_value__"]
++    assert case["intent"]["binding_mode"] == "wide_melt"
++    assert case["intent"]["wide_melt"]["source_value_columns"] == ["WT", "KO"]
++    assert proposal["source_table"]["sha256"] == sha256_file(table)
++    Draft202012Validator(EXPECTATION_SCHEMA).validate(
++        case["evaluation_expectation"]
++    )
++
++
++def test_propose_cases_accepts_explicit_v3_rule_version(workdir: Path) -> None:
++    table = workdir / "wide-v3.csv"
++    table.write_text("WT,KO\n1.0,2.0\n1.1,2.1\n", encoding="utf-8")
++    candidates = workdir / "candidates-v3.jsonl"
++    write_candidates(
++        candidates,
++        [candidate_for(table, candidate_id="wide-v3")],
++    )
++    proposed, rejected, summary = propose_cases(
++        candidates_path=candidates,
++        code_commit="test-commit",
++        rule_version=PROPOSAL_RULE_V3,
++    )
++    assert rejected == []
++    assert summary["proposal_rule_version"] == PROPOSAL_RULE_V3
++    assert proposed[0]["proposal_rule_version"] == PROPOSAL_RULE_V3
++
++
++def test_v3_two_measurements_use_correlation_scatter(workdir: Path) -> None:
++    table = workdir / "correlation.csv"
++    table.write_text(
++        "Branchpoint distance,Full length\n1,4\n2,3\n3,5\n",
++        encoding="utf-8",
++    )
++    analysis = analyze_table(
++        pd.read_csv(table),
++        rule_version=PROPOSAL_RULE_V3,
++    )
++    assert analysis.chart_family == "scatter"
++    assert analysis.x == "Branchpoint distance"
++    assert analysis.y == ("Full length",)
++
++
++def test_v3_excludes_replicate_counter_from_categorical_y(workdir: Path) -> None:
++    table = workdir / "replicate-counter.csv"
++    table.write_text(
++        "Treatment,Replicate,Value\nA,2,3\nA,4,4\nB,1,5\nB,3,6\n",
++        encoding="utf-8",
++    )
++    proposal = propose_single_candidate(
++        candidate_for(table, candidate_id="replicate-counter"),
++        input_candidates_sha256="f" * 64,
++        code_commit="a" * 40,
++        max_file_bytes=DEFAULT_MAX_FILE_BYTES,
++        max_rows=DEFAULT_MAX_ROWS,
++        max_columns=DEFAULT_MAX_COLUMNS,
++        rule_version=PROPOSAL_RULE_V3,
++    )
++    assert proposal["experiment_case"]["intent"]["series"] == ["Value"]
++    assert proposal["proposal_analysis"]["dropped_index_columns"] == ["Replicate"]
++
++
++def test_v3_recognizes_msec_as_a_controlled_x(workdir: Path) -> None:
++    table = workdir / "msec.csv"
++    table.write_text(
++        "msec,Vehicle,Treatment\n0,1,2\n1,2,3\n2,3,4\n",
++        encoding="utf-8",
++    )
++    proposal = propose_single_candidate(
++        candidate_for(table, candidate_id="msec"),
++        input_candidates_sha256="f" * 64,
++        code_commit="a" * 40,
++        max_file_bytes=DEFAULT_MAX_FILE_BYTES,
++        max_rows=DEFAULT_MAX_ROWS,
++        max_columns=DEFAULT_MAX_COLUMNS,
++        rule_version=PROPOSAL_RULE_V3,
++    )
++    assert proposal["experiment_case"]["chart_family"] == "line"
++    assert proposal["experiment_case"]["intent"]["x"] == "msec"
++
++
+ def test_ambiguous_x_and_more_than_four_y_are_rejected(workdir: Path) -> None:
+     ambiguous = workdir / "ambiguous.csv"
+     ambiguous.write_text("a,b,c\n1,2,3\n2,3,2\n3,4,1\n", encoding="utf-8")
+diff --git a/nature_download/tests/test_reviews.py b/nature_download/tests/test_reviews.py
+index 73c6591..e30ae0c 100644
+--- a/nature_download/tests/test_reviews.py
++++ b/nature_download/tests/test_reviews.py
+@@ -15,6 +15,7 @@ from nature_download.corpus.proposals import (
+     DEFAULT_MAX_FILE_BYTES,
+     DEFAULT_MAX_ROWS,
+     PROPOSAL_RULE_V2,
++    PROPOSAL_RULE_V3,
+     _multi_panel_proposals,
+     propose_single_candidate,
+ )
+@@ -327,6 +328,52 @@ def test_v2_scatter_proposal_is_reviewed_and_validated(
+     )
+ 
+ 
++def test_v3_wide_melt_proposal_is_reviewable_without_source_mutation(
++    workdir: Path,
++) -> None:
++    candidate = make_single(workdir, candidate_id="wide-a")
++    table = Path(candidate["source_table"]["path"])
++    table.write_text("WT,KO\n1.0,2.0\n1.1,2.1\n", encoding="utf-8")
++    candidate["source_table"] = {**descriptor(table), "sheet_name": None}
++    proposal = propose_single_candidate(
++        candidate,
++        input_candidates_sha256="f" * 64,
++        code_commit="a" * 40,
++        max_file_bytes=DEFAULT_MAX_FILE_BYTES,
++        max_rows=DEFAULT_MAX_ROWS,
++        max_columns=DEFAULT_MAX_COLUMNS,
++        rule_version=PROPOSAL_RULE_V3,
++    )
++    source = workdir / "proposed.jsonl"
++    output = workdir / "reviews"
++    write_proposed(source, [proposal])
++
++    def wide_output(prompt: str, model: str) -> dict[str, Any]:
++        return {
++            "valid": True,
++            "chart_family": "scatter",
++            "x": "__wide_group__",
++            "y": ["__wide_value__"],
++            "reason": "Exact deterministic wide-to-long binding.",
++        }
++
++    factory, _ = factory_for(wide_output)
++    result = review_proposals(
++        proposed_path=source,
++        output_root=output,
++        judge_models=MODELS,
++        client_factory=factory,
++        git_state=CLEAN_GIT,
++    )
++    assert result["summary"]["single_accepted"] == 1
++    assert result["summary"]["rubric_hash"] == reviews_module.REVIEW_RUBRIC_V3_HASH
++    validate_review_artifacts(
++        proposed_path=source,
++        reviews_path=output / "reviews.jsonl",
++        evidence_path=output / "evidence.json",
++    )
++
++
+ @pytest.mark.parametrize("chart_family", ["line", "bar", "scatter"])
+ def test_v2_rubric_accepts_all_supported_chart_families(
+     chart_family: str,

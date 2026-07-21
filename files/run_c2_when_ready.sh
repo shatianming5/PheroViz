@@ -46,6 +46,7 @@ Common options:
   --repo-root <checkout>       Default: checkout containing this script
   --python <python>            Default: Miniforge Python 3
   --min-panels <N>             Default: 5; values below 5 are rejected
+  --min-dois <K>               Default: 62 independent P5+ DOI clusters
   --model <name>               Default: gpt-5.6-sol
   --dry-run                    Default; expands specs only, no gateway calls
   --execute                    Explicit future production launch only
@@ -67,6 +68,7 @@ MANIFEST_DATA_ROOT=""
 RUN_OUT=""
 SEED=""
 MIN_PANELS=5
+MIN_DOIS=62
 MODEL="gpt-5.6-sol"
 MODE="dry-run"
 declare -a CANDIDATES=()
@@ -116,6 +118,11 @@ while (($#)); do
       MIN_PANELS="$2"
       shift 2
       ;;
+    --min-dois)
+      (($# >= 2)) || die "--min-dois requires a value"
+      MIN_DOIS="$2"
+      shift 2
+      ;;
     --model)
       (($# >= 2)) || die "--model requires a value"
       MODEL="$2"
@@ -161,10 +168,12 @@ done
 
 [[ -x "$PYTHON_BIN" ]] || die "Python is not executable: $PYTHON_BIN"
 REPO_ROOT="$(cd "$REPO_ROOT" && pwd)"
-[[ -d "$REPO_ROOT/.git" ]] || die "--repo-root is not a Git checkout: $REPO_ROOT"
+[[ -e "$REPO_ROOT/.git" ]] || die "--repo-root is not a Git checkout: $REPO_ROOT"
 cd "$REPO_ROOT"
 [[ "$MIN_PANELS" =~ ^[0-9]+$ && "$MIN_PANELS" -ge 5 ]] ||
   die "--min-panels must be an integer >= 5 for C2-extreme"
+[[ "$MIN_DOIS" =~ ^[0-9]+$ && "$MIN_DOIS" -ge 1 ]] ||
+  die "--min-dois must be a positive integer"
 [[ -n "$RUN_OUT" ]] || die "--run-out is required"
 [[ ! -e "$RUN_OUT" ]] || die "--run-out must not exist: $RUN_OUT"
 
@@ -190,6 +199,7 @@ else
     --out "$BENCHMARK_OUT"
     --seed "$SEED"
     --minimum-multi-panels "$MIN_PANELS"
+    --minimum-qualified-dois "$MIN_DOIS"
   )
   for item in "${CANDIDATES[@]}"; do BUILD_ARGS+=(--candidate "$item"); done
   for index in "${!PROPOSED[@]}"; do
@@ -215,6 +225,7 @@ RUN_ARGS=(
   --rounds-per-case 1
   --model "$MODEL"
   --min-panels "$MIN_PANELS"
+  --min-dois "$MIN_DOIS"
   --case-kind multi
   --python "$PYTHON_BIN"
 )

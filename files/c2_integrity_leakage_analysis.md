@@ -64,6 +64,35 @@ curation judge，故不能把它写成“ground truth 与所有模型完全独�
 “双模型 curation 定义并冻结任务语义；方法间差异由不调用该 curation judge 的程序化
 scorer 计算。”
 
+## Reclassified wide-melt 的附加完整性门
+
+当前 `simple-2d-v4` reclassifier 的**标签构造**仅经过
+`read_candidate_table → analyze_table → propose_single_candidate`：源文件先以 candidate 中的
+SHA-256 校验，再由表头、dtype、非空值、基数、单调性及重复值结构决定
+`chart_family`、`x/y`、wide-melt source columns 和 expectation。历史 `reviews.jsonl` 不在这条
+调用链中。对两个 batch 的对抗性测试将输入 proposal 中所有旧的 `experiment_case`、`x/y`、
+chart family、expectation、proposal analysis 和 curation fields 替换为伪造 judge 决定后，
+200 和 116 个重建 records 均逐字节相同；详见
+`files/c2_reclassify_integrity/reclassifier_leakage_audit.json`。
+
+但这不允许把所有 reclassify 产物都当作无条件可封存：
+
+* `reproposed_strict_rejects*.jsonl` 的成员由历史 reject status 选择，故它只能用于诊断性
+  triage，**绝不能**定义最终 C2 universe；
+* 当前审计到的 source 已声明 `simple-2d-v4`，但已发布 report/artifacts 仍声明
+  `simple-2d-v3`，且 A2 输入 hash 不匹配当前 priority artifact。必须 freeze V4、重写
+  per-batch **full** review input、重新 review/evidence/build-cases；
+* 两个 strict batch 有重叠 candidate IDs，不能作为两个 bundle 一起封存。最终 pool 必须选一个
+  non-overlapping source universe，或在 review 前做确定性去重并重新绑定 evidence。
+
+Wide melt 不改变评分的 ground truth，而是明确 ground-truth representation：raw hash-bound
+宽表在内存中按 sealed `source_value_columns` 变换为
+`__wide_group__` / `__wide_value__`；raw 文件不被修改。运行端在 profile、render 和
+`evaluate_figure` 前使用同一 fail-closed transform，并在 artifacts 中记录 `data_binding`。
+因此 expectation 对虚拟列的 programmatic fidelity/series-cohesion 是对这个固定变换后的
+source data 打分，而不是对 judge 文本或 prior label 打分。虚拟 series GID 现在也被 manifest
+extractor 保留，避免 multi-panel palette cohesion 因 `__` 前缀被错误丢弃。
+
 ## “validation ≠ scoring”论证的准确边界
 
 它有事实基础但不能被夸大：

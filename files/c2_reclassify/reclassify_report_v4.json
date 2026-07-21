@@ -1,0 +1,241 @@
+{
+  "classifier_inputs": [
+    "hash-bound source-table headers",
+    "hash-bound source-table dtypes",
+    "hash-bound source-table values"
+  ],
+  "combined_transport_note": "The two combined JSONL files retain all batch instances and add reproposal_batch. They contain duplicate candidate_id values because full_strict is a source-root variant/subset of casecount_strict, so they must be split by reproposal_batch before native review. The per-batch files named native_review_input are independently valid review_proposals inputs and have been offline preflighted.",
+  "diagnostics": {
+    "casecount_strict": {
+      "accepted_regression": {
+        "changed": 0,
+        "checked": 41,
+        "records": [],
+        "unchanged": 41
+      },
+      "consensus_evaluable_rejects": 94,
+      "prototype_vs_two_judge_consensus": {
+        "binding_class": {
+          "match": 69,
+          "rate": 0.7340425531914894,
+          "total": 94
+        },
+        "exact_family": {
+          "match": 48,
+          "rate": 0.5106382978723404,
+          "total": 94
+        },
+        "unknown": 11
+      },
+      "reclassified_per_fix_type": {
+        "any_binding_changed": 74,
+        "correlation_scatter": 33,
+        "grouped_dot_plot_scatter": 39,
+        "index_identifier_y_exclusion": 21,
+        "repeated_x_grid_scatter": 14,
+        "temporal_priority_line": 1,
+        "wide_melt": 35
+      },
+      "single_accepted": 41,
+      "single_rejects": 127,
+      "unreadable_rejects": 0,
+      "v4_vs_prototype": {
+        "binding_class": {
+          "match": 78,
+          "rate": 0.8297872340425532,
+          "total": 94
+        },
+        "exact_family": {
+          "match": 59,
+          "rate": 0.6276595744680851,
+          "total": 94
+        },
+        "prototype_nonunknown": 83
+      },
+      "v4_vs_two_judge_consensus": {
+        "binding_class": {
+          "match": 85,
+          "rate": 0.9042553191489362,
+          "total": 94
+        },
+        "exact_family": {
+          "match": 66,
+          "rate": 0.7021276595744681,
+          "total": 94
+        }
+      }
+    },
+    "full_strict": {
+      "accepted_regression": {
+        "changed": 0,
+        "checked": 24,
+        "records": [],
+        "unchanged": 24
+      },
+      "consensus_evaluable_rejects": 60,
+      "prototype_vs_two_judge_consensus": {
+        "binding_class": {
+          "match": 44,
+          "rate": 0.7333333333333333,
+          "total": 60
+        },
+        "exact_family": {
+          "match": 28,
+          "rate": 0.4666666666666667,
+          "total": 60
+        },
+        "unknown": 10
+      },
+      "reclassified_per_fix_type": {
+        "any_binding_changed": 50,
+        "correlation_scatter": 23,
+        "grouped_dot_plot_scatter": 32,
+        "index_identifier_y_exclusion": 17,
+        "repeated_x_grid_scatter": 7,
+        "wide_melt": 23
+      },
+      "single_accepted": 24,
+      "single_rejects": 76,
+      "unreadable_rejects": 0,
+      "v4_vs_prototype": {
+        "binding_class": {
+          "match": 50,
+          "rate": 0.8333333333333334,
+          "total": 60
+        },
+        "exact_family": {
+          "match": 34,
+          "rate": 0.5666666666666667,
+          "total": 60
+        },
+        "prototype_nonunknown": 50
+      },
+      "v4_vs_two_judge_consensus": {
+        "binding_class": {
+          "match": 54,
+          "rate": 0.9,
+          "total": 60
+        },
+        "exact_family": {
+          "match": 39,
+          "rate": 0.65,
+          "total": 60
+        }
+      }
+    }
+  },
+  "diagnostics_aggregate": {
+    "accepted_regression": {
+      "changed": 0,
+      "checked": 65
+    },
+    "consensus_evaluable_rejects": 154,
+    "prototype_vs_two_judge_consensus": {
+      "binding_class": {
+        "match": 113,
+        "rate": 0.7337662337662337,
+        "total": 154
+      },
+      "exact_family": {
+        "match": 76,
+        "rate": 0.4935064935064935,
+        "total": 154
+      },
+      "unknown": 21
+    },
+    "reclassified_per_fix_type": {
+      "any_binding_changed": 124,
+      "correlation_scatter": 56,
+      "grouped_dot_plot_scatter": 71,
+      "index_identifier_y_exclusion": 38,
+      "repeated_x_grid_scatter": 21,
+      "temporal_priority_line": 1,
+      "wide_melt": 58
+    },
+    "single_rejects": 203,
+    "v4_vs_prototype": {
+      "binding_class": {
+        "match": 128,
+        "rate": 0.8311688311688312,
+        "total": 154
+      },
+      "exact_family": {
+        "match": 93,
+        "rate": 0.6038961038961039,
+        "total": 154
+      },
+      "prototype_nonunknown": 133
+    },
+    "v4_vs_two_judge_consensus": {
+      "binding_class": {
+        "match": 139,
+        "rate": 0.9025974025974026,
+        "total": 154
+      },
+      "exact_family": {
+        "match": 105,
+        "rate": 0.6818181818181818,
+        "total": 154
+      }
+    }
+  },
+  "diagnostics_aggregate_scope": "Supplied review-batch instances (127 casecount_strict + 76 full_strict rejects); overlapping candidate IDs are intentionally counted once per source-root batch.",
+  "full": {
+    "batches": {
+      "casecount_strict": {
+        "multi_parents": 32,
+        "native_review_input": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/reproposed_strict_full_v4_casecount_strict.jsonl",
+        "newly_canonical_multi_parents_omitted_to_preserve_input_scope": [
+          "multi-s44319-025-00606-2-figure1-9a284f34e392"
+        ],
+        "records": 200,
+        "sha256": "978ffd5fedfd25064384f90eef0ffabc1ada2f1e6c7b96c30a491033ea2b73f2",
+        "singles": 168
+      },
+      "full_strict": {
+        "multi_parents": 16,
+        "native_review_input": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/reproposed_strict_full_v4_full_strict.jsonl",
+        "newly_canonical_multi_parents_omitted_to_preserve_input_scope": [
+          "multi-s44319-025-00606-2-figure1-9a284f34e392"
+        ],
+        "records": 116,
+        "sha256": "9b37945de134cd6bdca1919bebc4eaabda9c90f12f4c3d6ab6bc89225ec05b15",
+        "singles": 100
+      }
+    },
+    "combined_multi_parents": 48,
+    "combined_multi_parents_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/reproposed_strict_multi_parents_v4.jsonl",
+    "combined_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/reproposed_strict_full_v4.jsonl",
+    "combined_records": 316,
+    "combined_sha256": "b4166a3aff5acda6dfaf22cd233db3fb416c5e26c6adfba396ebbc59a1d72abf"
+  },
+  "integrity_note": "Proposal construction is source-table-structure-only. Historical judge records are read only after construction for priority selection, regression measurement, and diagnostic scoring; no judge output is used to set a proposal family, x, y, or source transform.",
+  "priority": {
+    "batches": {
+      "casecount_strict": {
+        "native_review_input": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/reproposed_strict_rejects_v4_casecount_strict.jsonl",
+        "rejected_singles": 127,
+        "reviewable_multi_parents": 20,
+        "sha256": "58f1d3050fb5fe89509956b639779d6afffbb8c145a4433cdd22b55244d7de94"
+      },
+      "full_strict": {
+        "native_review_input": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/reproposed_strict_rejects_v4_full_strict.jsonl",
+        "rejected_singles": 76,
+        "reviewable_multi_parents": 9,
+        "sha256": "0d38f5906a87d9b694fc333648e13cc38eb31ed29a180ccd0fc6dfcadef91997"
+      }
+    },
+    "combined_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/reproposed_strict_rejects_v4.jsonl",
+    "combined_records": 232,
+    "combined_sha256": "494d18b3b74fb61158601e95c33fcd667591d6b89b61d5b3cae38443550c6d60"
+  },
+  "proposal_rule_version": "simple-2d-v4",
+  "schema_version": "c2-reclassify-v1",
+  "wide_melt_contract": {
+    "binding_mode": "wide_melt",
+    "group_column": "__wide_group__",
+    "review_rubric": "proposal-external-validation-v4",
+    "source_mutation": "none; an explicit deterministic in-memory transform",
+    "value_column": "__wide_value__"
+  }
+}

@@ -6,6 +6,7 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator
 from openpyxl import Workbook
+import pandas as pd
 import pytest
 
 from nature_download.corpus.proposals import (
@@ -16,9 +17,12 @@ from nature_download.corpus.proposals import (
     MAX_BAR_CATEGORICAL_X,
     PROPOSAL_RULE_V1,
     PROPOSAL_RULE_V2,
+    PROPOSAL_RULE_V3,
+    PROPOSAL_RULE_V4,
     RENDERABILITY_POLICY_HASH,
     RENDERABILITY_POLICY_ID,
     ProposalRejected,
+    analyze_table,
     propose_cases,
     propose_single_candidate,
     write_proposal_outputs,
@@ -381,6 +385,208 @@ def test_unique_monotonic_numeric_generates_line(workdir: Path) -> None:
     assert rejected == []
     assert proposed[0]["experiment_case"]["chart_family"] == "line"
     assert proposed[0]["experiment_case"]["intent"]["x"] == "Distance"
+
+
+def test_v3_wide_groups_use_explicit_in_memory_melt_contract(
+    workdir: Path,
+) -> None:
+    table = workdir / "wide-groups.csv"
+    table.write_text(
+        "WT,KO\n1.0,2.0\n1.1,2.1\n",
+        encoding="utf-8",
+    )
+    proposal = propose_single_candidate(
+        candidate_for(table, candidate_id="wide-groups"),
+        input_candidates_sha256="f" * 64,
+        code_commit="a" * 40,
+        max_file_bytes=DEFAULT_MAX_FILE_BYTES,
+        max_rows=DEFAULT_MAX_ROWS,
+        max_columns=DEFAULT_MAX_COLUMNS,
+        rule_version=PROPOSAL_RULE_V3,
+    )
+    case = proposal["experiment_case"]
+    assert case["chart_family"] == "scatter"
+    assert case["intent"]["x"] == "__wide_group__"
+    assert case["intent"]["series"] == ["__wide_value__"]
+    assert case["intent"]["binding_mode"] == "wide_melt"
+    assert case["intent"]["wide_melt"]["source_value_columns"] == ["WT", "KO"]
+    assert proposal["source_table"]["sha256"] == sha256_file(table)
+    Draft202012Validator(EXPECTATION_SCHEMA).validate(
+        case["evaluation_expectation"]
+    )
+
+
+def test_propose_cases_accepts_explicit_v3_rule_version(workdir: Path) -> None:
+    table = workdir / "wide-v3.csv"
+    table.write_text("WT,KO\n1.0,2.0\n1.1,2.1\n", encoding="utf-8")
+    candidates = workdir / "candidates-v3.jsonl"
+    write_candidates(
+        candidates,
+        [candidate_for(table, candidate_id="wide-v3")],
+    )
+    proposed, rejected, summary = propose_cases(
+        candidates_path=candidates,
+        code_commit="test-commit",
+        rule_version=PROPOSAL_RULE_V3,
+    )
+    assert rejected == []
+    assert summary["proposal_rule_version"] == PROPOSAL_RULE_V3
+    assert proposed[0]["proposal_rule_version"] == PROPOSAL_RULE_V3
+
+
+def test_v3_two_measurements_use_correlation_scatter(workdir: Path) -> None:
+    table = workdir / "correlation.csv"
+    table.write_text(
+        "Branchpoint distance,Full length\n1,4\n2,3\n3,5\n",
+        encoding="utf-8",
+    )
+    analysis = analyze_table(
+        pd.read_csv(table),
+        rule_version=PROPOSAL_RULE_V3,
+    )
+    assert analysis.chart_family == "scatter"
+    assert analysis.x == "Branchpoint distance"
+    assert analysis.y == ("Full length",)
+
+
+def test_v3_excludes_replicate_counter_from_categorical_y(workdir: Path) -> None:
+    table = workdir / "replicate-counter.csv"
+    table.write_text(
+        "Treatment,Replicate,Value\nA,2,3\nA,4,4\nB,1,5\nB,3,6\n",
+        encoding="utf-8",
+    )
+    proposal = propose_single_candidate(
+        candidate_for(table, candidate_id="replicate-counter"),
+        input_candidates_sha256="f" * 64,
+        code_commit="a" * 40,
+        max_file_bytes=DEFAULT_MAX_FILE_BYTES,
+        max_rows=DEFAULT_MAX_ROWS,
+        max_columns=DEFAULT_MAX_COLUMNS,
+        rule_version=PROPOSAL_RULE_V3,
+    )
+    assert proposal["experiment_case"]["intent"]["series"] == ["Value"]
+    assert proposal["proposal_analysis"]["dropped_index_columns"] == ["Replicate"]
+
+
+def test_v3_recognizes_msec_as_a_controlled_x(workdir: Path) -> None:
+    table = workdir / "msec.csv"
+    table.write_text(
+        "msec,Vehicle,Treatment\n0,1,2\n1,2,3\n2,3,4\n",
+        encoding="utf-8",
+    )
+    proposal = propose_single_candidate(
+        candidate_for(table, candidate_id="msec"),
+        input_candidates_sha256="f" * 64,
+        code_commit="a" * 40,
+        max_file_bytes=DEFAULT_MAX_FILE_BYTES,
+        max_rows=DEFAULT_MAX_ROWS,
+        max_columns=DEFAULT_MAX_COLUMNS,
+        rule_version=PROPOSAL_RULE_V3,
+    )
+    assert proposal["experiment_case"]["chart_family"] == "line"
+    assert proposal["experiment_case"]["intent"]["x"] == "msec"
+
+
+def test_v4_large_categorical_groups_become_dot_plot_scatter(
+    workdir: Path,
+) -> None:
+    table = workdir / "large-groups.csv"
+    table.write_text(
+        "Line,Value\n"
+        + "".join(f"A,{value}\n" for value in range(5))
+        + "".join(f"B,{value}\n" for value in range(5, 10)),
+        encoding="utf-8",
+    )
+    analysis = analyze_table(pd.read_csv(table), rule_version=PROPOSAL_RULE_V4)
+    assert analysis.chart_family == "scatter"
+    assert analysis.x == "Line"
+
+
+def test_v4_small_categorical_groups_remain_aggregate_bar(
+    workdir: Path,
+) -> None:
+    table = workdir / "small-groups.csv"
+    table.write_text(
+        "Line,Value\n"
+        + "".join(f"A,{value}\n" for value in range(4))
+        + "".join(f"B,{value}\n" for value in range(4, 8)),
+        encoding="utf-8",
+    )
+    analysis = analyze_table(pd.read_csv(table), rule_version=PROPOSAL_RULE_V4)
+    assert analysis.chart_family == "bar"
+    assert analysis.x == "Line"
+
+
+def test_v4_excludes_noncontiguous_named_integer_identifier(
+    workdir: Path,
+) -> None:
+    table = workdir / "sample-identifier.csv"
+    table.write_text(
+        "Treatment,Sample ID,Value\n"
+        "A,10,3\nA,21,4\nB,31,5\nB,42,6\n",
+        encoding="utf-8",
+    )
+    analysis = analyze_table(pd.read_csv(table), rule_version=PROPOSAL_RULE_V4)
+    assert analysis.chart_family == "bar"
+    assert analysis.x == "Treatment"
+    assert analysis.y == ("Value",)
+    assert analysis.dropped_index_columns == ("Sample ID",)
+
+
+def test_v4_multiseries_group_labels_remain_bar(workdir: Path) -> None:
+    table = workdir / "multi-series-groups.csv"
+    table.write_text(
+        "Genotype,Cell type A,Cell type B,Cell type C\n"
+        + "".join(f"WT,{value},{value + 1},{value + 2}\n" for value in range(6))
+        + "".join(
+            f"Mutant,{value},{value + 1},{value + 2}\n" for value in range(6, 12)
+        ),
+        encoding="utf-8",
+    )
+    analysis = analyze_table(pd.read_csv(table), rule_version=PROPOSAL_RULE_V4)
+    assert analysis.chart_family == "bar"
+    assert analysis.x == "Genotype"
+
+
+def test_v4_timing_column_precedes_categorical_grouping(workdir: Path) -> None:
+    table = workdir / "timing.csv"
+    table.write_text(
+        "Subject,Treatment,Timing [min],Value\n"
+        "1,A,10,3\n2,A,10,4\n1,A,60,5\n2,A,60,6\n"
+        "1,B,10,7\n2,B,10,8\n1,B,60,9\n2,B,60,10\n",
+        encoding="utf-8",
+    )
+    analysis = analyze_table(pd.read_csv(table), rule_version=PROPOSAL_RULE_V4)
+    assert analysis.chart_family == "line"
+    assert analysis.x == "Timing [min]"
+    assert analysis.y == ("Value",)
+    assert analysis.dropped_index_columns == ("Subject",)
+
+
+def test_v4_repeated_measured_grid_x_becomes_scatter(workdir: Path) -> None:
+    table = workdir / "grid.csv"
+    table.write_text(
+        "Nutrient,Dispersal,Fraction\n"
+        "1,10,0.1\n2,10,0.9\n3,10,0.2\n"
+        "1,20,0.6\n2,20,0.3\n3,20,0.8\n"
+        "1,30,0.4\n2,30,0.7\n3,30,0.5\n",
+        encoding="utf-8",
+    )
+    analysis = analyze_table(pd.read_csv(table), rule_version=PROPOSAL_RULE_V4)
+    assert analysis.chart_family == "scatter"
+    assert analysis.x == "Dispersal"
+
+
+def test_v4_scattering_vector_is_a_controlled_line_x(workdir: Path) -> None:
+    table = workdir / "scattering.csv"
+    table.write_text(
+        "q (Å-1),Observed,Fitted\n"
+        "0.00,1.0,1.1\n0.02,0.9,1.0\n0.02,0.8,0.9\n0.04,0.7,0.8\n",
+        encoding="utf-8",
+    )
+    analysis = analyze_table(pd.read_csv(table), rule_version=PROPOSAL_RULE_V4)
+    assert analysis.chart_family == "line"
+    assert analysis.x == "q (Å-1)"
 
 
 def test_ambiguous_x_and_more_than_four_y_are_rejected(workdir: Path) -> None:
