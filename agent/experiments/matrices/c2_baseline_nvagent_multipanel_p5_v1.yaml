@@ -1,0 +1,49 @@
+# C2 P5+ external-baseline shard. The experiment harness requires
+# a render budget divisible by each case panel count, so the full frozen
+# 21-case C2 comparison is represented by P5 through P11 matrices.
+# Credentials are environment-only: map the gateway into the adapter's
+# OpenAI-compatible environment variables before --execute.
+experiment_name: c2-baseline-nvagent-multipanel-p5-v1-gpt4omini
+dataset_manifest: /mnt/shared/zechuan/pv-c2-baseline/repo-c2/nature_download/outputs/c2_extreme_proposals/proposed.jsonl
+dataset_manifest_sha256: 045309d1e91651e072778c6ef20df5ca07ac1bad5c92fddbeea6e502dffc5850
+dataset_mode: legacy
+artifact_root: /mnt/shared/zechuan/pv-c2-baseline/runs/c2_baseline_nvagent_multipanel_p5_v1_gpt4omini
+provider_options:
+  manifest_data_root: /mnt/shared/zechuan/pv-c2-baseline/repo-c2
+methods:
+- name: nvagent_multipanel
+  schedule: best_of_n
+  provider: experiments.external_baselines_multipanel:MultiPanelExternalBaselineProvider
+  provider_options:
+    baseline: nvagent
+    repo_path: /mnt/shared/zechuan/pv-c2-baseline/repo/baseline_repos/nvAgent
+    python_executable: /mnt/shared/zechuan/pv-c2-baseline/venvs/nvagent-linux/bin/python
+  openai_compatible: true
+- name: pheroviz_model_spec
+  schedule: best_of_n
+  provider: experiments.providers:UnifiedBenchmarkProvider
+  provider_options:
+    manifest_data_root: /mnt/shared/zechuan/pv-c2-baseline/repo-c2
+  memory_mode: none
+  initial_generation: model_spec
+  render_timeout_seconds: 120
+case_ids:
+- multi-s41467-022-32754-7-figure6-c7b99a887b69
+- multi-s41467-023-41139-3-figure5-a052464e6521
+- multi-s41467-023-41705-9-figure7-28ed39159df3
+- multi-s41467-026-69007-w-figure6-67d0c5d58227
+backbones:
+- gpt-4o-mini
+seeds:
+- 0
+- 1
+- 2
+budgets:
+- type: renders
+  value: 5
+metric:
+  version: programmatic-v2
+  config:
+    selection:
+      metric: data_fidelity
+      direction: maximize

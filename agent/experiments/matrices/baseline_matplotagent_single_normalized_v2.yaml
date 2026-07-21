@@ -8,8 +8,8 @@ methods:
   schedule: best_of_n
   provider: experiments.external_baselines:MatPlotAgentProvider
   provider_options:
-    repo_path: __WORKSPACE_ROOT__/baseline_repos/MatPlotAgent
-    python_executable: __WORKSPACE_ROOT__/.baseline_envs/matplotagent/bin/python
+    repo_path: __WORKSPACE_ROOT__/repo/baseline_repos/MatPlotAgent
+    python_executable: __WORKSPACE_ROOT__/venvs/matplotagent-linux/bin/python
   mode: direct
   visual_refine: false
 - name: pheroviz_model_spec_normalized_v2
@@ -39,7 +39,7 @@ metric:
       direction: maximize
 compatibility_subtrack:
   spec: ../baseline_specs/matplotagent-single-test-normalized-v2.json
-  spec_sha256: 1c25423589f561b6696f76611d12b52ae585645d9109d0b2b539ecedf98e6c48
+  spec_sha256: c4e92b7a413af5027a0fe9c1447fe0d7708cff92bba698cbbe7bd163819e02ae
   input_track: table_instruction
   selected_cases: 16
   selected_dois: 6

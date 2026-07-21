@@ -181,9 +181,24 @@ parent/source/instruction/expectation hash。矩阵模板为
 完成状态报告；single-only 因而 cohesion `C=NA`。两项外部基线 license 均为
 `not_declared`，三次 seed 是 paired replicate 标识，公开 adapter 不保证向
 上游模型注入 seed。ChartCoder 仍因 checkpoint/license provenance 阻塞，不在
-任何 method 或结果行中。remote workspace 需将 PheroViz、`baseline_repos/`
-与 `.baseline_envs/` 放在同一父目录；执行前还必须提供 gateway 环境变量并保持
-PheroViz worktree clean。只做无模型 materialize + dry-run：
+任何 method 或结果行中。fresh Linux venv 位于工作区的 `venvs/`，而 checkout 位于
+PheroViz checkout 内的 `baseline_repos/`。冻结的 v1 portable spec 保留旧的
+workspace-relative names；cluster 上以 `baseline_repos -> repo/baseline_repos` 和
+`.baseline_envs/{matplotagent,nvagent} -> ../venvs/{matplotagent-linux,nvagent-linux}`
+兼容，不复制环境。执行前还必须提供 gateway 环境变量并保持 PheroViz worktree clean。
+
+C2 external multi-panel 比较使用 hash-pinned 的同一 P5+ frozen corpus。由于 harness
+要求每个 render budget 能被 panel count 整除，21 个 case 被分为
+`c2_baseline_{matplotagent,nvagent}_multipanel_p{5..11}_v1.yaml` 七个 shard；每个
+external provider fan-out 到单 panel，再以同一 `evaluate_cohesion` 与
+`combine_figure_manifests` 聚合。MatPlotAgent 使用 direct mode，nvAgent 显式使用
+`openai_compatible: true`。不把 credential 写入 YAML；在 serialized execution 前将
+`MATPLOTAGENT_API_KEY`/`MATPLOTAGENT_BASE_URL` 和
+`NVAGENT_AZURE_OPENAI_API_KEY`/`NVAGENT_AZURE_OPENAI_ENDPOINT`/
+`NVAGENT_OPENAI_API_VERSION` 从 gateway environment 映射到 adapter 所需的
+OpenAI-compatible endpoint（`$ANTHROPIC_BASE_URL/v1`）。
+
+只做无模型 materialize + dry-run：
 
 ```bash
 cd /path/to/PheroViz

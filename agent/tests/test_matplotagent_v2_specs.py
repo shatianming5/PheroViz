@@ -338,9 +338,9 @@ def test_materialized_v2_binds_normalized_inputs_for_both_methods() -> None:
             previous_candidate=None,
         )
         provider = MatPlotAgentProvider(
-            repo_path=WORKSPACE_ROOT / "baseline_repos" / "MatPlotAgent",
+            repo_path=WORKSPACE_ROOT / "repo" / "baseline_repos" / "MatPlotAgent",
             python_executable=str(
-                WORKSPACE_ROOT / ".baseline_envs" / "matplotagent" / "bin" / "python"
+                WORKSPACE_ROOT / "venvs" / "matplotagent-linux" / "bin" / "python"
             ),
             check_dependencies=False,
             environ={

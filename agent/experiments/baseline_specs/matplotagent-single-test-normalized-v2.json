@@ -64,12 +64,12 @@
     ],
     "provider": "experiments.external_baselines:MatPlotAgentProvider",
     "python": {
-      "relative_path": ".baseline_envs/matplotagent/bin/python",
+      "relative_path": "venvs/matplotagent-linux/bin/python",
       "root": "workspace_root"
     },
     "repo": {
       "commit": "9cafa262aae7bdf85fccf6d02b2153fb772bc376",
-      "relative_path": "baseline_repos/MatPlotAgent",
+      "relative_path": "repo/baseline_repos/MatPlotAgent",
       "root": "workspace_root"
     },
     "required_runtime_gate": "materialize from clean repository; exact parent/source/builder/runtime hashes; gateway environment only"
