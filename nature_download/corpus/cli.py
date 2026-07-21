@@ -34,6 +34,7 @@ from .proposals import (
     DEFAULT_MAX_COLUMNS,
     DEFAULT_MAX_FILE_BYTES,
     DEFAULT_MAX_ROWS,
+    PROPOSAL_RULE_V4,
     propose_cases,
     write_proposal_outputs,
 )
@@ -253,6 +254,7 @@ def cmd_propose_cases(args: argparse.Namespace) -> None:
         max_file_bytes=args.max_file_bytes,
         max_rows=args.max_rows,
         max_columns=args.max_columns,
+        rule_version=PROPOSAL_RULE_V4,
     )
     write_proposal_outputs(output_path, proposed, rejected, summary)
     

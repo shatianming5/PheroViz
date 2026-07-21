@@ -1,0 +1,1124 @@
+{
+  "ambiguous_taxonomy": {
+    "historical_artifact_record_count": 10834,
+    "historical_reason_occurrences": {
+      "archive-no-csv-or-xlsx": 1,
+      "article-not-cc-by-download-eligible": 3,
+      "article-provenance:checksum-mismatch:source_data/44318_2023_3_MOESM4_ESM_QUANTIFY.xlsx": 25,
+      "article-provenance:file-path-duplicate:source_data/44318_2023_3_MOESM4_ESM_quantify.xlsx": 25,
+      "article-provenance:size-mismatch:source_data/44318_2023_3_MOESM4_ESM_QUANTIFY.xlsx": 25,
+      "caption-file-missing": 2503,
+      "caption-not-in-article-provenance": 12,
+      "figure-file-missing": 2503,
+      "figure-not-in-article-provenance": 12,
+      "figure-panel-pattern-not-found": 7101,
+      "multiple-conflicting-figure-panel-matches": 3,
+      "multiple-panel-reference": 210,
+      "source-table-not-in-article-provenance": 3,
+      "source-table-provenance-hash-mismatch": 3,
+      "source-table-provenance-size-mismatch": 3,
+      "supplementary-figure-mapping-unsupported": 980,
+      "xlsx-no-usable-sheets": 10,
+      "xlsx-workbook-invalid": 10,
+      "zip-file-count-limit": 1
+    },
+    "interpretation": {
+      "figure_panel_count_vs_source_sheet_mismatch": {
+        "ambiguous_record_count": 0,
+        "finding": "No such comparison is implemented or emitted by cases.py; multi-panel labels are rejected lexically instead."
+      },
+      "multiple_candidate_source_sheets_or_columns": {
+        "ambiguous_record_count": 0,
+        "finding": "No observed ambiguous reason encodes a cross-sheet/column candidate collision. The builder does not implement a source-sheet uniqueness resolver.",
+        "recovered_binding_collision_keys": 0,
+        "separate_existing_candidate_collision_census": {
+          "duplicate_figure_panel_keys": 47,
+          "records_in_duplicate_keys": 98
+        }
+      },
+      "no_matching_source_sheet_or_naming_mismatch": {
+        "finding": "These records have a source table/sheet, but its label fails the strict Fig/Figure+number+letter parser; there is no separate \"source sheet missing\" status.",
+        "pure_no_parseable_label_records": 7076,
+        "reason_occurrences_including_provenance_overlap": 7101
+      },
+      "parser_or_canonicalization_failures": {
+        "pure_records": 7076,
+        "representative": {
+          "detail": null,
+          "doi": "10.1038/s41467-019-11236-3",
+          "figure_no": null,
+          "panel_ids": [],
+          "reasons": [
+            "figure-panel-pattern-not-found"
+          ],
+          "sheet_name": "6D Western",
+          "source_relative_path": "s41467-019-11236-3/source_data/41467_2019_11236_MOESM12_ESM.xlsx"
+        },
+        "strict_reason": "figure-panel-pattern-not-found"
+      },
+      "wide_table_no_clean_single_xy_mapping": {
+        "case_builder_ambiguous_record_count": 0,
+        "finding": "cases.py only inspects XLSX sheet names, not cells/columns. Table-shape feasibility is a later proposal-stage gate.",
+        "recovered_candidate_v4_rejections": {
+          "bar_categorical_x_exceeds_200": 1,
+          "column-name-missing": 86,
+          "numeric-y-column-missing": 1,
+          "table-column-count-not-simple": 4,
+          "table-empty": 29,
+          "table-empty-column": 3,
+          "table-ragged-extra-columns": 95,
+          "x-column-ambiguous-categorical": 8
+        }
+      }
+    },
+    "mutually_exclusive_record_categories": {
+      "archive_unusable": {
+        "count": 2,
+        "representative": {
+          "detail": null,
+          "doi": "10.1038/s41467-023-36122-x",
+          "figure_no": null,
+          "panel_ids": null,
+          "reasons": [
+            "archive-no-csv-or-xlsx"
+          ],
+          "sheet_name": null,
+          "source_relative_path": null
+        }
+      },
+      "figure_or_caption_asset_missing_or_unbound": {
+        "count": 2515,
+        "representative": {
+          "detail": null,
+          "doi": "10.1038/s41467-018-08048-2",
+          "figure_no": 2,
+          "panel_ids": [
+            "c"
+          ],
+          "reasons": [
+            "caption-file-missing",
+            "figure-file-missing"
+          ],
+          "sheet_name": "Fig. 2c",
+          "source_relative_path": "s41467-018-08048-2/source_data/41467_2018_8048_MOESM3_ESM.xlsx"
+        }
+      },
+      "license_ineligible": {
+        "count": 3,
+        "representative": {
+          "detail": null,
+          "doi": "10.15252/embr.201845766",
+          "figure_no": null,
+          "panel_ids": null,
+          "reasons": [
+            "article-not-cc-by-download-eligible"
+          ],
+          "sheet_name": null,
+          "source_relative_path": null
+        }
+      },
+      "multiple_panel_or_conflicting_reference": {
+        "count": 213,
+        "representative": {
+          "detail": null,
+          "doi": "10.1038/s41467-020-16718-3",
+          "figure_no": null,
+          "panel_ids": [],
+          "reasons": [
+            "multiple-panel-reference"
+          ],
+          "sheet_name": "Figure 6a,c-f,i",
+          "source_relative_path": "s41467-020-16718-3/source_data/41467_2020_16718_MOESM9_ESM.xlsx"
+        }
+      },
+      "no_parseable_figure_panel_label": {
+        "count": 7076,
+        "representative": {
+          "detail": null,
+          "doi": "10.1038/s41467-019-11236-3",
+          "figure_no": null,
+          "panel_ids": [],
+          "reasons": [
+            "figure-panel-pattern-not-found"
+          ],
+          "sheet_name": "6D Western",
+          "source_relative_path": "s41467-019-11236-3/source_data/41467_2019_11236_MOESM12_ESM.xlsx"
+        }
+      },
+      "provenance_failure": {
+        "count": 25,
+        "representative": {
+          "detail": null,
+          "doi": "10.1038/s44318-023-00003-2",
+          "figure_no": null,
+          "panel_ids": [],
+          "reasons": [
+            "article-provenance:checksum-mismatch:source_data/44318_2023_3_MOESM4_ESM_QUANTIFY.xlsx",
+            "article-provenance:file-path-duplicate:source_data/44318_2023_3_MOESM4_ESM_quantify.xlsx",
+            "article-provenance:size-mismatch:source_data/44318_2023_3_MOESM4_ESM_QUANTIFY.xlsx",
+            "figure-panel-pattern-not-found"
+          ],
+          "sheet_name": "Sheet1",
+          "source_relative_path": "s44318-023-00003-2/source_data/44318_2023_3_MOESM4_ESM_20211223 qp DC1 KD efficiency.xlsx"
+        }
+      },
+      "supplementary_unsupported": {
+        "count": 980,
+        "representative": {
+          "detail": null,
+          "doi": "10.1038/s41467-018-08048-2",
+          "figure_no": null,
+          "panel_ids": [],
+          "reasons": [
+            "supplementary-figure-mapping-unsupported"
+          ],
+          "sheet_name": "Supplementary Fig. 4d",
+          "source_relative_path": "s41467-018-08048-2/source_data/41467_2018_8048_MOESM3_ESM.xlsx"
+        }
+      },
+      "workbook_unreadable_or_empty": {
+        "count": 20,
+        "representative": {
+          "detail": "BadZipFile:File is not a zip file",
+          "doi": "10.1038/s41467-022-29411-4",
+          "figure_no": null,
+          "panel_ids": [],
+          "reasons": [
+            "xlsx-workbook-invalid"
+          ],
+          "sheet_name": null,
+          "source_relative_path": "extracted/s41467-022-29411-4/41467_2022_29411_MOESM3_ESM-2c066b1ffe8d/Supplementary data/SI/~$figS9.xlsx"
+        }
+      }
+    }
+  },
+  "commands": [
+    {
+      "command": "cd /Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra && /opt/homebrew/Caskroom/miniforge/base/bin/python3 -c \"import collections,json; p=r'/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/c2_full_casecount_20260720/case_builds/extreme_merged/ambiguous.jsonl'; rows=[json.loads(x) for x in open(p,encoding='utf-8') if x.strip()]; print(len(rows)); print(collections.Counter(reason for row in rows for reason in row['reasons']))\"",
+      "executed": true,
+      "purpose": "Schema and reason census"
+    },
+    {
+      "command": "git -C /Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra worktree add --detach /Users/tommy/.copilot/session-state/7b81726b-937c-41cb-9392-fead4d53250b/ambig_binding_worktree 0673c4abb3f73a44a9fdfcc591af92633960896f",
+      "executed": true,
+      "purpose": "Isolated worktree"
+    },
+    {
+      "command": "cd /Users/tommy/.copilot/session-state/7b81726b-937c-41cb-9392-fead4d53250b/ambig_binding_worktree && PYTHONPATH=\"$PWD/nature_download\" /opt/homebrew/Caskroom/miniforge/base/bin/python3 -m pytest -q nature_download/tests/test_cases.py",
+      "executed": true,
+      "purpose": "Targeted case-builder tests"
+    },
+    {
+      "command": "PYTHONPATH=/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download /opt/homebrew/Caskroom/miniforge/base/bin/python3 -c \"from corpus.cases import build_cases,write_case_outputs; c,a,s=build_cases(corpus_manifest=r'/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/c2_full_casecount_20260720/input_manifests/extreme_merged.jsonl',content_root=r'/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged',output_root=r'/Users/tommy/.copilot/session-state/7b81726b-937c-41cb-9392-fead4d53250b/files/c2_scale_ambig/baseline_case_build'); write_case_outputs(r'/Users/tommy/.copilot/session-state/7b81726b-937c-41cb-9392-fead4d53250b/files/c2_scale_ambig/baseline_case_build',c,a,s)\"",
+      "executed": true,
+      "purpose": "Fresh baseline build (direct API; no main-worktree edit)"
+    },
+    {
+      "command": "PYTHONPATH=/Users/tommy/.copilot/session-state/7b81726b-937c-41cb-9392-fead4d53250b/ambig_binding_worktree/nature_download /opt/homebrew/Caskroom/miniforge/base/bin/python3 -c \"from corpus.cases import build_cases,write_case_outputs; c,a,s=build_cases(corpus_manifest=r'/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/c2_full_casecount_20260720/input_manifests/extreme_merged.jsonl',content_root=r'/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged',output_root=r'/Users/tommy/.copilot/session-state/7b81726b-937c-41cb-9392-fead4d53250b/files/c2_scale_ambig/improved_case_build'); write_case_outputs(r'/Users/tommy/.copilot/session-state/7b81726b-937c-41cb-9392-fead4d53250b/files/c2_scale_ambig/improved_case_build',c,a,s)\"",
+      "executed": true,
+      "purpose": "Patched build on the identical content root"
+    },
+    {
+      "command": "PYTHONPATH=/Users/tommy/.copilot/session-state/7b81726b-937c-41cb-9392-fead4d53250b/ambig_binding_worktree/nature_download /opt/homebrew/Caskroom/miniforge/base/bin/python3 -c \"from corpus.proposals import PROPOSAL_RULE_V4,propose_cases,write_proposal_outputs; from pathlib import Path; root=Path(r'/Users/tommy/.copilot/session-state/7b81726b-937c-41cb-9392-fead4d53250b/files/c2_scale_ambig'); [(lambda p,o: write_proposal_outputs(o,*propose_cases(candidates_path=p,code_commit='0673c4abb3f73a44a9fdfcc591af92633960896f',rule_version=PROPOSAL_RULE_V4)))(root/f'{label}_case_build/candidates.jsonl',root/f'{label}_v4_proposals') for label in ('baseline','improved')]\"",
+      "executed": true,
+      "purpose": "V4 direct/raw proposal measurement for each candidates.jsonl"
+    },
+    {
+      "command": "git -C /Users/tommy/.copilot/session-state/7b81726b-937c-41cb-9392-fead4d53250b/ambig_binding_worktree diff --no-ext-diff -- nature_download/corpus/cases.py > /Users/tommy/.copilot/session-state/7b81726b-937c-41cb-9392-fead4d53250b/files/c2_scale_ambig/cases_binding_improvement.patch",
+      "executed": true,
+      "purpose": "Emit the review patch"
+    }
+  ],
+  "generated_at_utc": "2026-07-21T22:37:07.491493+00:00",
+  "honest_assessment": {
+    "conclusion": "The deterministic naming recovery is real (+230 candidate bindings), but it produces no additional V4 direct/raw P>=5 multi-panel DOI on this fixed root. It therefore does not meaningfully move the qualified raw-P5 universe toward K=62; table-shape/materialization is now the binding bottleneck.",
+    "k62_target": 62,
+    "strict_v4_raw_p5_doi_delta": 0,
+    "strict_v4_raw_p5_dois_after": 3,
+    "structural_candidate_p5_dois_after": 69
+  },
+  "inputs": {
+    "content_root": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged",
+    "corpus_manifest": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/c2_full_casecount_20260720/input_manifests/extreme_merged.jsonl",
+    "corpus_manifest_sha256": "72348170947876ae8a33a78a3a34587b1b2aaf663943ad15ed45e77fa693f318",
+    "historical_ambiguous_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/c2_full_casecount_20260720/case_builds/extreme_merged/ambiguous.jsonl",
+    "historical_ambiguous_sha256": "b627251847947dacf3bddc1e591bbe41f4b4c7afee003ed97bd6db407e6d0343",
+    "historical_candidates_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/c2_full_casecount_20260720/case_builds/extreme_merged/candidates.jsonl"
+  },
+  "number_verification": {
+    "historical_ambiguous_count_python_verified": 10834,
+    "historical_candidate_count_python_verified": 892,
+    "method": "All reported corpus, candidate, ambiguity, proposal, collision, and spot-check counts were computed from JSONL/XLSX files by the exact interpreter recorded above. K=62 is the user-stated target, not a measured corpus count."
+  },
+  "offline_only": true,
+  "python_interpreter": "/opt/homebrew/Caskroom/miniforge/base/bin/python3",
+  "recoverable_estimate": {
+    "all_recovered_candidates_direct_raw_non_normalizer": true,
+    "fixed_root_no_pattern_records_before": 7117,
+    "fully_recovered_candidates": 230,
+    "no_pattern_transition_counts_after_patch": {
+      "candidate_recovered": 230,
+      "mapped_but_fail_closed:caption-file-missing|figure-file-missing": 447,
+      "mapped_but_fail_closed:caption-not-in-article-provenance|figure-not-in-article-provenance": 9,
+      "still_unparsed": 6431
+    },
+    "not_recovered_by_design": {
+      "figure_or_caption_asset_failure_historical": 2515,
+      "multi_panel_or_conflicting_reference_historical": 213,
+      "provenance_failure_historical": 25,
+      "supplementary_unsupported_historical": 980,
+      "workbook_unreadable_or_empty_historical": 20
+    },
+    "recovered_by_structural_evidence": {
+      "exact_bare_sheet_figure_panel": 205,
+      "filename_figure_number_plus_named_panel_sheet": 18,
+      "filename_figure_number_plus_parenthesized_panel_sheet": 7
+    },
+    "still_fail_closed_after_new_mapping_evidence": {
+      "count": 456,
+      "why": "figure/caption files or their provenance still fail validation; no gate was bypassed"
+    }
+  },
+  "recovery_delta": {
+    "fresh_fixed_root_build_cases": {
+      "after": {
+        "ambiguous": 10620,
+        "ambiguous_sha256": "d575a7eb0a9d31c3111a38a354ffca61eacc8862302e9ebc6da6c7dd79aad940",
+        "candidates": 1122,
+        "candidates_sha256": "6764a13842e40f286af2586d4e95fc7a2f35f8a7d0f673e588ca18688321dae2"
+      },
+      "before": {
+        "ambiguous": 10850,
+        "ambiguous_sha256": "62bc9def7f0ae599a10681cdd01c6c3de86af5e13c4ad4c30beaa208a9c0aa2a",
+        "candidates": 892,
+        "candidates_sha256": "ababcf1cee93d17998cd7484a135fa579a822ae858b9daa2348ae9e0b8567a55"
+      },
+      "delta": {
+        "ambiguous": -230,
+        "candidates": 230,
+        "recovered_candidate_ids": 230,
+        "removed_candidate_ids": 0
+      }
+    },
+    "historical_context": {
+      "note": "The historical artifact has 10,834 ambiguous records. The fresh same-root rebuild below has 10,850; deltas use the fresh baseline, not two different snapshots.",
+      "recorded_ambiguous": 10834,
+      "recorded_candidates": 892
+    },
+    "strict_v4_direct_raw_p5": {
+      "after": {
+        "p5_independent_dois": 3,
+        "p5_multi_parents": 3,
+        "single_proposals": 65
+      },
+      "all_p5_components_direct_raw": true,
+      "before": {
+        "p5_independent_dois": 3,
+        "p5_multi_parents": 3,
+        "single_proposals": 62
+      },
+      "definition": "V4 single-panel proposals whose source tables pass the raw direct reader/analyzer, then multi_panel parents with >=5 components; every component is verified non-normalized/direct raw.",
+      "delta": {
+        "p5_multi_parents": 0,
+        "raw_p5_multi_dois": 0,
+        "recovered_p5_components": 0,
+        "recovered_rejected_at_table_shape_gate": 227,
+        "recovered_single_proposals": 3,
+        "single_proposals": 3
+      },
+      "p5_dois_after": [
+        "10.1038/s41467-023-37432-w",
+        "10.1038/s41467-023-38160-x",
+        "10.7554/elife.50580"
+      ]
+    },
+    "structural_direct_raw_p5": {
+      "after": {
+        "all_candidates_direct_raw": true,
+        "direct_raw_candidates": 1122,
+        "p5_distinct_panel_bindings": 799,
+        "p5_dois": 69,
+        "p5_figures": 103
+      },
+      "before": {
+        "all_candidates_direct_raw": true,
+        "direct_raw_candidates": 892,
+        "p5_distinct_panel_bindings": 590,
+        "p5_dois": 55,
+        "p5_figures": 79
+      },
+      "definition": "Unique direct/raw candidate bindings grouped by (DOI, Figure), with at least five distinct panel IDs; this is structural only and is not a clean-table/proposal qualification.",
+      "delta": {
+        "new_p5_dois": 14,
+        "new_p5_figures": 24,
+        "p5_distinct_panel_bindings": 209,
+        "p5_dois": 14,
+        "p5_figures": 24,
+        "recovered_candidates_in_after_p5_figures": 209,
+        "recovered_only_p5_dois": 14,
+        "recovered_only_p5_figures": 24
+      }
+    }
+  },
+  "schema_version": "c2-ambiguous-binding-recovery-v1",
+  "scope": {
+    "isolated_worktree": "/Users/tommy/.copilot/session-state/7b81726b-937c-41cb-9392-fead4d53250b/ambig_binding_worktree",
+    "main_cases_sha256_unchanged": "645ae19cbdb6488fcc384bbbca6bdbe622d4a06b3b2d5d9d2a69bf547820d642",
+    "main_worktree_not_edited": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/corpus/cases.py",
+    "patch_changed_files": [
+      "nature_download/corpus/cases.py"
+    ],
+    "patch_path": "/Users/tommy/.copilot/session-state/7b81726b-937c-41cb-9392-fead4d53250b/files/c2_scale_ambig/cases_binding_improvement.patch",
+    "patch_sha256": "681dd9e04c857766e53d66b230264d0ee48ed3860b494ed9c8ed437dc80d54ce",
+    "worktree_cases_sha256_after_patch": "9b835972513c4728231cecee58d8076bef2a6e05ab5a2a3269f706791cd65944"
+  },
+  "spot_check": [
+    {
+      "binding_evidence": {
+        "detail": "sheet '2A' encodes Figure 2A",
+        "type": "exact_bare_sheet_figure_panel"
+      },
+      "caption": {
+        "panel_anchor": "a Bar chart",
+        "relative_path": "figures/fig_002.txt",
+        "sha256_matches_candidate_and_provenance": true
+      },
+      "doi": "10.1038/s41467-021-23463-8",
+      "figure": {
+        "bytes": 244032,
+        "filename": "fig_002.png",
+        "format": "WEBP",
+        "height": 2488,
+        "relative_path": "figures/fig_002.png",
+        "sha256_matches_candidate_and_provenance": true,
+        "width": 1574
+      },
+      "figure_no": 2,
+      "panel_id": "a",
+      "verified": true,
+      "xlsx": {
+        "first_three_nonempty_rows": [
+          [
+            null,
+            "DLD1 BRCA2 Wild-type",
+            null,
+            null,
+            null,
+            null,
+            null,
+            "DLD1 BRCA2 –/–"
+          ],
+          [
+            null,
+            "siCON2",
+            "POLQ siRNA 1",
+            "POLQ siRNA 2",
+            "POLQ siRNA 3",
+            "POLQ siRNA smartpool",
+            "siPLK1",
+            "siCON2"
+          ],
+          [
+            null,
+            "1.03303908",
+            "0.79412023",
+            "1.03353689",
+            "0.95083595",
+            "0.95477597",
+            "0.087765468",
+            "1"
+          ]
+        ],
+        "relative_path": "s41467-021-23463-8/source_data/41467_2021_23463_MOESM6_ESM.xlsx",
+        "sha256_matches_candidate_and_provenance": true,
+        "sheet_dimensions": {
+          "max_column": 13,
+          "max_row": 6
+        },
+        "sheet_exists": true,
+        "sheet_name": "2A",
+        "workbook_sheet_count": 57,
+        "workbook_sheet_names_prefix": [
+          "1B",
+          "1C",
+          "1D",
+          "1E",
+          "1F",
+          "1G",
+          "1J",
+          "1K",
+          "1L",
+          "2A",
+          "2B",
+          "2C",
+          "2D",
+          "2E",
+          "2F",
+          "2G"
+        ]
+      }
+    },
+    {
+      "binding_evidence": {
+        "detail": "sheet '6a' encodes Figure 6A",
+        "type": "exact_bare_sheet_figure_panel"
+      },
+      "caption": {
+        "panel_anchor": "a – c",
+        "relative_path": "figures/fig_006.txt",
+        "sha256_matches_candidate_and_provenance": true
+      },
+      "doi": "10.1038/s41467-021-24784-4",
+      "figure": {
+        "bytes": 197608,
+        "filename": "fig_006.png",
+        "format": "WEBP",
+        "height": 1911,
+        "relative_path": "figures/fig_006.png",
+        "sha256_matches_candidate_and_provenance": true,
+        "width": 1650
+      },
+      "figure_no": 6,
+      "panel_id": "a",
+      "verified": true,
+      "xlsx": {
+        "first_three_nonempty_rows": [
+          [
+            null,
+            "WT",
+            null,
+            null,
+            null,
+            "WNK1 KO",
+            null,
+            null
+          ],
+          [
+            "Elapased",
+            "1",
+            "2",
+            "3",
+            "1",
+            "2",
+            "3",
+            "1"
+          ],
+          [
+            "0",
+            "100",
+            "100",
+            "100",
+            "100",
+            "100",
+            "100",
+            "100"
+          ]
+        ],
+        "relative_path": "s41467-021-24784-4/source_data/41467_2021_24784_MOESM3_ESM.xlsx",
+        "sha256_matches_candidate_and_provenance": true,
+        "sheet_dimensions": {
+          "max_column": 10,
+          "max_row": 11
+        },
+        "sheet_exists": true,
+        "sheet_name": "6a",
+        "workbook_sheet_count": 117,
+        "workbook_sheet_names_prefix": [
+          "1b",
+          "1d",
+          "1e",
+          "1f",
+          "1g",
+          "1h",
+          "2b",
+          "2c",
+          "2e",
+          "2f",
+          "2g",
+          "3b",
+          "3c",
+          "3d",
+          "3e",
+          "3f"
+        ]
+      }
+    },
+    {
+      "binding_evidence": {
+        "detail": "sheet '1a' encodes Figure 1A",
+        "type": "exact_bare_sheet_figure_panel"
+      },
+      "caption": {
+        "panel_anchor": "a – d",
+        "relative_path": "figures/fig_001.txt",
+        "sha256_matches_candidate_and_provenance": true
+      },
+      "doi": "10.1038/s41467-023-37096-6",
+      "figure": {
+        "bytes": 320744,
+        "filename": "fig_001.png",
+        "format": "WEBP",
+        "height": 2545,
+        "relative_path": "figures/fig_001.png",
+        "sha256_matches_candidate_and_provenance": true,
+        "width": 1381
+      },
+      "figure_no": 1,
+      "panel_id": "a",
+      "verified": true,
+      "xlsx": {
+        "first_three_nonempty_rows": [
+          [
+            null,
+            null,
+            null,
+            null,
+            null,
+            "Left panel",
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null,
+            "MDA-MB-436",
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            "250",
+            null
+          ]
+        ],
+        "relative_path": "s41467-023-37096-6/source_data/41467_2023_37096_MOESM4_ESM.xlsx",
+        "sha256_matches_candidate_and_provenance": true,
+        "sheet_dimensions": {
+          "max_column": 14,
+          "max_row": 24
+        },
+        "sheet_exists": true,
+        "sheet_name": "1a",
+        "workbook_sheet_count": 87,
+        "workbook_sheet_names_prefix": [
+          "1a",
+          "1b",
+          "1c",
+          "1d",
+          "1e",
+          "1f",
+          "1g",
+          "1h",
+          "1i",
+          "1j",
+          "1k",
+          "1l",
+          "1m",
+          "2a",
+          "2b",
+          "2c"
+        ]
+      }
+    },
+    {
+      "binding_evidence": {
+        "detail": "sheet '1A' encodes Figure 1A",
+        "type": "exact_bare_sheet_figure_panel"
+      },
+      "caption": {
+        "panel_anchor": "a Heatmap",
+        "relative_path": "figures/fig_001.txt",
+        "sha256_matches_candidate_and_provenance": true
+      },
+      "doi": "10.1038/s41467-023-42736-y",
+      "figure": {
+        "bytes": 406158,
+        "filename": "fig_001.png",
+        "format": "WEBP",
+        "height": 2307,
+        "relative_path": "figures/fig_001.png",
+        "sha256_matches_candidate_and_provenance": true,
+        "width": 2000
+      },
+      "figure_no": 1,
+      "panel_id": "a",
+      "verified": true,
+      "xlsx": {
+        "first_three_nonempty_rows": [
+          [
+            "genes",
+            "direction",
+            "Tamoxifen",
+            "Fulvestrant",
+            "Palbociclib",
+            "ADCYC OE",
+            "PDE4D KD",
+            "Doxorubicin"
+          ],
+          [
+            "TOP2A",
+            "down",
+            "-4.75",
+            "-3.61",
+            "-9.95",
+            "0.335",
+            "-1.32",
+            "-3.68"
+          ],
+          [
+            "PCNA",
+            "down",
+            "-3.31",
+            "-3.88",
+            "-7.14",
+            "-1.265",
+            "-1.66",
+            "-1.08"
+          ]
+        ],
+        "relative_path": "s41467-023-42736-y/source_data/41467_2023_42736_MOESM6_ESM.xlsx",
+        "sha256_matches_candidate_and_provenance": true,
+        "sheet_dimensions": {
+          "max_column": 9,
+          "max_row": 238
+        },
+        "sheet_exists": true,
+        "sheet_name": "1A",
+        "workbook_sheet_count": 183,
+        "workbook_sheet_names_prefix": [
+          "1A",
+          "1B",
+          "1C",
+          "1D",
+          "1E",
+          "1F",
+          "1G",
+          "1H",
+          "1I",
+          "1J",
+          "1K",
+          "1L",
+          "1M",
+          "1N",
+          "1O",
+          "2A"
+        ]
+      }
+    },
+    {
+      "binding_evidence": {
+        "detail": "sheet '2C' encodes Figure 2C",
+        "type": "exact_bare_sheet_figure_panel"
+      },
+      "caption": {
+        "panel_anchor": "c Fitted Gamma distributions",
+        "relative_path": "figures/fig_002.txt",
+        "sha256_matches_candidate_and_provenance": true
+      },
+      "doi": "10.1038/s41467-024-49448-x",
+      "figure": {
+        "bytes": 87712,
+        "filename": "fig_002.png",
+        "format": "WEBP",
+        "height": 948,
+        "relative_path": "figures/fig_002.png",
+        "sha256_matches_candidate_and_provenance": true,
+        "width": 2000
+      },
+      "figure_no": 2,
+      "panel_id": "c",
+      "verified": true,
+      "xlsx": {
+        "first_three_nonempty_rows": [
+          [
+            "id",
+            "Distribution",
+            "X"
+          ],
+          [
+            "1",
+            "g1.990.32",
+            "5.64269828045394"
+          ],
+          [
+            "2",
+            "g1.990.32",
+            "3.64992071340302"
+          ]
+        ],
+        "relative_path": "s41467-024-49448-x/source_data/41467_2024_49448_MOESM4_ESM.xlsx",
+        "sha256_matches_candidate_and_provenance": true,
+        "sheet_dimensions": {
+          "max_column": 3,
+          "max_row": 3001
+        },
+        "sheet_exists": true,
+        "sheet_name": "2C",
+        "workbook_sheet_count": 41,
+        "workbook_sheet_names_prefix": [
+          "1",
+          "2A",
+          "2B",
+          "2C",
+          "2D",
+          "2E",
+          "2F",
+          "3A",
+          "3B",
+          "3C",
+          "3D",
+          "4A-4D",
+          "4E",
+          "4F",
+          "4G",
+          "4H"
+        ]
+      }
+    },
+    {
+      "binding_evidence": {
+        "detail": "sheet '3A' encodes Figure 3A",
+        "type": "exact_bare_sheet_figure_panel"
+      },
+      "caption": {
+        "panel_anchor": "(<b>A</b>) Food intake",
+        "relative_path": "figures/fig_003.txt",
+        "sha256_matches_candidate_and_provenance": true
+      },
+      "doi": "10.7554/elife.63671",
+      "figure": {
+        "bytes": 312851,
+        "filename": "fig_003.png",
+        "format": "PNG",
+        "height": 2194,
+        "relative_path": "figures/fig_003.png",
+        "sha256_matches_candidate_and_provenance": true,
+        "width": 1367
+      },
+      "figure_no": 3,
+      "panel_id": "a",
+      "verified": true,
+      "xlsx": {
+        "first_three_nonempty_rows": [
+          [
+            "Figure 3A - 2h-binned food intake",
+            null,
+            "Control",
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            "ZT",
+            "Time",
+            "6",
+            "7",
+            "8",
+            "2",
+            "13",
+            "14"
+          ],
+          [
+            "ZT10",
+            "1",
+            "0.23475214",
+            "0",
+            "0.865828",
+            "0.391375",
+            "0.4171248",
+            "0.11086136"
+          ]
+        ],
+        "relative_path": "elife-63671/source_data/elife-63671-fig3-data1-v2.xlsx",
+        "sha256_matches_candidate_and_provenance": true,
+        "sheet_dimensions": {
+          "max_column": 16,
+          "max_row": 90
+        },
+        "sheet_exists": true,
+        "sheet_name": "3A",
+        "workbook_sheet_count": 8,
+        "workbook_sheet_names_prefix": [
+          "3A",
+          "3B",
+          "3C",
+          "3D",
+          "3E",
+          "3F",
+          "3G",
+          "3H"
+        ]
+      }
+    },
+    {
+      "binding_evidence": {
+        "detail": "file 'elife-56474-fig2-data1-v1.xlsx' encodes Figure 2; sheet 'Panel B' encodes panel B",
+        "type": "filename_figure_number_plus_named_panel_sheet"
+      },
+      "caption": {
+        "panel_anchor": "B. Volcano plots",
+        "relative_path": "figures/fig_002.txt",
+        "sha256_matches_candidate_and_provenance": true
+      },
+      "doi": "10.7554/elife.56474",
+      "figure": {
+        "bytes": 2839546,
+        "filename": "fig_002.png",
+        "format": "PNG",
+        "height": 2519,
+        "relative_path": "figures/fig_002.png",
+        "sha256_matches_candidate_and_provenance": true,
+        "width": 2353
+      },
+      "figure_no": 2,
+      "panel_id": "b",
+      "verified": true,
+      "xlsx": {
+        "first_three_nonempty_rows": [
+          [
+            null,
+            "t = 0 sec",
+            null,
+            null,
+            null,
+            "t = 15 sec",
+            null,
+            null
+          ],
+          [
+            null,
+            "log2(Fold change)",
+            "-log2(p-value)",
+            null,
+            null,
+            "log2(Fold change)",
+            "-log2(p-value)",
+            null
+          ],
+          [
+            "PBANKA_123020",
+            "-2.39593",
+            "9.936314",
+            null,
+            "PBANKA_123020",
+            "-2.08314",
+            "9.830961",
+            null
+          ]
+        ],
+        "relative_path": "elife-56474/source_data/elife-56474-fig2-data1-v1.xlsx",
+        "sha256_matches_candidate_and_provenance": true,
+        "sheet_dimensions": {
+          "max_column": 8,
+          "max_row": 2780
+        },
+        "sheet_exists": true,
+        "sheet_name": "Panel B",
+        "workbook_sheet_count": 5,
+        "workbook_sheet_names_prefix": [
+          "Panel B",
+          "Panel C",
+          "Panel E",
+          "Panel F",
+          "Panel G"
+        ]
+      }
+    },
+    {
+      "binding_evidence": {
+        "detail": "file 'elife-78995-fig4-data1-v2.xlsx' encodes Figure 4; sheet 'panel C' encodes panel C",
+        "type": "filename_figure_number_plus_named_panel_sheet"
+      },
+      "caption": {
+        "panel_anchor": "(<b>C</b>) Flow cytometry analysis",
+        "relative_path": "figures/fig_004.txt",
+        "sha256_matches_candidate_and_provenance": true
+      },
+      "doi": "10.7554/elife.78995",
+      "figure": {
+        "bytes": 612653,
+        "filename": "fig_004.png",
+        "format": "PNG",
+        "height": 3320,
+        "relative_path": "figures/fig_004.png",
+        "sha256_matches_candidate_and_provenance": true,
+        "width": 2065
+      },
+      "figure_no": 4,
+      "panel_id": "c",
+      "verified": true,
+      "xlsx": {
+        "first_three_nonempty_rows": [
+          [
+            "Figure 4, panel C: bead-binding assay - fluorescent events inside bacteria gate",
+            null,
+            null
+          ],
+          [
+            "stimulus",
+            "file name",
+            "fluorescent counts in bacteria gate"
+          ],
+          [
+            "beads only",
+            "271120_unlabelled 1.fcs",
+            "923"
+          ]
+        ],
+        "relative_path": "elife-78995/source_data/elife-78995-fig4-data1-v2.xlsx",
+        "sha256_matches_candidate_and_provenance": true,
+        "sheet_dimensions": {
+          "max_column": 3,
+          "max_row": 14
+        },
+        "sheet_exists": true,
+        "sheet_name": "panel C",
+        "workbook_sheet_count": 1,
+        "workbook_sheet_names_prefix": [
+          "panel C"
+        ]
+      }
+    },
+    {
+      "binding_evidence": {
+        "detail": "file 'elife-58882-fig6-data1-v3.xlsx' encodes Figure 6; sheet 'panel e' encodes panel E",
+        "type": "filename_figure_number_plus_named_panel_sheet"
+      },
+      "caption": {
+        "panel_anchor": "(<b>e</b>) Percentage of frames",
+        "relative_path": "figures/fig_006.txt",
+        "sha256_matches_candidate_and_provenance": true
+      },
+      "doi": "10.7554/elife.58882",
+      "figure": {
+        "bytes": 3856348,
+        "filename": "fig_006.png",
+        "format": "PNG",
+        "height": 3231,
+        "relative_path": "figures/fig_006.png",
+        "sha256_matches_candidate_and_provenance": true,
+        "width": 3488
+      },
+      "figure_no": 6,
+      "panel_id": "e",
+      "verified": true,
+      "xlsx": {
+        "first_three_nonempty_rows": [
+          [
+            "Frames (%)",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            "Q",
+            "W",
+            "WL",
+            "L",
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            "72.625",
+            "4.625",
+            "22.25",
+            "0.5",
+            null,
+            null,
+            "MEAN",
+            "SEM"
+          ]
+        ],
+        "relative_path": "elife-58882/source_data/elife-58882-fig6-data1-v3.xlsx",
+        "sha256_matches_candidate_and_provenance": true,
+        "sheet_dimensions": {
+          "max_column": 8,
+          "max_row": 26
+        },
+        "sheet_exists": true,
+        "sheet_name": "panel e",
+        "workbook_sheet_count": 3,
+        "workbook_sheet_names_prefix": [
+          "panel e",
+          "panel f",
+          "panel g"
+        ]
+      }
+    },
+    {
+      "binding_evidence": {
+        "detail": "file 'elife-79679-fig3-data1-v2.xlsx' encodes Figure 3; sheet '(A)' encodes panel A",
+        "type": "filename_figure_number_plus_parenthesized_panel_sheet"
+      },
+      "caption": {
+        "panel_anchor": "(<b>A</b>) Principal coordinate analysis",
+        "relative_path": "figures/fig_003.txt",
+        "sha256_matches_candidate_and_provenance": true
+      },
+      "doi": "10.7554/elife.79679",
+      "figure": {
+        "bytes": 2470923,
+        "filename": "fig_003.png",
+        "format": "PNG",
+        "height": 2761,
+        "relative_path": "figures/fig_003.png",
+        "sha256_matches_candidate_and_provenance": true,
+        "width": 2298
+      },
+      "figure_no": 3,
+      "panel_id": "a",
+      "verified": true,
+      "xlsx": {
+        "first_three_nonempty_rows": [
+          [
+            null,
+            "Metabolite"
+          ],
+          [
+            "1",
+            "1-METHYLGUANINE"
+          ],
+          [
+            "2",
+            "1-METHYLURIC ACID"
+          ]
+        ],
+        "relative_path": "elife-79679/source_data/elife-79679-fig3-data1-v2.xlsx",
+        "sha256_matches_candidate_and_provenance": true,
+        "sheet_dimensions": {
+          "max_column": 2,
+          "max_row": 150
+        },
+        "sheet_exists": true,
+        "sheet_name": "(A)",
+        "workbook_sheet_count": 8,
+        "workbook_sheet_names_prefix": [
+          "Legend",
+          "(A)",
+          "(B)",
+          "(C)",
+          "(D)",
+          "(E)",
+          "(F)",
+          "(G)"
+        ]
+      }
+    }
+  ]
+}

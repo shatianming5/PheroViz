@@ -28,6 +28,12 @@ from bs4 import BeautifulSoup, Tag
 from PIL import Image, UnidentifiedImageError
 import requests
 
+from corpus.completeness import (
+    inspect_article_payload,
+    quarantine_article_path,
+    quarantine_incomplete_article,
+    require_complete_article_payload,
+)
 from corpus.policy import evaluate_crossref_item
 from corpus.provenance import build_article_manifest
 
@@ -578,9 +584,13 @@ def harvest_article(
             meta_dir / "_source_data_manifest.json",
             {"article_url": canonical_url, "links": source_metadata},
         )
+        require_complete_article_payload(staging)
         if base.exists():
-            shutil.rmtree(staging, ignore_errors=True)
-            return True, "already-present"
+            existing = inspect_article_payload(base)
+            if existing.complete:
+                shutil.rmtree(staging, ignore_errors=True)
+                return True, "already-present"
+            quarantine_incomplete_article(base)
         staging.replace(base)
 
         record = evaluate_crossref_item(
@@ -606,7 +616,7 @@ def harvest_article(
     except Exception:
         shutil.rmtree(staging, ignore_errors=True)
         if base.exists() and not (base / "meta" / "provenance.json").exists():
-            shutil.rmtree(base, ignore_errors=True)
+            quarantine_article_path(base, bucket="_rejected_download")
         raise
 
 
@@ -741,12 +751,21 @@ def run(args: argparse.Namespace) -> int:
             if identity is None or not is_cc_by_4(item):
                 continue
             article_id, _ = identity
-            if (out / article_id).is_dir():
-                already_present += 1
-                print(f"[skip] {doi}: already present", flush=True)
-                if args.max_articles and admitted + already_present >= args.max_articles:
-                    break
-                continue
+            base = out / article_id
+            if base.exists():
+                existing = inspect_article_payload(base)
+                if existing.complete:
+                    already_present += 1
+                    print(f"[skip] {doi}: already present", flush=True)
+                    if args.max_articles and admitted + already_present >= args.max_articles:
+                        break
+                    continue
+                destination = quarantine_incomplete_article(base)
+                print(
+                    f"[quarantine] {doi}: {','.join(existing.reasons)} -> {destination}",
+                    flush=True,
+                )
+                processed.discard(article_id)
             if article_id in processed:
                 continue
             examined += 1

@@ -30,17 +30,37 @@ from pathlib import Path
 from typing import Any
 
 try:
+    from .completeness import (
+        inspect_article_payload,
+        quarantine_incomplete_article,
+        quarantine_incomplete_article_dirs,
+    )
     from .provenance import normalize_doi
 except ImportError:  # pragma: no cover - direct-script fallback
+    from corpus.completeness import (
+        inspect_article_payload,
+        quarantine_incomplete_article,
+        quarantine_incomplete_article_dirs,
+    )
     from corpus.provenance import normalize_doi
 
 
 def iter_provenance_records(content_root: Path) -> "list[dict[str, Any]]":
-    """Return provenance records from both on-disk layouts, deduped by DOI."""
+    """Return complete-article provenance records from both layouts, deduped by DOI."""
     records: list[dict[str, Any]] = []
     seen: set[str] = set()
+    quarantine_incomplete_article_dirs(content_root)
 
     def _add(path: Path) -> None:
+        article_dir = (
+            path.parent.parent
+            if path.parent.name == "meta"
+            else content_root / path.stem
+        )
+        payload = inspect_article_payload(article_dir)
+        if not payload.complete:
+            quarantine_incomplete_article(article_dir)
+            return
         try:
             rec = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):

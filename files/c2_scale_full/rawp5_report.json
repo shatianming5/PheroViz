@@ -1,0 +1,99 @@
+{
+  "K_gate_verdict": {
+    "conservative_coverage_met": false,
+    "conservative_holm_K": 62,
+    "coverage_only_verdict": "does_not_meet_conservative_candidate_coverage",
+    "optimistic_holm_K": 15,
+    "optimistic_holm_coverage_met": true,
+    "optimistic_single_K": 12,
+    "optimistic_single_coverage_met": true,
+    "unit": "proposed RAW P>=5 distinct DOI clusters; fresh curation is required",
+    "verification_caveat": "The pool is proposed-only; neither candidate coverage nor V4 classification establishes curation-verified K."
+  },
+  "baseline_raw_p5_reproduced": {
+    "baseline_raw_p5_by_threshold": {
+      "P>=3": 34,
+      "P>=5": 15,
+      "P>=6": 13
+    },
+    "expected_distinct_raw_P>=5_multi_dois": 15,
+    "frozen_reference_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_raw_p5/frozen_direct_raw_p5_v4_20260721T193342Z/direct_raw_p5_v4.proposed.jsonl",
+    "frozen_reference_sha256": "d7c655b97334186d75c99ff69e23615065535224e609b40e62e1c50e26cde801",
+    "matches_expected_15": true,
+    "observed_distinct_raw_P>=5_multi_dois": 15,
+    "p5_doi_set_matches_frozen_reference": true
+  },
+  "created_at_utc": "2026-07-21T22:38:23.324272+00:00",
+  "frozen_pool": {
+    "freeze_manifest_sha256": "30b210ea04fae0f8c1a108e2f2743ea02dcd301fd005900a76de3a49cda98a1a",
+    "independent_p5_dois": 23,
+    "multi_panel_parents": 23,
+    "normalizer_count": 0,
+    "normalizer_count_assertion": true,
+    "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/c2_scale_full/rawp5/frozen_rawp5_v4_coverage_union_20260721T223822Z/rawp5_v4.proposed.jsonl",
+    "records": 208,
+    "sha256": "cac3f955de62a5777a0476e4814d112b489ac67f0ecce33f2b56c592d07036f9",
+    "single_panels": 185
+  },
+  "frozen_pool_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/c2_scale_full/rawp5/frozen_rawp5_v4_coverage_union_20260721T223822Z/rawp5_v4.proposed.jsonl",
+  "frozen_pool_sha256": "cac3f955de62a5777a0476e4814d112b489ac67f0ecce33f2b56c592d07036f9",
+  "fullscale_builder_raw_p5_by_threshold": {
+    "P>=3": 42,
+    "P>=5": 17,
+    "P>=6": 12
+  },
+  "fullscale_raw_p5_by_threshold": {
+    "P>=3": 52,
+    "P>=5": 23,
+    "P>=6": 17
+  },
+  "fullscale_total_raw_proposals": {
+    "multi_panel": 69,
+    "scope": "single RAW V4 proposal run over the full-builder RAW input",
+    "single_panel": 342,
+    "total": 411
+  },
+  "normalizer_count": 0,
+  "normalizer_count_assertion": true,
+  "per_doi_raw_p5_rate": {
+    "baseline": {
+      "denominator_distinct_dois": 862,
+      "p5_distinct_dois": 15,
+      "rate": 0.01740139211136891
+    },
+    "baseline_rate_times_full_builder_materialized_corpus_dois": 59.530162412993036,
+    "comparison_denominator": "DOIs with direct RAW candidate support",
+    "coverage_union": {
+      "denominator_distinct_dois": 1136,
+      "p5_distinct_dois": 23,
+      "rate": 0.020246478873239437
+    },
+    "full_builder_materialized_corpus": {
+      "denominator_distinct_dois": 3421,
+      "p5_distinct_dois": 17,
+      "rate": 0.004969307220111079
+    },
+    "fullscale": {
+      "denominator_distinct_dois": 1136,
+      "p5_distinct_dois": 23,
+      "rate": 0.020246478873239437,
+      "scope": "deduplicated direct RAW coverage union used for the frozen full-scale review pool"
+    },
+    "fullscale_builder": {
+      "denominator_distinct_dois": 941,
+      "p5_distinct_dois": 17,
+      "rate": 0.018065887353878853
+    }
+  },
+  "proposal_rule_version": "simple-2d-v4",
+  "report_sha256": "1b58add2d257abf685f4beac3179f52adb1aacc23398984d317e89627f17b18d",
+  "schema_version": "c2-scale-rawp5-measurement-v2",
+  "scope": {
+    "baseline_raw_candidate_dois": 862,
+    "full_builder_materialized_corpus_dois": 3421,
+    "full_builder_raw_candidate_dois": 941,
+    "non_superset_detected": true,
+    "note": "The full-builder candidate output has 941 DOI and is not a superset of the 862-DOI baseline. The sealed-coverage pool therefore retains direct baseline P5 parents absent from it.",
+    "raw_candidate_dois_in_coverage_union": 1136
+  }
+}

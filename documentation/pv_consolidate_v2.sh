@@ -4,7 +4,9 @@
 # Consolidates the qualifying corpus from the local crawl output plus the
 # remote crawl nodes into a single directory (outputs/extreme_merged).
 # rsync -a is additive and idempotent, so re-running only copies new/changed
-# DOI directories; nothing is ever deleted from the merged corpus.
+# DOI directories; nothing is ever deleted from the merged corpus. A final
+# fail-closed gate moves figure-only/source-only payloads to
+# ``_rejected_no_source/`` rather than retaining or deleting them.
 #
 # All cluster-specific access details are read from environment variables so
 # that no host, user, internal IP, or SSH port is hard-coded in this file.
@@ -63,6 +65,18 @@ doi_count() {
 
 xlsx_count() {
   find "$MERGED" -type f -iname '*.xlsx' | wc -l | tr -d ' '
+}
+
+quarantine_incomplete_articles() {
+  PYTHONPATH="$BASE${PYTHONPATH:+:$PYTHONPATH}" python3 - "$MERGED" <<'PY'
+import sys
+from corpus.completeness import quarantine_incomplete_article_dirs
+
+moved = quarantine_incomplete_article_dirs(sys.argv[1])
+print(f"quarantined_incomplete_articles={len(moved)}")
+for path in moved:
+    print(f"  {path}")
+PY
 }
 
 report_result() {
@@ -124,4 +138,8 @@ if [ -n "${PV_N136_LEGACY:-}" ]; then
   sync_direct "n136-legacy-ssd" "$PV_PORT_N136" "$PV_N136_LEGACY"
 fi
 
+say "Applying figure+source+metadata completeness gate"
+quarantine_incomplete_articles | while IFS= read -r line; do
+  say "$line"
+done
 say "DONE doi_dirs=$(doi_count) xlsx=$(xlsx_count) size=$(du -sh "$MERGED" | awk '{print $1}')"

@@ -734,7 +734,13 @@ def _has_many_group_observations(
     if len(y_columns) < 1:
         return False
     observed = frame[x_column].notna() & frame[list(y_columns)].notna().any(axis=1)
-    counts = frame.loc[observed].groupby(x_column, dropna=True).size()
+    # Counts are order-independent.  Avoid pandas' default sorting because an
+    # Excel column may legitimately contain both numeric and datetime labels.
+    counts = frame.loc[observed].groupby(
+        x_column,
+        dropna=True,
+        sort=False,
+    ).size()
     return (
         len(counts) >= 2
         and not counts.empty

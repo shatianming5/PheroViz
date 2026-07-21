@@ -114,7 +114,13 @@ def test_run_treats_existing_article_as_a_successful_resume(
         "DOI": "10.26508/lsa.202201499",
         "license": [{"URL": "https://creativecommons.org/licenses/by/4.0/"}],
     }
-    (tmp_path / "lsa.202201499").mkdir()
+    article = tmp_path / "lsa.202201499"
+    (article / "figures").mkdir(parents=True)
+    (article / "source_data").mkdir()
+    (article / "meta").mkdir()
+    (article / "figures" / "fig_001.png").write_bytes(b"png")
+    (article / "source_data" / "source.xlsx").write_bytes(b"data")
+    (article / "meta" / "figures.json").write_text("[]", encoding="utf-8")
     monkeypatch.setattr(lsa_harvest, "maybe_force_ipv4", lambda: False)
     monkeypatch.setattr(
         lsa_harvest,

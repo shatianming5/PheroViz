@@ -52,6 +52,12 @@ except ImportError:
     console = None
 
 try:
+    from .corpus.completeness import (
+        inspect_article_payload,
+        quarantine_article_path,
+        quarantine_incomplete_article,
+        quarantine_incomplete_article_dirs,
+    )
     from .corpus.cli import (
         LicenseGateError,
         add_corpus_subcommands,
@@ -61,6 +67,12 @@ try:
     )
     from .corpus.policy import evaluate_crossref_item, is_allowed_journal
 except ImportError:
+    from corpus.completeness import (
+        inspect_article_payload,
+        quarantine_article_path,
+        quarantine_incomplete_article,
+        quarantine_incomplete_article_dirs,
+    )
     from corpus.cli import (
         LicenseGateError,
         add_corpus_subcommands,
@@ -663,6 +675,40 @@ def ensure_dir(p: Path):
     p.mkdir(parents=True, exist_ok=True)
 
 
+def complete_or_quarantine_article(article_dir: str | Path) -> bool:
+    """Keep only article directories containing figures, source data, and metadata."""
+
+    article = Path(article_dir)
+    status = inspect_article_payload(article)
+    if status.complete:
+        return True
+    destination = quarantine_incomplete_article(article)
+    print(
+        safe_console(
+            f"[quarantine] {article.name}: {','.join(status.reasons)} -> {destination}"
+        )
+    )
+    return False
+
+
+def quarantine_failed_article(
+    article_dir: str | Path,
+    *,
+    bucket: str = "_rejected_download",
+) -> Path | None:
+    """Preserve failed article downloads outside the active corpus."""
+
+    article = Path(article_dir)
+    if not article.exists() and not article.is_symlink():
+        return None
+    if inspect_article_payload(article).complete:
+        destination = quarantine_article_path(article, bucket=bucket)
+    else:
+        destination = quarantine_incomplete_article(article)
+    print(safe_console(f"[quarantine] {article.name} -> {destination}"))
+    return destination
+
+
 def upsert_json_list(path: Path, item: dict, key: str):
     data = []
     if path.exists():
@@ -793,6 +839,10 @@ def cmd_fig(args):
             rejection_reason=None if saved_img else "no-figure",
         )
 
+    if not getattr(args, "_defer_payload_gate", False):
+        if not complete_or_quarantine_article(base):
+            return False
+
     # return whether we found an image (skip caption-only)
     return bool(saved_img)
 
@@ -910,27 +960,24 @@ def cmd_source(args):
         )
     art_id = parse_article_id(url)
     print(f"[info] Article: {art_id} | section: {args.section_id or 'all'} | filter: {args.filter or 'none'}")
+    base = Path(args.out) / art_id
+    if (
+        not getattr(args, "_defer_payload_gate", False)
+        and inspect_article_payload(base).complete
+    ):
+        print(f"[skip] Article already has figure, source data, and metadata: {art_id}")
+        return True
     r = polite_get(url, timeout=args.timeout, sleep=args.sleep, max_retries=args.max_retries)
     soup = BeautifulSoup(r.text, "html.parser")
     links = find_source_data_links(soup, r.url, args.section_id, args.filter)
     print(f"[info] Source data links found: {len(links)}")
-    base = Path(args.out) / art_id
     sd_dir = base / "source_data"
     meta_dir = base / "meta"
     manifest_path = meta_dir / "_source_data_manifest.json"
     json_path = meta_dir / "source_data.json"
 
-    def cleanup_empty():
-        if sd_dir.exists():
-            shutil.rmtree(sd_dir, ignore_errors=True)
-        if manifest_path.exists():
-            manifest_path.unlink()
-        if json_path.exists():
-            json_path.unlink()
-
     if not links:
         print("[warn] No Source data links present; skip article")
-        cleanup_empty()
         if provenance_record:
             write_article_provenance(
                 provenance_record,
@@ -938,6 +985,8 @@ def cmd_source(args):
                 download_status="partial",
                 rejection_reason="no-source-data",
             )
+        if not getattr(args, "_defer_payload_gate", False):
+            quarantine_failed_article(base)
         return False
 
     ensure_dir(sd_dir)
@@ -1022,8 +1071,13 @@ def cmd_source(args):
 
             chosen_name = allocate_name(candidate_pairs, fallback_stem, ext_hint)
             final_path = sd_dir / chosen_name
-            if final_path.exists():
-                final_path.unlink()
+            counter = 2
+            while final_path.exists():
+                final_path = sd_dir / (
+                    f"{Path(chosen_name).stem}_{counter}{Path(chosen_name).suffix}"
+                )
+                counter += 1
+            chosen_name = final_path.name
             tmp_file.replace(final_path)
             print(f"      saved as {chosen_name}")
             entry = {"label": label, "url": file_url, "saved_as": str(final_path), "saved_name": chosen_name, "orig_name": fname_url, "content_name": remote_name, "content_type": content_type}
@@ -1048,7 +1102,15 @@ def cmd_source(args):
 
     if saved_count == 0:
         print("[warn] Source data downloads all failed; skip article")
-        cleanup_empty()
+        if provenance_record:
+            write_article_provenance(
+                provenance_record,
+                args.out,
+                download_status="partial",
+                rejection_reason="no-source-data",
+            )
+        if not getattr(args, "_defer_payload_gate", False):
+            quarantine_failed_article(base)
         return False
 
     manifest_path.write_text(json.dumps({"article_url": url, "links": manifest}, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -1059,6 +1121,9 @@ def cmd_source(args):
             args.out,
             download_status="previously_processed",
         )
+    if not getattr(args, "_defer_payload_gate", False):
+        if not complete_or_quarantine_article(base):
+            return False
     return True
 
 
@@ -1082,6 +1147,9 @@ def cmd_postfetch(args):
         raise LicenseGateError(
             "postfetch refused: --require-cc-by is mandatory"
         )
+    quarantined = quarantine_incomplete_article_dirs(Path(args.out))
+    if quarantined:
+        print(f"[quarantine] preflight moved {len(quarantined)} incomplete article directories")
     rows = []
     with Path(args.jsonl).open("r", encoding="utf-8") as f:
         for line in f:
@@ -1214,18 +1282,17 @@ def cmd_postfetch(args):
             if found is None:
                 reason = "fetch-error"
             elif found > 0:
-                ok = cmd_source(argparse.Namespace(url=u, out=args.out, section_id=None, filter=None, sleep=args.sleep, timeout=args.timeout, max_retries=args.max_retries, _license_prevalidated=True))
-                if ok:
+                ok = cmd_source(argparse.Namespace(url=u, out=args.out, section_id=None, filter=None, sleep=args.sleep, timeout=args.timeout, max_retries=args.max_retries, _license_prevalidated=True, _defer_payload_gate=True))
+                if ok and complete_or_quarantine_article(Path(args.out) / aid):
                     append_processed(processed_file, aid)
                     write_article_provenance(record, args.out, download_status="downloaded")
                 else:
-                    reason = "no-source-data"
+                    reason = "incomplete-payload"
             else:
                 reason = "no-figures"
             if reason:
                 base = Path(args.out) / aid
-                if base.exists():
-                    shutil.rmtree(base, ignore_errors=True)
+                quarantine_failed_article(base)
                 append_processed(processed_file, aid)
                 append_skipped(skipped_file, aid, reason)
                 write_article_provenance(record, args.out, download_status="empty", rejection_reason=reason)
@@ -1248,7 +1315,7 @@ def postfetch_one(art_url: str, out: str, max_figs: int, sleep: float, timeout: 
     for i in range(1, max_figs + 1):
         fig_url = f"{art_url}/figures/{i}"
         try:
-            found = cmd_fig(argparse.Namespace(url=fig_url, out=out, sleep=sleep, timeout=timeout, max_retries=max_retries, _license_prevalidated=True, min_panels=min_panels))
+            found = cmd_fig(argparse.Namespace(url=fig_url, out=out, sleep=sleep, timeout=timeout, max_retries=max_retries, _license_prevalidated=True, _defer_payload_gate=True, min_panels=min_panels))
 
             if found is False:
                 empty_streak += 1
@@ -1275,18 +1342,15 @@ def postfetch_one(art_url: str, out: str, max_figs: int, sleep: float, timeout: 
 
 def postfetch_article(art_url: str, out: str, max_figs: int, max_empty_figs: int, sleep: float, timeout: float, max_retries: int, min_panels: int = 0):
     aid = parse_article_id(art_url)
+    base = Path(out) / aid
     found = postfetch_one(art_url, out, max_figs, sleep, timeout, max_retries, max_empty_figs, min_panels)
     if found > 0:
-        ok = cmd_source(argparse.Namespace(url=art_url, out=out, section_id=None, filter=None, sleep=sleep, timeout=timeout, max_retries=max_retries, _license_prevalidated=True))
-        if not ok:
-            base = Path(out) / aid
-            if base.exists():
-                shutil.rmtree(base, ignore_errors=True)
+        ok = cmd_source(argparse.Namespace(url=art_url, out=out, section_id=None, filter=None, sleep=sleep, timeout=timeout, max_retries=max_retries, _license_prevalidated=True, _defer_payload_gate=True))
+        if not ok or not complete_or_quarantine_article(base):
+            quarantine_failed_article(base)
             return (aid, -1)
     else:
-        base = Path(out) / aid
-        if base.exists():
-            shutil.rmtree(base, ignore_errors=True)
+        quarantine_failed_article(base)
     return (aid, found)
 
 
@@ -1411,6 +1475,9 @@ def cmd_auto(args):
         raise LicenseGateError(
             "auto download refused: --require-cc-by is mandatory"
         )
+    quarantined = quarantine_incomplete_article_dirs(Path(args.content_out))
+    if quarantined:
+        print(f"[quarantine] preflight moved {len(quarantined)} incomplete article directories")
     # keywords
     if args.keywords_file:
         kwds = [ln.strip() for ln in Path(args.keywords_file).read_text(encoding="utf-8").splitlines() if ln.strip()]
@@ -1559,8 +1626,7 @@ def cmd_auto(args):
             if found > 0:
                 if args.max_articles and processed >= args.max_articles:
                     base = Path(args.content_out) / aid_out
-                    if base.exists():
-                        shutil.rmtree(base, ignore_errors=True)
+                    quarantine_failed_article(base, bucket="_rejected_limit")
                     write_article_provenance(record, args.content_out, download_status="discarded", rejection_reason="max-articles-limit")
                     set_worker(slot, "idle", f"{aid_out} drop-limit")
                     stop_stream = True

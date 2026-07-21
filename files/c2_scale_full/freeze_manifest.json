@@ -1,0 +1,29 @@
+{
+  "created_at_utc": "2026-07-21T22:38:23.232147+00:00",
+  "frozen_pool_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/c2_scale_full/rawp5/frozen_rawp5_v4_coverage_union_20260721T223822Z/rawp5_v4.proposed.jsonl",
+  "frozen_pool_sha256": "cac3f955de62a5777a0476e4814d112b489ac67f0ecce33f2b56c592d07036f9",
+  "independent_p5_dois": 23,
+  "local_review_preflight_passed": true,
+  "manifest_sha256": "30b210ea04fae0f8c1a108e2f2743ea02dcd301fd005900a76de3a49cda98a1a",
+  "multi_panel_parents": 23,
+  "normalizer_count": 0,
+  "normalizer_count_assertion": true,
+  "proposal_rule_version": "simple-2d-v4",
+  "records": 208,
+  "review_status": "proposed_only_fresh_dual_vlm_review_required",
+  "schema_version": "c2-scale-rawp5-v4-coverage-union-freeze-v1",
+  "selection": "V4 RAW P>=5 parent union; full-builder record wins only for an identical parent ID, preserving direct baseline parents absent from the non-superset full-builder output.",
+  "single_panels": 185,
+  "source_proposal_sets": [
+    {
+      "name": "baseline_862_union",
+      "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/c2_scale_full/rawp5/baseline_862_v4/proposed.jsonl",
+      "sha256": "76822577ed9505850fc9b4ffe2d51dcb107e0296b6f164d963f782ea5a286bc1"
+    },
+    {
+      "name": "full_builder",
+      "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/c2_scale_full/rawp5/fullscale_raw_v4/proposed.jsonl",
+      "sha256": "01a79adad7cf97aecc29f1697005880f9c542128d835ce03155fbd5c1cac520d"
+    }
+  ]
+}

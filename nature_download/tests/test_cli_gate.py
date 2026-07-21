@@ -12,6 +12,7 @@ from nature_download.corpus.cli import (
     authorize_direct_download,
     cmd_propose_cases,
 )
+from nature_download.corpus.proposals import PROPOSAL_RULE_V4
 from nature_download.nature_all_in_one import build_parser, cmd_auto, cmd_postfetch
 
 
@@ -233,6 +234,7 @@ def test_source_metadata_keeps_distinct_urls_with_the_same_label(
             timeout=1,
             max_retries=1,
             _license_prevalidated=True,
+            _defer_payload_gate=True,
         )
     )
     metadata = json.loads(
@@ -247,6 +249,64 @@ def test_source_metadata_keeps_distinct_urls_with_the_same_label(
         "https://static.example/source-a.xlsx",
         "https://static.example/source-b.xlsx",
     ]
+
+
+def test_nature_payload_gate_quarantines_figure_only_article(workdir: Path) -> None:
+    article = workdir / "s41467-019-00002-2"
+    figures = article / "figures"
+    metadata = article / "meta"
+    figures.mkdir(parents=True)
+    metadata.mkdir()
+    (figures / "fig_001.png").write_bytes(b"png")
+    (metadata / "figures.json").write_text("[]", encoding="utf-8")
+
+    assert module.complete_or_quarantine_article(article) is False
+    assert not article.exists()
+    assert (
+        workdir
+        / "_rejected_no_source"
+        / "s41467-019-00002-2"
+        / "figures"
+        / "fig_001.png"
+    ).is_file()
+
+
+def test_source_command_preserves_already_complete_article(
+    monkeypatch: pytest.MonkeyPatch,
+    workdir: Path,
+) -> None:
+    article = workdir / "s41467-019-00003-3"
+    figures = article / "figures"
+    source_data = article / "source_data"
+    metadata = article / "meta"
+    figures.mkdir(parents=True)
+    source_data.mkdir()
+    metadata.mkdir()
+    (figures / "fig_001.png").write_bytes(b"png")
+    source = source_data / "source.xlsx"
+    source.write_bytes(b"source")
+    (metadata / "figures.json").write_text("[]", encoding="utf-8")
+
+    monkeypatch.setattr(
+        module,
+        "polite_get",
+        lambda *args, **kwargs: pytest.fail("complete article must not be re-fetched"),
+    )
+
+    assert module.cmd_source(
+        argparse.Namespace(
+            url="https://www.nature.com/articles/s41467-019-00003-3",
+            out=str(workdir),
+            section_id=None,
+            filter=None,
+            sleep=0,
+            timeout=1,
+            max_retries=1,
+            _license_prevalidated=True,
+        )
+    )
+    assert source.is_file()
+    assert article.is_dir()
 
 
 def test_proposal_output_cannot_overwrite_candidate_directory(
@@ -264,3 +324,37 @@ def test_proposal_output_cannot_overwrite_candidate_directory(
                 max_columns=2,
             )
         )
+
+
+def test_propose_cli_uses_v4_rule(
+    monkeypatch: pytest.MonkeyPatch,
+    workdir: Path,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_propose_cases(**kwargs):
+        captured.update(kwargs)
+        return [], [], {
+            "single_proposals": 0,
+            "multi_panel_proposals": 0,
+            "rejected": 0,
+        }
+
+    monkeypatch.setattr(
+        "nature_download.corpus.cli.propose_cases",
+        fake_propose_cases,
+    )
+    monkeypatch.setattr(
+        "nature_download.corpus.cli.write_proposal_outputs",
+        lambda *args: None,
+    )
+    cmd_propose_cases(
+        argparse.Namespace(
+            candidates=str(workdir / "candidates.jsonl"),
+            out=str(workdir / "proposals"),
+            max_file_bytes=1,
+            max_rows=1,
+            max_columns=2,
+        )
+    )
+    assert captured["rule_version"] == PROPOSAL_RULE_V4

@@ -1,0 +1,29 @@
+{
+  "consolidation_enforcement": [
+    "corpus/build_combined_records.py",
+    "documentation/pv_consolidate_v2.sh"
+  ],
+  "deterministic_keep_rule": [
+    "at least one non-empty regular figure image in figures/",
+    "at least one non-empty regular source-data file in source_data/",
+    "at least one non-empty JSON metadata file in meta/"
+  ],
+  "failure_behavior": "Incomplete article paths are moved, never deleted, to a sibling _rejected_no_source/ directory. Other failed but complete downloads are preserved under named rejection buckets.",
+  "generated_at_utc": "2026-07-21T22:39:42+00:00",
+  "harvester_enforcement": [
+    "lsa_harvest.py",
+    "elife_harvest.py",
+    "embo_harvest.py",
+    "nature_all_in_one.py"
+  ],
+  "patch_path": "/Users/tommy/.copilot/session-state/7b81726b-937c-41cb-9392-fead4d53250b/files/c2_scale_harvest/download_gate.patch",
+  "regression_tests": {
+    "files": [
+      "nature_download/tests/test_completeness.py",
+      "nature_download/tests/test_cli_gate.py",
+      "nature_download/tests/test_lsa_harvest.py"
+    ],
+    "targeted_pytest_result": "35 passed"
+  },
+  "shared_gate": "nature_download/corpus/completeness.py"
+}

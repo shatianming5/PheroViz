@@ -1,0 +1,212 @@
+{
+  "baseline": {
+    "all_p5_components_direct_raw": true,
+    "p5_component_panels": 25,
+    "p5_groups": [
+      {
+        "doi": "10.7554/elife.50580",
+        "figure_no": 4,
+        "panels": [
+          "c",
+          "d",
+          "e",
+          "g",
+          "h",
+          "i",
+          "k",
+          "l",
+          "m",
+          "n"
+        ],
+        "source_candidate_ids": [
+          "case-elife-50580-figure4-panelc-cceaa2de1021",
+          "case-elife-50580-figure4-paneld-9b844f818363",
+          "case-elife-50580-figure4-panele-f2aa2859a8de",
+          "case-elife-50580-figure4-panelg-61acfe89159c",
+          "case-elife-50580-figure4-panelh-b8aa5d9a888b",
+          "case-elife-50580-figure4-paneli-f51e05737b3e",
+          "case-elife-50580-figure4-panelk-b70f4acf873f",
+          "case-elife-50580-figure4-panell-def79f004b06",
+          "case-elife-50580-figure4-panelm-764151b72896",
+          "case-elife-50580-figure4-paneln-5ee774a0246a"
+        ]
+      },
+      {
+        "doi": "10.1038/s41467-023-37432-w",
+        "figure_no": 2,
+        "panels": [
+          "a",
+          "e",
+          "f",
+          "g",
+          "h"
+        ],
+        "source_candidate_ids": [
+          "case-s41467-023-37432-w-figure2-panela-e3f550b2c503",
+          "case-s41467-023-37432-w-figure2-panele-f8a52beb6396",
+          "case-s41467-023-37432-w-figure2-panelf-e560dbbd3982",
+          "case-s41467-023-37432-w-figure2-panelg-b71d500b2e2f",
+          "case-s41467-023-37432-w-figure2-panelh-433e092bfc2f"
+        ]
+      },
+      {
+        "doi": "10.1038/s41467-023-38160-x",
+        "figure_no": 1,
+        "panels": [
+          "a",
+          "b",
+          "c",
+          "d",
+          "e",
+          "f",
+          "g",
+          "h",
+          "i",
+          "j"
+        ],
+        "source_candidate_ids": [
+          "case-s41467-023-38160-x-figure1-panela-123183d201d5",
+          "case-s41467-023-38160-x-figure1-panelb-fb2420cef4b4",
+          "case-s41467-023-38160-x-figure1-panelc-e6778fcb64f9",
+          "case-s41467-023-38160-x-figure1-paneld-485e077e11d8",
+          "case-s41467-023-38160-x-figure1-panele-cba8f6d81b17",
+          "case-s41467-023-38160-x-figure1-panelf-8f69d1ffd9ba",
+          "case-s41467-023-38160-x-figure1-panelg-eab31c081bab",
+          "case-s41467-023-38160-x-figure1-panelh-9ad2b0a6c65c",
+          "case-s41467-023-38160-x-figure1-paneli-3df3c9817e3c",
+          "case-s41467-023-38160-x-figure1-panelj-73181a5bc5f6"
+        ]
+      }
+    ],
+    "p5_independent_dois": 3,
+    "p5_multi_parents": 3,
+    "proposal_summary": {
+      "code_commit": "0673c4abb3f73a44a9fdfcc591af92633960896f",
+      "eligible_for_experiment": 0,
+      "input_candidates": "/Users/tommy/.copilot/session-state/7b81726b-937c-41cb-9392-fead4d53250b/files/c2_scale_ambig/baseline_case_build/candidates.jsonl",
+      "input_candidates_sha256": "ababcf1cee93d17998cd7484a135fa579a822ae858b9daa2348ae9e0b8567a55",
+      "input_count": 892,
+      "llm_calls": 0,
+      "max_columns": 64,
+      "max_file_bytes": 67108864,
+      "max_rows": 100000,
+      "max_unique_categorical_x_per_bar_panel": 200,
+      "multi_groups_blocked_by_renderability": 0,
+      "multi_panel_proposals": 14,
+      "proposal_rule_version": "simple-2d-v4",
+      "proposals_total": 76,
+      "rejected": 830,
+      "renderability_policy_hash": "283f0520bf1fda98773958602be6206c1776c573a00273391dbfeb6acd565cec",
+      "renderability_policy_id": "outcome-independent-static-renderability-v1",
+      "renderability_rejected": 0,
+      "schema_version": "1.0",
+      "single_proposals": 62,
+      "verified_preserved": 0
+    }
+  },
+  "improved": {
+    "all_p5_components_direct_raw": true,
+    "p5_component_panels": 25,
+    "p5_groups": [
+      {
+        "doi": "10.7554/elife.50580",
+        "figure_no": 4,
+        "panels": [
+          "c",
+          "d",
+          "e",
+          "g",
+          "h",
+          "i",
+          "k",
+          "l",
+          "m",
+          "n"
+        ],
+        "source_candidate_ids": [
+          "case-elife-50580-figure4-panelc-cceaa2de1021",
+          "case-elife-50580-figure4-paneld-9b844f818363",
+          "case-elife-50580-figure4-panele-f2aa2859a8de",
+          "case-elife-50580-figure4-panelg-61acfe89159c",
+          "case-elife-50580-figure4-panelh-b8aa5d9a888b",
+          "case-elife-50580-figure4-paneli-f51e05737b3e",
+          "case-elife-50580-figure4-panelk-b70f4acf873f",
+          "case-elife-50580-figure4-panell-def79f004b06",
+          "case-elife-50580-figure4-panelm-764151b72896",
+          "case-elife-50580-figure4-paneln-5ee774a0246a"
+        ]
+      },
+      {
+        "doi": "10.1038/s41467-023-37432-w",
+        "figure_no": 2,
+        "panels": [
+          "a",
+          "e",
+          "f",
+          "g",
+          "h"
+        ],
+        "source_candidate_ids": [
+          "case-s41467-023-37432-w-figure2-panela-e3f550b2c503",
+          "case-s41467-023-37432-w-figure2-panele-f8a52beb6396",
+          "case-s41467-023-37432-w-figure2-panelf-e560dbbd3982",
+          "case-s41467-023-37432-w-figure2-panelg-b71d500b2e2f",
+          "case-s41467-023-37432-w-figure2-panelh-433e092bfc2f"
+        ]
+      },
+      {
+        "doi": "10.1038/s41467-023-38160-x",
+        "figure_no": 1,
+        "panels": [
+          "a",
+          "b",
+          "c",
+          "d",
+          "e",
+          "f",
+          "g",
+          "h",
+          "i",
+          "j"
+        ],
+        "source_candidate_ids": [
+          "case-s41467-023-38160-x-figure1-panela-123183d201d5",
+          "case-s41467-023-38160-x-figure1-panelb-fb2420cef4b4",
+          "case-s41467-023-38160-x-figure1-panelc-e6778fcb64f9",
+          "case-s41467-023-38160-x-figure1-paneld-485e077e11d8",
+          "case-s41467-023-38160-x-figure1-panele-cba8f6d81b17",
+          "case-s41467-023-38160-x-figure1-panelf-8f69d1ffd9ba",
+          "case-s41467-023-38160-x-figure1-panelg-eab31c081bab",
+          "case-s41467-023-38160-x-figure1-panelh-9ad2b0a6c65c",
+          "case-s41467-023-38160-x-figure1-paneli-3df3c9817e3c",
+          "case-s41467-023-38160-x-figure1-panelj-73181a5bc5f6"
+        ]
+      }
+    ],
+    "p5_independent_dois": 3,
+    "p5_multi_parents": 3,
+    "proposal_summary": {
+      "code_commit": "0673c4abb3f73a44a9fdfcc591af92633960896f",
+      "eligible_for_experiment": 0,
+      "input_candidates": "/Users/tommy/.copilot/session-state/7b81726b-937c-41cb-9392-fead4d53250b/files/c2_scale_ambig/improved_case_build/candidates.jsonl",
+      "input_candidates_sha256": "6764a13842e40f286af2586d4e95fc7a2f35f8a7d0f673e588ca18688321dae2",
+      "input_count": 1122,
+      "llm_calls": 0,
+      "max_columns": 64,
+      "max_file_bytes": 67108864,
+      "max_rows": 100000,
+      "max_unique_categorical_x_per_bar_panel": 200,
+      "multi_groups_blocked_by_renderability": 1,
+      "multi_panel_proposals": 14,
+      "proposal_rule_version": "simple-2d-v4",
+      "proposals_total": 79,
+      "rejected": 1057,
+      "renderability_policy_hash": "283f0520bf1fda98773958602be6206c1776c573a00273391dbfeb6acd565cec",
+      "renderability_policy_id": "outcome-independent-static-renderability-v1",
+      "renderability_rejected": 1,
+      "schema_version": "1.0",
+      "single_proposals": 65,
+      "verified_preserved": 0
+    }
+  }
+}
