@@ -1,0 +1,54 @@
+{
+  "byte_verification": {
+    "all_frozen_raw_tables_verified": true,
+    "all_frozen_working_tables_verified": true,
+    "all_selected_matching_figure_pngs_verified_against_provenance": true,
+    "unique_raw_table_files": 1249,
+    "unique_working_table_files": 2517
+  },
+  "figure_groups": {
+    "direct_xlsx_article_dir": 635,
+    "p5plus_direct_xlsx_article_dir": 211,
+    "p5plus_split_local_assets_reassembled": 13,
+    "p5plus_total": 224,
+    "split_local_assets_reassembled": 45,
+    "total": 680
+  },
+  "frozen_manifest": {
+    "cases": 2544,
+    "dois": 588,
+    "figures": 680,
+    "p5plus_dois": 204,
+    "p5plus_figures": 224,
+    "path": "data/c2_cases_v1/_manifest.jsonl",
+    "raw_formats": {
+      "csv": 18,
+      "xlsx": 2526
+    },
+    "sha256": "ae8838cd70ede12fffc9b50b6acaee81d2d0c8842dee65e1d51bb89e42163021",
+    "tiers": {
+      "A_raw": 141,
+      "B_normalizer": 2403
+    }
+  },
+  "generated_at_utc": "2026-07-21T08:08:10.748938+00:00",
+  "overlay": {
+    "dois_reassembled": 30,
+    "link_methods": {
+      "existing": 88,
+      "hardlink": 282
+    },
+    "no_downloads": true,
+    "no_symlinks": true,
+    "p5plus_dois_reassembled": 12,
+    "path": "nature_download/outputs/c2_widen_pool_overlay"
+  },
+  "schema_version": "1.0",
+  "scope": "offline only; no gateway invoked",
+  "strict_input": {
+    "cases": 2544,
+    "eligible_for_experiment_true": 0,
+    "path": "files/c2_widen_pool/c2_cases_v1_working_candidates.jsonl",
+    "sha256": "b38240b8cd21f9654df941f25cc05f9a8a96e79fd1b5be5701e0bcd6e38b9c52"
+  }
+}

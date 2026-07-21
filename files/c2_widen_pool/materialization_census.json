@@ -1,0 +1,251 @@
+{
+  "a3_offline_overlay": {
+    "complete_xlsx_dois": 25,
+    "contains_symlinks": false,
+    "dois_reassembled": 30,
+    "no_download_required": true,
+    "no_gateway_required": true,
+    "p5plus_xlsx_dois": 11,
+    "path": "nature_download/outputs/c2_widen_pool_overlay",
+    "uses_hardlinked_local_assets": true
+  },
+  "all_outputs_provenance_backed_census_before_a3_overlay": {
+    "article_dirs": 7162,
+    "complete_article_dirs_png_xlsx_meta": 6674,
+    "complete_distinct_dois_png_xlsx_meta": 3829,
+    "distinct_dois": 4115,
+    "per_top_level_output_root": {
+      "elife_2020_2026": {
+        "all_three_meta_files": 19,
+        "complete_article_dirs_png_xlsx_meta": 19,
+        "complete_distinct_dois_png_xlsx_meta": 19,
+        "distinct_dois": 19,
+        "figure_png_files": 19,
+        "has_figure_png": 19,
+        "has_source_data_xlsx": 19,
+        "provenance_backed_article_dirs": 19,
+        "source_data_xlsx_files": 160
+      },
+      "extreme_content": {
+        "all_three_meta_files": 3656,
+        "complete_article_dirs_png_xlsx_meta": 3421,
+        "complete_distinct_dois_png_xlsx_meta": 3421,
+        "distinct_dois": 3656,
+        "figure_png_files": 3902,
+        "has_figure_png": 3656,
+        "has_source_data_xlsx": 3421,
+        "provenance_backed_article_dirs": 3656,
+        "source_data_xlsx_files": 10144
+      },
+      "extreme_merged": {
+        "all_three_meta_files": 3408,
+        "complete_article_dirs_png_xlsx_meta": 3175,
+        "complete_distinct_dois_png_xlsx_meta": 3175,
+        "distinct_dois": 3408,
+        "figure_png_files": 3805,
+        "has_figure_png": 3408,
+        "has_source_data_xlsx": 3175,
+        "provenance_backed_article_dirs": 3408,
+        "source_data_xlsx_files": 12309
+      },
+      "nature_content": {
+        "all_three_meta_files": 79,
+        "complete_article_dirs_png_xlsx_meta": 59,
+        "complete_distinct_dois_png_xlsx_meta": 59,
+        "distinct_dois": 79,
+        "figure_png_files": 181,
+        "has_figure_png": 79,
+        "has_source_data_xlsx": 59,
+        "provenance_backed_article_dirs": 79,
+        "source_data_xlsx_files": 60
+      }
+    },
+    "xlsx_inventory_definition": {
+      "all_xlsx_under_outputs_including_extracted_or_duplicate_copies": 24537,
+      "xlsx_with_a_source_data_directory_component_casefold": 23027
+    }
+  },
+  "cross_validation": {
+    "all_count_fields_recomputed_from_current_jsonl_outputs": true,
+    "all_frozen_strict_multis_reference_exactly_one_input_case_per_panel": true,
+    "all_proposed_eligible_for_experiment_false": true,
+    "all_proposed_renderability_audits_accepted": true,
+    "frozen_proposer_summary_matches_jsonl": true,
+    "raw_proposer_summary_matches_jsonl": true
+  },
+  "frozen_c2_cases_v1_preflight": {
+    "cases": 2544,
+    "distinct_dois": 588,
+    "figures": 680,
+    "manifest_path": "data/c2_cases_v1/_manifest.jsonl",
+    "manifest_sha256": "ae8838cd70ede12fffc9b50b6acaee81d2d0c8842dee65e1d51bb89e42163021",
+    "original_source_table_formats": {
+      "csv": 18,
+      "xlsx": 2526
+    },
+    "p5plus_distinct_dois": 204,
+    "p5plus_figures": 224,
+    "preflight_byte_verification": {
+      "all_frozen_raw_tables_verified": true,
+      "all_frozen_working_tables_verified": true,
+      "all_selected_matching_figure_pngs_verified_against_provenance": true,
+      "unique_raw_table_files": 1249,
+      "unique_working_table_files": 2517
+    },
+    "provenance_tiers": {
+      "A_raw": 141,
+      "B_normalizer": 2403
+    }
+  },
+  "frozen_c2_materialization": {
+    "all_frozen_dois_with_local_byte_verified_raw_working_png_meta_assets": 588,
+    "all_p5plus_dois_with_local_byte_verified_raw_working_png_meta_assets": 204,
+    "complete_dois_png_xlsx_meta_after_overlay": 583,
+    "complete_p5plus_dois_png_xlsx_meta_after_overlay": 203,
+    "csv_only_frozen_dois_not_counted_as_xlsx_materialized": 7,
+    "direct_complete_dois_png_xlsx_meta_before_overlay": 558,
+    "direct_complete_p5plus_dois_before_overlay": 192,
+    "missing_direct_complete_dois_before_overlay": 30,
+    "no_download_required": true,
+    "no_gateway_required": true
+  },
+  "generated_at_utc": "2026-07-21T08:17:23.048041+00:00",
+  "materialized_article_definition": {
+    "note": "CSV-only source tables are retained separately and never converted to XLSX.",
+    "required": [
+      "meta/provenance.json",
+      "meta/source_data.json",
+      "meta/figures.json",
+      "at least one figures/*.png",
+      "at least one source_data/**/*.xlsx"
+    ]
+  },
+  "nature_content_90_claim_check": {
+    "complete_distinct_dois_png_xlsx_meta": 59,
+    "conclusion": "The observed 90 is a top-level entry count, not 90 fully materialized DOI directories.",
+    "non_private_directories": 87,
+    "provenance_backed_article_dirs": 79,
+    "top_level_entries": 90
+  },
+  "required_artifact_hashes": {
+    "strict_multi_candidates_jsonl": {
+      "path": "files/c2_widen_pool/strict_multi_candidates.jsonl",
+      "rows": 487,
+      "sha256": "4805bfb861f30786e07431cc170ba5918387003c81e45fa13a02c2bda575cb70"
+    }
+  },
+  "schema_version": "1.0",
+  "scope": "offline-only census and deterministic propose-cases; gateway not invoked",
+  "strict_proposer_runs": {
+    "frozen_c2_working_table_input": {
+      "all_renderability_audits_accepted": true,
+      "constituent_panel_chart_families": {
+        "bar": 2267,
+        "line": 84
+      },
+      "distinct_multi_dois": 427,
+      "eligible_for_experiment_true": 0,
+      "input_candidates": 2544,
+      "input_path": "files/c2_widen_pool/c2_cases_v1_working_candidates.jsonl",
+      "input_sha256": "b38240b8cd21f9654df941f25cc05f9a8a96e79fd1b5be5701e0bcd6e38b9c52",
+      "multi_candidates_with_non_line_bar_scatter_panel": 0,
+      "non_line_bar_scatter_families_observed": [],
+      "original_source_format_composition_by_multi": {
+        "csv": 2,
+        "xlsx": 485
+      },
+      "output_path": "files/c2_widen_pool/frozen_working_table_strict_proposer",
+      "p5plus_distinct_dois": 204,
+      "p5plus_multi_candidates": 224,
+      "p5plus_panel_distribution": {
+        "P10": 10,
+        "P11": 6,
+        "P12": 8,
+        "P13": 4,
+        "P14": 1,
+        "P15": 2,
+        "P16": 2,
+        "P17": 1,
+        "P5": 65,
+        "P6": 51,
+        "P7": 30,
+        "P8": 33,
+        "P9": 11
+      },
+      "panel_count_distribution": {
+        "P10": 10,
+        "P11": 6,
+        "P12": 8,
+        "P13": 4,
+        "P14": 1,
+        "P15": 2,
+        "P16": 2,
+        "P17": 1,
+        "P2": 116,
+        "P3": 80,
+        "P4": 67,
+        "P5": 65,
+        "P6": 51,
+        "P7": 30,
+        "P8": 33,
+        "P9": 11
+      },
+      "proposal_records": 3031,
+      "proposed_jsonl_sha256": "f4f5bb99f659a858d1d352cd2368c4d703c34a99cb1bf5572d73ec27a62f4789",
+      "rejected": 0,
+      "rejected_jsonl_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "single_panel_proposals": 2544,
+      "source_tier_composition_by_multi": {
+        "A_raw": 9,
+        "A_raw+B_normalizer": 45,
+        "B_normalizer": 433
+      },
+      "strict_multi_candidates": 487,
+      "summary_sha256": "120d48bc4bf6a1cf9f63240a9bce986caa4ec0420a4a7c29a54cbbe6a96c3ddc"
+    },
+    "raw_full_materialized_input": {
+      "all_renderability_audits_accepted": true,
+      "constituent_panel_chart_families": {
+        "bar": 60,
+        "line": 56
+      },
+      "distinct_multi_dois": 32,
+      "eligible_for_experiment_true": 0,
+      "input_candidates": 5377,
+      "input_path": "nature_download/outputs/c2_full_casecount_exploratory_20260720/corrected_sheet_binding/sheet_resolved_candidates.jsonl",
+      "multi_candidates_with_non_line_bar_scatter_panel": 0,
+      "non_line_bar_scatter_families_observed": [],
+      "original_source_format_composition_by_multi": {},
+      "output_path": "files/c2_widen_pool/raw_materialized_strict_proposer",
+      "p5plus_distinct_dois": 7,
+      "p5plus_multi_candidates": 7,
+      "p5plus_panel_distribution": {
+        "P11": 1,
+        "P13": 1,
+        "P5": 2,
+        "P6": 1,
+        "P7": 1,
+        "P8": 1
+      },
+      "panel_count_distribution": {
+        "P11": 1,
+        "P13": 1,
+        "P2": 18,
+        "P3": 3,
+        "P4": 4,
+        "P5": 2,
+        "P6": 1,
+        "P7": 1,
+        "P8": 1
+      },
+      "proposal_records": 200,
+      "proposed_jsonl_sha256": "fd745e601578d1f2bfc3b53f4d937c7d817d4b066d15aae1e064473c4e9817e8",
+      "rejected": 5209,
+      "rejected_jsonl_sha256": "e50f3c4745386b0ca590c2b52f1cbde7108f26830eb73a445bd478069baa643d",
+      "single_panel_proposals": 168,
+      "source_tier_composition_by_multi": {},
+      "strict_multi_candidates": 32,
+      "summary_sha256": "13a00e3a67cfe36f70b5711c9b05ea6b6aae1bfff4d5e5806d9fa1315a597b6c"
+    }
+  }
+}

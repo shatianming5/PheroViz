@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "status": "passed",
+  "scope": "Offline harness integration validation only; this is not a scientific C2 result and does not add a real DOI to the benchmark.",
+  "fixture": {
+    "kind": "ephemeral synthetic sealed review bundle",
+    "location": "A clean disposable clone under files/ was removed after validation.",
+    "source": "The repository's benchmark test helpers generated five reviewed source singles, their canonical five-panel multi proposal, evidence, reviews, candidate seals, and then the canonical assemble-benchmark CLI was invoked.",
+    "real_gateway_or_model_calls": 0
+  },
+  "sealed_path_exercised": [
+    "build_c2_benchmark.py preflight",
+    "nature_all_in_one.py assemble-benchmark",
+    "run_c2_when_ready.sh --dataset-manifest",
+    "agent/run_c2_v3.py --dataset-manifest --profile benchmark --rounds-per-case 1 --case-kind multi --min-panels 5 --dry-run",
+    "python -m experiments run <materialized matrix> --dry-run"
+  ],
+  "result": {
+    "qualified_verified_multi_cases_at_least_p5": 1,
+    "qualified_panel_counts": [
+      5
+    ],
+    "matrix_count": 1,
+    "expanded_spec_count": 9,
+    "expected_spec_count": "1 case × 3 methods × 1 backbone × 3 seeds × 1 budget = 9",
+    "matrix_execution_returncodes": [
+      0
+    ],
+    "pipeline_status": "completed"
+  },
+  "negative_claims": [
+    "No --execute was passed.",
+    "No gateway endpoint or model credential was used.",
+    "No production run directory or scientific result was created.",
+    "The fixture and disposable clone were removed after the check."
+  ]
+}

@@ -1,0 +1,281 @@
+{
+  "assumptions": {
+    "alpha_unadjusted": 0.05,
+    "effect_delta": 0.1,
+    "holm_family": {
+      "note": "Holm is less conservative after a smaller p-value passes, but prospective assurance must cover the first step.",
+      "planned_contrasts_vs_flat_iterative": 2,
+      "worst_case_first_step_alpha": 0.025
+    },
+    "programmatic_metric_status": {
+      "c2_extreme_data_fidelity_and_series_cohesion": "Described as unsaturated for P5+ in the task context, but no sealed P5+ execution data yet exist here to estimate their DOI-level paired-difference variance.",
+      "c5_programmatic_visual_form": "Saturated at 1.0 in the supplied C5 context, so it does not supply a usable variance or detectable delta for power."
+    },
+    "target_power": 0.8,
+    "test": "Two-sided paired-t noncentrality planning approximation on one per-DOI mean method-minus-flat_iterative gap. Production uses the repository's DOI-cluster paired sign-flip permutation plus Holm; freeze/simulate that exact analysis if a final guarantee rather than this planning approximation is required."
+  },
+  "c5_crosscheck": {
+    "current_tracked_pooled_raw_score_sd": {
+      "metric.visual_form.claude-sonnet-4.6": {
+        "mean": 0.21120857699805068,
+        "n_render_scores": 513,
+        "population_sd": 0.2648992992758653,
+        "sample_sd": 0.2651578638071883
+      },
+      "metric.visual_form.gemini-3.5-flash": {
+        "mean": 0.2544834307992203,
+        "n_render_scores": 513,
+        "population_sd": 0.27942675972953446,
+        "sample_sd": 0.2796995043134804
+      }
+    },
+    "interpretation": "The tracked pooled values use all 513 C5 render scores and are not necessarily the same filtering/aggregation as the supplied approximately-0.25 context. Raw score SD is not a DOI-level paired method-difference SD.",
+    "provided_context_reference_raw_visual_form_sd": {
+      "claude-sonnet-4.6": 0.25,
+      "gemini-3.5-flash": 0.25
+    },
+    "renderable_all_strata_paired_doi_proxy": {
+      "planning_sd": 0.11,
+      "records": [
+        {
+          "contrast": "best_of_n",
+          "doi_count": 6,
+          "mean_gap": -0.03402777777777779,
+          "metric": "metric.visual_form.claude-sonnet-4.6",
+          "paired_doi_sd": 0.09805103074231106,
+          "tier": "frontier"
+        },
+        {
+          "contrast": "pheroviz_full",
+          "doi_count": 6,
+          "mean_gap": -0.03492063492063493,
+          "metric": "metric.visual_form.claude-sonnet-4.6",
+          "paired_doi_sd": 0.06965930480040616,
+          "tier": "frontier"
+        },
+        {
+          "contrast": "best_of_n",
+          "doi_count": 6,
+          "mean_gap": 0.013888888888888904,
+          "metric": "metric.visual_form.gemini-3.5-flash",
+          "paired_doi_sd": 0.08606629658238704,
+          "tier": "frontier"
+        },
+        {
+          "contrast": "pheroviz_full",
+          "doi_count": 6,
+          "mean_gap": -0.02916666666666666,
+          "metric": "metric.visual_form.gemini-3.5-flash",
+          "paired_doi_sd": 0.06785400995274093,
+          "tier": "frontier"
+        },
+        {
+          "contrast": "best_of_n",
+          "doi_count": 6,
+          "mean_gap": 0.009325396825396829,
+          "metric": "metric.visual_form.claude-sonnet-4.6",
+          "paired_doi_sd": 0.007839687199708085,
+          "tier": "mid"
+        },
+        {
+          "contrast": "pheroviz_full",
+          "doi_count": 6,
+          "mean_gap": 0.013690476190476199,
+          "metric": "metric.visual_form.claude-sonnet-4.6",
+          "paired_doi_sd": 0.04728304073389407,
+          "tier": "mid"
+        },
+        {
+          "contrast": "best_of_n",
+          "doi_count": 6,
+          "mean_gap": 0.09265873015873016,
+          "metric": "metric.visual_form.gemini-3.5-flash",
+          "paired_doi_sd": 0.13702461972096466,
+          "tier": "mid"
+        },
+        {
+          "contrast": "pheroviz_full",
+          "doi_count": 6,
+          "mean_gap": 0.059722222222222225,
+          "metric": "metric.visual_form.gemini-3.5-flash",
+          "paired_doi_sd": 0.13000178061458606,
+          "tier": "mid"
+        },
+        {
+          "contrast": "best_of_n",
+          "doi_count": 6,
+          "mean_gap": -0.008531746031746027,
+          "metric": "metric.visual_form.claude-sonnet-4.6",
+          "paired_doi_sd": 0.11690552969068663,
+          "tier": "open"
+        },
+        {
+          "contrast": "pheroviz_full",
+          "doi_count": 6,
+          "mean_gap": 0.025396825396825414,
+          "metric": "metric.visual_form.claude-sonnet-4.6",
+          "paired_doi_sd": 0.17228895642180053,
+          "tier": "open"
+        },
+        {
+          "contrast": "best_of_n",
+          "doi_count": 6,
+          "mean_gap": 0.0037698412698412686,
+          "metric": "metric.visual_form.gemini-3.5-flash",
+          "paired_doi_sd": 0.21177151598150198,
+          "tier": "open"
+        },
+        {
+          "contrast": "pheroviz_full",
+          "doi_count": 6,
+          "mean_gap": 0.023809523809523805,
+          "metric": "metric.visual_form.gemini-3.5-flash",
+          "paired_doi_sd": 0.22076834494899686,
+          "tier": "open"
+        }
+      ],
+      "sd_max": 0.22076834494899686,
+      "sd_mean": 0.113792843115832,
+      "sd_median": 0.10747828021649884,
+      "sd_min": 0.007839687199708085,
+      "sd_rms": 0.12954650964931663,
+      "warning": "Only six renderable DOI clusters and mixed P=1/2/3/6 strata underlie this proxy. It is not an estimate for the P5+ population."
+    }
+  },
+  "extreme_p5plus_variance_status": {
+    "p5plus_dois": [
+      "10.1038/s41467-021-25210-5"
+    ],
+    "p5plus_render_rows": 27,
+    "p5plus_unique_dois": 1,
+    "reason": "A DOI-cluster paired-difference variance requires at least two independent DOI clusters; the current C5 P5+ slice has one.",
+    "status": "not_estimable"
+  },
+  "final_recommendation": {
+    "condition_for_12": "Only if a pre-execution P5+ pilot supports sd(D_d)<=0.11. At K=12, alpha=0.05, delta=0.10, sd(D)=0.11, exact power is 0.817409.",
+    "condition_for_15": "For the two-comparison Holm first-step alpha=0.025 under the same sd(D)=0.11 assumption. At K=15 exact power is 0.830386.",
+    "headline_target_for_two_C2_contrasts_with_Holm": 15,
+    "minimum_for_one_prespecified_unadjusted_contrast": 12,
+    "recalibration_rule": "Do not claim this target is met from the current one-DOI P5+ slice. If a prospectively frozen P5+ pilot estimates sd(D_d)>0.11, recompute K before a confirmatory claim; P5+ complexity may make the needed K materially larger.",
+    "unit": "verified independent multi-panel DOI clusters at P>=5"
+  },
+  "formula": {
+    "critical_value": "c = t.ppf(1 - alpha/2, K - 1)",
+    "doi_gap": "D_d = mean_{case,seed in DOI d}(score_method - score_flat_iterative)",
+    "noncentrality": "lambda = Delta * sqrt(K) / sd(D_d)",
+    "normal_approximation": "K_approx = ((z_(1-alpha/2) + z_power) * sd(D_d) / Delta)^2",
+    "power": "P(T_{K-1}(lambda) > c) + P(T_{K-1}(lambda) < -c)"
+  },
+  "input_c5_merged_sha256": {
+    "agent/experiments/preflight/provenance_inputs/c5/merged/frontier.json": "2c0473b8801dc216da51adc50ac33b649f5f1a039267a8f3add709e0008b71fe",
+    "agent/experiments/preflight/provenance_inputs/c5/merged/mid.json": "b642a22890726dac3bda18e356c3ce1b18393007ea146685c24b387107dc1ab4",
+    "agent/experiments/preflight/provenance_inputs/c5/merged/open.json": "ca42d9e479a9d3239d6961a70580e830ec5a719282f40cde8a550c24dad3cda3"
+  },
+  "reproduce": "/opt/homebrew/Caskroom/miniforge/base/bin/python3 files/c2_power_K_final.py --out files/c2_power_K_final.json",
+  "reproducible_script": "files/c2_power_K_final.py",
+  "reproducible_script_sha256": "91aa94fd089dafbdb01b2b4281295393ede7b8c9d0c4a74cb1a88764ef9a2bb9",
+  "results": {
+    "c5_proxy_sensitivity_not_an_extreme_estimate": {
+      "interpretation": "These show why K=12/15 is conditional rather than guaranteed: higher P5+ variance implies a substantially larger DOI count.",
+      "largest_paired_sd_across_12_renderable_proxy_records": {
+        "two_contrast_holm_alpha_0.025": {
+          "alpha_two_sided": 0.025,
+          "noncentral_t_power_at_required_n": 0.8011624688050087,
+          "noncentral_t_required_n_doi": 49,
+          "normal_approximation_n": 46.32627744718237,
+          "paired_sd": 0.22076834494899686,
+          "statsmodels_ceiling_n": 49,
+          "statsmodels_continuous_n": 48.8749230964639
+        },
+        "unadjusted_alpha_0.05": {
+          "alpha_two_sided": 0.05,
+          "noncentral_t_power_at_required_n": 0.807890559471044,
+          "noncentral_t_required_n_doi": 41,
+          "normal_approximation_n": 38.25438974833688,
+          "paired_sd": 0.22076834494899686,
+          "statsmodels_ceiling_n": 41,
+          "statsmodels_continuous_n": 40.21731040861399
+        }
+      },
+      "rms_paired_sd_across_12_renderable_proxy_records": {
+        "two_contrast_holm_alpha_0.025": {
+          "alpha_two_sided": 0.025,
+          "noncentral_t_power_at_required_n": 0.8116970614548703,
+          "noncentral_t_required_n_doi": 19,
+          "normal_approximation_n": 15.951636070170546,
+          "paired_sd": 0.12954650964931663,
+          "statsmodels_ceiling_n": 19,
+          "statsmodels_continuous_n": 18.55658472812473
+        },
+        "unadjusted_alpha_0.05": {
+          "alpha_two_sided": 0.05,
+          "noncentral_t_power_at_required_n": 0.8225722983319697,
+          "noncentral_t_required_n_doi": 16,
+          "normal_approximation_n": 13.172223994204119,
+          "paired_sd": 0.12954650964931663,
+          "statsmodels_ceiling_n": 16,
+          "statsmodels_continuous_n": 15.204216372024627
+        }
+      }
+    },
+    "if_only_raw_sd_0.25_were_justifiably_available": {
+      "two_contrast_holm_alpha_0.025": {
+        "alpha_two_sided": 0.025,
+        "noncentral_t_power_at_required_n": 0.8003811393941742,
+        "noncentral_t_required_n_doi": 62,
+        "normal_approximation_n": 59.406479657480176,
+        "paired_sd": 0.25,
+        "statsmodels_ceiling_n": 62,
+        "statsmodels_continuous_n": 61.94749752701328
+      },
+      "unadjusted_alpha_0.05": {
+        "alpha_two_sided": 0.05,
+        "noncentral_t_power_at_required_n": 0.8077878088760596,
+        "noncentral_t_required_n_doi": 52,
+        "normal_approximation_n": 49.05549833968179,
+        "paired_sd": 0.25,
+        "statsmodels_ceiling_n": 52,
+        "statsmodels_continuous_n": 51.00944729560023
+      }
+    },
+    "requested_k_approximately_8_to_12_interpretation": {
+      "conclusion": "The often-quoted K≈8–12 window is only a normal-approximation planning window. Exact finite-sample paired-t calculation is K=10–14 for sd(D)=0.10–0.12; K=8 has only about 0.681 power at sd(D)=0.10.",
+      "finite_sample_noncentral_t_required_n": [
+        10,
+        12,
+        14
+      ],
+      "normal_approximation_for_sd_D_0.10_to_0.12": [
+        7.848879734349088,
+        9.497144478562397,
+        11.302386817462686
+      ]
+    },
+    "single_prespecified_contrast_alpha_0.05": {
+      "alpha_two_sided": 0.05,
+      "noncentral_t_power_at_required_n": 0.8174086542021398,
+      "noncentral_t_required_n_doi": 12,
+      "normal_approximation_n": 9.497144478562397,
+      "paired_sd": 0.11,
+      "statsmodels_ceiling_n": 12,
+      "statsmodels_continuous_n": 11.563299487208415
+    },
+    "two_c2_contrasts_holm_worst_case_alpha_0.025": {
+      "alpha_two_sided": 0.025,
+      "noncentral_t_power_at_required_n": 0.8303863313102687,
+      "noncentral_t_required_n_doi": 15,
+      "normal_approximation_n": 11.50109446168816,
+      "paired_sd": 0.11,
+      "statsmodels_ceiling_n": 15,
+      "statsmodels_continuous_n": 14.132149530491219
+    }
+  },
+  "schema_version": "1.0",
+  "scope": "Prospective, provisional C2 P5+ power plan. The independent statistical unit is a DOI cluster, not a panel, seed, render, or reviewer call.",
+  "software_crosscheck": {
+    "method": "Required integer K is found with scipy.stats.nct and independently checked against statsmodels.stats.power.TTestPower.solve_power.",
+    "python": "3.13.13",
+    "scipy": "1.17.1",
+    "statsmodels": "0.14.6"
+  }
+}
