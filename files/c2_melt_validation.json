@@ -1,0 +1,11 @@
+{
+  "validation": "Offline bounded test: can a JUDGE-INDEPENDENT structural classifier reproduce the judge-consensus chart family on strong-signal (2-judge-agree) single rejects? Answers whether the wide->long melt rewrite (branch 1) can lift C2 pass-rate.",
+  "sample": "87 two-judge-agree single rejects from casecount_strict (source xlsx read locally; 7 unreadable excluded)",
+  "exact_family_reproduction": {"match": 46, "total": 87, "rate": 0.529},
+  "binding_class_reproduction_grouped_vs_line": {"match": 64, "total": 87, "rate": 0.736, "unknown": 11},
+  "confusion_exact": {"bar->bar":32,"scatter->scatter":13,"line->line":1,"scatter->bar":18,"bar->unknown":11,"line->bar":5,"scatter->line":4,"bar->line":3},
+  "interpretation": "Dominant reject cause (wide-format x/y binding error) is structurally recoverable judge-independently: 74% correctly identified as grouped-categorical-x comparison vs proposer's fabricated continuous-x line. Residual gap 53->74% = bar-vs-dot-plot subtype ambiguity (categorical-x binding already correct). 13% unknown need better rules.",
+  "yield_projection_OFFLINE_PROXY": "If 53-74% of the 94 strong-agree rejects flip to correct binding, single-accept could roughly double (65 -> ~110-130); multi verified DOI rises super-linearly (multi needs all panels pass) and could plausibly exceed K=12. THIS IS A PROXY: true pass-rate lift requires ONE bounded live re-review (bar/scatter subtype + y-column selection may still reject).",
+  "integrity": "Classifier uses ONLY source-table structure (column dtype/header/values), NEVER judge output. Judge consensus used ONLY diagnostically to score the classifier, not to build proposals (no proposer-judge leakage).",
+  "recommendation": "Branch 1 is de-risked (74% binding recovery). Proceed: build judge-independent re-classifier into proposals.py, re-propose, run ONE bounded live re-review to confirm true pass lift, then full run if N'>=K. Fall back to branch 2 (honest ceiling N=5) if live lift insufficient."
+}
