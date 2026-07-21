@@ -1,0 +1,39 @@
+{
+  "direct_raw_p5_pool": {
+    "component_source_ids": 124,
+    "eligible_for_experiment_true": 0,
+    "exploratory_normalizer_path_records": 0,
+    "independent_doi_clusters": 15,
+    "multi_panel_parents": 15,
+    "overlapping_component_source_ids": 0,
+    "proposed_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_raw_p5/reproposed_direct_raw_p5_v4.jsonl",
+    "proposed_sha256": "d7c655b97334186d75c99ff69e23615065535224e609b40e62e1c50e26cde801",
+    "raw_source_table_records": 0,
+    "records": 139,
+    "single_panels": 124,
+    "source_normalization_records": 0,
+    "source_table_path_roots": {
+      "content_root": 124
+    }
+  },
+  "integrity_note": "V4 proposal construction used only the direct raw candidate records and each hash-bound source table. No judge/review output was read. This direct raw P5 pool is eligible for a fresh diagnostic review but cannot support a K=62 sealed benchmark claim.",
+  "k62_status": {
+    "direct_raw_p5plus_doi_clusters_available": 15,
+    "required_independent_verified_p5plus_doi_clusters": 62,
+    "satisfied": false,
+    "status": "blocked_insufficient_direct_raw_p5_doi_clusters"
+  },
+  "proposal_rule_version": "simple-2d-v4",
+  "report_sha256": "26beb279228c62bc87d5085eb926d5ef7baeeaf5e5df050f913baddb1a91a4ef",
+  "review_status": "not_reviewed_fresh_v4_review_required",
+  "schema_version": "c2-direct-raw-p5-v4-reproposal-v1",
+  "source": {
+    "all_direct_v4_multis": 56,
+    "all_direct_v4_proposed_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_raw_p5/direct_all_candidates_v4/proposed.jsonl",
+    "all_direct_v4_proposed_sha256": "71f0dc3f7374cf8f913226d8f37fba19da18d2620220078c651312ac2a863f1e",
+    "all_direct_v4_records": 370,
+    "all_direct_v4_singles": 314,
+    "raw_candidates_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/c2_full_casecount_20260720/combined/all_candidates.jsonl",
+    "raw_candidates_sha256": "79902bc40faf87af0149052236235f9644b10fa956011d8ef3a2f9962f9b8779"
+  }
+}

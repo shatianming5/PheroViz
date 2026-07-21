@@ -506,6 +506,13 @@ def _validate_verification_evidence(
         )
 
 
+def _uses_exploratory_normalizer_path(path_value: Any) -> bool:
+    return (
+        isinstance(path_value, str)
+        and "exploratory_normalizer" in path_value.casefold()
+    )
+
+
 def _validate_benchmark_manifest(
     data: Mapping[str, Any],
     *,
@@ -583,6 +590,10 @@ def _validate_benchmark_manifest(
             raise ManifestError(
                 f"Benchmark case {case_id!r} cannot use multi_panel_manifest"
             )
+        if case.get("source_normalization") is not None:
+            raise ManifestError(
+                f"Benchmark case {case_id!r} uses an exploratory-normalizer source"
+            )
         previous = doi_splits.setdefault(doi, str(split))
         if previous != split:
             raise ManifestError(
@@ -592,6 +603,10 @@ def _validate_benchmark_manifest(
             if not _SHA256_RE.fullmatch(str(case.get("data_sha256") or "")):
                 raise ManifestError(
                     f"Benchmark case {case_id!r} has no valid data_sha256"
+                )
+            if _uses_exploratory_normalizer_path(case.get("data_path")):
+                raise ManifestError(
+                    f"Benchmark case {case_id!r} uses an exploratory-normalizer source"
                 )
             continue
         panels = case.get("panels")
@@ -614,6 +629,13 @@ def _validate_benchmark_manifest(
         ):
             raise ManifestError(
                 f"Benchmark case {case_id!r} has invalid panel data hashes"
+            )
+        if any(
+            _uses_exploratory_normalizer_path(panel.get("data_path"))
+            for panel in panels
+        ):
+            raise ManifestError(
+                f"Benchmark case {case_id!r} uses an exploratory-normalizer source"
             )
 
 
@@ -812,6 +834,10 @@ def verify_case_data_files(
         ):
             raise ManifestError(
                 f"case_id {case.case_id!r} {label} has an invalid data binding"
+            )
+        if _uses_exploratory_normalizer_path(path_value):
+            raise ManifestError(
+                f"case_id {case.case_id!r} {label} uses an exploratory-normalizer source"
             )
         path = resolve_case_data_path(
             path_value,

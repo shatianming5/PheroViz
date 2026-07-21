@@ -1,0 +1,37 @@
+{
+  "created_at_utc": "2026-07-21T19:22:52.806677+00:00",
+  "exploratory_normalizer_inputs_forbidden": true,
+  "frozen_from_git_head": "57bf2e0f750a6192e7c840f88accf1cd04bccd51",
+  "input": {
+    "component_source_ids": 55,
+    "eligible_for_experiment_true": 0,
+    "exploratory_normalizer_path_records": 0,
+    "frozen_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_raw_p5/frozen_raw_p5_v4_20260721T192239Z/raw_p5_v4.proposed.jsonl",
+    "frozen_sha256": "4d0edd9bbb4e3a1883535b40867cdd383767155d8fb612ad1caaede2ec8bc6e2",
+    "independent_doi_clusters": 7,
+    "multi_panel_parents": 7,
+    "overlapping_component_source_ids": 0,
+    "proposed_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_raw_p5/reproposed_raw_p5_v4.jsonl",
+    "proposed_sha256": "4d0edd9bbb4e3a1883535b40867cdd383767155d8fb612ad1caaede2ec8bc6e2",
+    "records": 62,
+    "single_panels": 55,
+    "source_normalization_records": 0,
+    "source_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_raw_p5/reproposed_raw_p5_v4.jsonl",
+    "source_sha256": "4d0edd9bbb4e3a1883535b40867cdd383767155d8fb612ad1caaede2ec8bc6e2",
+    "source_table_path_roots": {
+      "content_root": 55
+    }
+  },
+  "integrity_note": "This freeze contains only directly read, hash-bound published CSV/XLSX source tables. Components with source_normalization, raw_source_table, or exploratory_normalizer paths are rejected before writing. It is a fresh-review-ready raw diagnostic pool, not sufficient for K=62.",
+  "k62_status": "blocked_only_7_independent_raw_p5_doi_clusters",
+  "manifest_sha256": "94b532fe35f8c11d0b4e725b817a01cdd798c92a93c71d832c9d8eca3ba96236",
+  "proposal_rule_version": "simple-2d-v4",
+  "required_review_models": [
+    "claude-sonnet-4.6",
+    "gemini-3.5-flash"
+  ],
+  "requires_fresh_review": true,
+  "review_rubric_required": "proposal-external-validation-v4",
+  "schema_version": "c2-raw-p5-v4-review-freeze-v1",
+  "stale_review_or_evidence_reuse_forbidden": true
+}

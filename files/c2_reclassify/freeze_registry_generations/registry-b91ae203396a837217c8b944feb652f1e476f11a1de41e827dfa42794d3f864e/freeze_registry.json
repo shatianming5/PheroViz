@@ -1,0 +1,408 @@
+{
+  "freezes": [
+    {
+      "classifier": {
+        "classifier_file_sha256": null,
+        "classifier_hash_status": "not recorded by the historic V3 freeze; current code hash is not substituted retroactively",
+        "proposal_rule_version": "simple-2d-v3",
+        "review_rubric_hash": "c58d94232a71b5ff9f5ec4518f3e83dcba6c34938fa762818b21726544d82c5f"
+      },
+      "freeze_manifest_internal_sha256": "f2d7417a5df6171bc2dca24192fec2ae73fd0e5c372980d99ce57dfc8acf6999",
+      "freeze_manifest_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v3_20260722T024015_0800/freeze_manifest.json",
+      "freeze_manifest_sha256": "dc20456275739af301ff8c9e61c26802eee7d1f690e3eb633d81ea42448a85d0",
+      "inputs": [
+        {
+          "distinct_doi_clusters": 68,
+          "eligible_for_experiment_true": 0,
+          "frozen_file_readonly": true,
+          "frozen_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v3_20260722T024015_0800/priority_casecount_strict.proposed.jsonl",
+          "label": "priority_casecount_strict",
+          "multi_panel_parents": 20,
+          "proposal_hash_matches_declared": true,
+          "proposal_rule_versions_verified": [
+            "simple-2d-v3"
+          ],
+          "proposal_sha256_declared": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49",
+          "proposal_sha256_verified": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49",
+          "records": 147,
+          "scope": "historic-reject-selected diagnostic subset",
+          "single_panels": 127,
+          "source_hash_matches_declared": true,
+          "source_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/reproposed_strict_rejects_casecount_strict.jsonl",
+          "source_sha256_declared": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49",
+          "source_sha256_verified": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49"
+        },
+        {
+          "distinct_doi_clusters": 38,
+          "eligible_for_experiment_true": 0,
+          "frozen_file_readonly": true,
+          "frozen_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v3_20260722T024015_0800/priority_full_strict.proposed.jsonl",
+          "label": "priority_full_strict",
+          "multi_panel_parents": 9,
+          "proposal_hash_matches_declared": true,
+          "proposal_rule_versions_verified": [
+            "simple-2d-v3"
+          ],
+          "proposal_sha256_declared": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131",
+          "proposal_sha256_verified": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131",
+          "records": 85,
+          "scope": "historic-reject-selected diagnostic subset",
+          "single_panels": 76,
+          "source_hash_matches_declared": true,
+          "source_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/reproposed_strict_rejects_full_strict.jsonl",
+          "source_sha256_declared": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131",
+          "source_sha256_verified": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131"
+        },
+        {
+          "distinct_doi_clusters": 81,
+          "eligible_for_experiment_true": 0,
+          "frozen_file_readonly": true,
+          "frozen_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v3_20260722T024015_0800/full_casecount_strict.proposed.jsonl",
+          "label": "full_casecount_strict",
+          "multi_panel_parents": 32,
+          "proposal_hash_matches_declared": true,
+          "proposal_rule_versions_verified": [
+            "simple-2d-v3"
+          ],
+          "proposal_sha256_declared": "78d1d8703ac87a92fbb2a2dde89e81fde34ed39fd2561dc5d16879e6c219bdb2",
+          "proposal_sha256_verified": "78d1d8703ac87a92fbb2a2dde89e81fde34ed39fd2561dc5d16879e6c219bdb2",
+          "records": 200,
+          "scope": "full supplied strict batch; not the sealed C2 universe",
+          "single_panels": 168,
+          "source_hash_matches_declared": true,
+          "source_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/reproposed_strict_full_casecount_strict.jsonl",
+          "source_sha256_declared": "78d1d8703ac87a92fbb2a2dde89e81fde34ed39fd2561dc5d16879e6c219bdb2",
+          "source_sha256_verified": "78d1d8703ac87a92fbb2a2dde89e81fde34ed39fd2561dc5d16879e6c219bdb2"
+        },
+        {
+          "distinct_doi_clusters": 43,
+          "eligible_for_experiment_true": 0,
+          "frozen_file_readonly": true,
+          "frozen_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v3_20260722T024015_0800/full_full_strict.proposed.jsonl",
+          "label": "full_full_strict",
+          "multi_panel_parents": 16,
+          "proposal_hash_matches_declared": true,
+          "proposal_rule_versions_verified": [
+            "simple-2d-v3"
+          ],
+          "proposal_sha256_declared": "e1c3ae8455fd4e440b6d190e8ab106a89cf73951bcf4540a40cb6c2f1039bb10",
+          "proposal_sha256_verified": "e1c3ae8455fd4e440b6d190e8ab106a89cf73951bcf4540a40cb6c2f1039bb10",
+          "records": 116,
+          "scope": "full supplied strict batch; not the sealed C2 universe",
+          "single_panels": 100,
+          "source_hash_matches_declared": true,
+          "source_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/reproposed_strict_full_full_strict.jsonl",
+          "source_sha256_declared": "e1c3ae8455fd4e440b6d190e8ab106a89cf73951bcf4540a40cb6c2f1039bb10",
+          "source_sha256_verified": "e1c3ae8455fd4e440b6d190e8ab106a89cf73951bcf4540a40cb6c2f1039bb10"
+        }
+      ],
+      "label": "v3_strict",
+      "requires_fresh_review": true,
+      "review_input_binding_status": {
+        "controlled_live_input_binding": {
+          "controlled_inputs": [
+            {
+              "controlled_live_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/inputs/casecount_strict.proposed.jsonl",
+              "frozen_v3_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v3_20260722T024015_0800/priority_casecount_strict.proposed.jsonl",
+              "label": "casecount_strict",
+              "readonly": true,
+              "sha256": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49"
+            },
+            {
+              "controlled_live_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/inputs/full_strict.proposed.jsonl",
+              "frozen_v3_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v3_20260722T024015_0800/priority_full_strict.proposed.jsonl",
+              "label": "full_strict",
+              "readonly": true,
+              "sha256": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131"
+            }
+          ],
+          "file_sha256": "a330597b67f27da3acc7705fbfc73a8e095725ca32f88bcc421b9c2791235dec",
+          "input_manifest_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/input_manifest.json",
+          "input_manifest_sha256": "9af7a8d2fc28d107caea93178ce21a8160a5611e0015acd0ba623107a6f62bde",
+          "internal_sha256": "47823f16205ac8a785bc026f88829efcaba81c87eb707cf55a90f80b2176cc60",
+          "live_aliases_alone_are_not_self_authenticating": true,
+          "live_aliases_authorized_only_via_input_manifest_and_frozen_sources": true,
+          "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/v3_controlled_live_input_binding_20260722T035556_0800.json"
+        },
+        "final_cross_bound_addendum": {
+          "cross_binds_historical_observations_named_mirror_and_live_binding": true,
+          "file_sha256": "17193dadbb4be13e0f3933f66c15a9f2b13ffe5de5bb464cb38523ce49aca929",
+          "internal_sha256": "02d9416b3681c9ad933a54f218edb525c33cd1afb1396c58222faadaadefe49d",
+          "no_in_place_overwrite": true,
+          "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/v3_final_review_input_binding_addendum_20260722T040138_0800.json",
+          "requires_fresh_review": true,
+          "stale_review_or_evidence_reuse_forbidden": true
+        },
+        "historical_predecessor_path_clarification": {
+          "file_sha256": "316c521a9f0e6748d7085a59900f2c69b2e9bc5a1e342fe75d41bb87667b1f59",
+          "internal_sha256": "a5301a3628b9fd185fbc1d164e1f53bc3985be8faecfd901ad5ec136f4cf7f4f",
+          "original_current_sha256_fields_are_historical_observations_only": true,
+          "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/v3_mutable_predecessor_path_clarification_20260722T035220_0800.json",
+          "superseded_for_current_live_alias_interpretation": true
+        },
+        "named_readonly_input_mirror": {
+          "binding_manifest_file_sha256": "711496c0cf1946eb6c27dd3f16109ecb128f752f289c06b08c617fb1fc84ea3f",
+          "binding_manifest_internal_sha256": "ad6c061afd97d6e7ee2c762b46c81c463f7ff1e777c52fd56623a6782ae7d484",
+          "binding_manifest_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/frozen_v3_priority_review_inputs_20260722T035220_0800/input_binding_manifest.json",
+          "fresh_live_reviews_must_use_controlled_input_manifest_not_mirror": true,
+          "inputs": [
+            {
+              "byte_identical_to_frozen_v3_source": true,
+              "frozen_v3_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v3_20260722T024015_0800/priority_casecount_strict.proposed.jsonl",
+              "label": "casecount_strict",
+              "named_readonly_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/frozen_v3_priority_review_inputs_20260722T035220_0800/casecount_strict.proposed.jsonl",
+              "readonly": true,
+              "sha256": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49"
+            },
+            {
+              "byte_identical_to_frozen_v3_source": true,
+              "frozen_v3_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v3_20260722T024015_0800/priority_full_strict.proposed.jsonl",
+              "label": "full_strict",
+              "named_readonly_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/frozen_v3_priority_review_inputs_20260722T035220_0800/full_strict.proposed.jsonl",
+              "readonly": true,
+              "sha256": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131"
+            }
+          ]
+        },
+        "prior_review_or_evidence_status": "rejected: all review/evidence records created before this final cross-bound addendum, including records bound to the 485e/f2b3 predecessor inputs, are stale and must not be reused",
+        "requires_fresh_review": true,
+        "stale_review_or_evidence_reuse_forbidden": true
+      },
+      "sealed_status": "diagnostic_only_stale_v3_strict_scope",
+      "stale_review_or_evidence_reuse_forbidden": true
+    },
+    {
+      "classifier": {
+        "classifier_file": "nature_download/corpus/proposals.py",
+        "classifier_file_sha256": "6554950b6f3bcaffc212c75450e3fed37dcd061e180306dfb490ed0c082b6d13",
+        "classifier_git_head": "57bf2e0f750a6192e7c840f88accf1cd04bccd51",
+        "proposal_rule_version": "simple-2d-v4",
+        "review_rubric_hash": "46b3d7fe022f0ce17207dc822c2a8abbe309b2bf3308c1f0853b49cd8afc3c36",
+        "reviewer_file": "nature_download/corpus/reviews.py",
+        "reviewer_file_sha256": "28fe8ebede94819cd575540f1e78c3eede9fb83c4f5a256792ffff2836d9ccc4"
+      },
+      "freeze_manifest_internal_sha256": "43dba72b0ac1a66bca8f7f1f3ad6a6a1267b51457bbe89560cc082ae91f42ed4",
+      "freeze_manifest_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v4_20260721T190322Z/freeze_manifest.json",
+      "freeze_manifest_sha256": "d5413b7ba7d2bcae2be7cc52eaabd60508a53f588a162a4ce4d32be55de01899",
+      "inputs": [
+        {
+          "distinct_doi_clusters": 68,
+          "eligible_for_experiment_true": 0,
+          "frozen_file_readonly": true,
+          "frozen_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v4_20260721T190322Z/priority_casecount_strict.proposed.jsonl",
+          "label": "priority_casecount_strict",
+          "multi_panel_parents": 20,
+          "proposal_hash_matches_declared": true,
+          "proposal_rule_versions_verified": [
+            "simple-2d-v4"
+          ],
+          "proposal_sha256_declared": "58f1d3050fb5fe89509956b639779d6afffbb8c145a4433cdd22b55244d7de94",
+          "proposal_sha256_verified": "58f1d3050fb5fe89509956b639779d6afffbb8c145a4433cdd22b55244d7de94",
+          "records": 147,
+          "scope": "historic-reject-selected diagnostic subset",
+          "single_panels": 127,
+          "source_hash_matches_declared": true,
+          "source_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/reproposed_strict_rejects_v4_casecount_strict.jsonl",
+          "source_sha256_declared": "58f1d3050fb5fe89509956b639779d6afffbb8c145a4433cdd22b55244d7de94",
+          "source_sha256_verified": "58f1d3050fb5fe89509956b639779d6afffbb8c145a4433cdd22b55244d7de94"
+        },
+        {
+          "distinct_doi_clusters": 38,
+          "eligible_for_experiment_true": 0,
+          "frozen_file_readonly": true,
+          "frozen_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v4_20260721T190322Z/priority_full_strict.proposed.jsonl",
+          "label": "priority_full_strict",
+          "multi_panel_parents": 9,
+          "proposal_hash_matches_declared": true,
+          "proposal_rule_versions_verified": [
+            "simple-2d-v4"
+          ],
+          "proposal_sha256_declared": "0d38f5906a87d9b694fc333648e13cc38eb31ed29a180ccd0fc6dfcadef91997",
+          "proposal_sha256_verified": "0d38f5906a87d9b694fc333648e13cc38eb31ed29a180ccd0fc6dfcadef91997",
+          "records": 85,
+          "scope": "historic-reject-selected diagnostic subset",
+          "single_panels": 76,
+          "source_hash_matches_declared": true,
+          "source_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/reproposed_strict_rejects_v4_full_strict.jsonl",
+          "source_sha256_declared": "0d38f5906a87d9b694fc333648e13cc38eb31ed29a180ccd0fc6dfcadef91997",
+          "source_sha256_verified": "0d38f5906a87d9b694fc333648e13cc38eb31ed29a180ccd0fc6dfcadef91997"
+        },
+        {
+          "distinct_doi_clusters": 81,
+          "eligible_for_experiment_true": 0,
+          "frozen_file_readonly": true,
+          "frozen_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v4_20260721T190322Z/full_casecount_strict.proposed.jsonl",
+          "label": "full_casecount_strict",
+          "multi_panel_parents": 32,
+          "proposal_hash_matches_declared": true,
+          "proposal_rule_versions_verified": [
+            "simple-2d-v4"
+          ],
+          "proposal_sha256_declared": "978ffd5fedfd25064384f90eef0ffabc1ada2f1e6c7b96c30a491033ea2b73f2",
+          "proposal_sha256_verified": "978ffd5fedfd25064384f90eef0ffabc1ada2f1e6c7b96c30a491033ea2b73f2",
+          "records": 200,
+          "scope": "full supplied strict batch; not the sealed C2 universe",
+          "single_panels": 168,
+          "source_hash_matches_declared": true,
+          "source_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/reproposed_strict_full_v4_casecount_strict.jsonl",
+          "source_sha256_declared": "978ffd5fedfd25064384f90eef0ffabc1ada2f1e6c7b96c30a491033ea2b73f2",
+          "source_sha256_verified": "978ffd5fedfd25064384f90eef0ffabc1ada2f1e6c7b96c30a491033ea2b73f2"
+        },
+        {
+          "distinct_doi_clusters": 43,
+          "eligible_for_experiment_true": 0,
+          "frozen_file_readonly": true,
+          "frozen_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v4_20260721T190322Z/full_full_strict.proposed.jsonl",
+          "label": "full_full_strict",
+          "multi_panel_parents": 16,
+          "proposal_hash_matches_declared": true,
+          "proposal_rule_versions_verified": [
+            "simple-2d-v4"
+          ],
+          "proposal_sha256_declared": "9b37945de134cd6bdca1919bebc4eaabda9c90f12f4c3d6ab6bc89225ec05b15",
+          "proposal_sha256_verified": "9b37945de134cd6bdca1919bebc4eaabda9c90f12f4c3d6ab6bc89225ec05b15",
+          "records": 116,
+          "scope": "full supplied strict batch; not the sealed C2 universe",
+          "single_panels": 100,
+          "source_hash_matches_declared": true,
+          "source_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/reproposed_strict_full_v4_full_strict.jsonl",
+          "source_sha256_declared": "9b37945de134cd6bdca1919bebc4eaabda9c90f12f4c3d6ab6bc89225ec05b15",
+          "source_sha256_verified": "9b37945de134cd6bdca1919bebc4eaabda9c90f12f4c3d6ab6bc89225ec05b15"
+        }
+      ],
+      "label": "v4_strict",
+      "requires_fresh_review": true,
+      "sealed_status": "diagnostic_only_historic_reject_selected_or_overlapping_strict_scope",
+      "stale_review_or_evidence_reuse_forbidden": true
+    },
+    {
+      "classifier": {
+        "classifier_file": "nature_download/corpus/proposals.py",
+        "classifier_file_sha256": "6554950b6f3bcaffc212c75450e3fed37dcd061e180306dfb490ed0c082b6d13",
+        "classifier_git_head": "57bf2e0f750a6192e7c840f88accf1cd04bccd51",
+        "proposal_rule_version": "simple-2d-v4",
+        "review_rubric_hash": "46b3d7fe022f0ce17207dc822c2a8abbe309b2bf3308c1f0853b49cd8afc3c36",
+        "reviewer_file": "nature_download/corpus/reviews.py",
+        "reviewer_file_sha256": "28fe8ebede94819cd575540f1e78c3eede9fb83c4f5a256792ffff2836d9ccc4"
+      },
+      "freeze_manifest_internal_sha256": "70caf43ede097fd8e83efbd6e0e8e17596f95bf0d0ca8d23d9325f94cd5b02cd",
+      "freeze_manifest_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_pool/frozen_v4_full_nonoverlap_20260721T191806Z/freeze_manifest.json",
+      "freeze_manifest_sha256": "c11ef8afbf6de25e56f8376065639a276567e0da5c2f13c84aff0a72a0881b7b",
+      "inputs": [
+        {
+          "distinct_doi_clusters": 204,
+          "eligible_for_experiment_true": 0,
+          "frozen_file_readonly": true,
+          "frozen_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_pool/frozen_v4_full_nonoverlap_20260721T191806Z/v4_full_nonoverlap.proposed.jsonl",
+          "label": null,
+          "multi_panel_parents": 224,
+          "proposal_hash_matches_declared": true,
+          "proposal_rule_versions_verified": [
+            "simple-2d-v4"
+          ],
+          "proposal_sha256_declared": "6486ed743344731cc00202427bd722cd16dc05a69507fca887c235a1c9766d6d",
+          "proposal_sha256_verified": "6486ed743344731cc00202427bd722cd16dc05a69507fca887c235a1c9766d6d",
+          "records": 1835,
+          "scope": null,
+          "single_panels": 1611,
+          "source_hash_matches_declared": true,
+          "source_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_pool/reproposed_pool_multi.jsonl",
+          "source_sha256_declared": "6486ed743344731cc00202427bd722cd16dc05a69507fca887c235a1c9766d6d",
+          "source_sha256_verified": "6486ed743344731cc00202427bd722cd16dc05a69507fca887c235a1c9766d6d"
+        }
+      ],
+      "label": "v4_full_normalizer",
+      "requires_fresh_review": true,
+      "sealed_status": "sealed_blocked_exploratory_normalizer",
+      "stale_review_or_evidence_reuse_forbidden": true
+    },
+    {
+      "classifier": {
+        "classifier_file": "nature_download/corpus/proposals.py",
+        "classifier_file_sha256": "6554950b6f3bcaffc212c75450e3fed37dcd061e180306dfb490ed0c082b6d13",
+        "classifier_git_head": "57bf2e0f750a6192e7c840f88accf1cd04bccd51",
+        "proposal_rule_version": "simple-2d-v4",
+        "review_rubric_hash": "46b3d7fe022f0ce17207dc822c2a8abbe309b2bf3308c1f0853b49cd8afc3c36",
+        "reviewer_file": "nature_download/corpus/reviews.py",
+        "reviewer_file_sha256": "28fe8ebede94819cd575540f1e78c3eede9fb83c4f5a256792ffff2836d9ccc4"
+      },
+      "freeze_manifest_internal_sha256": "94b532fe35f8c11d0b4e725b817a01cdd798c92a93c71d832c9d8eca3ba96236",
+      "freeze_manifest_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_raw_p5/frozen_raw_p5_v4_20260721T192239Z/freeze_manifest.json",
+      "freeze_manifest_sha256": "0ab3135111cffa3fe2688bf0afe1a0e0881efc8e1c4dee24ec398a5c531e9dbb",
+      "inputs": [
+        {
+          "distinct_doi_clusters": 7,
+          "eligible_for_experiment_true": 0,
+          "frozen_file_readonly": true,
+          "frozen_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_raw_p5/frozen_raw_p5_v4_20260721T192239Z/raw_p5_v4.proposed.jsonl",
+          "label": null,
+          "multi_panel_parents": 7,
+          "proposal_hash_matches_declared": true,
+          "proposal_rule_versions_verified": [
+            "simple-2d-v4"
+          ],
+          "proposal_sha256_declared": "4d0edd9bbb4e3a1883535b40867cdd383767155d8fb612ad1caaede2ec8bc6e2",
+          "proposal_sha256_verified": "4d0edd9bbb4e3a1883535b40867cdd383767155d8fb612ad1caaede2ec8bc6e2",
+          "records": 62,
+          "scope": null,
+          "single_panels": 55,
+          "source_hash_matches_declared": true,
+          "source_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_raw_p5/reproposed_raw_p5_v4.jsonl",
+          "source_sha256_declared": "4d0edd9bbb4e3a1883535b40867cdd383767155d8fb612ad1caaede2ec8bc6e2",
+          "source_sha256_verified": "4d0edd9bbb4e3a1883535b40867cdd383767155d8fb612ad1caaede2ec8bc6e2"
+        }
+      ],
+      "label": "v4_raw_seed",
+      "requires_fresh_review": true,
+      "sealed_status": "diagnostic_only_superseded_by_direct_raw_p5",
+      "stale_review_or_evidence_reuse_forbidden": true
+    },
+    {
+      "classifier": {
+        "classifier_file": "nature_download/corpus/proposals.py",
+        "classifier_file_sha256": "6554950b6f3bcaffc212c75450e3fed37dcd061e180306dfb490ed0c082b6d13",
+        "classifier_git_head": "57bf2e0f750a6192e7c840f88accf1cd04bccd51",
+        "proposal_rule_version": "simple-2d-v4",
+        "review_rubric_hash": "46b3d7fe022f0ce17207dc822c2a8abbe309b2bf3308c1f0853b49cd8afc3c36",
+        "reviewer_file": "nature_download/corpus/reviews.py",
+        "reviewer_file_sha256": "28fe8ebede94819cd575540f1e78c3eede9fb83c4f5a256792ffff2836d9ccc4"
+      },
+      "freeze_manifest_internal_sha256": "e5618a52ba09b293e0e9b76cf97fe6d7738371b012d8cfefe6dca47168cb7381",
+      "freeze_manifest_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_raw_p5/frozen_direct_raw_p5_v4_20260721T193342Z/freeze_manifest.json",
+      "freeze_manifest_sha256": "6272fba077b226fde7d5f8ef76d2b455039d4ddeef255cd60f8910ff091b7744",
+      "inputs": [
+        {
+          "distinct_doi_clusters": 15,
+          "eligible_for_experiment_true": 0,
+          "frozen_file_readonly": true,
+          "frozen_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_raw_p5/frozen_direct_raw_p5_v4_20260721T193342Z/direct_raw_p5_v4.proposed.jsonl",
+          "label": null,
+          "multi_panel_parents": 15,
+          "proposal_hash_matches_declared": true,
+          "proposal_rule_versions_verified": [
+            "simple-2d-v4"
+          ],
+          "proposal_sha256_declared": "d7c655b97334186d75c99ff69e23615065535224e609b40e62e1c50e26cde801",
+          "proposal_sha256_verified": "d7c655b97334186d75c99ff69e23615065535224e609b40e62e1c50e26cde801",
+          "records": 139,
+          "scope": null,
+          "single_panels": 124,
+          "source_hash_matches_declared": true,
+          "source_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_raw_p5/reproposed_direct_raw_p5_v4.jsonl",
+          "source_sha256_declared": "d7c655b97334186d75c99ff69e23615065535224e609b40e62e1c50e26cde801",
+          "source_sha256_verified": "d7c655b97334186d75c99ff69e23615065535224e609b40e62e1c50e26cde801"
+        }
+      ],
+      "label": "v4_direct_raw_p5",
+      "requires_fresh_review": true,
+      "sealed_status": "diagnostic_only_k62_insufficient",
+      "stale_review_or_evidence_reuse_forbidden": true
+    }
+  ],
+  "generated_at_utc": "2026-07-21T20:07:31.604033+00:00",
+  "integrity_rule": "Only a freeze with sealed_status=eligible_for_sealed_review could be used for a final C2 review/benchmark. This registry currently contains no such freeze.",
+  "priority_or_reject_scopes_diagnostic_only": true,
+  "registry_sha256": "b91ae203396a837217c8b944feb652f1e476f11a1de41e827dfa42794d3f864e",
+  "schema_version": "c2-reclassification-freeze-registry-v1",
+  "sealed_eligible_freezes": []
+}

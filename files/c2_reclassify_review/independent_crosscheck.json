@@ -1,0 +1,30 @@
+{
+  "discrepancies": [],
+  "discrepancy_count": 0,
+  "frozen_input_binding": {
+    "casecount_strict": {
+      "frozen_priority_sha256": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49",
+      "input_sha256": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49",
+      "review_binding_input_sha256s": [
+        "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49"
+      ],
+      "summary_input_sha256": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49"
+    },
+    "full_strict": {
+      "frozen_priority_sha256": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131",
+      "input_sha256": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131",
+      "review_binding_input_sha256s": [
+        "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131"
+      ],
+      "summary_input_sha256": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131"
+    }
+  },
+  "method": "Independent raw JSONL recount; does not call aggregate_lift helpers.",
+  "recount": {
+    "N_prime": 7,
+    "accepted_reclassified_multis": 2,
+    "accepted_reclassified_singles": 24,
+    "baseline_multi_N": 5,
+    "former_single_rejects": 203
+  }
+}

@@ -1,0 +1,277 @@
+{
+  "c5_evidence_status": {
+    "all_strata_paired_doi_proxy": {
+      "planning_sd": 0.11,
+      "records": [
+        {
+          "contrast": "best_of_n",
+          "doi_count": 6,
+          "mean_gap": -0.03402777777777779,
+          "metric": "metric.visual_form.claude-sonnet-4.6",
+          "paired_doi_sd": 0.09805103074231106,
+          "tier": "frontier"
+        },
+        {
+          "contrast": "pheroviz_full",
+          "doi_count": 6,
+          "mean_gap": -0.03492063492063493,
+          "metric": "metric.visual_form.claude-sonnet-4.6",
+          "paired_doi_sd": 0.06965930480040616,
+          "tier": "frontier"
+        },
+        {
+          "contrast": "best_of_n",
+          "doi_count": 6,
+          "mean_gap": 0.013888888888888904,
+          "metric": "metric.visual_form.gemini-3.5-flash",
+          "paired_doi_sd": 0.08606629658238704,
+          "tier": "frontier"
+        },
+        {
+          "contrast": "pheroviz_full",
+          "doi_count": 6,
+          "mean_gap": -0.02916666666666666,
+          "metric": "metric.visual_form.gemini-3.5-flash",
+          "paired_doi_sd": 0.06785400995274093,
+          "tier": "frontier"
+        },
+        {
+          "contrast": "best_of_n",
+          "doi_count": 6,
+          "mean_gap": 0.009325396825396829,
+          "metric": "metric.visual_form.claude-sonnet-4.6",
+          "paired_doi_sd": 0.007839687199708085,
+          "tier": "mid"
+        },
+        {
+          "contrast": "pheroviz_full",
+          "doi_count": 6,
+          "mean_gap": 0.013690476190476199,
+          "metric": "metric.visual_form.claude-sonnet-4.6",
+          "paired_doi_sd": 0.04728304073389407,
+          "tier": "mid"
+        },
+        {
+          "contrast": "best_of_n",
+          "doi_count": 6,
+          "mean_gap": 0.09265873015873016,
+          "metric": "metric.visual_form.gemini-3.5-flash",
+          "paired_doi_sd": 0.13702461972096466,
+          "tier": "mid"
+        },
+        {
+          "contrast": "pheroviz_full",
+          "doi_count": 6,
+          "mean_gap": 0.059722222222222225,
+          "metric": "metric.visual_form.gemini-3.5-flash",
+          "paired_doi_sd": 0.13000178061458606,
+          "tier": "mid"
+        },
+        {
+          "contrast": "best_of_n",
+          "doi_count": 6,
+          "mean_gap": -0.008531746031746027,
+          "metric": "metric.visual_form.claude-sonnet-4.6",
+          "paired_doi_sd": 0.11690552969068663,
+          "tier": "open"
+        },
+        {
+          "contrast": "pheroviz_full",
+          "doi_count": 6,
+          "mean_gap": 0.025396825396825414,
+          "metric": "metric.visual_form.claude-sonnet-4.6",
+          "paired_doi_sd": 0.17228895642180053,
+          "tier": "open"
+        },
+        {
+          "contrast": "best_of_n",
+          "doi_count": 6,
+          "mean_gap": 0.0037698412698412686,
+          "metric": "metric.visual_form.gemini-3.5-flash",
+          "paired_doi_sd": 0.21177151598150198,
+          "tier": "open"
+        },
+        {
+          "contrast": "pheroviz_full",
+          "doi_count": 6,
+          "mean_gap": 0.023809523809523805,
+          "metric": "metric.visual_form.gemini-3.5-flash",
+          "paired_doi_sd": 0.22076834494899686,
+          "tier": "open"
+        }
+      ],
+      "sd_max": 0.22076834494899686,
+      "sd_mean": 0.113792843115832,
+      "sd_median": 0.10747828021649884,
+      "sd_min": 0.007839687199708085,
+      "sd_rms": 0.12954650964931663,
+      "warning": "Only six renderable DOI clusters and mixed P=1/2/3/6 strata underlie this proxy. It is not an estimate for the P5+ population."
+    },
+    "critical_limitation": "The current P>=5 slice has one DOI, so no P>=5 DOI-level paired-gap SD can be estimated. Reclassification changes labels and eligibility, not this absence of independent P>=5 DOI variance information.",
+    "p5plus_variance_status": {
+      "p5plus_dois": [
+        "10.1038/s41467-021-25210-5"
+      ],
+      "p5plus_render_rows": 27,
+      "p5plus_unique_dois": 1,
+      "reason": "A DOI-cluster paired-difference variance requires at least two independent DOI clusters; the current C5 P5+ slice has one.",
+      "status": "not_estimable"
+    },
+    "provided_raw_judge_sd_context": 0.25,
+    "tracked_pooled_raw_score_sd": {
+      "metric.visual_form.claude-sonnet-4.6": {
+        "mean": 0.21120857699805068,
+        "n_render_scores": 513,
+        "population_sd": 0.2648992992758653,
+        "sample_sd": 0.2651578638071883
+      },
+      "metric.visual_form.gemini-3.5-flash": {
+        "mean": 0.2544834307992203,
+        "n_render_scores": 513,
+        "population_sd": 0.27942675972953446,
+        "sample_sd": 0.2796995043134804
+      }
+    }
+  },
+  "calculation": {
+    "effect_delta": 0.1,
+    "formula": {
+      "critical_value": "t.ppf(1 - alpha/2, K - 1)",
+      "doi_gap": "D_d = mean_{case,seed in DOI d}(score_method - score_flat_iterative)",
+      "noncentrality": "lambda = Delta * sqrt(K) / sd(D_d)"
+    },
+    "single_contrast_alpha": 0.05,
+    "target_power": 0.8,
+    "test": "Exact finite-sample two-sided noncentral paired-t planning calculation; production remains DOI-cluster paired sign-flip with Holm.",
+    "two_contrast_holm_first_step_alpha": 0.025
+  },
+  "comparison_to_prior_c2_power_K_final": {
+    "agreement": "Matches prior exact values: SD=0.11 -> K=12 single / 15 Holm; SD=0.25 -> K=52 single / 62 Holm.",
+    "prior_file": "files/c2_power_K_final.json",
+    "prior_file_sha256": "7e9e60be4e20f7474ff52cd9c00acd8c30526f6b1276e5f09bcd31bdbdd48e5a"
+  },
+  "gate": {
+    "contrast_family": "two planned contrasts against flat_iterative with Holm",
+    "must_not_be_counted_as_independent": [
+      "panels",
+      "seeds",
+      "renders",
+      "VLM review calls",
+      "overlapping duplicate batch instances"
+    ],
+    "reason": "Use the conservative two-contrast Holm value until a prospectively frozen P>=5 pilot supplies a defensible DOI-level paired-gap variance estimate and the gate is formally recalibrated before execution.",
+    "required_independent_verified_p5plus_doi_clusters": 62
+  },
+  "honest_k_range": {
+    "single_contrast_alpha_0.05": {
+      "conditional_low_k_at_sd_0.11": 12,
+      "conservative_proxy_k_at_sd_0.25": 52,
+      "intermediate_k_at_sd_0.22076834494899686": 41,
+      "range_statement": "12 to 52 DOI clusters across conditional optimistic through conservative-proxy variance scenarios."
+    },
+    "two_contrast_holm": {
+      "conditional_low_k_at_sd_0.11": 15,
+      "conservative_proxy_k_at_sd_0.25": 62,
+      "intermediate_k_at_sd_0.22076834494899686": 49,
+      "range_statement": "15 to 62 DOI clusters across conditional optimistic through conservative-proxy variance scenarios."
+    }
+  },
+  "reproducibility": {
+    "c5_input_sha256": {
+      "agent/experiments/preflight/provenance_inputs/c5/merged/frontier.json": "2c0473b8801dc216da51adc50ac33b649f5f1a039267a8f3add709e0008b71fe",
+      "agent/experiments/preflight/provenance_inputs/c5/merged/mid.json": "b642a22890726dac3bda18e356c3ce1b18393007ea146685c24b387107dc1ab4",
+      "agent/experiments/preflight/provenance_inputs/c5/merged/open.json": "ca42d9e479a9d3239d6961a70580e830ec5a719282f40cde8a550c24dad3cda3"
+    },
+    "crosscheck": "Each displayed integer K was computed by scipy noncentral-t and checked by statsmodels TTestPower.solve_power in _sample_size_record.",
+    "power_script": "files/c2_power_K_final.py",
+    "power_script_sha256": "91aa94fd089dafbdb01b2b4281295393ede7b8c9d0c4a74cb1a88764ef9a2bb9",
+    "python": "3.13.13",
+    "scipy": "1.17.1",
+    "statsmodels": "0.14.6"
+  },
+  "scenarios_python_cross_verified_with_statsmodels": {
+    "conservative_c5_raw_vlm_sd_proxy": {
+      "interpretation": "Conservative operational proxy from supplied C5 raw judge SD context. Raw VLM-score SD is not an estimated paired DOI-gap SD, so this is a risk-control assumption rather than an empirical P>=5 variance estimate.",
+      "paired_doi_gap_sd": 0.25,
+      "single_prespecified_two_sided_alpha_0.05": {
+        "alpha_two_sided": 0.05,
+        "noncentral_t_power_at_required_n": 0.8077878088760596,
+        "noncentral_t_required_n_doi": 52,
+        "normal_approximation_n": 49.05549833968179,
+        "paired_sd": 0.25,
+        "statsmodels_ceiling_n": 52,
+        "statsmodels_continuous_n": 51.00944729560023
+      },
+      "two_contrast_holm_first_step_two_sided_alpha_0.025": {
+        "alpha_two_sided": 0.025,
+        "noncentral_t_power_at_required_n": 0.8003811393941742,
+        "noncentral_t_required_n_doi": 62,
+        "normal_approximation_n": 59.406479657480176,
+        "paired_sd": 0.25,
+        "statsmodels_ceiling_n": 62,
+        "statsmodels_continuous_n": 61.94749752701328
+      }
+    },
+    "largest_observed_all_strata_proxy": {
+      "interpretation": "Largest of 12 C5 all-strata DOI-gap proxy records; P>=5 extrapolation remains unvalidated.",
+      "paired_doi_gap_sd": 0.22076834494899686,
+      "single_prespecified_two_sided_alpha_0.05": {
+        "alpha_two_sided": 0.05,
+        "noncentral_t_power_at_required_n": 0.807890559471044,
+        "noncentral_t_required_n_doi": 41,
+        "normal_approximation_n": 38.25438974833688,
+        "paired_sd": 0.22076834494899686,
+        "statsmodels_ceiling_n": 41,
+        "statsmodels_continuous_n": 40.21731040861399
+      },
+      "two_contrast_holm_first_step_two_sided_alpha_0.025": {
+        "alpha_two_sided": 0.025,
+        "noncentral_t_power_at_required_n": 0.8011624688050087,
+        "noncentral_t_required_n_doi": 49,
+        "normal_approximation_n": 46.32627744718237,
+        "paired_sd": 0.22076834494899686,
+        "statsmodels_ceiling_n": 49,
+        "statsmodels_continuous_n": 48.8749230964639
+      }
+    },
+    "optimistic_preexecution_pilot_only": {
+      "interpretation": "Conditional only: largest favorable all-strata proxy/planning SD, not established for P>=5.",
+      "paired_doi_gap_sd": 0.11,
+      "single_prespecified_two_sided_alpha_0.05": {
+        "alpha_two_sided": 0.05,
+        "noncentral_t_power_at_required_n": 0.8174086542021398,
+        "noncentral_t_required_n_doi": 12,
+        "normal_approximation_n": 9.497144478562397,
+        "paired_sd": 0.11,
+        "statsmodels_ceiling_n": 12,
+        "statsmodels_continuous_n": 11.563299487208415
+      },
+      "two_contrast_holm_first_step_two_sided_alpha_0.025": {
+        "alpha_two_sided": 0.025,
+        "noncentral_t_power_at_required_n": 0.8303863313102687,
+        "noncentral_t_required_n_doi": 15,
+        "normal_approximation_n": 11.50109446168816,
+        "paired_sd": 0.11,
+        "statsmodels_ceiling_n": 15,
+        "statsmodels_continuous_n": 14.132149530491219
+      }
+    }
+  },
+  "schema_version": "c2-reclassified-power-v1",
+  "scope": "Prospective C2 P>=5 planning only. The independent unit is one verified DOI-cluster mean paired method-minus-flat_iterative gap; panels, seeds, renders, and reviewer calls are not independent units.",
+  "sealed_pool_availability_at_audit": {
+    "best_direct_raw_non_normalized_v4_pool_p5plus_distinct_dois": 15,
+    "best_direct_raw_non_normalized_v4_pool_path": "files/c2_reclassify_raw_p5/reproposed_direct_raw_p5_v4.jsonl",
+    "best_direct_raw_non_normalized_v4_pool_review_status": "not_reviewed_fresh_v4_review_required",
+    "best_direct_raw_non_normalized_v4_pool_sha256": "d7c655b97334186d75c99ff69e23615065535224e609b40e62e1c50e26cde801",
+    "best_direct_raw_pool_persistence_verdict": "FAIL_UNTRACKED_IGNORED_ARTIFACTS",
+    "best_direct_raw_pool_raw_candidate_input_git_status": "NOT_TRACKED_AND_IGNORED_BY_nature_download/.gitignore:outputs/",
+    "best_direct_raw_pool_required_persistence_remediation": "Before any fresh review, preserve the exact raw candidate input, 139-record frozen direct-raw P5 pool, freeze manifest, and generator script in a durable immutable store; record and verify their SHA-256 values. For a clean sealed execution, supervisor must force-add/commit them or adopt an equivalent hash-addressed immutable artifact contract.",
+    "conclusion": "The current direct raw non-normalized V4 P>=5 pool has 15 unreviewed DOI clusters, below K=62; expand raw coverage before review/assembly.",
+    "normalizer_tainted_pool_status": "forbidden for sealed C2",
+    "normalizer_tainted_v4_pool_p5plus_distinct_dois": 204,
+    "required_gate_dois": 62,
+    "shortfall_doi_clusters": 47,
+    "verdict": "FAIL"
+  }
+}

@@ -1,9 +1,14 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from pathlib import Path
 
-from run_c2_v3 import _write_matrices
+import pytest
+
+import run_c2_v3
+from experiments.manifest import DatasetCase, ManifestError, verify_case_data_files
+from run_c2_v3 import C2PipelineError, _manifest_case_info, _write_matrices
 
 
 def test_c2_matrix_shards_incompatible_panel_counts(tmp_path: Path) -> None:
@@ -38,3 +43,57 @@ def test_c2_matrix_shards_incompatible_panel_counts(tmp_path: Path) -> None:
         {"type": "renders", "value": 6}
     ]
     assert payloads["panel_count_5.json"]["case_ids"] == ["p5"]
+
+
+def test_sealed_manifest_min_dois_counts_unique_filtered_clusters(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    cases = [
+        DatasetCase("p5-a", 5, "test", {"doi": "10.1000/a"}),
+        DatasetCase("p5-b", 5, "test", {"doi": "10.1000/a"}),
+        DatasetCase("p5-c", 5, "test", {"doi": "10.1000/c"}),
+    ]
+    monkeypatch.setattr(run_c2_v3, "load_dataset_manifest", lambda *_, **__: cases)
+
+    selected = _manifest_case_info(
+        tmp_path / "manifest.json",
+        manifest_data_root=tmp_path,
+        dataset_mode="sealed_benchmark",
+        case_kind="multi",
+        max_cases=None,
+        min_panels=5,
+        min_dois=2,
+    )
+
+    assert selected == [("p5-a", 5), ("p5-b", 5), ("p5-c", 5)]
+    with pytest.raises(C2PipelineError, match="only 2 independent DOI clusters"):
+        _manifest_case_info(
+            tmp_path / "manifest.json",
+            manifest_data_root=tmp_path,
+            dataset_mode="sealed_benchmark",
+            case_kind="multi",
+            max_cases=None,
+            min_panels=5,
+            min_dois=3,
+        )
+
+
+def test_runtime_rejects_exploratory_normalizer_source(tmp_path: Path) -> None:
+    source_dir = tmp_path / "exploratory_normalizer"
+    source_dir.mkdir()
+    source = source_dir / "table.csv"
+    source.write_text("Category,Value\nA,1\n", encoding="utf-8")
+    case = DatasetCase(
+        "case-a",
+        1,
+        "test",
+        {
+            "eligible_for_experiment": True,
+            "data_path": str(source),
+            "data_sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+        },
+    )
+
+    with pytest.raises(ManifestError, match="uses an exploratory-normalizer source"):
+        verify_case_data_files(case, manifest_path=tmp_path / "manifest.json")

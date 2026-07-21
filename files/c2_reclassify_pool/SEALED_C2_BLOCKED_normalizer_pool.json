@@ -1,0 +1,35 @@
+{
+  "status": "BLOCKED_EXPLORATORY_NORMALIZER",
+  "blocked_at_utc": "2026-07-21T19:35:00Z",
+  "blocked_input": {
+    "path": "files/c2_reclassify_pool/frozen_v4_full_nonoverlap_20260721T191806Z/v4_full_nonoverlap.proposed.jsonl",
+    "sha256": "6486ed743344731cc00202427bd722cd16dc05a69507fca887c235a1c9766d6d",
+    "records": 1835,
+    "single_panels": 1611,
+    "multi_panel_parents": 224,
+    "doi_clusters": 204
+  },
+  "verified_normalizer_contamination": {
+    "normalizer_backed_single_panels": 1538,
+    "normalizer_backed_multi_panel_parents": 223,
+    "normalizer_backed_doi_clusters": 203,
+    "only_all_direct_p5_parent": "multi-s44319-025-00503-8-figure4-92dcdbfe621a",
+    "only_all_direct_p5_doi": "10.1038/s44319-025-00503-8"
+  },
+  "sealed_use_forbidden": [
+    "dual-model review binding",
+    "C2 benchmark assembly",
+    "K=62 readiness or pass-rate claim"
+  ],
+  "replacement_direct_raw_pool": {
+    "path": "files/c2_reclassify_raw_p5/frozen_direct_raw_p5_v4_20260721T193342Z/direct_raw_p5_v4.proposed.jsonl",
+    "sha256": "d7c655b97334186d75c99ff69e23615065535224e609b40e62e1c50e26cde801",
+    "manifest_sha256": "e5618a52ba09b293e0e9b76cf97fe6d7738371b012d8cfefe6dca47168cb7381",
+    "single_panels": 124,
+    "multi_panel_parents": 15,
+    "direct_raw_p5_doi_clusters": 15,
+    "normalizer_backed_components": 0,
+    "k62_satisfied": false
+  },
+  "integrity_note": "The 204-DOI artifact remains a diagnostic source-structure ceiling only. The replacement direct raw V4 artifact is fresh-review-ready for diagnostic purposes, but no available direct raw pool can satisfy the required 62 independent verified P5+ DOI clusters."
+}

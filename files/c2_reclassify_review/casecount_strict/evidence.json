@@ -1,0 +1,1541 @@
+{
+  "code_commit": "57bf2e0f750a6192e7c840f88accf1cd04bccd51",
+  "code_dirty": true,
+  "evidence_hash": "57ee1396c74379a56b76bffa49b1617dbf8b357e9affeee54f5975cbd8a31d92",
+  "evidence_type": "external_validation",
+  "human_claims": 0,
+  "input_proposed_sha256": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49",
+  "judge_models": [
+    "claude-sonnet-4.6",
+    "gemini-3.5-flash"
+  ],
+  "rubric_hash": "c58d94232a71b5ff9f5ec4518f3e83dcba6c34938fa762818b21726544d82c5f",
+  "schema_version": "1.0",
+  "verifications": [
+    {
+      "candidate_id": "case-elife-49574-figure1-paneli-60674caf480a",
+      "curation_status": "verified",
+      "evidence_ref": "review:a0f7f75b7b2aa63644bc0da45091a1e59cf4fe934fe76250a30e33ae2c7a84c7",
+      "evidence_type": "external_validation",
+      "experiment_case": {
+        "case_id": "case-elife-49574-figure1-paneli-60674caf480a",
+        "chart_family": "scatter",
+        "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_content/elife-49574/source_data/elife-49574-fig1-data3-v2.xlsx",
+        "evaluation_expectation": {
+          "panel_groups": [],
+          "panels": [
+            {
+              "axis_index": 0,
+              "panel_id": "i",
+              "series": [
+                {
+                  "kind": "scatter",
+                  "series_id": "__wide_value__",
+                  "x": "__wide_group__",
+                  "y": "__wide_value__"
+                }
+              ],
+              "x_scale": "linear"
+            }
+          ],
+          "schema_version": "1.1.0"
+        },
+        "intent": {
+          "binding_mode": "wide_melt",
+          "series": [
+            "__wide_value__"
+          ],
+          "units": {},
+          "wide_melt": {
+            "dropped_index_columns": [],
+            "group_column": "__wide_group__",
+            "source_value_columns": [
+              "w+;w1118",
+              "npf[LexA]/npf[1]",
+              "npf[GR];npf[LexA]"
+            ],
+            "value_column": "__wide_value__"
+          },
+          "x": "__wide_group__",
+          "x_scale": "categorical",
+          "y": "__wide_value__"
+        },
+        "panel_count": 1,
+        "panel_id": "i",
+        "panels": [
+          {
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_content/elife-49574/source_data/elife-49574-fig1-data3-v2.xlsx",
+            "panel_id": "i",
+            "sheet": "Figure 1I",
+            "user_goal": "Create a scatter plot for Figure 1I showing values grouped by the source-table column headers `w+;w1118`, `npf[LexA]/npf[1]`, `npf[GR];npf[LexA]`."
+          }
+        ],
+        "sheet": "Figure 1I",
+        "split": null,
+        "user_goal": "Create a scatter plot for Figure 1I showing values grouped by the source-table column headers `w+;w1118`, `npf[LexA]/npf[1]`, `npf[GR];npf[LexA]`."
+      },
+      "review_hash": "a0f7f75b7b2aa63644bc0da45091a1e59cf4fe934fe76250a30e33ae2c7a84c7",
+      "review_models": [
+        "claude-sonnet-4-6",
+        "gemini-3.5-flash"
+      ],
+      "reviewer_or_source": "claude-sonnet-4-6+gemini-3.5-flash",
+      "status": "verified"
+    },
+    {
+      "candidate_id": "case-elife-76541-figure3-panelg-374ac65c586a",
+      "curation_status": "verified",
+      "evidence_ref": "review:69696e8d0fb3adf4759efbc5febee521ad61c4511422e2376c9ad8c50d1f72b8",
+      "evidence_type": "external_validation",
+      "experiment_case": {
+        "case_id": "case-elife-76541-figure3-panelg-374ac65c586a",
+        "chart_family": "scatter",
+        "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_content/elife-76541/source_data/elife-76541-fig3-data1-v1.xlsx",
+        "evaluation_expectation": {
+          "panel_groups": [],
+          "panels": [
+            {
+              "axis_index": 0,
+              "panel_id": "g",
+              "series": [
+                {
+                  "kind": "scatter",
+                  "series_id": "__wide_value__",
+                  "x": "__wide_group__",
+                  "y": "__wide_value__"
+                }
+              ],
+              "x_scale": "linear"
+            }
+          ],
+          "schema_version": "1.1.0"
+        },
+        "intent": {
+          "binding_mode": "wide_melt",
+          "series": [
+            "__wide_value__"
+          ],
+          "units": {},
+          "wide_melt": {
+            "dropped_index_columns": [],
+            "group_column": "__wide_group__",
+            "source_value_columns": [
+              "IgG1",
+              "anti-Thbs1"
+            ],
+            "value_column": "__wide_value__"
+          },
+          "x": "__wide_group__",
+          "x_scale": "categorical",
+          "y": "__wide_value__"
+        },
+        "panel_count": 1,
+        "panel_id": "g",
+        "panels": [
+          {
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_content/elife-76541/source_data/elife-76541-fig3-data1-v1.xlsx",
+            "panel_id": "g",
+            "sheet": "Fig3G",
+            "user_goal": "Create a scatter plot for Figure 3G showing values grouped by the source-table column headers `IgG1`, `anti-Thbs1`."
+          }
+        ],
+        "sheet": "Fig3G",
+        "split": null,
+        "user_goal": "Create a scatter plot for Figure 3G showing values grouped by the source-table column headers `IgG1`, `anti-Thbs1`."
+      },
+      "review_hash": "69696e8d0fb3adf4759efbc5febee521ad61c4511422e2376c9ad8c50d1f72b8",
+      "review_models": [
+        "claude-sonnet-4-6",
+        "gemini-3.5-flash"
+      ],
+      "reviewer_or_source": "claude-sonnet-4-6+gemini-3.5-flash",
+      "status": "verified"
+    },
+    {
+      "candidate_id": "case-elife-84209-figure2-panele-15426423ed77",
+      "curation_status": "verified",
+      "evidence_ref": "review:fe7e64fecf0fc4ef86d912da888c0badd60b22069ccca133074b012ba973d2f7",
+      "evidence_type": "external_validation",
+      "experiment_case": {
+        "case_id": "case-elife-84209-figure2-panele-15426423ed77",
+        "chart_family": "bar",
+        "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged/elife-84209/source_data/elife-84209-fig2-data1-v1.xlsx",
+        "evaluation_expectation": {
+          "panel_groups": [],
+          "panels": [
+            {
+              "axis_index": 0,
+              "panel_id": "e",
+              "series": [
+                {
+                  "kind": "bar",
+                  "series_id": "7R+ ILC1",
+                  "x": "Genotype",
+                  "y": "7R+ ILC1"
+                },
+                {
+                  "kind": "bar",
+                  "series_id": "7R- ILC1",
+                  "x": "Genotype",
+                  "y": "7R- ILC1"
+                },
+                {
+                  "kind": "bar",
+                  "series_id": "NK",
+                  "x": "Genotype",
+                  "y": "NK"
+                }
+              ],
+              "x_scale": "linear"
+            }
+          ],
+          "schema_version": "1.1.0"
+        },
+        "intent": {
+          "series": [
+            "7R+ ILC1",
+            "7R- ILC1",
+            "NK"
+          ],
+          "units": {},
+          "x": "Genotype",
+          "x_scale": "categorical",
+          "y": "7R+ ILC1"
+        },
+        "panel_count": 1,
+        "panel_id": "e",
+        "panels": [
+          {
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged/elife-84209/source_data/elife-84209-fig2-data1-v1.xlsx",
+            "panel_id": "e",
+            "sheet": "Figure 2E",
+            "user_goal": "Create a bar chart for Figure 2E showing `7R+ ILC1`, `7R- ILC1`, `NK` against `Genotype`."
+          }
+        ],
+        "sheet": "Figure 2E",
+        "split": null,
+        "user_goal": "Create a bar chart for Figure 2E showing `7R+ ILC1`, `7R- ILC1`, `NK` against `Genotype`."
+      },
+      "review_hash": "fe7e64fecf0fc4ef86d912da888c0badd60b22069ccca133074b012ba973d2f7",
+      "review_models": [
+        "claude-sonnet-4-6",
+        "gemini-3.5-flash"
+      ],
+      "reviewer_or_source": "claude-sonnet-4-6+gemini-3.5-flash",
+      "status": "verified"
+    },
+    {
+      "candidate_id": "case-s41467-021-24769-3-figure2-panelg-5d75bd08bc28",
+      "curation_status": "verified",
+      "evidence_ref": "review:9136161529ba05163e2de4ee0ec8352fd2c1310e9070f25802c486f89b518081",
+      "evidence_type": "external_validation",
+      "experiment_case": {
+        "case_id": "case-s41467-021-24769-3-figure2-panelg-5d75bd08bc28",
+        "chart_family": "bar",
+        "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/c2_full_casecount_20260720/case_builds/extreme_merged/extracted/s41467-021-24769-3/41467_2021_24769_MOESM4_ESM-74f8cc8342d3/Source data/Figure 2-Statistical source data.xlsx",
+        "evaluation_expectation": {
+          "panel_groups": [],
+          "panels": [
+            {
+              "axis_index": 0,
+              "panel_id": "g",
+              "series": [
+                {
+                  "kind": "bar",
+                  "series_id": "Weight(g)",
+                  "x": "CTRL",
+                  "y": "Weight(g)"
+                }
+              ],
+              "x_scale": "linear",
+              "y_unit": "g"
+            }
+          ],
+          "schema_version": "1.1.0"
+        },
+        "intent": {
+          "series": [
+            "Weight(g)"
+          ],
+          "units": {
+            "Weight(g)": "g"
+          },
+          "x": "CTRL",
+          "x_scale": "categorical",
+          "y": "Weight(g)"
+        },
+        "panel_count": 1,
+        "panel_id": "g",
+        "panels": [
+          {
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/c2_full_casecount_20260720/case_builds/extreme_merged/extracted/s41467-021-24769-3/41467_2021_24769_MOESM4_ESM-74f8cc8342d3/Source data/Figure 2-Statistical source data.xlsx",
+            "panel_id": "g",
+            "sheet": "Figure 2g",
+            "user_goal": "Create a bar chart for Figure 2G showing `Weight(g)` against `CTRL`."
+          }
+        ],
+        "sheet": "Figure 2g",
+        "split": null,
+        "user_goal": "Create a bar chart for Figure 2G showing `Weight(g)` against `CTRL`."
+      },
+      "review_hash": "9136161529ba05163e2de4ee0ec8352fd2c1310e9070f25802c486f89b518081",
+      "review_models": [
+        "claude-sonnet-4-6",
+        "gemini-3.5-flash"
+      ],
+      "reviewer_or_source": "claude-sonnet-4-6+gemini-3.5-flash",
+      "status": "verified"
+    },
+    {
+      "candidate_id": "case-s41467-022-32754-7-figure7-panelf-7fc1b764132a",
+      "curation_status": "verified",
+      "evidence_ref": "review:c768d3725b60a2f0431af1f46c0e96d1753d9a55e0c692ff105a394017da1152",
+      "evidence_type": "external_validation",
+      "experiment_case": {
+        "case_id": "case-s41467-022-32754-7-figure7-panelf-7fc1b764132a",
+        "chart_family": "scatter",
+        "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/nature_content/s41467-022-32754-7/source_data/41467_2022_32754_MOESM4_ESM.xlsx",
+        "evaluation_expectation": {
+          "panel_groups": [],
+          "panels": [
+            {
+              "axis_index": 0,
+              "panel_id": "f",
+              "series": [
+                {
+                  "kind": "scatter",
+                  "series_id": "__wide_value__",
+                  "x": "__wide_group__",
+                  "y": "__wide_value__"
+                }
+              ],
+              "x_scale": "linear"
+            }
+          ],
+          "schema_version": "1.1.0"
+        },
+        "intent": {
+          "binding_mode": "wide_melt",
+          "series": [
+            "__wide_value__"
+          ],
+          "units": {},
+          "wide_melt": {
+            "dropped_index_columns": [],
+            "group_column": "__wide_group__",
+            "source_value_columns": [
+              "UnTx",
+              "Ruxo"
+            ],
+            "value_column": "__wide_value__"
+          },
+          "x": "__wide_group__",
+          "x_scale": "categorical",
+          "y": "__wide_value__"
+        },
+        "panel_count": 1,
+        "panel_id": "f",
+        "panels": [
+          {
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/nature_content/s41467-022-32754-7/source_data/41467_2022_32754_MOESM4_ESM.xlsx",
+            "panel_id": "f",
+            "sheet": "Figure 7f",
+            "user_goal": "Create a scatter plot for Figure 7F showing values grouped by the source-table column headers `UnTx`, `Ruxo`."
+          }
+        ],
+        "sheet": "Figure 7f",
+        "split": null,
+        "user_goal": "Create a scatter plot for Figure 7F showing values grouped by the source-table column headers `UnTx`, `Ruxo`."
+      },
+      "review_hash": "c768d3725b60a2f0431af1f46c0e96d1753d9a55e0c692ff105a394017da1152",
+      "review_models": [
+        "claude-sonnet-4-6",
+        "gemini-3.5-flash"
+      ],
+      "reviewer_or_source": "claude-sonnet-4-6+gemini-3.5-flash",
+      "status": "verified"
+    },
+    {
+      "candidate_id": "case-s41467-023-36550-9-figure6-panelh-2604de198721",
+      "curation_status": "verified",
+      "evidence_ref": "review:e44a6432d9cd096b783cec419b54dadaaa2d8f00f0fb52eb8f29c7530aea0b98",
+      "evidence_type": "external_validation",
+      "experiment_case": {
+        "case_id": "case-s41467-023-36550-9-figure6-panelh-2604de198721",
+        "chart_family": "scatter",
+        "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged/s41467-023-36550-9/source_data/41467_2023_36550_MOESM4_ESM.xlsx",
+        "evaluation_expectation": {
+          "panel_groups": [],
+          "panels": [
+            {
+              "axis_index": 0,
+              "panel_id": "h",
+              "series": [
+                {
+                  "kind": "scatter",
+                  "series_id": "__wide_value__",
+                  "x": "__wide_group__",
+                  "y": "__wide_value__"
+                }
+              ],
+              "x_scale": "linear"
+            }
+          ],
+          "schema_version": "1.1.0"
+        },
+        "intent": {
+          "binding_mode": "wide_melt",
+          "series": [
+            "__wide_value__"
+          ],
+          "units": {},
+          "wide_melt": {
+            "dropped_index_columns": [],
+            "group_column": "__wide_group__",
+            "source_value_columns": [
+              "1",
+              "2",
+              "3",
+              "4",
+              "5"
+            ],
+            "value_column": "__wide_value__"
+          },
+          "x": "__wide_group__",
+          "x_scale": "categorical",
+          "y": "__wide_value__"
+        },
+        "panel_count": 1,
+        "panel_id": "h",
+        "panels": [
+          {
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged/s41467-023-36550-9/source_data/41467_2023_36550_MOESM4_ESM.xlsx",
+            "panel_id": "h",
+            "sheet": "Fig. 6h",
+            "user_goal": "Create a scatter plot for Figure 6H showing values grouped by the source-table column headers `1`, `2`, `3`, `4`, `5`."
+          }
+        ],
+        "sheet": "Fig. 6h",
+        "split": null,
+        "user_goal": "Create a scatter plot for Figure 6H showing values grouped by the source-table column headers `1`, `2`, `3`, `4`, `5`."
+      },
+      "review_hash": "e44a6432d9cd096b783cec419b54dadaaa2d8f00f0fb52eb8f29c7530aea0b98",
+      "review_models": [
+        "claude-sonnet-4-6",
+        "gemini-3.5-flash"
+      ],
+      "reviewer_or_source": "claude-sonnet-4-6+gemini-3.5-flash",
+      "status": "verified"
+    },
+    {
+      "candidate_id": "case-s41467-025-58773-8-figure4-paneld-494835f356d6",
+      "curation_status": "verified",
+      "evidence_ref": "review:69f0042a4b690e535fc6dc1a9bb72ccccd33554417b13b4c2fa5e9197672418b",
+      "evidence_type": "external_validation",
+      "experiment_case": {
+        "case_id": "case-s41467-025-58773-8-figure4-paneld-494835f356d6",
+        "chart_family": "scatter",
+        "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_content/s41467-025-58773-8/source_data/41467_2025_58773_MOESM4_ESM.xlsx",
+        "evaluation_expectation": {
+          "panel_groups": [],
+          "panels": [
+            {
+              "axis_index": 0,
+              "panel_id": "d",
+              "series": [
+                {
+                  "kind": "scatter",
+                  "series_id": "__wide_value__",
+                  "x": "__wide_group__",
+                  "y": "__wide_value__"
+                }
+              ],
+              "x_scale": "linear"
+            }
+          ],
+          "schema_version": "1.1.0"
+        },
+        "intent": {
+          "binding_mode": "wide_melt",
+          "series": [
+            "__wide_value__"
+          ],
+          "units": {},
+          "wide_melt": {
+            "dropped_index_columns": [],
+            "group_column": "__wide_group__",
+            "source_value_columns": [
+              "h2 C232S+K228C kC214S",
+              "h2 C232S+T222C kE123C+C214S",
+              "h2 C232S kC214S",
+              "h2",
+              "h1"
+            ],
+            "value_column": "__wide_value__"
+          },
+          "x": "__wide_group__",
+          "x_scale": "categorical",
+          "y": "__wide_value__"
+        },
+        "panel_count": 1,
+        "panel_id": "d",
+        "panels": [
+          {
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_content/s41467-025-58773-8/source_data/41467_2025_58773_MOESM4_ESM.xlsx",
+            "panel_id": "d",
+            "sheet": "Fig 4d",
+            "user_goal": "Create a scatter plot for Figure 4D showing values grouped by the source-table column headers `h2 C232S+K228C kC214S`, `h2 C232S+T222C kE123C+C214S`, `h2 C232S kC214S`, `h2`, `h1`."
+          }
+        ],
+        "sheet": "Fig 4d",
+        "split": null,
+        "user_goal": "Create a scatter plot for Figure 4D showing values grouped by the source-table column headers `h2 C232S+K228C kC214S`, `h2 C232S+T222C kE123C+C214S`, `h2 C232S kC214S`, `h2`, `h1`."
+      },
+      "review_hash": "69f0042a4b690e535fc6dc1a9bb72ccccd33554417b13b4c2fa5e9197672418b",
+      "review_models": [
+        "claude-sonnet-4-6",
+        "gemini-3.5-flash"
+      ],
+      "reviewer_or_source": "claude-sonnet-4-6+gemini-3.5-flash",
+      "status": "verified"
+    },
+    {
+      "candidate_id": "case-s44318-023-00005-0-figure1-panelg-df9d203c9122",
+      "curation_status": "verified",
+      "evidence_ref": "review:218e9fb6d51cb63e37e4004d8f3c86f4d08b57afa9b90ed7f5a05394d5d6b3e5",
+      "evidence_type": "external_validation",
+      "experiment_case": {
+        "case_id": "case-s44318-023-00005-0-figure1-panelg-df9d203c9122",
+        "chart_family": "scatter",
+        "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_content/s44318-023-00005-0/source_data/44318_2023_5_MOESM3_ESM_Figure1-G.xlsx",
+        "evaluation_expectation": {
+          "panel_groups": [],
+          "panels": [
+            {
+              "axis_index": 0,
+              "panel_id": "g",
+              "series": [
+                {
+                  "kind": "scatter",
+                  "series_id": "rate",
+                  "x": "[IP6 (µM)",
+                  "y": "rate"
+                }
+              ],
+              "x_scale": "linear",
+              "x_unit": "µM"
+            }
+          ],
+          "schema_version": "1.1.0"
+        },
+        "intent": {
+          "series": [
+            "rate"
+          ],
+          "units": {
+            "[IP6 (µM)": "µM"
+          },
+          "x": "[IP6 (µM)",
+          "x_scale": "linear",
+          "y": "rate"
+        },
+        "panel_count": 1,
+        "panel_id": "g",
+        "panels": [
+          {
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_content/s44318-023-00005-0/source_data/44318_2023_5_MOESM3_ESM_Figure1-G.xlsx",
+            "panel_id": "g",
+            "sheet": "Fig1-G",
+            "user_goal": "Create a scatter plot for Figure 1G showing `rate` against `[IP6 (µM)`."
+          }
+        ],
+        "sheet": "Fig1-G",
+        "split": null,
+        "user_goal": "Create a scatter plot for Figure 1G showing `rate` against `[IP6 (µM)`."
+      },
+      "review_hash": "218e9fb6d51cb63e37e4004d8f3c86f4d08b57afa9b90ed7f5a05394d5d6b3e5",
+      "review_models": [
+        "claude-sonnet-4-6",
+        "gemini-3.5-flash"
+      ],
+      "reviewer_or_source": "claude-sonnet-4-6+gemini-3.5-flash",
+      "status": "verified"
+    },
+    {
+      "candidate_id": "case-s44318-023-00005-0-figure1-panelh-513248c811f2",
+      "curation_status": "verified",
+      "evidence_ref": "review:95245546aa29d6497c41b9e5729c31e98132beb27a1100e0d5285e0efacbfc21",
+      "evidence_type": "external_validation",
+      "experiment_case": {
+        "case_id": "case-s44318-023-00005-0-figure1-panelh-513248c811f2",
+        "chart_family": "scatter",
+        "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_content/s44318-023-00005-0/source_data/44318_2023_5_MOESM3_ESM_Figurw1-H.xlsx",
+        "evaluation_expectation": {
+          "panel_groups": [],
+          "panels": [
+            {
+              "axis_index": 0,
+              "panel_id": "h",
+              "series": [
+                {
+                  "kind": "scatter",
+                  "series_id": "rate",
+                  "x": "[ATP]",
+                  "y": "rate"
+                }
+              ],
+              "x_scale": "linear",
+              "x_unit": "ATP"
+            }
+          ],
+          "schema_version": "1.1.0"
+        },
+        "intent": {
+          "series": [
+            "rate"
+          ],
+          "units": {
+            "[ATP]": "ATP"
+          },
+          "x": "[ATP]",
+          "x_scale": "linear",
+          "y": "rate"
+        },
+        "panel_count": 1,
+        "panel_id": "h",
+        "panels": [
+          {
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_content/s44318-023-00005-0/source_data/44318_2023_5_MOESM3_ESM_Figurw1-H.xlsx",
+            "panel_id": "h",
+            "sheet": "Fig1-H",
+            "user_goal": "Create a scatter plot for Figure 1H showing `rate` against `[ATP]`."
+          }
+        ],
+        "sheet": "Fig1-H",
+        "split": null,
+        "user_goal": "Create a scatter plot for Figure 1H showing `rate` against `[ATP]`."
+      },
+      "review_hash": "95245546aa29d6497c41b9e5729c31e98132beb27a1100e0d5285e0efacbfc21",
+      "review_models": [
+        "claude-sonnet-4-6",
+        "gemini-3.5-flash"
+      ],
+      "reviewer_or_source": "claude-sonnet-4-6+gemini-3.5-flash",
+      "status": "verified"
+    },
+    {
+      "candidate_id": "case-s44318-024-00257-4-figure4-panelc-quantification-ffa87b7c7480",
+      "curation_status": "verified",
+      "evidence_ref": "review:e04798797d1c889524d66478a71b081a2f196535e3deb1df8da1f5dd95dd5bfb",
+      "evidence_type": "external_validation",
+      "experiment_case": {
+        "case_id": "case-s44318-024-00257-4-figure4-panelc-quantification-ffa87b7c7480",
+        "chart_family": "scatter",
+        "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_content/s44318-024-00257-4/source_data/44318_2024_257_MOESM11_ESM_Figure 4C quantification.xlsx",
+        "evaluation_expectation": {
+          "panel_groups": [],
+          "panels": [
+            {
+              "axis_index": 0,
+              "panel_id": "c",
+              "series": [
+                {
+                  "kind": "scatter",
+                  "series_id": "__wide_value__",
+                  "x": "__wide_group__",
+                  "y": "__wide_value__"
+                }
+              ],
+              "x_scale": "linear"
+            }
+          ],
+          "schema_version": "1.1.0"
+        },
+        "intent": {
+          "binding_mode": "wide_melt",
+          "series": [
+            "__wide_value__"
+          ],
+          "units": {},
+          "wide_melt": {
+            "dropped_index_columns": [],
+            "group_column": "__wide_group__",
+            "source_value_columns": [
+              "TEAD4   +DNA",
+              "VGLL4  +TEAD4+DNA"
+            ],
+            "value_column": "__wide_value__"
+          },
+          "x": "__wide_group__",
+          "x_scale": "categorical",
+          "y": "__wide_value__"
+        },
+        "panel_count": 1,
+        "panel_id": "c",
+        "panels": [
+          {
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_content/s44318-024-00257-4/source_data/44318_2024_257_MOESM11_ESM_Figure 4C quantification.xlsx",
+            "panel_id": "c",
+            "sheet": "Sheet1",
+            "user_goal": "Create a scatter plot for Figure 4C showing values grouped by the source-table column headers `TEAD4   +DNA`, `VGLL4  +TEAD4+DNA`."
+          }
+        ],
+        "sheet": "Sheet1",
+        "split": null,
+        "user_goal": "Create a scatter plot for Figure 4C showing values grouped by the source-table column headers `TEAD4   +DNA`, `VGLL4  +TEAD4+DNA`."
+      },
+      "review_hash": "e04798797d1c889524d66478a71b081a2f196535e3deb1df8da1f5dd95dd5bfb",
+      "review_models": [
+        "claude-sonnet-4-6",
+        "gemini-3.5-flash"
+      ],
+      "reviewer_or_source": "claude-sonnet-4-6+gemini-3.5-flash",
+      "status": "verified"
+    },
+    {
+      "candidate_id": "case-s44318-025-00395-3-figure2-panela-882262b318b9",
+      "curation_status": "verified",
+      "evidence_ref": "review:35e3f381667d2ed1efa3d30743a02d82f3cb0f76a8ed65f0eb2f1480ae9d140a",
+      "evidence_type": "external_validation",
+      "experiment_case": {
+        "case_id": "case-s44318-025-00395-3-figure2-panela-882262b318b9",
+        "chart_family": "scatter",
+        "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_content/s44318-025-00395-3/source_data/44318_2025_395_MOESM4_ESM_Figure 2A.xlsx",
+        "evaluation_expectation": {
+          "panel_groups": [],
+          "panels": [
+            {
+              "axis_index": 0,
+              "panel_id": "a",
+              "series": [
+                {
+                  "kind": "scatter",
+                  "series_id": "ATP",
+                  "x": "Molar ratio (Nucleotide/UCP)",
+                  "y": "ATP"
+                }
+              ],
+              "x_scale": "linear",
+              "x_unit": "Nucleotide/UCP"
+            }
+          ],
+          "schema_version": "1.1.0"
+        },
+        "intent": {
+          "series": [
+            "ATP"
+          ],
+          "units": {
+            "Molar ratio (Nucleotide/UCP)": "Nucleotide/UCP"
+          },
+          "x": "Molar ratio (Nucleotide/UCP)",
+          "x_scale": "linear",
+          "y": "ATP"
+        },
+        "panel_count": 1,
+        "panel_id": "a",
+        "panels": [
+          {
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_content/s44318-025-00395-3/source_data/44318_2025_395_MOESM4_ESM_Figure 2A.xlsx",
+            "panel_id": "a",
+            "sheet": "Figure 2A",
+            "user_goal": "Create a scatter plot for Figure 2A showing `ATP` against `Molar ratio (Nucleotide/UCP)`."
+          }
+        ],
+        "sheet": "Figure 2A",
+        "split": null,
+        "user_goal": "Create a scatter plot for Figure 2A showing `ATP` against `Molar ratio (Nucleotide/UCP)`."
+      },
+      "review_hash": "35e3f381667d2ed1efa3d30743a02d82f3cb0f76a8ed65f0eb2f1480ae9d140a",
+      "review_models": [
+        "claude-sonnet-4-6",
+        "gemini-3.5-flash"
+      ],
+      "reviewer_or_source": "claude-sonnet-4-6+gemini-3.5-flash",
+      "status": "verified"
+    },
+    {
+      "candidate_id": "case-s44318-025-00395-3-figure2-panelb-b496cfe50b1c",
+      "curation_status": "verified",
+      "evidence_ref": "review:315136a78a7ebaf19b2905ff467bbf552d6385acf9110e6072f88ce6b2b589c7",
+      "evidence_type": "external_validation",
+      "experiment_case": {
+        "case_id": "case-s44318-025-00395-3-figure2-panelb-b496cfe50b1c",
+        "chart_family": "scatter",
+        "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_content/s44318-025-00395-3/source_data/44318_2025_395_MOESM4_ESM_Figure 2B.xlsx",
+        "evaluation_expectation": {
+          "panel_groups": [],
+          "panels": [
+            {
+              "axis_index": 0,
+              "panel_id": "b",
+              "series": [
+                {
+                  "kind": "scatter",
+                  "series_id": "CTP",
+                  "x": "Molar ratio (Nucleotide/UCP)",
+                  "y": "CTP"
+                }
+              ],
+              "x_scale": "linear",
+              "x_unit": "Nucleotide/UCP"
+            }
+          ],
+          "schema_version": "1.1.0"
+        },
+        "intent": {
+          "series": [
+            "CTP"
+          ],
+          "units": {
+            "Molar ratio (Nucleotide/UCP)": "Nucleotide/UCP"
+          },
+          "x": "Molar ratio (Nucleotide/UCP)",
+          "x_scale": "linear",
+          "y": "CTP"
+        },
+        "panel_count": 1,
+        "panel_id": "b",
+        "panels": [
+          {
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_content/s44318-025-00395-3/source_data/44318_2025_395_MOESM4_ESM_Figure 2B.xlsx",
+            "panel_id": "b",
+            "sheet": "Figure 2B",
+            "user_goal": "Create a scatter plot for Figure 2B showing `CTP` against `Molar ratio (Nucleotide/UCP)`."
+          }
+        ],
+        "sheet": "Figure 2B",
+        "split": null,
+        "user_goal": "Create a scatter plot for Figure 2B showing `CTP` against `Molar ratio (Nucleotide/UCP)`."
+      },
+      "review_hash": "315136a78a7ebaf19b2905ff467bbf552d6385acf9110e6072f88ce6b2b589c7",
+      "review_models": [
+        "claude-sonnet-4-6",
+        "gemini-3.5-flash"
+      ],
+      "reviewer_or_source": "claude-sonnet-4-6+gemini-3.5-flash",
+      "status": "verified"
+    },
+    {
+      "candidate_id": "case-s44318-025-00395-3-figure2-panelc-b30a2b1b83fe",
+      "curation_status": "verified",
+      "evidence_ref": "review:4cf3322b7ce3c67f6e6c20f70418248f0edc992f6941fc65d79d1004efa01527",
+      "evidence_type": "external_validation",
+      "experiment_case": {
+        "case_id": "case-s44318-025-00395-3-figure2-panelc-b30a2b1b83fe",
+        "chart_family": "scatter",
+        "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_content/s44318-025-00395-3/source_data/44318_2025_395_MOESM4_ESM_Figure 2C.xlsx",
+        "evaluation_expectation": {
+          "panel_groups": [],
+          "panels": [
+            {
+              "axis_index": 0,
+              "panel_id": "c",
+              "series": [
+                {
+                  "kind": "scatter",
+                  "series_id": "GTP",
+                  "x": "Molar ratio (Nucleotide/UCP)",
+                  "y": "GTP"
+                }
+              ],
+              "x_scale": "linear",
+              "x_unit": "Nucleotide/UCP"
+            }
+          ],
+          "schema_version": "1.1.0"
+        },
+        "intent": {
+          "series": [
+            "GTP"
+          ],
+          "units": {
+            "Molar ratio (Nucleotide/UCP)": "Nucleotide/UCP"
+          },
+          "x": "Molar ratio (Nucleotide/UCP)",
+          "x_scale": "linear",
+          "y": "GTP"
+        },
+        "panel_count": 1,
+        "panel_id": "c",
+        "panels": [
+          {
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_content/s44318-025-00395-3/source_data/44318_2025_395_MOESM4_ESM_Figure 2C.xlsx",
+            "panel_id": "c",
+            "sheet": "Figure 2C",
+            "user_goal": "Create a scatter plot for Figure 2C showing `GTP` against `Molar ratio (Nucleotide/UCP)`."
+          }
+        ],
+        "sheet": "Figure 2C",
+        "split": null,
+        "user_goal": "Create a scatter plot for Figure 2C showing `GTP` against `Molar ratio (Nucleotide/UCP)`."
+      },
+      "review_hash": "4cf3322b7ce3c67f6e6c20f70418248f0edc992f6941fc65d79d1004efa01527",
+      "review_models": [
+        "claude-sonnet-4-6",
+        "gemini-3.5-flash"
+      ],
+      "reviewer_or_source": "claude-sonnet-4-6+gemini-3.5-flash",
+      "status": "verified"
+    },
+    {
+      "candidate_id": "case-s44318-025-00395-3-figure2-paneld-e01954d84e68",
+      "curation_status": "verified",
+      "evidence_ref": "review:5ff62b99fd143820596845ce2780c18254090ca7454791a0e9956deecbeeeee8",
+      "evidence_type": "external_validation",
+      "experiment_case": {
+        "case_id": "case-s44318-025-00395-3-figure2-paneld-e01954d84e68",
+        "chart_family": "scatter",
+        "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_content/s44318-025-00395-3/source_data/44318_2025_395_MOESM4_ESM_Figure 2D.xlsx",
+        "evaluation_expectation": {
+          "panel_groups": [],
+          "panels": [
+            {
+              "axis_index": 0,
+              "panel_id": "d",
+              "series": [
+                {
+                  "kind": "scatter",
+                  "series_id": "dTTP",
+                  "x": "Molar ratio (Nucleotide/UCP)",
+                  "y": "dTTP"
+                }
+              ],
+              "x_scale": "linear",
+              "x_unit": "Nucleotide/UCP"
+            }
+          ],
+          "schema_version": "1.1.0"
+        },
+        "intent": {
+          "series": [
+            "dTTP"
+          ],
+          "units": {
+            "Molar ratio (Nucleotide/UCP)": "Nucleotide/UCP"
+          },
+          "x": "Molar ratio (Nucleotide/UCP)",
+          "x_scale": "linear",
+          "y": "dTTP"
+        },
+        "panel_count": 1,
+        "panel_id": "d",
+        "panels": [
+          {
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_content/s44318-025-00395-3/source_data/44318_2025_395_MOESM4_ESM_Figure 2D.xlsx",
+            "panel_id": "d",
+            "sheet": "Figure 2D",
+            "user_goal": "Create a scatter plot for Figure 2D showing `dTTP` against `Molar ratio (Nucleotide/UCP)`."
+          }
+        ],
+        "sheet": "Figure 2D",
+        "split": null,
+        "user_goal": "Create a scatter plot for Figure 2D showing `dTTP` against `Molar ratio (Nucleotide/UCP)`."
+      },
+      "review_hash": "5ff62b99fd143820596845ce2780c18254090ca7454791a0e9956deecbeeeee8",
+      "review_models": [
+        "claude-sonnet-4-6",
+        "gemini-3.5-flash"
+      ],
+      "reviewer_or_source": "claude-sonnet-4-6+gemini-3.5-flash",
+      "status": "verified"
+    },
+    {
+      "candidate_id": "case-s44318-025-00395-3-figure2-panele-e77c7dbe63a2",
+      "curation_status": "verified",
+      "evidence_ref": "review:c98754112e3cbbd5a19adbb7acbfb53eec766d3b084aab77f4dc228d8cc80cda",
+      "evidence_type": "external_validation",
+      "experiment_case": {
+        "case_id": "case-s44318-025-00395-3-figure2-panele-e77c7dbe63a2",
+        "chart_family": "scatter",
+        "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_content/s44318-025-00395-3/source_data/44318_2025_395_MOESM4_ESM_Figure 2E.xlsx",
+        "evaluation_expectation": {
+          "panel_groups": [],
+          "panels": [
+            {
+              "axis_index": 0,
+              "panel_id": "e",
+              "series": [
+                {
+                  "kind": "scatter",
+                  "series_id": "UTP",
+                  "x": "Molar ratio (Nucleotide/UCP)",
+                  "y": "UTP"
+                }
+              ],
+              "x_scale": "linear",
+              "x_unit": "Nucleotide/UCP"
+            }
+          ],
+          "schema_version": "1.1.0"
+        },
+        "intent": {
+          "series": [
+            "UTP"
+          ],
+          "units": {
+            "Molar ratio (Nucleotide/UCP)": "Nucleotide/UCP"
+          },
+          "x": "Molar ratio (Nucleotide/UCP)",
+          "x_scale": "linear",
+          "y": "UTP"
+        },
+        "panel_count": 1,
+        "panel_id": "e",
+        "panels": [
+          {
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_content/s44318-025-00395-3/source_data/44318_2025_395_MOESM4_ESM_Figure 2E.xlsx",
+            "panel_id": "e",
+            "sheet": "Figure 2E",
+            "user_goal": "Create a scatter plot for Figure 2E showing `UTP` against `Molar ratio (Nucleotide/UCP)`."
+          }
+        ],
+        "sheet": "Figure 2E",
+        "split": null,
+        "user_goal": "Create a scatter plot for Figure 2E showing `UTP` against `Molar ratio (Nucleotide/UCP)`."
+      },
+      "review_hash": "c98754112e3cbbd5a19adbb7acbfb53eec766d3b084aab77f4dc228d8cc80cda",
+      "review_models": [
+        "claude-sonnet-4-6",
+        "gemini-3.5-flash"
+      ],
+      "reviewer_or_source": "claude-sonnet-4-6+gemini-3.5-flash",
+      "status": "verified"
+    },
+    {
+      "candidate_id": "case-s44319-024-00227-1-figure10-panelh-9a01fd4cace0",
+      "curation_status": "verified",
+      "evidence_ref": "review:109fc754a161c43affa4f82b104cf5a180abc399be84587a76d457e0e2b6932d",
+      "evidence_type": "external_validation",
+      "experiment_case": {
+        "case_id": "case-s44319-024-00227-1-figure10-panelh-9a01fd4cace0",
+        "chart_family": "bar",
+        "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_content/s44319-024-00227-1/source_data/44319_2024_227_MOESM13_ESM_Fig. 10B-E G-J.xlsx",
+        "evaluation_expectation": {
+          "panel_groups": [],
+          "panels": [
+            {
+              "axis_index": 0,
+              "panel_id": "h",
+              "series": [
+                {
+                  "kind": "bar",
+                  "series_id": "MyoG (% of DM CNT)",
+                  "x": "Sample",
+                  "y": "MyoG (% of DM CNT)"
+                }
+              ],
+              "x_scale": "linear",
+              "y_unit": "% of DM CNT"
+            }
+          ],
+          "schema_version": "1.1.0"
+        },
+        "intent": {
+          "series": [
+            "MyoG (% of DM CNT)"
+          ],
+          "units": {
+            "MyoG (% of DM CNT)": "% of DM CNT"
+          },
+          "x": "Sample",
+          "x_scale": "categorical",
+          "y": "MyoG (% of DM CNT)"
+        },
+        "panel_count": 1,
+        "panel_id": "h",
+        "panels": [
+          {
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_content/s44319-024-00227-1/source_data/44319_2024_227_MOESM13_ESM_Fig. 10B-E G-J.xlsx",
+            "panel_id": "h",
+            "sheet": "Fig. 10H",
+            "user_goal": "Create a bar chart for Figure 10H showing `MyoG (% of DM CNT)` against `Sample`."
+          }
+        ],
+        "sheet": "Fig. 10H",
+        "split": null,
+        "user_goal": "Create a bar chart for Figure 10H showing `MyoG (% of DM CNT)` against `Sample`."
+      },
+      "review_hash": "109fc754a161c43affa4f82b104cf5a180abc399be84587a76d457e0e2b6932d",
+      "review_models": [
+        "claude-sonnet-4-6",
+        "gemini-3.5-flash"
+      ],
+      "reviewer_or_source": "claude-sonnet-4-6+gemini-3.5-flash",
+      "status": "verified"
+    },
+    {
+      "candidate_id": "case-s44321-024-00128-9-figure2-paneln-a9ce7b81af3f",
+      "curation_status": "verified",
+      "evidence_ref": "review:dc647dfa20dc9bdfba945ebd6ae98acd47e582042f9304e2d077e14667031760",
+      "evidence_type": "external_validation",
+      "experiment_case": {
+        "case_id": "case-s44321-024-00128-9-figure2-paneln-a9ce7b81af3f",
+        "chart_family": "scatter",
+        "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_content/s44321-024-00128-9/source_data/44321_2024_128_MOESM4_ESM_figure 2N.xlsx",
+        "evaluation_expectation": {
+          "panel_groups": [],
+          "panels": [
+            {
+              "axis_index": 0,
+              "panel_id": "n",
+              "series": [
+                {
+                  "kind": "scatter",
+                  "series_id": "__wide_value__",
+                  "x": "__wide_group__",
+                  "y": "__wide_value__"
+                }
+              ],
+              "x_scale": "linear"
+            }
+          ],
+          "schema_version": "1.1.0"
+        },
+        "intent": {
+          "binding_mode": "wide_melt",
+          "series": [
+            "__wide_value__"
+          ],
+          "units": {},
+          "wide_melt": {
+            "dropped_index_columns": [],
+            "group_column": "__wide_group__",
+            "source_value_columns": [
+              "WT",
+              "WT+EV71",
+              "IL-25-/-",
+              "IL-25-/-+EV71"
+            ],
+            "value_column": "__wide_value__"
+          },
+          "x": "__wide_group__",
+          "x_scale": "categorical",
+          "y": "__wide_value__"
+        },
+        "panel_count": 1,
+        "panel_id": "n",
+        "panels": [
+          {
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_content/s44321-024-00128-9/source_data/44321_2024_128_MOESM4_ESM_figure 2N.xlsx",
+            "panel_id": "n",
+            "sheet": "figure 2N",
+            "user_goal": "Create a scatter plot for Figure 2N showing values grouped by the source-table column headers `WT`, `WT+EV71`, `IL-25-/-`, `IL-25-/-+EV71`."
+          }
+        ],
+        "sheet": "figure 2N",
+        "split": null,
+        "user_goal": "Create a scatter plot for Figure 2N showing values grouped by the source-table column headers `WT`, `WT+EV71`, `IL-25-/-`, `IL-25-/-+EV71`."
+      },
+      "review_hash": "dc647dfa20dc9bdfba945ebd6ae98acd47e582042f9304e2d077e14667031760",
+      "review_models": [
+        "claude-sonnet-4-6",
+        "gemini-3.5-flash"
+      ],
+      "reviewer_or_source": "claude-sonnet-4-6+gemini-3.5-flash",
+      "status": "verified"
+    },
+    {
+      "candidate_id": "multi-s44318-023-00005-0-figure1-3cee9e001bcd",
+      "curation_status": "verified",
+      "evidence_ref": "review:4c108c6fe7a14a3aeb2eb25b092d15919a7e8eba67cea216114bfe6d2c4520b2",
+      "evidence_type": "external_validation",
+      "experiment_case": {
+        "case_id": "multi-s44318-023-00005-0-figure1-3cee9e001bcd",
+        "chart_family": "multi_panel",
+        "evaluation_expectation": {
+          "panel_groups": [
+            {
+              "checks": {
+                "palette_consistent": true,
+                "shared_x_scale": true
+              },
+              "group_id": "all_panels",
+              "panels": [
+                "g",
+                "h"
+              ],
+              "series": [
+                "rate"
+              ]
+            }
+          ],
+          "panels": [
+            {
+              "axis_index": 0,
+              "panel_id": "g",
+              "series": [
+                {
+                  "kind": "scatter",
+                  "series_id": "rate",
+                  "x": "[IP6 (µM)",
+                  "y": "rate"
+                }
+              ],
+              "x_scale": "linear",
+              "x_unit": "µM"
+            },
+            {
+              "axis_index": 0,
+              "panel_id": "h",
+              "series": [
+                {
+                  "kind": "scatter",
+                  "series_id": "rate",
+                  "x": "[ATP]",
+                  "y": "rate"
+                }
+              ],
+              "x_scale": "linear",
+              "x_unit": "ATP"
+            }
+          ],
+          "schema_version": "1.1.0"
+        },
+        "intent": {
+          "panels": [
+            {
+              "panel_id": "g",
+              "series": [
+                "rate"
+              ],
+              "units": {
+                "[IP6 (µM)": "µM"
+              },
+              "x": "[IP6 (µM)",
+              "x_scale": "linear",
+              "y": "rate"
+            },
+            {
+              "panel_id": "h",
+              "series": [
+                "rate"
+              ],
+              "units": {
+                "[ATP]": "ATP"
+              },
+              "x": "[ATP]",
+              "x_scale": "linear",
+              "y": "rate"
+            }
+          ]
+        },
+        "panel_count": 2,
+        "panels": [
+          {
+            "chart_family": "scatter",
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_content/s44318-023-00005-0/source_data/44318_2023_5_MOESM3_ESM_Figure1-G.xlsx",
+            "id": "g",
+            "intent": {
+              "series": [
+                "rate"
+              ],
+              "units": {
+                "[IP6 (µM)": "µM"
+              },
+              "x": "[IP6 (µM)",
+              "x_scale": "linear",
+              "y": "rate"
+            },
+            "sheet": "Fig1-G",
+            "user_goal": "Create a scatter plot for Figure 1G showing `rate` against `[IP6 (µM)`."
+          },
+          {
+            "chart_family": "scatter",
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_content/s44318-023-00005-0/source_data/44318_2023_5_MOESM3_ESM_Figurw1-H.xlsx",
+            "id": "h",
+            "intent": {
+              "series": [
+                "rate"
+              ],
+              "units": {
+                "[ATP]": "ATP"
+              },
+              "x": "[ATP]",
+              "x_scale": "linear",
+              "y": "rate"
+            },
+            "sheet": "Fig1-H",
+            "user_goal": "Create a scatter plot for Figure 1H showing `rate` against `[ATP]`."
+          }
+        ],
+        "split": null,
+        "user_goal": "Create a 2-panel Figure 1 using the proposed panel-specific charts."
+      },
+      "review_hash": "4c108c6fe7a14a3aeb2eb25b092d15919a7e8eba67cea216114bfe6d2c4520b2",
+      "review_models": [
+        "claude-sonnet-4-6",
+        "gemini-3.5-flash"
+      ],
+      "reviewer_or_source": "claude-sonnet-4-6+gemini-3.5-flash",
+      "status": "verified"
+    },
+    {
+      "candidate_id": "multi-s44318-025-00395-3-figure2-8d8836088d2b",
+      "curation_status": "verified",
+      "evidence_ref": "review:7afbce6375bab76637dbb7972b08b5d94208928f735b59691b478cf4da8c4ce9",
+      "evidence_type": "external_validation",
+      "experiment_case": {
+        "case_id": "multi-s44318-025-00395-3-figure2-8d8836088d2b",
+        "chart_family": "multi_panel",
+        "evaluation_expectation": {
+          "panel_groups": [
+            {
+              "checks": {
+                "shared_x_scale": true,
+                "shared_x_unit": true
+              },
+              "group_id": "all_panels",
+              "panels": [
+                "a",
+                "b",
+                "c",
+                "d",
+                "e"
+              ]
+            }
+          ],
+          "panels": [
+            {
+              "axis_index": 0,
+              "panel_id": "a",
+              "series": [
+                {
+                  "kind": "scatter",
+                  "series_id": "ATP",
+                  "x": "Molar ratio (Nucleotide/UCP)",
+                  "y": "ATP"
+                }
+              ],
+              "x_scale": "linear",
+              "x_unit": "Nucleotide/UCP"
+            },
+            {
+              "axis_index": 0,
+              "panel_id": "b",
+              "series": [
+                {
+                  "kind": "scatter",
+                  "series_id": "CTP",
+                  "x": "Molar ratio (Nucleotide/UCP)",
+                  "y": "CTP"
+                }
+              ],
+              "x_scale": "linear",
+              "x_unit": "Nucleotide/UCP"
+            },
+            {
+              "axis_index": 0,
+              "panel_id": "c",
+              "series": [
+                {
+                  "kind": "scatter",
+                  "series_id": "GTP",
+                  "x": "Molar ratio (Nucleotide/UCP)",
+                  "y": "GTP"
+                }
+              ],
+              "x_scale": "linear",
+              "x_unit": "Nucleotide/UCP"
+            },
+            {
+              "axis_index": 0,
+              "panel_id": "d",
+              "series": [
+                {
+                  "kind": "scatter",
+                  "series_id": "dTTP",
+                  "x": "Molar ratio (Nucleotide/UCP)",
+                  "y": "dTTP"
+                }
+              ],
+              "x_scale": "linear",
+              "x_unit": "Nucleotide/UCP"
+            },
+            {
+              "axis_index": 0,
+              "panel_id": "e",
+              "series": [
+                {
+                  "kind": "scatter",
+                  "series_id": "UTP",
+                  "x": "Molar ratio (Nucleotide/UCP)",
+                  "y": "UTP"
+                }
+              ],
+              "x_scale": "linear",
+              "x_unit": "Nucleotide/UCP"
+            }
+          ],
+          "schema_version": "1.1.0"
+        },
+        "intent": {
+          "panels": [
+            {
+              "panel_id": "a",
+              "series": [
+                "ATP"
+              ],
+              "units": {
+                "Molar ratio (Nucleotide/UCP)": "Nucleotide/UCP"
+              },
+              "x": "Molar ratio (Nucleotide/UCP)",
+              "x_scale": "linear",
+              "y": "ATP"
+            },
+            {
+              "panel_id": "b",
+              "series": [
+                "CTP"
+              ],
+              "units": {
+                "Molar ratio (Nucleotide/UCP)": "Nucleotide/UCP"
+              },
+              "x": "Molar ratio (Nucleotide/UCP)",
+              "x_scale": "linear",
+              "y": "CTP"
+            },
+            {
+              "panel_id": "c",
+              "series": [
+                "GTP"
+              ],
+              "units": {
+                "Molar ratio (Nucleotide/UCP)": "Nucleotide/UCP"
+              },
+              "x": "Molar ratio (Nucleotide/UCP)",
+              "x_scale": "linear",
+              "y": "GTP"
+            },
+            {
+              "panel_id": "d",
+              "series": [
+                "dTTP"
+              ],
+              "units": {
+                "Molar ratio (Nucleotide/UCP)": "Nucleotide/UCP"
+              },
+              "x": "Molar ratio (Nucleotide/UCP)",
+              "x_scale": "linear",
+              "y": "dTTP"
+            },
+            {
+              "panel_id": "e",
+              "series": [
+                "UTP"
+              ],
+              "units": {
+                "Molar ratio (Nucleotide/UCP)": "Nucleotide/UCP"
+              },
+              "x": "Molar ratio (Nucleotide/UCP)",
+              "x_scale": "linear",
+              "y": "UTP"
+            }
+          ]
+        },
+        "panel_count": 5,
+        "panels": [
+          {
+            "chart_family": "scatter",
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_content/s44318-025-00395-3/source_data/44318_2025_395_MOESM4_ESM_Figure 2A.xlsx",
+            "id": "a",
+            "intent": {
+              "series": [
+                "ATP"
+              ],
+              "units": {
+                "Molar ratio (Nucleotide/UCP)": "Nucleotide/UCP"
+              },
+              "x": "Molar ratio (Nucleotide/UCP)",
+              "x_scale": "linear",
+              "y": "ATP"
+            },
+            "sheet": "Figure 2A",
+            "user_goal": "Create a scatter plot for Figure 2A showing `ATP` against `Molar ratio (Nucleotide/UCP)`."
+          },
+          {
+            "chart_family": "scatter",
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_content/s44318-025-00395-3/source_data/44318_2025_395_MOESM4_ESM_Figure 2B.xlsx",
+            "id": "b",
+            "intent": {
+              "series": [
+                "CTP"
+              ],
+              "units": {
+                "Molar ratio (Nucleotide/UCP)": "Nucleotide/UCP"
+              },
+              "x": "Molar ratio (Nucleotide/UCP)",
+              "x_scale": "linear",
+              "y": "CTP"
+            },
+            "sheet": "Figure 2B",
+            "user_goal": "Create a scatter plot for Figure 2B showing `CTP` against `Molar ratio (Nucleotide/UCP)`."
+          },
+          {
+            "chart_family": "scatter",
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_content/s44318-025-00395-3/source_data/44318_2025_395_MOESM4_ESM_Figure 2C.xlsx",
+            "id": "c",
+            "intent": {
+              "series": [
+                "GTP"
+              ],
+              "units": {
+                "Molar ratio (Nucleotide/UCP)": "Nucleotide/UCP"
+              },
+              "x": "Molar ratio (Nucleotide/UCP)",
+              "x_scale": "linear",
+              "y": "GTP"
+            },
+            "sheet": "Figure 2C",
+            "user_goal": "Create a scatter plot for Figure 2C showing `GTP` against `Molar ratio (Nucleotide/UCP)`."
+          },
+          {
+            "chart_family": "scatter",
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_content/s44318-025-00395-3/source_data/44318_2025_395_MOESM4_ESM_Figure 2D.xlsx",
+            "id": "d",
+            "intent": {
+              "series": [
+                "dTTP"
+              ],
+              "units": {
+                "Molar ratio (Nucleotide/UCP)": "Nucleotide/UCP"
+              },
+              "x": "Molar ratio (Nucleotide/UCP)",
+              "x_scale": "linear",
+              "y": "dTTP"
+            },
+            "sheet": "Figure 2D",
+            "user_goal": "Create a scatter plot for Figure 2D showing `dTTP` against `Molar ratio (Nucleotide/UCP)`."
+          },
+          {
+            "chart_family": "scatter",
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_content/s44318-025-00395-3/source_data/44318_2025_395_MOESM4_ESM_Figure 2E.xlsx",
+            "id": "e",
+            "intent": {
+              "series": [
+                "UTP"
+              ],
+              "units": {
+                "Molar ratio (Nucleotide/UCP)": "Nucleotide/UCP"
+              },
+              "x": "Molar ratio (Nucleotide/UCP)",
+              "x_scale": "linear",
+              "y": "UTP"
+            },
+            "sheet": "Figure 2E",
+            "user_goal": "Create a scatter plot for Figure 2E showing `UTP` against `Molar ratio (Nucleotide/UCP)`."
+          }
+        ],
+        "split": null,
+        "user_goal": "Create a 5-panel Figure 2 using the proposed panel-specific charts."
+      },
+      "review_hash": "7afbce6375bab76637dbb7972b08b5d94208928f735b59691b478cf4da8c4ce9",
+      "review_models": [
+        "claude-sonnet-4-6",
+        "gemini-3.5-flash"
+      ],
+      "reviewer_or_source": "claude-sonnet-4-6+gemini-3.5-flash",
+      "status": "verified"
+    }
+  ]
+}

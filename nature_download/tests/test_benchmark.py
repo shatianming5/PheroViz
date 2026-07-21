@@ -9,6 +9,7 @@ import pytest
 from nature_download.corpus.benchmark import (
     BenchmarkBuildError,
     _validate_canonical_single_proposal,
+    _validate_source_location,
     assemble_verified_benchmark,
     derive_multi_review_batch,
     write_benchmark_outputs,
@@ -180,6 +181,30 @@ def _manifest_fixture(tmp_path: Path) -> Path:
     path = tmp_path / "corpus_manifest.jsonl"
     path.write_text('{"download_eligible":true}\n', encoding="utf-8")
     return path
+
+
+def test_exploratory_normalizer_source_is_forbidden_for_benchmark(
+    tmp_path: Path,
+) -> None:
+    normalizer_dir = tmp_path / "exploratory_normalizer"
+    normalizer_dir.mkdir()
+    source_path = normalizer_dir / "table.csv"
+    source_path.write_text("Category,Value\nA,1\n", encoding="utf-8")
+
+    with pytest.raises(
+        BenchmarkBuildError,
+        match="candidate-exploratory-normalizer-forbidden:case-a",
+    ):
+        _validate_source_location(
+            {
+                "path": str(source_path),
+                "relative_path": "exploratory_normalizer/table.csv",
+                "path_root": "content_root",
+                "format": "csv",
+            },
+            case_summary={"content_root": str(tmp_path)},
+            candidate_id="case-a",
+        )
 
 
 def test_verified_benchmark_is_doi_disjoint_and_sealed(tmp_path: Path) -> None:

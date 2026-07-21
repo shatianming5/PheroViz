@@ -44,7 +44,7 @@ INPUTS = (
         "full supplied strict batch; not the sealed C2 universe",
     ),
 )
-KNOWN_STALE_INPUTS = {
+KNOWN_STALE_PREDECESSORS_AT_FREEZE = {
     str(
         ROOT
         / "files/c2_reclassify_review/inputs/casecount_strict.proposed.jsonl"
@@ -126,14 +126,13 @@ def main() -> int:
             }
         )
 
-    stale = {
+    stale_predecessors_at_freeze = {
         path: {
-            "recorded_sha256": expected,
-            "current_sha256": sha256_file(Path(path))
-            if Path(path).is_file()
-            else None,
+            "sha256_observed_at_freeze": expected,
+            "path_requires_a_separate_hash_bound_review_manifest": True,
+            "not_a_live_path_hash_assertion": True,
         }
-        for path, expected in KNOWN_STALE_INPUTS.items()
+        for path, expected in KNOWN_STALE_PREDECESSORS_AT_FREEZE.items()
     }
     manifest = {
         "schema_version": "c2-v3-review-freeze-v1",
@@ -141,12 +140,15 @@ def main() -> int:
         "proposal_rule_version": "simple-2d-v3",
         "review_rubric_required": "proposal-external-validation-v3",
         "inputs": frozen_inputs,
-        "known_stale_predecessor_inputs": stale,
+        "known_stale_predecessor_inputs_at_freeze": stale_predecessors_at_freeze,
         "requires_fresh_review": True,
         "stale_review_or_evidence_reuse_forbidden": True,
         "integrity_note": (
             "This freeze copies and hash-binds current V3 proposal inputs only. "
             "It does not read review records, judge/model outputs, or evidence. "
+            "Predecessor-path hashes are historical observations made at freeze "
+            "creation and must never be interpreted as hashes of mutable paths "
+            "at a later time. "
             "Priority inputs are historic-reject-selected diagnostic subsets and "
             "cannot support a final sealed-C2 universe claim."
         ),

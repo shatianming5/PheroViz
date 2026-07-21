@@ -174,12 +174,30 @@ def _descriptor_identity(value: Any) -> dict[str, Any]:
     }
 
 
+def _uses_exploratory_normalizer(source_table: Mapping[str, Any]) -> bool:
+    if source_table.get("source_normalization") is not None:
+        return True
+    return any(
+        "exploratory_normalizer" in str(value).casefold()
+        for value in (
+            source_table.get("path"),
+            source_table.get("relative_path"),
+            source_table.get("path_root"),
+        )
+        if value is not None
+    )
+
+
 def _validate_source_location(
     source_table: Mapping[str, Any],
     *,
     case_summary: Mapping[str, Any],
     candidate_id: str,
 ) -> None:
+    if _uses_exploratory_normalizer(source_table):
+        raise BenchmarkBuildError(
+            f"candidate-exploratory-normalizer-forbidden:{candidate_id}"
+        )
     path_value = source_table.get("path")
     relative_value = source_table.get("relative_path")
     root_name = source_table.get("path_root")

@@ -1,0 +1,87 @@
+{
+  "controlled_live_input_binding": {
+    "binding_addendum": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/v3_controlled_live_input_binding_20260722T035556_0800.json",
+    "binding_addendum_file_sha256": "a330597b67f27da3acc7705fbfc73a8e095725ca32f88bcc421b9c2791235dec",
+    "binding_addendum_internal_sha256": "47823f16205ac8a785bc026f88829efcaba81c87eb707cf55a90f80b2176cc60",
+    "input_manifest": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/input_manifest.json",
+    "input_manifest_file_sha256": "9af7a8d2fc28d107caea93178ce21a8160a5611e0015acd0ba623107a6f62bde",
+    "input_manifest_sha256_sidecar": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/input_manifest.json.sha256",
+    "inputs": [
+      {
+        "byte_identical_to_frozen_v3_source": true,
+        "controlled_live_input": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/inputs/casecount_strict.proposed.jsonl",
+        "frozen_v3_source": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v3_20260722T024015_0800/priority_casecount_strict.proposed.jsonl",
+        "label": "casecount_strict",
+        "readonly": true,
+        "sha256": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49"
+      },
+      {
+        "byte_identical_to_frozen_v3_source": true,
+        "controlled_live_input": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/inputs/full_strict.proposed.jsonl",
+        "frozen_v3_source": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v3_20260722T024015_0800/priority_full_strict.proposed.jsonl",
+        "label": "full_strict",
+        "readonly": true,
+        "sha256": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131"
+      }
+    ],
+    "role": "the only controlled V3 live aliases; each fresh review record must bind this input-manifest hash and the matching frozen source hash"
+  },
+  "created_at_utc": "2026-07-21T20:07:12.303439+00:00",
+  "historical_predecessor_observations": {
+    "file_sha256": "316c521a9f0e6748d7085a59900f2c69b2e9bc5a1e342fe75d41bb87667b1f59",
+    "internal_sha256": "a5301a3628b9fd185fbc1d164e1f53bc3985be8faecfd901ad5ec136f4cf7f4f",
+    "observations": [
+      {
+        "controlled_replacement_sha256_observed_at_clarification": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49",
+        "former_live_alias": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/inputs/casecount_strict.proposed.jsonl",
+        "sha256_observed_at_original_v3_freeze": "485e36ca4e32be0e9b58a0327088301813928a47627c38518ee02fac3a32f353"
+      },
+      {
+        "controlled_replacement_sha256_observed_at_clarification": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131",
+        "former_live_alias": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/inputs/full_strict.proposed.jsonl",
+        "sha256_observed_at_original_v3_freeze": "f2b364455fa69d5360a5925b8fc2a9516f1c2da99e099e46c36b73cfdbf618d6"
+      }
+    ],
+    "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/v3_mutable_predecessor_path_clarification_20260722T035220_0800.json",
+    "semantics": "The 485e/f2b3 hashes are historical observations of predecessor aliases, not assertions about later controlled live aliases."
+  },
+  "integrity_note": "This addendum reads only manifests, frozen proposal files, paths, permissions, and SHA-256 values. It does not read review records, evidence, judge/model outputs, or use them for proposal labels.",
+  "live_alias_interpretation": "Historical 485e/f2b3 values are predecessor observations only. Current c3ea/737c aliases are controlled only through the listed input manifest and byte-identical frozen V3 sources.",
+  "manifest_sha256": "94ac1408cc34c8b0c555a5a28958ca517aa5c2e074c37477bfc8ca015ce6738e",
+  "named_readonly_input_mirror": {
+    "binding_manifest": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/frozen_v3_priority_review_inputs_20260722T035220_0800/input_binding_manifest.json",
+    "binding_manifest_file_sha256": "711496c0cf1946eb6c27dd3f16109ecb128f752f289c06b08c617fb1fc84ea3f",
+    "binding_manifest_internal_sha256": "ad6c061afd97d6e7ee2c762b46c81c463f7ff1e777c52fd56623a6782ae7d484",
+    "inputs": [
+      {
+        "byte_identical_to_frozen_v3_source": true,
+        "frozen_v3_source": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v3_20260722T024015_0800/priority_casecount_strict.proposed.jsonl",
+        "label": "casecount_strict",
+        "named_readonly_input": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/frozen_v3_priority_review_inputs_20260722T035220_0800/casecount_strict.proposed.jsonl",
+        "readonly": true,
+        "sha256": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49"
+      },
+      {
+        "byte_identical_to_frozen_v3_source": true,
+        "frozen_v3_source": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v3_20260722T024015_0800/priority_full_strict.proposed.jsonl",
+        "label": "full_strict",
+        "named_readonly_input": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/frozen_v3_priority_review_inputs_20260722T035220_0800/full_strict.proposed.jsonl",
+        "readonly": true,
+        "sha256": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131"
+      }
+    ],
+    "role": "immutable named audit mirror; fresh live review records remain bound to the controlled live input manifest below"
+  },
+  "new_review_binding_requirement": "Every new V3 review record must bind both the controlled live input-manifest file SHA-256 and its matching frozen V3 proposal source SHA-256. No alias path alone is a sufficient binding.",
+  "no_in_place_overwrite": true,
+  "prior_review_or_evidence_status": "rejected: all review/evidence records created before this final cross-bound addendum, including records bound to the 485e/f2b3 predecessor inputs, are stale and must not be reused",
+  "requires_fresh_review": true,
+  "schema_version": "c2-v3-final-review-input-binding-addendum-v1",
+  "sealed_status": "diagnostic_only_stale_v3_strict_scope",
+  "source_v3_freeze": {
+    "file_sha256": "dc20456275739af301ff8c9e61c26802eee7d1f690e3eb633d81ea42448a85d0",
+    "internal_sha256": "f2d7417a5df6171bc2dca24192fec2ae73fd0e5c372980d99ce57dfc8acf6999",
+    "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v3_20260722T024015_0800/freeze_manifest.json"
+  },
+  "stale_review_or_evidence_reuse_forbidden": true
+}

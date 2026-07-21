@@ -1,0 +1,39 @@
+{
+  "integrity_note": "V4 construction uses only original proposed records and their hash-bound source-table structure. No review/judge output is read. The raw P5 filter is structural/provenance-based and rejects all normalizer-backed components.",
+  "k62_status": {
+    "raw_p5plus_doi_clusters_available": 7,
+    "reason": "This direct raw materialized source contains only seven P5+ DOI clusters; it cannot establish the sealed K=62 gate.",
+    "required_independent_verified_p5plus_doi_clusters": 62,
+    "satisfied": false
+  },
+  "proposal_rule_version": "simple-2d-v4",
+  "raw_p5_pool": {
+    "component_source_ids": 55,
+    "eligible_for_experiment_true": 0,
+    "exploratory_normalizer_path_records": 0,
+    "independent_doi_clusters": 7,
+    "multi_panel_parents": 7,
+    "overlapping_component_source_ids": 0,
+    "proposed_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_raw_p5/reproposed_raw_p5_v4.jsonl",
+    "proposed_sha256": "4d0edd9bbb4e3a1883535b40867cdd383767155d8fb612ad1caaede2ec8bc6e2",
+    "records": 62,
+    "single_panels": 55,
+    "source_normalization_records": 0,
+    "source_table_path_roots": {
+      "content_root": 55
+    }
+  },
+  "report_sha256": "ebf3cdbff2afe73a9addb90e0ae938273461f61e29dd5a15152df85cecd06122",
+  "review_status": "not_reviewed_fresh_v4_review_required",
+  "schema_version": "c2-raw-p5-v4-reproposal-v1",
+  "source": {
+    "baseline_rule_versions": [
+      "simple-2d-v2"
+    ],
+    "materialization_census_hash_verified": true,
+    "materialization_census_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_widen_pool/materialization_census.json",
+    "materialization_census_sha256": "fcd8e989e0cb187421057cada54a6d47a7cafc00ffbd11274d8fdd350894ae6f",
+    "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_widen_pool/raw_materialized_strict_proposer/proposed.jsonl",
+    "sha256": "fd745e601578d1f2bfc3b53f4d937c7d817d4b066d15aae1e064473c4e9817e8"
+  }
+}

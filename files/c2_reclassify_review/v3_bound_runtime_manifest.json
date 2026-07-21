@@ -1,0 +1,11 @@
+{
+  "base_git_commit": "0d2defe64e3c8ea599a86421478aa037b88c11bb",
+  "patch": "files/c2_reclassify/proposals_v3.patch",
+  "patch_sha256": "605d4784c0424b1ba3f999da074b4814e75079ee1afad233c95356a75fd4df98",
+  "purpose": "Bound V3 canonical multi finalization after the shared worktree advanced to V4 during the live V3 jury run.",
+  "runtime_files": {
+    "nature_download/corpus/benchmark.py": "6ad0491250f379cc636e72f483247786e67fe16013ca6af65e55d0cfeb5583ae",
+    "nature_download/corpus/proposals.py": "36a97a9115089fba0ea50eecf7d5075a61a75ec5e93e9fccac88cba2de99e91e",
+    "nature_download/corpus/reviews.py": "a2001e5ba028f81d0120331c88ebc65b62b8ac5bed2a643273cf7fe83967e4ae"
+  }
+}

@@ -1,0 +1,502 @@
+{
+  "adjudication_triage": {
+    "non_content_operational_errors": [],
+    "note": "Gateway/model-call failures are unresolved operational errors, not content rejects. Model-output-schema-invalid is also reported separately rather than silently relabeled as a content rejection.",
+    "single_panel": {
+      "accepted": 24,
+      "content_rejected": 176,
+      "schema_invalid_unresolved": 3
+    }
+  },
+  "baseline": {
+    "aggregate_pass_rates": {
+      "multi_panel": {
+        "accepted": 6,
+        "pass_rate": 0.125,
+        "rejected": 42,
+        "reviewed": 48
+      },
+      "single_panel": {
+        "accepted": 65,
+        "pass_rate": 0.24253731343283583,
+        "rejected": 203,
+        "reviewed": 268
+      }
+    },
+    "former_single_rejects": 203,
+    "per_batch": {
+      "casecount_strict": {
+        "former_single_rejects": 127,
+        "pass_rates": {
+          "multi_panel": {
+            "accepted": 5,
+            "pass_rate": 0.15625,
+            "rejected": 27,
+            "reviewed": 32
+          },
+          "single_panel": {
+            "accepted": 41,
+            "pass_rate": 0.24404761904761904,
+            "rejected": 127,
+            "reviewed": 168
+          }
+        }
+      },
+      "full_strict": {
+        "former_single_rejects": 76,
+        "pass_rates": {
+          "multi_panel": {
+            "accepted": 1,
+            "pass_rate": 0.0625,
+            "rejected": 15,
+            "reviewed": 16
+          },
+          "single_panel": {
+            "accepted": 24,
+            "pass_rate": 0.24,
+            "rejected": 76,
+            "reviewed": 100
+          }
+        }
+      }
+    },
+    "verified_multi_dois": [
+      "10.1038/s44318-025-00510-4",
+      "10.1038/s44318-025-00634-7",
+      "10.1038/s44319-025-00373-0",
+      "10.7554/elife.95867",
+      "10.7554/elife.97860"
+    ],
+    "verified_multi_unique_doi_count_N": 5
+  },
+  "former_reject_to_accept": {
+    "accepted": 24,
+    "conversion_rate": 0.11822660098522167,
+    "former_rejects": 203,
+    "raw_review_status_counts": {
+      "accepted": 24,
+      "rejected": 179
+    }
+  },
+  "input": {
+    "partition_manifest": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/input_manifest.json",
+    "partition_manifest_sha256": "9af7a8d2fc28d107caea93178ce21a8160a5611e0015acd0ba623107a6f62bde",
+    "partitions": {
+      "casecount_strict": {
+        "input": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/inputs/casecount_strict.proposed.jsonl",
+        "input_sha256": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49",
+        "records": 147,
+        "review_hashes": {
+          "case-elife-25946-figure3-panelg-ded4af4ed3a3": "3b9a7304248033cf30e51a4cbdb6957185e0b541cdb288829d7659783254d2d5",
+          "case-elife-29307-figure2-panela-e30a36cfe4c0": "9b224e1f36e25e057afeae63ae1b695de3a12def60f286b3cba64f863e9ef80c",
+          "case-elife-29307-figure2-paneld-90302e0a81e2": "f8e4af8e307165ed8183d3dee46bccf429617465ffbf16c3d5228f4f73de1aff",
+          "case-elife-35458-figure4-panelc-optogenetics-3744420822fe": "0363b97ec299773a966fa570554019b929e4838ed91b38135c0bf3cac1534dc5",
+          "case-elife-49574-figure1-paneli-60674caf480a": "a0f7f75b7b2aa63644bc0da45091a1e59cf4fe934fe76250a30e33ae2c7a84c7",
+          "case-elife-49769-figure3-paneld-01ee0f85a8ee": "1a45170805f5899cd1188f86a43d80691e31c98f7fa159d1280a4c7e70fbbba3",
+          "case-elife-49769-figure3-panelg-03a4bc71d200": "1cdf15831c1bc9d2fd173bf2b65b49bc74bea28bb871d67cdf93afde4d7d70d7",
+          "case-elife-51998-figure3-panelg-38861df8ec4f": "f0577dacf61f5a786e3b5535330ed5a859dbd1e5bad298795d30337766bcfbbf",
+          "case-elife-60515-figure3-panelc-5d62a2ace1b0": "e3b2f583f6ebdc5836895e2d009b34a5a502cfee6da13cca3e5a7f16e69ae602",
+          "case-elife-70701-figure7-panela-47d55bbb75a4": "9ec64a11a23660eb4ebad1933cc3bdf6655500a986917d6ca50d8cf530db4813",
+          "case-elife-70701-figure7-panelb-71eefb8acf37": "08ae4b247a00c81335e0c613443a3e5d521ab79599da394a817eb7acfba45bf8",
+          "case-elife-73557-figure4-panela-2477c8ae599a": "74558655f7c9d15faa4d6183cd9f009ecbfe4373637392b7093f4b68e51dd10f",
+          "case-elife-74056-figure1-panelb-ca8088d3ba33": "f403b03f2103e5387c2a2af874562b4e6ef65ba0208edcc89447b9b2d84ab44b",
+          "case-elife-76380-figure4-panela-8c5376f28f20": "05314b11fe1e6e35dab9a250de6904ff251c90e4dc282016bc60228be94948ee",
+          "case-elife-76380-figure4-panelb-9e62a3ff0dde": "950ef4a481425b6905a64a9f887be425f2226acbeaf6109b00a6f0105999d758",
+          "case-elife-76380-figure4-paneld-60ab6d23547b": "49bae860dcf549fa13b4b23fe724364685e849a2e77820558051e8f4880716a8",
+          "case-elife-76380-figure4-panele-52afcb437315": "1a57ab4990750ba5940da99b91e5b068bfc4d6143d6471d99ae9495b875d15b2",
+          "case-elife-76541-figure3-panelg-374ac65c586a": "69696e8d0fb3adf4759efbc5febee521ad61c4511422e2376c9ad8c50d1f72b8",
+          "case-elife-78695-figure3-panelg-ddbe8cd85328": "d309de673b8ff55bafa1fe0dd0c154eb95823c3cf9868701cc38370071a4c12c",
+          "case-elife-81919-figure4-panela-7714c4771679": "ec86c13950505cbcf9644ccaa19d09bfa677aa962a95859ba55a732768a6d071",
+          "case-elife-81919-figure4-panelb-694d0ea004a5": "c7dd354055b771b45653712a88acf8c8ef2df1648641a1cf8b688451c96eda8f",
+          "case-elife-81919-figure4-panelc-7be6e5fca8f2": "4cf270685e860760e28a1298bb2343cf7b5335933c5ddd8c86174913f1d52215",
+          "case-elife-81919-figure4-paneld-64ae6545c579": "3f9e3a4d644fcb045d108709986661aebc95164e15b34f068b3028d64a53b13c",
+          "case-elife-82649-figure1-panelf-387a36204d06": "f55ada0a2192e081f66d361c8e723a55068443c75dea7d3555e992a8e6ac722b",
+          "case-elife-84209-figure2-panele-15426423ed77": "fe7e64fecf0fc4ef86d912da888c0badd60b22069ccca133074b012ba973d2f7",
+          "case-elife-91609-figure2-paneld-e-58015e6b6bdd": "b4db11dd26be1076e0a9b317c9e295f6c6068105a33f78ecaa20770ad6fcc741",
+          "case-s41467-021-23324-4-figure3-panelg-cc373b32279c": "609b521081ff4d432353b10e99f3f26581c7f39578e6740e39a52cc50f796159",
+          "case-s41467-021-24293-4-figure3-panele-78f0cf8569ab": "0071ea914769475215b731d91df6a1be38a29314709d71bf9243e3794b1852b6",
+          "case-s41467-021-24293-4-figure3-panelf-7c3e9ac48aba": "cc817a2476df09dd0855d0bd998f7cb51b0bec347b5c669b8234e4707bee04b9",
+          "case-s41467-021-24293-4-figure3-panelg-0c53f20ad0ca": "95588285df4dcca2afa870b8253602d1eea84f41cd1f2cbcb9235d1d9e713c5f",
+          "case-s41467-021-24769-3-figure2-panelg-5d75bd08bc28": "9136161529ba05163e2de4ee0ec8352fd2c1310e9070f25802c486f89b518081",
+          "case-s41467-021-24769-3-figure2-panelh-7a0f680f0205": "1ff9e5c141ca2c5419b22add5f8c6621f72f2b07ccf2a7a8f0c2a5a7cffcfecc",
+          "case-s41467-021-25829-4-figure6-panelc-08bafb15c0b8": "83b33c5f6021345e5c420615c266c667a12f4f68fac1ed229d0c472ca00efd93",
+          "case-s41467-022-28619-8-figure4-panelh-e5fb02df5abe": "76998c724eefb70b035ff3dc3ea57a5fe056755ebd958e7d99e86cf4fa3bcd6a",
+          "case-s41467-022-29227-2-figure2-panelc-8503c1c81a61": "13a8cf5d2e7e41930de825d31a81778de7e7cbf10c46b73fe5999c9927dced3a",
+          "case-s41467-022-30409-1-figure2-panelm-a621912948c3": "0a720560c9789835a1189cf680f1d4cdef05a9fa40772ee972a8697016cb48c4",
+          "case-s41467-022-30409-1-figure2-panelq-b6319323bfb0": "ae628ab016ffb3b24e4ce38f2569160dbbec501d1a57adc696ac70bba673006a",
+          "case-s41467-022-32754-7-figure7-panelf-7fc1b764132a": "c768d3725b60a2f0431af1f46c0e96d1753d9a55e0c692ff105a394017da1152",
+          "case-s41467-022-33803-x-figure7-panelb-8c7a94f86004": "db97257b92e3ecae1ae296085f4f01ae7cea80b6b268c89e58b586b0f0d1c3fd",
+          "case-s41467-023-35832-6-figure2-panelf-2b1c7a1967cf": "ca760f81c8f3b3d21c71b0d73edb9f72381bb28e92637b2fa98cd25f4ce46782",
+          "case-s41467-023-35832-6-figure2-panelg-1cfd8481829f": "8b107977295d88c0cdbc6465bb4e961fb873668a75078abd21b9744b79995541",
+          "case-s41467-023-35832-6-figure7-panelc-74b50660411e": "1d7fd5bc6aeebdae1daabc9fe8a6f6cbc0d53f1deb9bd1c438ade97392d85061",
+          "case-s41467-023-36550-9-figure6-panelh-2604de198721": "e44a6432d9cd096b783cec419b54dadaaa2d8f00f0fb52eb8f29c7530aea0b98",
+          "case-s41467-023-36635-5-figure3-panelc-cfe05e3968b0": "c3ea35a119eb523a58fc53602a7498bcb82c57a8cf7030c784d42b9a7b1dc61e",
+          "case-s41467-023-38160-x-figure1-panela-123183d201d5": "69d4468026c3d94607cccbeecb9201d282e62c21b9bc99f27f8515724ca5ec80",
+          "case-s41467-023-38160-x-figure1-panelb-fb2420cef4b4": "e35fb8a61152c325b8fe32f102eac2206a128f3da5fbdf559337eae55b0adee9",
+          "case-s41467-023-38160-x-figure1-panelc-e6778fcb64f9": "9ea3b7a2501635feadfd0e7a5b181be73b2c2ac8c3e5ae18ea20c631879824d8",
+          "case-s41467-023-38160-x-figure1-paneld-485e077e11d8": "b2fac68b965f61469d9cb7bde109865132f03e05471b443d70b848eb9727fccb",
+          "case-s41467-023-38160-x-figure1-paneli-3df3c9817e3c": "e9518ccefcce1036c24f33548d2e79830a568c5b2849555b36970d0d6b612867",
+          "case-s41467-023-38160-x-figure1-panelj-73181a5bc5f6": "85346f17cba3ceba013b07ad7028af03be472d3b72eda1e3194330e5f09f0ed8",
+          "case-s41467-023-40378-8-figure4-panelk-a0810b3947dd": "71793a5218038f61526b72f9aa76ae3c0a2a960c95b1bba1a36c59f4fcff582f",
+          "case-s41467-024-46767-x-figure3-panelh-2d4ae63a5fbe": "a3b5f039048dd399e8807d9155ff87f645d1a85c9752af465d391670963b9281",
+          "case-s41467-024-48117-3-figure5-panelg-8ce1041d224f": "24f2320145e4ac1516ebc904997f4d4f150cfb07611893bfb3d88edd1d469c78",
+          "case-s41467-024-53917-8-figure5-panelc-53ef1f6a5a43": "3096949a295f5e872ad2c0bb4f23ab04e998f0959e58d63cd0c739c9637d95ad",
+          "case-s41467-025-58773-8-figure4-paneld-494835f356d6": "69f0042a4b690e535fc6dc1a9bb72ccccd33554417b13b4c2fa5e9197672418b",
+          "case-s44318-023-00005-0-figure1-panelg-df9d203c9122": "218e9fb6d51cb63e37e4004d8f3c86f4d08b57afa9b90ed7f5a05394d5d6b3e5",
+          "case-s44318-023-00005-0-figure1-panelh-513248c811f2": "95245546aa29d6497c41b9e5729c31e98132beb27a1100e0d5285e0efacbfc21",
+          "case-s44318-023-00018-9-figure3-panelf-bb0934420d3f": "5c73dc6dd717af9ce9ed7aa05561a2a344f557cab8baf60a428dab2bed9b3799",
+          "case-s44318-024-00067-8-figure4-paneld-1cf43de5ce8c": "641ed0094c1fdc201f0611dbe5ffcc81e29d3d11b5e1525a4b71a55a5b7f3ce1",
+          "case-s44318-024-00067-8-figure4-panele-a84804f3f065": "d41b6e42a51f81f6bda1cb8bf6de04b8c2ef3bbbf24ed378b781b2ebc05c149b",
+          "case-s44318-024-00185-3-figure5-panele-survival-curve-replicate-1-35b0e5e25910": "fd2cdd55fcda917ac20dc05858039a241ee4c657e3ed8dad0b513d1d60a78f68",
+          "case-s44318-024-00257-4-figure4-panelc-quantification-ffa87b7c7480": "e04798797d1c889524d66478a71b081a2f196535e3deb1df8da1f5dd95dd5bfb",
+          "case-s44318-024-00353-5-figure1-panele-d9d6e6aeb04c": "5e4fadc7e3c0e93906db2066ac591a403b67dfa352a14d29b99c4d726810c6f5",
+          "case-s44318-025-00395-3-figure2-panela-882262b318b9": "35e3f381667d2ed1efa3d30743a02d82f3cb0f76a8ed65f0eb2f1480ae9d140a",
+          "case-s44318-025-00395-3-figure2-panelb-b496cfe50b1c": "315136a78a7ebaf19b2905ff467bbf552d6385acf9110e6072f88ce6b2b589c7",
+          "case-s44318-025-00395-3-figure2-panelc-b30a2b1b83fe": "4cf3322b7ce3c67f6e6c20f70418248f0edc992f6941fc65d79d1004efa01527",
+          "case-s44318-025-00395-3-figure2-paneld-e01954d84e68": "5ff62b99fd143820596845ce2780c18254090ca7454791a0e9956deecbeeeee8",
+          "case-s44318-025-00395-3-figure2-panele-e77c7dbe63a2": "c98754112e3cbbd5a19adbb7acbfb53eec766d3b084aab77f4dc228d8cc80cda",
+          "case-s44318-025-00570-6-figure1-panelb-9e33b138a892": "e0d098dc68ba10d594fb66675268fbaca226c3080ac1a98eb2b829ec25ebfb59",
+          "case-s44319-024-00097-7-figure1-panelg-ff478fff2810": "2df867278a2da71c8b30dc8ceac2990a34c9bb40993ce0d2fdac99588d34fa91",
+          "case-s44319-024-00097-7-figure1-panelh-cc63c2b7bf45": "e695c8a2c3b88d4645eedf1971fe41d9ffc8b8263b525b04c117d7fbe7953b77",
+          "case-s44319-024-00176-9-figure4-panelb-9ab0d6d48f6a": "bb0f89010689a7b006004aeb5b78530da7d83d90fc7c636c58fd6f3b3a0e913e",
+          "case-s44319-024-00227-1-figure10-panelb-5d7a0f9812ea": "7ce80765f954ec0e3fd96d6ba510c99c8142753a2f9646f1b4214d808561d280",
+          "case-s44319-024-00227-1-figure10-paneld-0129a2b1dfdd": "10a0bcd401cd0b380d761a4271f6c85056314d98755bd4fb63895fdbba00ab78",
+          "case-s44319-024-00227-1-figure10-panele-41337d9e540c": "11641bf4001674cb379042c517fd4b0c94e3ed95a8cb9b9cec3f61b752f7d5d6",
+          "case-s44319-024-00227-1-figure10-panelg-13f694dbcdc2": "cff2ebc4ab01552bfd8cdf139e0c63158faead548bed9910da28abb05847c506",
+          "case-s44319-024-00227-1-figure10-panelh-9a01fd4cace0": "109fc754a161c43affa4f82b104cf5a180abc399be84587a76d457e0e2b6932d",
+          "case-s44319-024-00227-1-figure10-panelj-565d48454c93": "cf7daefcebfdbc1ea37fec9a92442b426bc01e1fa46164ce7adeddc4e8f0a316",
+          "case-s44319-024-00228-0-figure1-panelh-0421839f9fbd": "e9414c6bd4fc3024e8a8f205e135d2e65d387a68b2eca2b40f313a339a5f9159",
+          "case-s44319-024-00340-1-figure1-paneld-e845628d6996": "f2f9c4f72c2803f8b84fc3267f6c3d292c73a70e52efcc8019ec30ead673383c",
+          "case-s44319-024-00340-1-figure1-panelh-c7a92c1ac047": "6fbf86f40aa8c68f49b7ef26ef0d67ea8f11911632e45479034345a0829be59d",
+          "case-s44319-025-00406-8-figure2-panela-b8aed381a72d": "6659ffdbe42cc57248bbc0cfb7cba606c8eac4c4ee4f28bfdba65f53ee372b74",
+          "case-s44319-025-00406-8-figure2-paneld-9a3db425b96e": "62d0fb3c04a0ae42937fceb3bff9388bc3e158d2bcb86284af83fd3b6bdd6bc3",
+          "case-s44319-025-00452-2-figure1-panelj-60229ec19ab1": "61e420ecd13b8f8b2285ea5e56e1479ca2f6ed08ecaf9c423b01e52e965b7e59",
+          "case-s44319-025-00493-7-figure6-paneld-91066b53b700": "ffcabe412ae65952e2ecaa8e27967825f3d255f4a1b4f5d3b439b22f3eb41489",
+          "case-s44319-025-00493-7-figure6-paneli-46fd5ba93a26": "4eb892f040124c6fb0bcb03d3b327d885fbcac3c7deea0a42bb48369dd0ac33d",
+          "case-s44319-025-00493-7-figure6-panelj-a4a77041b7dc": "224ec147be1dd7d356bf177b164c64b678bbdc79561f3df548f92191923e3f52",
+          "case-s44319-025-00503-8-figure4-panelc-597e16685e73": "5553e4f26b5f0e685c38ad20f232040da1ca3df026b8e5c1dff0a255e5926b30",
+          "case-s44319-025-00521-6-figure1-panela-dp-vs-baseline-5type-piestats-2024-05-24-68145ba09161": "0804da5bd24a86e54a48154450d0f042bcf6cf52961e44f3516c3a59916db223",
+          "case-s44319-025-00606-2-figure1-paneld-bubble-plot-source-data-29aaa1428519": "cc80a4724203678fd7b931ed1ca42605a58e8c3dd8190903ca8a6ed1a0eb8845",
+          "case-s44319-025-00606-2-figure1-panelf-colocalization-scatter-rawdata-cd4c9a98e010": "cf7240badb672328e3adba5d7f201dbc622ff37b4c430f65f11b84baea925f19",
+          "case-s44319-025-00632-0-figure6-paneld-983d7369e2c1": "af4bd993f78df3e9ed8e6cfde647ad775d58eb9fcc4a3b04c7dd394921640ca5",
+          "case-s44320-025-00124-2-figure3-panelh-and-3k-4dc5f3e9899e": "15c7ef10d31f0da1c022eac972914c6497b83a7c65bc3cbe340017050944d4c2",
+          "case-s44320-025-00157-7-figure3-panelh-e4ab2e3699ef": "00472ebd92ccfd8c173314842c9fbca04cb793fc92dc32ce0255dcab9983df25",
+          "case-s44320-026-00224-7-figure1-panelb-c8905e149489": "99e9112f6f7ffff3a48f9d74f881e4639202f99f8b2567f624fceb00c8b3ad93",
+          "case-s44321-024-00049-7-figure3-panelh-e1c78831580c": "6faa3855b6c3070ac50c5fff57a75f732b341be4218a43732c136adc035248d1",
+          "case-s44321-024-00067-5-figure8-panelb-65684748dbb2": "396ea1b6b0210d0058ad0fe1634f68e2ee86c23722ae9c16d3fde914e04e2922",
+          "case-s44321-024-00067-5-figure8-paneld-b17c6d5e6b35": "faf3ef730a486c36331165e9e4c914e0463e5ebdcdb2a7e5977220f53529fd02",
+          "case-s44321-024-00067-5-figure8-panelg-ef3a7ea4cd80": "3adf5b06ceace9120653e0aa075ef412e5976a54e372da9daaea98fbad6b45a9",
+          "case-s44321-024-00067-5-figure8-paneli-bdf292ed08e2": "870f48a70286ba2d7aa64a68157fcb7cb99df50f7df627b2c18ed64e7ab55660",
+          "case-s44321-024-00067-5-figure8-panelk-4c2dec5473a2": "9e5e54a161dbd7a3577d49085e607bda999c797e81ca66bfb01f4f20f1906b7f",
+          "case-s44321-024-00067-5-figure8-panelo-8890ac99febf": "d19bd2e90788aae2b6f729ee64716ff9b557fbf38fdd4be60a2548a64b6c50b9",
+          "case-s44321-024-00067-5-figure8-panelq-9e9f20cfa332": "d63d22e8ab4017584a947559bf4725b2d6242bef92ecc9fcf6e5f7c4de7c72b1",
+          "case-s44321-024-00077-3-figure1-panelj-b74ffc550ab5": "642fe7c63930f239c2d01e169826820a3fe9fccc8392e367b2c6409fbbe926d8",
+          "case-s44321-024-00120-3-figure6-panele-bfc21b71f36e": "bed4425e764ae3810616a46e9641ad5fc496975185d73f6979b5179c4c423d67",
+          "case-s44321-024-00120-3-figure6-panelf-e7081963f23e": "3e6a8fe063ba577e29a7cf062692f6bad91c5055bcdb2cba75c19b40d6d74c54",
+          "case-s44321-024-00120-3-figure6-paneli-7585608aa472": "8f3eb3f454db3f0e1465276dd0f2947b6bd25aba416ec1006fc8775f47aecafc",
+          "case-s44321-024-00120-3-figure6-panelj-12fa1c8fe971": "d7b2a0f12fb0a878e14f0cf57a4b2ee4b4d5d4c7852b1b251217837ed3d8eda0",
+          "case-s44321-024-00128-9-figure2-paneln-a9ce7b81af3f": "dc647dfa20dc9bdfba945ebd6ae98acd47e582042f9304e2d077e14667031760",
+          "case-s44321-025-00233-3-figure3-panelb-b4c46a75a37f": "5396cf6f25be27c97ad539e10aced2d00c39ee09c01e56f77e1f6da46351fbfb",
+          "case-s44321-025-00233-3-figure3-panelc-b6bbe60ff809": "d3cdf4c59d1c68df2a8cd090c81b614bc414c9fb4c2d375ef850b4d84191869f",
+          "case-s44321-025-00233-3-figure3-panele-3633d26e81da": "227d6c05db8ebbb25a60ae7af89218bd2c61bada9256ff511c37948d9aba56b7",
+          "case-s44321-025-00233-3-figure3-panelf-5b615a7b81e1": "bfbf6681c2af0483c026c19fb17316d496710562abc7cf417e12394147828100",
+          "case-s44321-025-00233-3-figure3-panelg-043283cae102": "829ffb7b0d07e37dab65e9dc323abbbc8787a67db3728297e142e499ea32e1a5",
+          "case-s44321-025-00233-3-figure3-panelh-639e9f8f4bf8": "5eca69a21d0bf5894e38b138ae2f387ae4a0d918689c22af27b9ce0b845ac861",
+          "case-s44321-025-00233-3-figure3-paneli-3ff348e83f54": "dd20d947b333d639697f11093dc9b709df0cd530cde4943e3483c95b12ac5c8c",
+          "case-s44321-025-00233-3-figure3-panelj-e418f4bb953a": "c218ba0badfcfe6e8184464c6bafe1e5ca64bc3857d76a3053f744b3f4c5b9a7",
+          "case-s44321-025-00233-3-figure3-panelk-c8f61200fa25": "a947a8144138b472f16be0dfedbec08292513464a433c7f7a887a962794b0ede",
+          "case-s44321-025-00233-3-figure3-panell-df56ed136692": "127232f123199833a08b0ea18bbaa02c16a38e0ddd8aa44003657ccc90989453",
+          "case-s44321-025-00233-3-figure3-panelm-f90072cb5549": "56f1adc1d8080052815e185d18a9645a3ac8368db12d753351b083df28d63ee6",
+          "case-s44321-025-00233-3-figure3-paneln-cb57a0d5049a": "9a79b8c6ed9d3c7d000e0a71a4fc7a09787fea3c44ba853155e1900f074b3c63",
+          "case-s44321-025-00233-3-figure3-panelo-a586198f70db": "64fddeeefa045cfcd9206c9c23fdb815f65a689dca95f1de4d01acc82c120047",
+          "case-s44321-025-00325-0-figure3-panele-df815de275b1": "41cf810f79ff0c5b2e0a6a3794bfc9efc8ec5697dd7261a4e217278a16cc6e67",
+          "case-s44321-025-00364-7-figure5-panelf-9ddfbc4964ce": "dfc02963e9ed0e3e771f9da5f88fa78c850fa835b8ee74466457da554e35ade9",
+          "case-s44321-025-00371-8-figure2-panelc-8750f22f1b37": "99f79c3549aaa8f8646a9017b9656ed79b993169193aa37d5edb2fedf857c081",
+          "case-s44321-025-00371-8-figure2-paneli-40007f16a3f4": "89c53e27fcdb760889f58c90291954d1e28e9545d620702096d9b0f8fa841245",
+          "case-s44321-026-00396-7-figure2-panelc-source-data-cde9ae2c4589": "9b929870126a157ba29bda785832ae1bed067bd3957c4fb28e6ef685ded30c17",
+          "multi-elife.29307-figure2-c52caf361add": "c85a7f430f05d0cb350246a18d7bfa6e106e30da95c737361890e88bf4c24167",
+          "multi-elife.49769-figure3-31b9e7ca66f7": "dcb1906c1c4c36fa65b0d46f84a0c861dff440af81ecd986b0381fc609a826ed",
+          "multi-elife.70701-figure7-cc5dd290f3a0": "34577fcf929e69f13ccd14c05ac403594c85a4bb2fe9e27c3017d75f7927a2e0",
+          "multi-elife.76380-figure4-baa6c56ea89a": "dacd1abe7b585ed081444a650295eee3bfcff165b002abc5e704a1632dd52f4f",
+          "multi-elife.81919-figure4-2b7f93c62fb0": "cc56450d4e1a28174e06b96e0690a9b14beb1ef1f2e923f8836a51c064d3752d",
+          "multi-s41467-021-24293-4-figure3-4d292de33c21": "40162aea4a39359bc2d5dc4456c622a3ad3e25719c336a6bc017684574628810",
+          "multi-s41467-021-24769-3-figure2-dca9c1a99a27": "dbab601adf345a7037a46340b7514f8839e0287b007f6498f85438325e8c4906",
+          "multi-s41467-022-30409-1-figure2-53ab9d000731": "71e8ce71eea7034dc42e7357ab56ff2e8002e29a3b5886117661b1a2a8356fe4",
+          "multi-s41467-023-35832-6-figure2-80dcc69a3b2a": "518f6b05d1be718f1cf54a29c5deb4d167df2f92caad1ef7080dc5da3d7e0d53",
+          "multi-s41467-023-38160-x-figure1-592d205b02ca": "add37aabaeddeb86777714baebc890f44db6694fb382a3416c2fabbdb235da7e",
+          "multi-s44318-023-00005-0-figure1-3cee9e001bcd": "4c108c6fe7a14a3aeb2eb25b092d15919a7e8eba67cea216114bfe6d2c4520b2",
+          "multi-s44318-024-00067-8-figure4-090e906b77d1": "555079a4e27c4c4b088433c9da6aee430c8b16f969ee726d0673fa1006aad4f7",
+          "multi-s44318-025-00395-3-figure2-8d8836088d2b": "7afbce6375bab76637dbb7972b08b5d94208928f735b59691b478cf4da8c4ce9",
+          "multi-s44319-024-00097-7-figure1-0e3603c779da": "55197796589ab54dfc1416b8f73f65806d6e21513d3c2b1de463df176e333a17",
+          "multi-s44319-025-00406-8-figure2-04717500663d": "f4eadcdbee0c3f938eb4b205b692af478dd1f5c2716d41bda1f065ddbda84d5d",
+          "multi-s44319-025-00493-7-figure6-ba90ca629416": "5b5fcfdae8c0c62a2fc2d526ca4a62b29fe6fb57de35e65280fd681a72a1586d",
+          "multi-s44321-024-00067-5-figure8-49d901a0b53e": "1273d6475e2df847ec6d859912ff0200751245f47fb58dc0ee695308959cb203",
+          "multi-s44321-024-00120-3-figure6-be13ff2fd3e4": "d38c41710f9b44f811543a908f2c8609b83b395befb0c5627170f453eeb31621",
+          "multi-s44321-025-00233-3-figure3-37c75e1cf393": "a9b88629aa793f160994c1554200fc7db55953aa76cb7b90655ab28e9c4e8ce0",
+          "multi-s44321-025-00371-8-figure2-7b8d108b505d": "48b2b39024167ce6c9495f8605073b1c7f16f6c1fb40b42a477660233d4e763d"
+        },
+        "reviews": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/casecount_strict/reviews.jsonl",
+        "reviews_sha256": "91bd14a28bbc00cb345f9d8838ac8dcc472f79afee15feb5b65ae867a147b4eb",
+        "summary": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/casecount_strict/summary.json",
+        "summary_sha256": "507bd3985b51cc7e4808df93aea82f45ce135c6ff27e5cae59ccce5762aad0f1"
+      },
+      "full_strict": {
+        "input": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/inputs/full_strict.proposed.jsonl",
+        "input_sha256": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131",
+        "records": 85,
+        "review_hashes": {
+          "case-elife-25946-figure3-panelg-ded4af4ed3a3": "7a543ab2444cc2d3536527d435fce314cdcd0c483c955c3235339e48f8587001",
+          "case-elife-70701-figure7-panela-47d55bbb75a4": "608ccb46ea133e7fddd672ff066e6be03e2acd3b84b58ef3b0761d8aec823751",
+          "case-elife-70701-figure7-panelb-71eefb8acf37": "2ce1f7a7aedfbc0b60ac2917a16ca7d2b79b778b2769b69ff90f96e669c2ec77",
+          "case-elife-74056-figure1-panelb-ca8088d3ba33": "5a1251f34d10cc9f9fd2fea059587cde3f6e072d67e166e79073dac071611e2b",
+          "case-elife-76380-figure4-panela-8c5376f28f20": "c70e687462be0b614527126869091c8c98b03108cedbc66e23b1e3268b2ac5f7",
+          "case-elife-76380-figure4-panelb-9e62a3ff0dde": "bc4eda9481292f7120fc44be4133afe5798cd6c1daeaf2f3700e6409e3fb3dbb",
+          "case-elife-76380-figure4-paneld-60ab6d23547b": "fae4b84e347de36b7a0efe4d4733f069f805e9f35b67638203499e725d19e5f7",
+          "case-elife-76380-figure4-panele-52afcb437315": "1ce9a4ed99816a576e441ee853c394878c1dc4e5045c1e3e06f4520e5d408399",
+          "case-elife-78695-figure3-panelg-ddbe8cd85328": "fbf6863b75a86bdd85b8b98fec68e7ec9da787cd1c3000c2c6f3f30b172213e4",
+          "case-elife-81919-figure4-panela-7714c4771679": "9f2126640b724f764ce5920505e3df14cbb7b30be21860e582f89161a2b35a30",
+          "case-elife-81919-figure4-panelb-694d0ea004a5": "ae28c9e6439a62ffa1a0dea872fa3750b3576c745898ef6cada3568d55a918ab",
+          "case-elife-81919-figure4-panelc-7be6e5fca8f2": "4e8813bdd494817a5120a241f29b9ddb3eaa06bcfbaf30cb9104d4c8281199d1",
+          "case-elife-81919-figure4-paneld-64ae6545c579": "bdc36dd5355839beef1190414f42bf54c1af53898790f9cc1bf58bfaf0a1a393",
+          "case-elife-84209-figure2-panele-15426423ed77": "8905bce16852cc4dd6cfac9f87ab427c2933d2ab9ebc3f975d98a1346e2bf5b5",
+          "case-s41467-021-23324-4-figure3-panelg-cc373b32279c": "cbf0afff17f1e2e8cdec221a6d8bde90d3b4015e650679ac698219f924f4c131",
+          "case-s41467-021-24293-4-figure3-panele-78f0cf8569ab": "c53f9e427e5314cc36dd56369dcd78e0e752137d4490b43de097f15733e6d726",
+          "case-s41467-021-24293-4-figure3-panelf-7c3e9ac48aba": "1524c8b4f66833cc6ceb7017940b69df2768b13840b1c56476b2f4258a915841",
+          "case-s41467-021-24293-4-figure3-panelg-0c53f20ad0ca": "7415e3bb3969f1478508e8d40267bda570b8020264864c8a21018ccb4d7c6968",
+          "case-s41467-021-24769-3-figure2-panelg-5d75bd08bc28": "df14625dba02c936077a7d511798074dda051709394c850199b9063f4fa530a9",
+          "case-s41467-021-24769-3-figure2-panelh-7a0f680f0205": "5fcc3aba85e950ad6d63549b8935d4fb5f4ee7f90a7ff164d664346dfa803646",
+          "case-s41467-021-25829-4-figure6-panelc-08bafb15c0b8": "a23df875c88c2303169794dfe7bab3dc521cd54961760b384ed697fd34c10875",
+          "case-s41467-022-33803-x-figure7-panelb-8c7a94f86004": "aa0c3227d8984fdfd85d64d0f1456ee5d70c09981bf9f194f8317be98dc59a1f",
+          "case-s41467-023-35832-6-figure2-panelf-2b1c7a1967cf": "c910bee31384698d470c50ec6fbb7d92c91387d310a6251376305ff5246f8e00",
+          "case-s41467-023-35832-6-figure2-panelg-1cfd8481829f": "02069e8fa7d984a07e050bf3e7f3f360ea42526e6424bce9d30196e16dd198f4",
+          "case-s41467-023-35832-6-figure7-panelc-74b50660411e": "4dcf1a651af80a106d3393d6cbea04da6969db058562160be447298248bd86b5",
+          "case-s41467-023-36550-9-figure6-panelh-2604de198721": "eba284b816508242ea15eaecfa6146ce4adc608a5e44d47b9a33b42312b4c750",
+          "case-s41467-023-36635-5-figure3-panelc-cfe05e3968b0": "eec5ffb00110b6e2631575937edc7eeb88fc32e611e7d49a24e501b0c5cc8648",
+          "case-s41467-023-38160-x-figure1-panela-123183d201d5": "611b367ec203664b328cacbf1998dac5dee81aa6e0296881675159c1d1730b19",
+          "case-s41467-023-38160-x-figure1-panelb-fb2420cef4b4": "6a9c7ac4d1fd6eb604e4edb3d907cd9cb156a34903ffd07e202eeaacca85c4a6",
+          "case-s41467-023-38160-x-figure1-panelc-e6778fcb64f9": "c6a9a478dba87306b989a04efcc45c3937c9c16f4c5bc7398e84617eec1943a1",
+          "case-s41467-023-38160-x-figure1-paneld-485e077e11d8": "b6bf5a555afe2b5073e9aa3da340f9b84ff2ee9b38822ed0d6121343d30befe1",
+          "case-s41467-023-38160-x-figure1-paneli-3df3c9817e3c": "66f6b8ff7f9af9a8e05750b29391dffe1cd9660fd023298337baef3ed7be05ec",
+          "case-s41467-023-38160-x-figure1-panelj-73181a5bc5f6": "4d1570d6e23a08e4364ac5f95e701d1069e5c85106d7f3a78a41bbb3d15d07f3",
+          "case-s41467-023-40378-8-figure4-panelk-a0810b3947dd": "a1a89c1a6bbfbff6762ff1f3124a2830a00f2194786873ad23e3e7f5dab7c169",
+          "case-s41467-024-46767-x-figure3-panelh-2d4ae63a5fbe": "c2933cf04c59cb8135128e54d2a169a22de6f0debe497517140a7ab0bd8ce2c9",
+          "case-s41467-024-48117-3-figure5-panelg-8ce1041d224f": "2f1a15e35358512badea9d3ba0881a1dbda1469294fd7f9e184a30be591b4024",
+          "case-s41467-025-58773-8-figure4-paneld-494835f356d6": "f9095f7ad16923911608c14ab2f4e82a916458389c974d675e71df889a2d1c19",
+          "case-s44318-023-00005-0-figure1-panelh-513248c811f2": "08f57ef6d113187c106a02b9e370e6bb9a2f76feea9391dba3df538aa68cd52f",
+          "case-s44318-024-00185-3-figure5-panele-survival-curve-replicate-1-35b0e5e25910": "cdc7f3f176b9a594f300d2369d289ee095f3eac5608c1b2ec7a2b1a2a0722de0",
+          "case-s44318-025-00570-6-figure1-panelb-9e33b138a892": "979d48a74859f43fc2faebacee6a40d687cb6ff261a23d9de190639db598f20f",
+          "case-s44319-024-00097-7-figure1-panelg-ff478fff2810": "ae0c6ec5b635cef39c8c0a5ae02ddb2e765b661ab185d143218457c623847e4c",
+          "case-s44319-024-00097-7-figure1-panelh-cc63c2b7bf45": "4cacc046937d78059dccc9360e8124098ebb399176ac70c35ac199e62aa5475c",
+          "case-s44319-024-00176-9-figure4-panelb-9ab0d6d48f6a": "30743adbd32684dc1c36b1cf353d0e51480abb1076977cc15c9198643411e893",
+          "case-s44319-024-00227-1-figure10-panelb-5d7a0f9812ea": "577b1836dc16e3a9262e60f1a1bee05a3e8c20e47a8ea894ecbe4ed3d5d00dcb",
+          "case-s44319-024-00227-1-figure10-panelc-a8a89e7263ad": "6b71df8cd394df62a9a187fe3eb738a86cc43bd73e2834c13399778329a712a8",
+          "case-s44319-024-00227-1-figure10-paneld-0129a2b1dfdd": "ecf8405ca705fb2d6aa437fa2906008bc8be633d809d7ae97da567cd68a5e485",
+          "case-s44319-024-00227-1-figure10-panele-41337d9e540c": "839d1339cd6a6ddbc7c04a82319fe21d93965cd9822670423beccff5ff86a291",
+          "case-s44319-024-00227-1-figure10-panelh-9a01fd4cace0": "e95e0e8af0c1c1eb355ec6a8ed7cc10e4609cedec14fcb633d3cd793301b385c",
+          "case-s44319-024-00227-1-figure10-paneli-e5def79424ab": "5ea3b53ef970fe00ee0914d6bb44ca9477f5b5a978eb41071896e04a1deb50de",
+          "case-s44319-024-00227-1-figure10-panelj-565d48454c93": "2d3c83c7f2755e0072c1b8ab6fdb36b72baa67c7afe0f04972c300a5e9d68065",
+          "case-s44319-024-00340-1-figure1-paneld-e845628d6996": "f35756eb8863ba23f50e99798b04f9c11225474982478b41266f934470f5d585",
+          "case-s44319-024-00340-1-figure1-panelh-c7a92c1ac047": "698d53ecae635f89493c35db776cc34e0b38d6702efe7d84df84e0de0a080d6a",
+          "case-s44319-025-00406-8-figure2-paneld-9a3db425b96e": "f863014442c57bae0ffdd9d5a36189667b45a1dcafb8e5efee516026bd494db8",
+          "case-s44319-025-00503-8-figure4-panelc-597e16685e73": "160e0a861884ce554f8102e72444e986260679e296a5b7667374b46b6eaaeea7",
+          "case-s44319-025-00521-6-figure1-panela-dp-vs-baseline-5type-piestats-2024-05-24-68145ba09161": "e71580aada5c3576458b2f6cf6d7859d4395aa72a58aece8bed83787f75e207e",
+          "case-s44319-025-00606-2-figure1-paneld-bubble-plot-source-data-29aaa1428519": "d7f4d96d5c70002b2938d8b09653d27b8f464a0dbfd9792fb397fa7a29b47c19",
+          "case-s44319-025-00606-2-figure1-panelf-colocalization-scatter-rawdata-cd4c9a98e010": "b1e727ad8f57c1acbbc52bf23afe5e088ff9769f20c4f80022b5b33ca2300854",
+          "case-s44319-025-00632-0-figure6-paneld-983d7369e2c1": "ca16746685f6bb87397933a711c506d3990981245cf6d8c2720f4e95c1ad7cbf",
+          "case-s44320-025-00124-2-figure3-panelh-and-3k-4dc5f3e9899e": "4547f768d5836a2a7855ed6ffa0ae200beb4aab6255d3b5cff229f663153999c",
+          "case-s44321-024-00049-7-figure3-panelh-e1c78831580c": "f4031b54d2fb9e37ebed11a65f6f46b766733b0fd34acc1e0c5edcb9ecfc26f3",
+          "case-s44321-024-00077-3-figure1-panelj-b74ffc550ab5": "bb112c8e9ef12a32ea452595b8e1bea074986ed72be7776e10757f4315677b68",
+          "case-s44321-025-00233-3-figure3-panelb-b4c46a75a37f": "673e6fab912d694385da1d3075b1d672661fe946dd5554607ec8f687c6aa195d",
+          "case-s44321-025-00233-3-figure3-panelc-b6bbe60ff809": "89c10bd916f5422b8de1f9307f1ec713306d6fcc6ed90deb3372ddcc66594936",
+          "case-s44321-025-00233-3-figure3-panele-3633d26e81da": "4b6b3d95ddfedab80af4049d7db8d7e3fb9b5e9a84425fa142099c6b65fa207a",
+          "case-s44321-025-00233-3-figure3-panelf-5b615a7b81e1": "42b9a1c230717e642dd6febae612659b3e9836c8835dae8c99f6d1a5ed281270",
+          "case-s44321-025-00233-3-figure3-panelg-043283cae102": "671a151beaa9257f042614aeed22e32c7e9ba36770c0c2c41967e364893b645e",
+          "case-s44321-025-00233-3-figure3-panelh-639e9f8f4bf8": "58e9dcc9f46079986d1f02a44ad11c069cddd6706042e30085f26da95c4c5010",
+          "case-s44321-025-00233-3-figure3-paneli-3ff348e83f54": "0a40f63e84ad1647b94fbfa5ebbce44ed1480b1e3844259fead9ab9a4ed5a36c",
+          "case-s44321-025-00233-3-figure3-panelj-e418f4bb953a": "deb3f6eadeda8f632d0ccc8104dd0d9af1f3a8f9ff47efdb96256dd4d327af4c",
+          "case-s44321-025-00233-3-figure3-panelk-c8f61200fa25": "7d73bccec5841deecc5aad7ee3419b5a7ce75670b28758fabf93c2ee677bfeaa",
+          "case-s44321-025-00233-3-figure3-panell-df56ed136692": "eb5c9f9c58a5ca5c258927b4d263229090a035e6984a1c224ff963b3a3437cc5",
+          "case-s44321-025-00233-3-figure3-panelm-f90072cb5549": "305451319c58ce65ab9715733c62f4b44fa8230a1a67557a71ac906ea73d8c86",
+          "case-s44321-025-00233-3-figure3-paneln-cb57a0d5049a": "43778d6b7abaaa10fad1e1d86b41154fa1af9daa271cab1d5440b57bdc0f2517",
+          "case-s44321-025-00233-3-figure3-panelo-a586198f70db": "339bf61a52912270e90f0a12bb25dd4c92aec7b40c2d65fcd81f466a41e2f3c6",
+          "case-s44321-025-00364-7-figure5-panelf-9ddfbc4964ce": "bbf79e663dbacf23298f252c3d2e3575b3c4f2845b16778935f1296fbad4e99f",
+          "case-s44321-026-00396-7-figure2-panelc-source-data-cde9ae2c4589": "422be75cff6ed6f68119f743259767ae343c8563a7245d9e1a1ab015d6f04482",
+          "multi-elife.70701-figure7-cc5dd290f3a0": "62e2d3875d854aaf5316a38a008103a398405bd01efd01c0c762dfe9198d39fc",
+          "multi-elife.76380-figure4-baa6c56ea89a": "ef135925927ea2505d7fca5d8d9d7f4196644d44fc8e7a24d1864324aded54fd",
+          "multi-elife.81919-figure4-2b7f93c62fb0": "7a3c20d9902595ebee442b0620f2453bc219e31b948ace335814f40be46fe63b",
+          "multi-s41467-021-24293-4-figure3-4d292de33c21": "6b396423019325658ba59e1c1a3a2d1702664ba4fb60e409f7456d5bf247b976",
+          "multi-s41467-021-24769-3-figure2-dca9c1a99a27": "e5751482db23c7ce70127d391e4e8ea8f4bca5caa7aae6163753d7165e162fd5",
+          "multi-s41467-023-35832-6-figure2-80dcc69a3b2a": "523391bd7300a8bddb6361532eb8d0ce3ce343a68d4a4437df9030d2ba1ffad7",
+          "multi-s41467-023-38160-x-figure1-592d205b02ca": "e14f016179173f7592db3ff6898ab59e908707df1738a8191b5a5ace025ee3e7",
+          "multi-s44319-024-00097-7-figure1-0e3603c779da": "ffe6a68cd4cffaf64a2bca71ee05ccba8cd75747ba821a375007373ac0a60216",
+          "multi-s44321-025-00233-3-figure3-37c75e1cf393": "9ff9a57319e8dee56fd014a4f9baeb94d206e503cf9287681985d1a76c945011"
+        },
+        "reviews": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/full_strict/reviews.jsonl",
+        "reviews_sha256": "d77e6b9c39c8fc1528c6f89dd0220799708010e8af3dcb1a2aeb0007a0618284",
+        "summary": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/full_strict/summary.json",
+        "summary_sha256": "c8dcd489b0983c4e6ee616042c27eae007cd09482befd93c9f81e641df3069f7"
+      }
+    },
+    "source_freeze": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v3_20260722T024015_0800/freeze_manifest.json",
+    "source_freeze_sha256": "dc20456275739af301ff8c9e61c26802eee7d1f690e3eb633d81ea42448a85d0"
+  },
+  "measurement_method": "A1's 232-row aggregate is split on its structure-only reproposal_batch marker because duplicate candidate IDs cannot be admitted by the canonical reviewer. All 203 former-reject single records are then paired one-to-one with their same-batch baseline reject by candidate_id.",
+  "measurement_scope": {
+    "classification": "diagnostic-only historic-reject-selected V3 subset",
+    "not_a_sealed_C2_universe_claim": true,
+    "reason": "A1's frozen V3 priority inputs contain the 203 historic baseline single-panel rejects and their parents. The measured rates describe only that reclassified subset, not a final sealed-C2 universe."
+  },
+  "probe": {
+    "available": true,
+    "model_reviews": 6,
+    "passed": true,
+    "records": 3,
+    "requested_models": [
+      "claude-sonnet-4.6",
+      "gemini-3.5-flash"
+    ]
+  },
+  "python_cross_validation": {
+    "checks": {
+      "all_partitions_pair_exactly_to_baseline_reject_ids": true,
+      "all_review_records_hash_valid": true,
+      "composite_single_count_equals_former_reject_count": true
+    },
+    "discrepancies": [],
+    "discrepancy_count": 0,
+    "independent_raw_recount": {
+      "discrepancies": [],
+      "discrepancy_count": 0,
+      "frozen_input_binding": {
+        "casecount_strict": {
+          "frozen_priority_sha256": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49",
+          "input_sha256": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49",
+          "review_binding_input_sha256s": [
+            "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49"
+          ],
+          "summary_input_sha256": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49"
+        },
+        "full_strict": {
+          "frozen_priority_sha256": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131",
+          "input_sha256": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131",
+          "review_binding_input_sha256s": [
+            "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131"
+          ],
+          "summary_input_sha256": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131"
+        }
+      },
+      "method": "Independent raw JSONL recount; does not call aggregate_lift helpers.",
+      "recount": {
+        "N_prime": 7,
+        "accepted_reclassified_multis": 2,
+        "accepted_reclassified_singles": 24,
+        "baseline_multi_N": 5,
+        "former_single_rejects": 203
+      }
+    }
+  },
+  "raw_rejection_reason_occurrences": {
+    "multi_panel": {
+      "multi-source-not-all-validated": 27
+    },
+    "single_panel": {
+      "model-output-schema-invalid": 3,
+      "model-proposed-correction": 165,
+      "model-valid-false": 178
+    }
+  },
+  "reclassified_set": {
+    "aggregate_pass_rates": {
+      "multi_panel": {
+        "accepted": 2,
+        "pass_rate": 0.06896551724137931,
+        "rejected": 27,
+        "reviewed": 29
+      },
+      "single_panel": {
+        "accepted": 24,
+        "pass_rate": 0.11822660098522167,
+        "rejected": 179,
+        "reviewed": 203
+      }
+    },
+    "multi_panel": {
+      "accepted": 2,
+      "raw_pass_rate": 0.06896551724137931,
+      "reviewed": 29
+    },
+    "per_batch": {
+      "casecount_strict": {
+        "multi_panel": {
+          "accepted": 2,
+          "pass_rate": 0.1,
+          "rejected": 18,
+          "reviewed": 20
+        },
+        "single_panel": {
+          "accepted": 17,
+          "pass_rate": 0.13385826771653545,
+          "rejected": 110,
+          "reviewed": 127
+        }
+      },
+      "full_strict": {
+        "multi_panel": {
+          "accepted": 0,
+          "pass_rate": 0.0,
+          "rejected": 9,
+          "reviewed": 9
+        },
+        "single_panel": {
+          "accepted": 7,
+          "pass_rate": 0.09210526315789473,
+          "rejected": 69,
+          "reviewed": 76
+        }
+      }
+    },
+    "single_panel": {
+      "accepted": 24,
+      "raw_pass_rate": 0.11822660098522167,
+      "reviewed": 203
+    }
+  },
+  "residual_single_reject_primary_breakdown": {
+    "genuinely_non_line_bar_scatter": 0,
+    "operational_error": 0,
+    "other_line_bar_scatter_family_mismatch": 28,
+    "other_rejection": 0,
+    "other_visual_or_semantic_mismatch": 13,
+    "residual_bar_scatter_subtype": 84,
+    "schema_invalid": 3,
+    "still_wrong_binding": 51,
+    "total_raw_rejected_singles": 179
+  },
+  "verified_multi_doi": {
+    "K": 12,
+    "N_prime": 7,
+    "N_prime_dois": [
+      "10.1038/s44318-023-00005-0",
+      "10.1038/s44318-025-00395-3",
+      "10.1038/s44318-025-00510-4",
+      "10.1038/s44318-025-00634-7",
+      "10.1038/s44319-025-00373-0",
+      "10.7554/elife.95867",
+      "10.7554/elife.97860"
+    ],
+    "baseline_N": 5,
+    "baseline_dois": [
+      "10.1038/s44318-025-00510-4",
+      "10.1038/s44318-025-00634-7",
+      "10.1038/s44319-025-00373-0",
+      "10.7554/elife.95867",
+      "10.7554/elife.97860"
+    ],
+    "reaches_K": false,
+    "reclassified_accepted_multi_doi_count": 2,
+    "reclassified_accepted_multi_dois": [
+      "10.1038/s44318-023-00005-0",
+      "10.1038/s44318-025-00395-3"
+    ]
+  }
+}

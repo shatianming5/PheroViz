@@ -1,0 +1,769 @@
+{
+  "audit_corrections": [
+    {
+      "correction": "Independent end-to-end verification established a later hash-bound controlled-alias contract (a330…/47823…, input manifest 9af…) with readonly byte equality to the V3 freeze. Registry 2e816… accurately records that contract.",
+      "finding": "Earlier audit wording incorrectly treated c3ea/737c aliases as categorically non-authoritative and the registry as stale for omitting the alternate named copy.",
+      "impact": "No change to leakage verdict, K=62, or sealed-C2 BLOCKED status; V3 remains diagnostic-only."
+    },
+    {
+      "correction": "Publisher now verifies/records the final addendum and named mirror and exports final[\"prior_review_or_evidence_status\"]. Registry abe2…/76fb… matches the final addendum.",
+      "finding": "The first regenerated cross-bound registry exported the older controlled-binding stale-review status instead of the final addendum status.",
+      "impact": "V3 diagnostic transport coherence restored; no change to leakage verdict, K=62, or sealed-C2 BLOCKED status."
+    },
+    {
+      "correction": "Independently audited the stable current generation e6a40…/fc842…: it references dual clarification bee a…/2ed454…, validates both controlled and named readonly transports, and preserves sealed_eligible_freezes=[].",
+      "finding": "During coordination, the current registry advanced from the prior cross-bound generation to a named-only intermediate and then the atomic dual-transport generation.",
+      "impact": "V3 diagnostic transport coherence is current; no change to leakage verdict, K=62, or sealed-C2 BLOCKED status."
+    }
+  ],
+  "audit_subject": {
+    "declared_rule_version_in_current_code": "simple-2d-v4",
+    "proposal_classifier": "nature_download/corpus/proposals.py",
+    "proposal_classifier_sha256": "6554950b6f3bcaffc212c75450e3fed37dcd061e180306dfb490ed0c082b6d13",
+    "reclassifier": "files/c2_reclassify/improved_proposals.py",
+    "reclassifier_sha256": "1a4daf828207a335e203247e3ed4260fb7df868580a65ab1f3ad9314f5d6eb48"
+  },
+  "current_validation": {
+    "current_v3_dual_transport_audit": "PASS: exact e6a atomic generation, dual artifact, both transports, source-only publisher imports, and immutable overwrite guard independently verified.",
+    "gateway_calls": 0,
+    "integrity_publisher_pycompile": "PASS: publish_freeze_registry.py, publish_v3_dual_transport_clarification.py, and publish_v3_named_immutable_binding_addendum.py compiled successfully.",
+    "note": "Tests are offline; no execution or fresh VLM review was performed.",
+    "targeted_c2_guard_tests": {
+      "command": "/opt/homebrew/Caskroom/miniforge/base/bin/python3 -m pytest -q agent/tests/test_run_c2_v3.py nature_download/tests/test_benchmark.py",
+      "result": "12 passed",
+      "scope": "sealed manifest/runtime normalizer guards and wide-melt benchmark behavior"
+    }
+  },
+  "direct_raw_non_normalized_v4_p5_parity_proof": {
+    "actual_pool_path": "files/c2_reclassify_raw_p5/reproposed_direct_raw_p5_v4.jsonl",
+    "actual_pool_sha256": "d7c655b97334186d75c99ff69e23615065535224e609b40e62e1c50e26cde801",
+    "actual_records": 139,
+    "construction_rule_version": "simple-2d-v4",
+    "direct_all_inventory_path": "files/c2_reclassify_raw_p5/direct_all_candidates_v4/proposed.jsonl",
+    "direct_all_inventory_sha256": "71f0dc3f7374cf8f913226d8f37fba19da18d2620220078c651312ac2a863f1e",
+    "direct_all_rebuilt_record_bytes_identical": true,
+    "direct_all_records": 370,
+    "direct_all_rejected_records": 5063,
+    "distinct_p5_dois": 15,
+    "freeze_manifest_path": "files/c2_reclassify_raw_p5/frozen_direct_raw_p5_v4_20260721T193342Z/freeze_manifest.json",
+    "freeze_manifest_sha256": "e5618a52ba09b293e0e9b76cf97fe6d7738371b012d8cfefe6dca47168cb7381",
+    "fresh_review_status": "not_reviewed_fresh_v4_review_required",
+    "frozen_copy_sha_matches": true,
+    "frozen_pool_path": "files/c2_reclassify_raw_p5/frozen_direct_raw_p5_v4_20260721T193342Z/direct_raw_p5_v4.proposed.jsonl",
+    "full_rebuilt_record_bytes_identical": true,
+    "hash_verified_source_table_reads": 5691,
+    "historical_review_or_evidence_reads": 0,
+    "interpretation": "The directly re-proposed raw V4 pool is construction-label independent of judge output and normalizer-free, but its 15 independent P>=5 DOI clusters are below the K=62 operational gate and it has no fresh review/evidence.",
+    "k62_shortfall_doi_clusters": 47,
+    "method": "Dynamically guarded propose_cases while rebuilding from the raw all_candidates input with simple-2d-v4. Any review/evidence JSONL read would fail. The whole direct raw V4 inventory and then its P>=5 subset were compared byte-for-byte to published artifacts.",
+    "multis": 15,
+    "normalizer_backed_singles": 0,
+    "observed_jsonl_paths": [
+      "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/c2_full_casecount_20260720/combined/all_candidates.jsonl"
+    ],
+    "overlapping_component_source_ids": 0,
+    "persistence_audit": {
+      "direct_raw_freeze_manifest_git_status": "NOT_TRACKED",
+      "direct_raw_freeze_script_git_status": "NOT_TRACKED",
+      "direct_raw_pool_git_status": "NOT_TRACKED",
+      "raw_candidate_input_git_status": "NOT_TRACKED_AND_IGNORED_BY_nature_download/.gitignore:outputs/",
+      "raw_candidate_input_path": "nature_download/outputs/c2_full_casecount_20260720/combined/all_candidates.jsonl",
+      "required_remediation": "Before any fresh review, preserve the exact raw candidate input, 139-record frozen direct-raw P5 pool, freeze manifest, and generator script in a durable immutable store; record and verify their SHA-256 values. For a clean sealed execution, supervisor must force-add/commit them or adopt an equivalent hash-addressed immutable artifact contract."
+    },
+    "persistence_verdict": "FAIL_UNTRACKED_IGNORED_ARTIFACTS",
+    "raw_input_path": "nature_download/outputs/c2_full_casecount_20260720/combined/all_candidates.jsonl",
+    "raw_input_sha256": "79902bc40faf87af0149052236235f9644b10fa956011d8ef3a2f9962f9b8779",
+    "raw_source_table_records": 0,
+    "result": "PASS_SOURCE_ONLY_DIRECT_RAW__K62_INSUFFICIENT",
+    "singles": 124,
+    "source_normalization_records": 0,
+    "unique_hash_bound_source_tables_read": 2493
+  },
+  "dynamic_proofs": {
+    "historical_review_read_block": {
+      "historical_reviews_jsonl_reads": 0,
+      "method": "Monkeypatched improved_proposals.read_jsonl to raise if a path ended in reviews.jsonl, then rebuilt both batches in memory.",
+      "observed_read_paths": [
+        "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_integrity/.audit_judge_perturbed_casecount_strict.jsonl",
+        "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_integrity/.audit_judge_perturbed_full_strict.jsonl",
+        "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/c2_full_casecount_exploratory_20260720/corrected_sheet_binding/strict/proposals/proposed.jsonl",
+        "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/c2_full_proposals/proposed.jsonl"
+      ],
+      "result": "PASS"
+    },
+    "in_memory_rebuilds": {
+      "casecount_strict": {
+        "canonical_sha256": "978ffd5fedfd25064384f90eef0ffabc1ada2f1e6c7b96c30a491033ea2b73f2",
+        "multis": 32,
+        "records": 200,
+        "singles": 168
+      },
+      "full_strict": {
+        "canonical_sha256": "9b37945de134cd6bdca1919bebc4eaabda9c90f12f4c3d6ab6bc89225ec05b15",
+        "multis": 16,
+        "records": 116,
+        "singles": 100
+      }
+    },
+    "judge_label_counterfactual": {
+      "batches": {
+        "casecount_strict": {
+          "baseline_canonical_sha256": "978ffd5fedfd25064384f90eef0ffabc1ada2f1e6c7b96c30a491033ea2b73f2",
+          "full_rebuilt_record_bytes_identical": true,
+          "label_projection_identical": true,
+          "mutated_prior_fields": [
+            "curation_status",
+            "eligible_for_experiment",
+            "eligibility_reasons",
+            "proposal_analysis",
+            "experiment_case.chart_family",
+            "experiment_case.intent",
+            "experiment_case.evaluation_expectation"
+          ],
+          "perturbed_canonical_sha256": "978ffd5fedfd25064384f90eef0ffabc1ada2f1e6c7b96c30a491033ea2b73f2",
+          "records_compared": 200
+        },
+        "full_strict": {
+          "baseline_canonical_sha256": "9b37945de134cd6bdca1919bebc4eaabda9c90f12f4c3d6ab6bc89225ec05b15",
+          "full_rebuilt_record_bytes_identical": true,
+          "label_projection_identical": true,
+          "mutated_prior_fields": [
+            "curation_status",
+            "eligible_for_experiment",
+            "eligibility_reasons",
+            "proposal_analysis",
+            "experiment_case.chart_family",
+            "experiment_case.intent",
+            "experiment_case.evaluation_expectation"
+          ],
+          "perturbed_canonical_sha256": "9b37945de134cd6bdca1919bebc4eaabda9c90f12f4c3d6ab6bc89225ec05b15",
+          "records_compared": 116
+        }
+      },
+      "method": "Rebuilt each batch after overwriting all prior label-like fields in the input proposed records with synthetic judge decisions; source tables and provenance fields were unchanged.",
+      "result": "PASS"
+    },
+    "source_table_hash_checked": {
+      "empty_source_hashes": 0,
+      "method": "Wrapped proposal-module read_candidate_table without changing its checksum/parser behavior.",
+      "read_candidate_table_calls": 536,
+      "result": "PASS",
+      "unique_hash_bound_source_tables": 123,
+      "unique_source_candidate_ids": 168
+    }
+  },
+  "freeze_registry_audit": {
+    "atomic_publication_contract": "PASS: compatibility JSON and sidecar are symlinks through one current-generation pointer; current immutable generation and files are readonly; pointer stayed stable through independent audit.",
+    "current_v3_transport": "dual clarification: controlled aliases and named readonly mirror are independently hash-bound, byte-identical to the V3 freeze, and diagnostic-only.",
+    "direct_raw_frozen_input_git_tracked": false,
+    "direct_raw_persistence_verdict": "FAIL_UNTRACKED_IGNORED_ARTIFACTS",
+    "final_cross_bound_addendum_file_sha256": "17193dadbb4be13e0f3933f66c15a9f2b13ffe5de5bb464cb38523ce49aca929",
+    "final_cross_bound_addendum_internal_sha256": "02d9416b3681c9ad933a54f218edb525c33cd1afb1396c58222faadaadefe49d",
+    "freezes_verified": [
+      {
+        "inputs": [
+          {
+            "proposal_sha256": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49",
+            "records": 147
+          },
+          {
+            "proposal_sha256": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131",
+            "records": 85
+          },
+          {
+            "proposal_sha256": "78d1d8703ac87a92fbb2a2dde89e81fde34ed39fd2561dc5d16879e6c219bdb2",
+            "records": 200
+          },
+          {
+            "proposal_sha256": "e1c3ae8455fd4e440b6d190e8ab106a89cf73951bcf4540a40cb6c2f1039bb10",
+            "records": 116
+          }
+        ],
+        "label": "v3_strict",
+        "sealed_status": "diagnostic_only_stale_v3_strict_scope"
+      },
+      {
+        "inputs": [
+          {
+            "proposal_sha256": "58f1d3050fb5fe89509956b639779d6afffbb8c145a4433cdd22b55244d7de94",
+            "records": 147
+          },
+          {
+            "proposal_sha256": "0d38f5906a87d9b694fc333648e13cc38eb31ed29a180ccd0fc6dfcadef91997",
+            "records": 85
+          },
+          {
+            "proposal_sha256": "978ffd5fedfd25064384f90eef0ffabc1ada2f1e6c7b96c30a491033ea2b73f2",
+            "records": 200
+          },
+          {
+            "proposal_sha256": "9b37945de134cd6bdca1919bebc4eaabda9c90f12f4c3d6ab6bc89225ec05b15",
+            "records": 116
+          }
+        ],
+        "label": "v4_strict",
+        "sealed_status": "diagnostic_only_historic_reject_selected_or_overlapping_strict_scope"
+      },
+      {
+        "inputs": [
+          {
+            "proposal_sha256": "6486ed743344731cc00202427bd722cd16dc05a69507fca887c235a1c9766d6d",
+            "records": 1835
+          }
+        ],
+        "label": "v4_full_normalizer",
+        "sealed_status": "sealed_blocked_exploratory_normalizer"
+      },
+      {
+        "inputs": [
+          {
+            "proposal_sha256": "4d0edd9bbb4e3a1883535b40867cdd383767155d8fb612ad1caaede2ec8bc6e2",
+            "records": 62
+          }
+        ],
+        "label": "v4_raw_seed",
+        "sealed_status": "diagnostic_only_superseded_by_direct_raw_p5"
+      },
+      {
+        "inputs": [
+          {
+            "proposal_sha256": "d7c655b97334186d75c99ff69e23615065535224e609b40e62e1c50e26cde801",
+            "records": 139
+          }
+        ],
+        "label": "v4_direct_raw_p5",
+        "sealed_status": "diagnostic_only_k62_insufficient"
+      }
+    ],
+    "registry_canonical_sha256": "e6a40fb3429e59247c8173003e29573a7dc46632b1c5157c95b79a233a190194",
+    "registry_correction_status": "PASS_CURRENT_DUAL_DIAGNOSTIC_TRANSPORT",
+    "registry_current_generation": "files/c2_reclassify/freeze_registry_generations/registry-e6a40fb3429e59247c8173003e29573a7dc46632b1c5157c95b79a233a190194",
+    "registry_file_sha256": "fc84232ff3c8db1f5c057458b318d896d8145d2bedbbf4f9c965e85dfb1113b8",
+    "registry_git_status_at_audit": "NOT_TRACKED_SUPERVISOR_INTEGRATION_REQUIRED",
+    "registry_path": "files/c2_reclassify/freeze_registry.json",
+    "registry_publisher_remediation": "Current publisher validates the dual transport clarification, all three equivalent readonly inputs, and publishes an immutable generation via atomic current-pointer swap.",
+    "registry_scope_note": "The registry accurately says no freeze is sealed-eligible. It is an audit inventory, not a substitute for the direct raw artifact persistence requirement or a sealed review/evidence binding.",
+    "required_remediation": "No V3 registry coherence remediation outstanding. All generated registry/addendum artifacts remain untracked and must be preserved in a clean integration commit if retained. This does not cure raw V4 persistence, fresh V4 review, normalizer provenance, or K=62 blockers.",
+    "result": "PASS_CURRENT_ATOMIC_E6A_REGISTRY__NO_SEALED_ELIGIBLE_FREEZE",
+    "sealed_eligible_freezes": [],
+    "source_level_root_cause": "Resolved: immutable historical addenda accumulated during coordination; current registry explicitly selects the dual diagnostic transport clarification and records both allowed hash-bound transports."
+  },
+  "full_v4_pool_parity_proof": {
+    "all_records_proposed_not_eligible": true,
+    "extra_regenerated_multi": 0,
+    "historical_review_input_read": false,
+    "interpretation": "204 distinct P>=5 DOI clusters is a review-ready source-only ceiling, not a verified sample or a license to execute.",
+    "method": "Rebuilt all 1,611 single records from their hash-verified source tables with simple-2d-v4, regenerated canonical multis, and compared every proposal label projection; no historical review/evidence input was supplied.",
+    "missing_regenerated_multi": 0,
+    "multi_label_projection_mismatches": 0,
+    "multis": 224,
+    "p5plus_distinct_dois": 204,
+    "p5plus_multi_cases": 224,
+    "pool_path": "files/c2_reclassify_pool/reproposed_pool_multi.jsonl",
+    "pool_sha256": "6486ed743344731cc00202427bd722cd16dc05a69507fca887c235a1c9766d6d",
+    "records": 1835,
+    "result": "PASS_LABEL_PARITY__FAIL_SEALED_SOURCE_PROVENANCE",
+    "sealed_source_provenance": {
+      "consequence": "The 204-DOI V4 pool is a diagnostic/source-structure ceiling only. It is ineligible for sealed C2 review, assembly, or execution until rebuilt from raw hash-bound non-normalized source tables and freshly reviewed.",
+      "evidence_manifest": "data/c2_cases_v1/_manifest.jsonl",
+      "evidence_manifest_normalizer_implementation": "nature_download.corpus.source_table_normalizer.normalize_source_sheet",
+      "pool_p5plus_dois_all_direct_raw_components": 1,
+      "pool_p5plus_dois_with_any_exploratory_normalizer_component": 203,
+      "pool_p5plus_multi_cases": 224,
+      "pool_p5plus_multis_all_direct_raw_components": 1,
+      "pool_p5plus_multis_with_any_exploratory_normalizer_component": 223,
+      "pool_single_records": 1611,
+      "pool_singles_with_exploratory_normalizer_path": 1538,
+      "rule": "The user prohibits exploratory normalizer outputs on the sealed path.",
+      "sealed_source_provenance_verdict": "FAIL"
+    },
+    "single_label_projection_mismatches": 0,
+    "singles": 1611,
+    "source_table_reads_are_hash_verified_by": "nature_download.corpus.proposals.read_candidate_table"
+  },
+  "label_input_trace": {
+    "construction_call_path": [
+      {
+        "action": "calls reclassify_proposals; accepts only batch name and proposed-record path",
+        "function": "improved_proposals.reclassify_batch",
+        "source_lines": "290-297"
+      },
+      {
+        "action": "reads prior proposed records, calls propose_single_candidate once per source single, then derives canonical multis from rebuilt singles",
+        "function": "improved_proposals.reclassify_proposals",
+        "source_lines": "197-287"
+      },
+      {
+        "action": "read_candidate_table -> analyze_table -> deterministic expectation/intent/chart_family; overwrites prior experiment_case and proposal_analysis",
+        "function": "proposals.propose_single_candidate",
+        "source_lines": "1220-1328"
+      },
+      {
+        "action": "rejects symlink/missing/oversize/checksum-mismatched assets before parsing the source table",
+        "function": "proposals.read_candidate_table",
+        "source_lines": "472-523"
+      },
+      {
+        "action": "derives chart family and bindings only from ColumnProfile/header/value structure; wide melt uses explicit virtual fields and source value columns",
+        "function": "proposals.analyze_table and _analyze_table_v4",
+        "source_lines": "793-1071"
+      }
+    ],
+    "direct_raw_construction_call_path": [
+      {
+        "action": "reads only raw all_candidates records; invokes propose_single_candidate for unverified candidates and derives canonical multis without a judge/review argument",
+        "function": "proposals.propose_cases",
+        "source_lines": "1576-1728"
+      },
+      {
+        "action": "takes only canonical P>=5 multis with direct raw CSV/XLSX components; rejects source_normalization, raw_source_table, and exploratory_normalizer paths before freezing",
+        "function": "freeze_direct_raw_p5_v4.main",
+        "source_lines": "55-86 and 148-244"
+      }
+    ],
+    "judge_paths_and_allowed_non_label_uses": [
+      {
+        "function": "rejected_single_ids / priority_records",
+        "label_effect": "none; priority artifacts are judge-selected and are forbidden as the final sealed universe",
+        "source_lines": "300-326 and 690-718",
+        "use": "historical review status selects a diagnostic priority transport subset only"
+      },
+      {
+        "function": "diagnostic",
+        "label_effect": "none; metrics/report only",
+        "source_lines": "447-594 and main 787-816",
+        "use": "historical review outputs are compared after full rebuilt records are written"
+      },
+      {
+        "function": "validate_review_input",
+        "label_effect": "none; rejects invalid transport input without mutating labels",
+        "source_lines": "329-374",
+        "use": "local deterministic review-schema/canonical-multi preflight, not a historical review read"
+      }
+    ],
+    "label_determining_inputs": [
+      "static simple-2d-v4 rules and thresholds",
+      "hash-verified source-table path, bytes, selected sheet, headers, dtypes, non-null values, cardinalities, monotonicity, and duplicate structure"
+    ],
+    "non_label_provenance_inputs_carried_or_used_for_identity": [
+      "candidate_id, DOI, figure number, panel ID, source-table descriptor, figure/caption/license/provenance fields, input candidate hash, and code commit",
+      "pre-existing multi candidate IDs only to preserve supplied strict-set scope"
+    ]
+  },
+  "legacy_materialized_raw_v4_p5_parity_proof": {
+    "all_records_proposed_not_eligible": true,
+    "distinct_p5_dois": 7,
+    "freeze_manifest_path": "files/c2_reclassify_raw_p5/frozen_raw_p5_v4_20260721T192239Z/freeze_manifest.json",
+    "freeze_manifest_sha256": "0ab3135111cffa3fe2688bf0afe1a0e0881efc8e1c4dee24ec398a5c531e9dbb",
+    "fresh_review_status": "not_reviewed_fresh_v4_review_required",
+    "frozen_copy_sha_matches": true,
+    "interpretation": "Historical smaller raw-materialized subset: it has seven independent DOI clusters, remains unreviewed, and cannot pass K=62. The separately audited direct raw 15-DOI pool is the current operative raw provenance evidence.",
+    "method": "Historical check: rebuilt all 55 source singles in the frozen raw-materialized P5 subset with simple-2d-v4, regenerated its seven canonical multis, and compared label projections; no review/evidence input was supplied.",
+    "multi_label_projection_mismatches": 0,
+    "multis": 7,
+    "normalizer_backed_multis": 0,
+    "normalizer_backed_singles": 0,
+    "pool_path": "files/c2_reclassify_raw_p5/reproposed_raw_p5_v4.jsonl",
+    "pool_sha256": "4d0edd9bbb4e3a1883535b40867cdd383767155d8fb612ad1caaede2ec8bc6e2",
+    "records": 62,
+    "report_sha256": "34658cd2f84674fa7227525f3576228c65f8db1b9db7c291cf69f45d7233f3e1",
+    "reported_proposal_sha_matches": true,
+    "result": "PASS_SOURCE_ONLY_RAW__K62_INSUFFICIENT",
+    "single_label_projection_mismatches": 0,
+    "singles": 55,
+    "status": "SUPERSEDED_BY_LARGER_DIRECT_RAW_15_DOI_POOL",
+    "supersession_note": "This 7-DOI raw-materialized subset remains provenance-clean, but the separately audited direct raw pool below is a larger, current 15-DOI source-only pool.",
+    "unexpected_regenerated_multis": 0
+  },
+  "published_artifact_coherence": {
+    "a2_input_matches_current_v4_priority_artifact": false,
+    "a2_review_input_manifest_source_sha256": "5f0c6e5186473299de0297029dd383fbf4e3a255bf472b7e69b84dce56776526",
+    "a2_review_input_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/reproposed_strict_rejects.jsonl",
+    "current_code_rule_version": "simple-2d-v4",
+    "published_report": "files/c2_reclassify/reclassify_report_v4.json",
+    "published_report_rule_version": "simple-2d-v4",
+    "published_report_sha256": "0bddce236293a5276e21e83b426c626de81ef7855d0c27a9636142b75c956d17",
+    "report_hashes_match_files": {
+      "full_casecount_strict": true,
+      "full_combined": true,
+      "full_full_strict": true,
+      "priority_casecount_strict": true,
+      "priority_combined": true,
+      "priority_full_strict": true
+    },
+    "required_remediation": [
+      "Do not review or seal the normalizer-tainted 204-DOI pool for C2; recreate/expand raw hash-bound, non-normalized P>=5 coverage first.",
+      "The current direct raw V4 pool is source-clean but has only 15 DOI clusters; expand it to at least 62 independent raw P>=5 DOI clusters before fresh review.",
+      "Freeze the exact selected raw V4 full pool and bind fresh dual-judge reviews/evidence to its SHA-256.",
+      "Do not use priority/rejects artifacts as the final sealed universe; their membership is historical-judge-selected."
+    ],
+    "rule_version_matches_current_code": true,
+    "status": "PASS_V4_CLASSIFIER_ARTIFACTS__BLOCKED_A2_STALE",
+    "strict_v4_freeze_forbids_stale_reuse": true,
+    "strict_v4_freeze_manifest": "files/c2_reclassify/frozen_v4_20260721T190322Z/freeze_manifest.json",
+    "strict_v4_freeze_manifest_canonical_sha256": "43dba72b0ac1a66bca8f7f1f3ad6a6a1267b51457bbe89560cc082ae91f42ed4",
+    "strict_v4_freeze_manifest_file_sha256": "d5413b7ba7d2bcae2be7cc52eaabd60508a53f588a162a4ce4d32be55de01899",
+    "strict_v4_freeze_manifest_sha256": "d5413b7ba7d2bcae2be7cc52eaabd60508a53f588a162a4ce4d32be55de01899",
+    "strict_v4_freeze_requires_fresh_review": true,
+    "v3_diagnostic_transport_status": "PASS: current dual clarification beea…/2ed454… independently binds both controlled aliases (a330…/input manifest 9af…) and named readonly mirror (711496…/ad6c…), with all three copies byte-identical to V3 frozen inputs. It remains diagnostic-only.",
+    "v4_artifact_sha256": {
+      "reproposed_strict_full_v4.jsonl": "b4166a3aff5acda6dfaf22cd233db3fb416c5e26c6adfba396ebbc59a1d72abf",
+      "reproposed_strict_full_v4_casecount_strict.jsonl": "978ffd5fedfd25064384f90eef0ffabc1ada2f1e6c7b96c30a491033ea2b73f2",
+      "reproposed_strict_full_v4_full_strict.jsonl": "9b37945de134cd6bdca1919bebc4eaabda9c90f12f4c3d6ab6bc89225ec05b15",
+      "reproposed_strict_rejects_v4.jsonl": "494d18b3b74fb61158601e95c33fcd667591d6b89b61d5b3cae38443550c6d60",
+      "reproposed_strict_rejects_v4_casecount_strict.jsonl": "58f1d3050fb5fe89509956b639779d6afffbb8c145a4433cdd22b55244d7de94",
+      "reproposed_strict_rejects_v4_full_strict.jsonl": "0d38f5906a87d9b694fc333648e13cc38eb31ed29a180ccd0fc6dfcadef91997"
+    },
+    "v4_full_pool_freeze_manifest_canonical_sha256": "70caf43ede097fd8e83efbd6e0e8e17596f95bf0d0ca8d23d9325f94cd5b02cd",
+    "v4_full_pool_freeze_manifest_file_sha256": "c11ef8afbf6de25e56f8376065639a276567e0da5c2f13c84aff0a72a0881b7b",
+    "v4_full_pool_freeze_status": "PASS_DIAGNOSTIC_FREEZE__FAIL_SEALED_NORMALIZER_PROVENANCE",
+    "v4_review_freeze_integrity_status": "PASS_FREEZE_INTEGRITY__NO_FRESH_V4_REVIEW"
+  },
+  "red_lines": [
+    "A priority/rejects artifact may support diagnostic triage only; it is historical-judge-selected and cannot define final sealed C2 membership.",
+    "No V4 artifact or review result may be sealed until its proposal hash, fresh review input hash, review evidence, and rebuilt candidates are mutually bound.",
+    "The V4 full pool parity PASS is not a fresh VLM review PASS; its 204 DOI ceiling remains unverified.",
+    "The 204-DOI V4 pool contains exploratory-normalizer source paths in 223/224 P>=5 multis; it is forbidden from the sealed C2 path despite source-only label parity.",
+    "The frozen direct raw V4 P5 pool is normalizer-free and byte-identical under a guarded source-only rebuild, but 15 independent DOI clusters cannot satisfy the K=62 gate.",
+    "The V3 priority transport is byte-bound to its immutable freeze and may support only diagnostic lift measurement; historic reject selection and code_dirty=true review bindings prohibit sealed C2 use.",
+    "The direct raw 15-DOI pool is local/untracked and its 5,377-candidate raw input is git-ignored; do not fresh-review or seal it until its exact hash-bound input, freeze, and script are durably immutable-stored.",
+    "The current freeze registry has sealed_eligible_freezes=[]; it is an inventory only and cannot authorize any fresh sealed C2 review or execution.",
+    "V3 c3ea/737c aliases may support diagnostic re-review only when each review binds controlled manifest 9af… and controlled binding a330… plus the matching readonly V3 frozen source; aliases alone and all pre-controlled-binding evidence are invalid. No V3 path is sealed-eligible.",
+    "A fresh V3 diagnostic review must bind one complete dual-clarification transport (controlled manifest plus frozen source, or named binding manifest plus named readonly input and frozen source). Both remain diagnostic-only; no V3 path is sealed-eligible."
+  ],
+  "schema_version": "c2-reclassifier-leakage-audit-v4",
+  "v3_controlled_alias_binding": {
+    "alias_authority_rule": "Aliases alone are not self-authenticating. A fresh diagnostic V3 review may use them only when every review record binds the input SHA to this controlled manifest and to the matching readonly immutable V3 source.",
+    "control_binding_file_sha256": "a330597b67f27da3acc7705fbfc73a8e095725ca32f88bcc421b9c2791235dec",
+    "control_binding_internal_sha256": "47823f16205ac8a785bc026f88829efcaba81c87eb707cf55a90f80b2176cc60",
+    "control_binding_path": "files/c2_reclassify/v3_controlled_live_input_binding_20260722T035556_0800.json",
+    "control_binding_sidecar_matches_internal_hash": true,
+    "entries": [
+      {
+        "batch": "casecount_strict",
+        "frozen_v3_path": "files/c2_reclassify/frozen_v3_20260722T024015_0800/priority_casecount_strict.proposed.jsonl",
+        "live_and_frozen_readonly": true,
+        "live_path": "files/c2_reclassify_review/inputs/casecount_strict.proposed.jsonl",
+        "records": 147,
+        "sha256": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49"
+      },
+      {
+        "batch": "full_strict",
+        "frozen_v3_path": "files/c2_reclassify/frozen_v3_20260722T024015_0800/priority_full_strict.proposed.jsonl",
+        "live_and_frozen_readonly": true,
+        "live_path": "files/c2_reclassify_review/inputs/full_strict.proposed.jsonl",
+        "records": 85,
+        "sha256": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131"
+      }
+    ],
+    "input_manifest_file_sha256": "9af7a8d2fc28d107caea93178ce21a8160a5611e0015acd0ba623107a6f62bde",
+    "input_manifest_path": "files/c2_reclassify_review/input_manifest.json",
+    "input_manifest_sidecar_matches_file_hash": true,
+    "prior_review_rule": "Only reviews/evidence before this controlled binding or tied to predecessor 485e/f2b3 inputs are stale. This does not authorize sealed C2 use.",
+    "result": "PASS_CONTROLLED_V3_ALIAS_BINDING__DIAGNOSTIC_ONLY",
+    "sealed_status": "diagnostic_only_stale_v3_strict_scope",
+    "source_freeze_manifest_file_sha256": "dc20456275739af301ff8c9e61c26802eee7d1f690e3eb633d81ea42448a85d0"
+  },
+  "v3_diagnostic_review_transport_freeze": {
+    "aliases_alone_not_self_authenticating": true,
+    "aliases_authorized_with_hash_bound_manifest_and_frozen_sources": true,
+    "audit_boundary": "The separately recorded V3 source-only counterfactual rebuild verifies label construction; this freeze section verifies immutable-copy/live-input transport binding. Neither permits historic-reject-selected V3 priority scope, dirty-worktree review output, or V3 artifacts to supersede the V4/full/raw sealed C2 gate.",
+    "batches": [
+      {
+        "batch": "casecount_strict",
+        "frozen_copy_equals_live": true,
+        "frozen_input_path": "files/c2_reclassify/frozen_v3_20260722T024015_0800/priority_casecount_strict.proposed.jsonl",
+        "live_input_path": "files/c2_reclassify_review/inputs/casecount_strict.proposed.jsonl",
+        "multi_panel_parents": 20,
+        "records": 147,
+        "sha256": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49",
+        "single_panels": 127
+      },
+      {
+        "batch": "full_strict",
+        "frozen_copy_equals_live": true,
+        "frozen_input_path": "files/c2_reclassify/frozen_v3_20260722T024015_0800/priority_full_strict.proposed.jsonl",
+        "live_input_path": "files/c2_reclassify_review/inputs/full_strict.proposed.jsonl",
+        "multi_panel_parents": 9,
+        "records": 85,
+        "sha256": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131",
+        "single_panels": 76
+      }
+    ],
+    "controlled_alias_binding_file_sha256": "a330597b67f27da3acc7705fbfc73a8e095725ca32f88bcc421b9c2791235dec",
+    "controlled_alias_binding_internal_sha256": "47823f16205ac8a785bc026f88829efcaba81c87eb707cf55a90f80b2176cc60",
+    "controlled_alias_binding_path": "files/c2_reclassify/v3_controlled_live_input_binding_20260722T035556_0800.json",
+    "controlled_alias_binding_status": "PASS: aliases c3ea/737c are authorized only via a330… controlled binding, input manifest 9af…, and matching readonly frozen V3 sources.",
+    "freeze_manifest_canonical_sha256": "f2d7417a5df6171bc2dca24192fec2ae73fd0e5c372980d99ce57dfc8acf6999",
+    "freeze_manifest_file_sha256": "dc20456275739af301ff8c9e61c26802eee7d1f690e3eb633d81ea42448a85d0",
+    "freeze_manifest_path": "files/c2_reclassify/frozen_v3_20260722T024015_0800/freeze_manifest.json",
+    "historical_stale_checkpoint_preserved_at": "files/c2_reclassify_review/stale_pre_freeze_casecount_strict",
+    "named_alternate_binding_file_sha256": "711496c0cf1946eb6c27dd3f16109ecb128f752f289c06b08c617fb1fc84ea3f",
+    "named_alternate_binding_internal_sha256": "ad6c061afd97d6e7ee2c762b46c81c463f7ff1e777c52fd56623a6782ae7d484",
+    "named_alternate_binding_path": "files/c2_reclassify_review/frozen_v3_priority_review_inputs_20260722T035220_0800/input_binding_manifest.json",
+    "named_alternate_binding_status": "PASS_ALTERNATE_IMMUTABLE_COPY__NOT_A_SUPERSESSION",
+    "requires_fresh_review": true,
+    "result": "PASS_TRANSPORT_BINDING__DIAGNOSTIC_ONLY",
+    "review_input_manifest_file_sha256": "9af7a8d2fc28d107caea93178ce21a8160a5611e0015acd0ba623107a6f62bde",
+    "review_input_manifest_path": "files/c2_reclassify_review/input_manifest.json",
+    "scope_constraint": "Both transported batches are historic-reject-selected priority subsets. They may support the bounded V3 diagnostic re-review only; they cannot define, verify, or enter the final sealed C2 universe.",
+    "source_freeze_sha256_matches": true,
+    "stale_review_or_evidence_reuse_forbidden": true
+  },
+  "v3_dual_diagnostic_transport_clarification": {
+    "controlled_alias_binding": {
+      "file_sha256": "a330597b67f27da3acc7705fbfc73a8e095725ca32f88bcc421b9c2791235dec",
+      "input_manifest_file_sha256": "9af7a8d2fc28d107caea93178ce21a8160a5611e0015acd0ba623107a6f62bde",
+      "input_manifest_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/input_manifest.json",
+      "input_manifest_sha256_sidecar": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/input_manifest.json.sha256",
+      "internal_sha256": "47823f16205ac8a785bc026f88829efcaba81c87eb707cf55a90f80b2176cc60",
+      "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/v3_controlled_live_input_binding_20260722T035556_0800.json",
+      "validity_condition": "valid only when the input-manifest hash and matching frozen V3 source hash are bound into the review record"
+    },
+    "file_sha256": "beea805a26fb18a7abca4052f3e341f642fb5a6815539a3705387884421496c3",
+    "immutability_writer_overwrite_refusal": "PASS",
+    "internal_sha256": "2ed4546e3f1e695c885076a5775d1675114d845b2991ca1fcf2e3272b31e9087",
+    "named_readonly_mirror_binding": {
+      "file_sha256": "711496c0cf1946eb6c27dd3f16109ecb128f752f289c06b08c617fb1fc84ea3f",
+      "internal_sha256": "ad6c061afd97d6e7ee2c762b46c81c463f7ff1e777c52fd56623a6782ae7d484",
+      "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/frozen_v3_priority_review_inputs_20260722T035220_0800/input_binding_manifest.json",
+      "validity_condition": "valid only when the named binding-manifest hash and matching named readonly input hash are bound into the review record"
+    },
+    "path": "files/c2_reclassify/v3_dual_diagnostic_transport_clarification_20260722T041121_0800.json",
+    "prior_review_rule": "rejected: all prior review/evidence remains stale, including evidence bound to the historical 485e/f2b3 predecessor inputs",
+    "result": "PASS_CURRENT_DUAL_DIAGNOSTIC_TRANSPORT__SOURCE_ONLY",
+    "review_binding_rule": "A fresh V3 diagnostic review must bind one complete valid transport: either the controlled alias manifest plus frozen source, or the named immutable binding manifest plus named readonly input and frozen source. An alias path alone is insufficient.",
+    "sealed_status": "diagnostic_only_stale_v3_strict_scope",
+    "source_only_proof": "AST import audit of publish_v3_dual_transport_clarification.py found only stdlib modules; no reviews.jsonl/evidence.jsonl read path. Immutable-writer overwrite attempt failed as required.",
+    "verified_equivalent_inputs": [
+      {
+        "all_three_byte_identical": true,
+        "all_three_readonly": true,
+        "controlled_alias_input": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/inputs/casecount_strict.proposed.jsonl",
+        "frozen_v3_source": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v3_20260722T024015_0800/priority_casecount_strict.proposed.jsonl",
+        "label": "casecount_strict",
+        "named_readonly_mirror_input": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/frozen_v3_priority_review_inputs_20260722T035220_0800/casecount_strict.proposed.jsonl",
+        "sha256": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49"
+      },
+      {
+        "all_three_byte_identical": true,
+        "all_three_readonly": true,
+        "controlled_alias_input": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/inputs/full_strict.proposed.jsonl",
+        "frozen_v3_source": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v3_20260722T024015_0800/priority_full_strict.proposed.jsonl",
+        "label": "full_strict",
+        "named_readonly_mirror_input": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/frozen_v3_priority_review_inputs_20260722T035220_0800/full_strict.proposed.jsonl",
+        "sha256": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131"
+      }
+    ]
+  },
+  "v3_final_cross_bound_addendum": {
+    "addendum_file_sha256": "17193dadbb4be13e0f3933f66c15a9f2b13ffe5de5bb464cb38523ce49aca929",
+    "addendum_internal_sha256": "02d9416b3681c9ad933a54f218edb525c33cd1afb1396c58222faadaadefe49d",
+    "all_hashes_and_readonly_copies_verified": true,
+    "current_transport_status": "VALID_PRIOR_CROSS_BOUND_ARTIFACT__SUPERSEDED_AS_CURRENT_REGISTRY_TRANSPORT_BY_DUAL_CLARIFICATION",
+    "entries": [
+      {
+        "kind": "named",
+        "label": "casecount_strict",
+        "readonly": true,
+        "sha256": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49"
+      },
+      {
+        "kind": "named",
+        "label": "full_strict",
+        "readonly": true,
+        "sha256": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131"
+      },
+      {
+        "kind": "controlled",
+        "label": "casecount_strict",
+        "readonly": true,
+        "sha256": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49"
+      },
+      {
+        "kind": "controlled",
+        "label": "full_strict",
+        "readonly": true,
+        "sha256": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131"
+      }
+    ],
+    "final_prior_status": "rejected: all review/evidence records created before this final cross-bound addendum, including records bound to the 485e/f2b3 predecessor inputs, are stale and must not be reused",
+    "immutability_writer_overwrite_refusal": "PASS: invoking publisher with existing addendum path returned nonzero and explicit refusal; no artifact overwritten.",
+    "registry_file_sha256": "abe2beba9a65e4f02f7e4bd638c4156d72ec34c914b63a1e506b94251998d687",
+    "registry_internal_sha256": "76fbed8206571456d2fbed3d6574130711a0b09303f943f37bae41fc2f99a72b",
+    "registry_prior_status": "rejected: all review/evidence records created before this final cross-bound addendum, including records bound to the 485e/f2b3 predecessor inputs, are stale and must not be reused",
+    "registry_prior_status_matches_final": true,
+    "registry_records_addendum": true,
+    "registry_records_named_mirror": true,
+    "registry_review_status_coherence": "PASS: registry exports the final cross-bound addendum stale-review rule.",
+    "required_remediation": "None for V3 binding coherence; keep all V3 material diagnostic-only and require fresh review bound to the controlled input manifest plus frozen source.",
+    "result": "PASS_CROSS_BOUND_V3_ADDENDUM_AND_REGISTRY__DIAGNOSTIC_ONLY",
+    "script_reads_reviews_or_evidence_jsonl": false,
+    "script_review_or_evidence_imports": [
+      "__future__",
+      "argparse",
+      "datetime",
+      "hashlib",
+      "json",
+      "pathlib",
+      "stat",
+      "typing"
+    ],
+    "sealed_eligible_freezes": [],
+    "superseding_dual_clarification_file_sha256": "beea805a26fb18a7abca4052f3e341f642fb5a6815539a3705387884421496c3",
+    "superseding_dual_clarification_internal_sha256": "2ed4546e3f1e695c885076a5775d1675114d845b2991ca1fcf2e3272b31e9087"
+  },
+  "v3_immutability_hardening": {
+    "dynamic_overwrite_refusal_test": "PASS: both writers invoked against existing immutable directories returned nonzero with their explicit refusal messages; no artifacts were overwritten.",
+    "freeze_v3_review_inputs_py": "rejects any existing output directory (including an empty one through exist_ok=False); copies only V3 proposal inputs and declares no review/judge reads.",
+    "limitation": "This validates overwrite prevention, not sealed eligibility. The named V3 binding remains historic-judge-selected diagnostic-only.",
+    "prepare_batch_inputs_py": "rejects any existing named binding directory before source processing; outputs readonly files/directories.",
+    "verdict": "PASS"
+  },
+  "v3_label_construction_independence": {
+    "batches": {
+      "casecount_strict": {
+        "baseline_matches_published_v3_bytes": true,
+        "canonical_sha256": "4b17f3342517d3f3e9583eec60a368e188e8c49aaad9164277389964289b1dca",
+        "judge_label_counterfactual_bytes_identical": true,
+        "multis": 32,
+        "records": 200,
+        "singles": 168
+      },
+      "full_strict": {
+        "baseline_matches_published_v3_bytes": true,
+        "canonical_sha256": "f9074fe1d8fcf483e5cd8ffa631cfe657c722f6b49c7744db42a1d7c60227b2f",
+        "judge_label_counterfactual_bytes_identical": true,
+        "multis": 16,
+        "records": 116,
+        "singles": 100
+      }
+    },
+    "hash_verified_source_table_reads": 1072,
+    "historical_review_or_evidence_reads": 0,
+    "interpretation": "V3 construction labels are source-structure-only under the audited current implementation. This does not remove the historical-judge selection dependency of the priority transport subset or make V3 eligible for sealed C2.",
+    "method": "Rebuilt each original strict source batch under simple-2d-v3 while a dynamic guard rejected every review/evidence JSONL path. Then replaced all inherited judge-like curation/label fields in memory and rebuilt again.",
+    "observed_jsonl_paths": [
+      "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/c2_full_casecount_exploratory_20260720/corrected_sheet_binding/strict/proposals/proposed.jsonl",
+      "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/c2_full_proposals/proposed.jsonl"
+    ],
+    "result": "PASS",
+    "rule_version": "simple-2d-v3",
+    "unique_hash_bound_source_tables": 123
+  },
+  "v3_named_immutable_review_binding": {
+    "clarification_file_sha256": "316c521a9f0e6748d7085a59900f2c69b2e9bc5a1e342fe75d41bb87667b1f59",
+    "clarification_internal_sha256": "a5301a3628b9fd185fbc1d164e1f53bc3985be8faecfd901ad5ec136f4cf7f4f",
+    "current_interpretation": "PASS_ALTERNATE_IMMUTABLE_COPY__NOT_A_SUPERSESSION: the named binding is hash-valid and diagnostic-only, but its categorical alias statement was superseded by the later controlled-alias binding.",
+    "entries": [
+      {
+        "label": "casecount_strict",
+        "readonly": true,
+        "records": 147,
+        "sha256": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49"
+      },
+      {
+        "label": "full_strict",
+        "readonly": true,
+        "records": 85,
+        "sha256": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131"
+      }
+    ],
+    "named_binding_file_sha256": "711496c0cf1946eb6c27dd3f16109ecb128f752f289c06b08c617fb1fc84ea3f",
+    "named_binding_internal_sha256": "ad6c061afd97d6e7ee2c762b46c81c463f7ff1e777c52fd56623a6782ae7d484",
+    "persistence_status": {
+      "git_ignored": false,
+      "git_tracked": false,
+      "interpretation": "The named binding is hash-valid in this workspace but untracked. It must be included in the supervisor clean integration commit before any diagnostic re-review relying on it; it is not a sealed-C2 input in any event."
+    },
+    "prior_review_evidence_status": "rejected: all review/evidence records predating this binding or bound to the mutable unversioned input paths are stale and must not be reused",
+    "prior_review_evidence_status_current_interpretation": "Reviews/evidence before the later controlled binding or tied to 485e/f2b3 predecessor hashes are stale. A post-binding review may use c3ea/737c only if it binds both the controlled manifest and matching frozen source.",
+    "registry_correction_status": "NOT_REQUIRED_FOR_CURRENT_REGISTRY: registry records the valid later controlled-alias binding; omission of this alternate immutable copy does not make it stale.",
+    "registry_current_canonical_sha256": "2e8161b3ea4177dee85c2c97096de5cb4c2fdc360f56977a613e0ff255aeba5e",
+    "registry_references_named_binding": false,
+    "result": "PASS_NAMED_V3_BINDING__DIAGNOSTIC_ONLY"
+  },
+  "v4_full_pool_freeze_integrity": {
+    "distinct_dois": 204,
+    "freeze_manifest_canonical_sha256": "70caf43ede097fd8e83efbd6e0e8e17596f95bf0d0ca8d23d9325f94cd5b02cd",
+    "freeze_manifest_file_sha256": "c11ef8afbf6de25e56f8376065639a276567e0da5c2f13c84aff0a72a0881b7b",
+    "freeze_manifest_path": "files/c2_reclassify_pool/frozen_v4_full_nonoverlap_20260721T191806Z/freeze_manifest.json",
+    "freeze_wrapper_and_directory_git_status_at_audit": "UNCOMMITTED_SUPERVISOR_INTEGRATION_REQUIRED",
+    "frozen_pool_sha256": "6486ed743344731cc00202427bd722cd16dc05a69507fca887c235a1c9766d6d",
+    "head_identical_source": true,
+    "multis": 224,
+    "normalizer_provenance_verdict": "DIAGNOSTIC_ONLY_NOT_SEALED_ELIGIBLE",
+    "overlapping_component_source_ids": 0,
+    "records": 1835,
+    "requires_fresh_v4_review": true,
+    "result": "PASS_DIAGNOSTIC_FREEZE__FAIL_SEALED_NORMALIZER_PROVENANCE",
+    "sealed_execution_commit_gate": "The source proposal bytes are HEAD-identical, but the freeze script/directory are uncommitted; a clean supervisor integration commit is required before any sealed execution. This cannot cure normalizer provenance failure.",
+    "sealed_review_permitted": false,
+    "singles": 1611,
+    "unique_candidate_ids": 1835
+  },
+  "v4_review_freeze_integrity": {
+    "current_review_transport_source_freeze": "files/c2_reclassify/frozen_v3_20260722T024015_0800/freeze_manifest.json",
+    "freeze_manifest_canonical_sha256": "43dba72b0ac1a66bca8f7f1f3ad6a6a1267b51457bbe89560cc082ae91f42ed4",
+    "freeze_manifest_file_sha256": "d5413b7ba7d2bcae2be7cc52eaabd60508a53f588a162a4ce4d32be55de01899",
+    "freeze_manifest_hash_file_content_matches": true,
+    "freeze_manifest_path": "files/c2_reclassify/frozen_v4_20260721T190322Z/freeze_manifest.json",
+    "fresh_v4_review_bound": false,
+    "inputs": [
+      {
+        "label": "priority_casecount_strict",
+        "multi_parents": 20,
+        "records": 147,
+        "scope": "historic-reject-selected diagnostic subset",
+        "sha256": "58f1d3050fb5fe89509956b639779d6afffbb8c145a4433cdd22b55244d7de94",
+        "singles": 127
+      },
+      {
+        "label": "priority_full_strict",
+        "multi_parents": 9,
+        "records": 85,
+        "scope": "historic-reject-selected diagnostic subset",
+        "sha256": "0d38f5906a87d9b694fc333648e13cc38eb31ed29a180ccd0fc6dfcadef91997",
+        "singles": 76
+      },
+      {
+        "label": "full_casecount_strict",
+        "multi_parents": 32,
+        "records": 200,
+        "scope": "full supplied strict batch; not the sealed C2 universe",
+        "sha256": "978ffd5fedfd25064384f90eef0ffabc1ada2f1e6c7b96c30a491033ea2b73f2",
+        "singles": 168
+      },
+      {
+        "label": "full_full_strict",
+        "multi_parents": 16,
+        "records": 116,
+        "scope": "full supplied strict batch; not the sealed C2 universe",
+        "sha256": "9b37945de134cd6bdca1919bebc4eaabda9c90f12f4c3d6ab6bc89225ec05b15",
+        "singles": 100
+      }
+    ],
+    "requires_fresh_review": true,
+    "result": "PASS_FREEZE_INTEGRITY__NO_FRESH_V4_REVIEW",
+    "stale_review_or_evidence_reuse_forbidden": true,
+    "v3_predecessor_hashes_match_current_files": true
+  },
+  "verdict": {
+    "direct_raw_persistence_verdict": "FAIL_UNTRACKED_IGNORED_ARTIFACTS",
+    "freeze_registry_verdict": "PASS_CURRENT_ATOMIC_E6A_DUAL_DIAGNOSTIC_TRANSPORT",
+    "fresh_external_review_binding_verdict": "FAIL",
+    "k62_availability_verdict": "FAIL_15_OF_62",
+    "leakage_audit_verdict": "PASS",
+    "overall_sealed_c2_readiness": "BLOCKED",
+    "raw_non_normalized_pool_provenance_verdict": "PASS",
+    "reason": "The current simple-2d-v4 classifier and strict V4 artifacts are coherent, and construction labels have no observed or counterfactually demonstrable historical-judge dataflow. The current atomic registry generation hash-binds a dual V3 diagnostic transport: controlled aliases and named readonly mirror are byte-identical, readonly, and source-only. V3 remains historical-judge-selected diagnostic material and cannot substitute for V4/full sealed review. The V4 full 204-DOI freeze is categorically disqualified because of normalizer provenance. Direct raw V4 is source-only but local/untracked, only 15 DOI, and lacks fresh V4 review/evidence; persistence plus K=62 coverage are required before sealing.",
+    "sealed_source_provenance_verdict": "FAIL",
+    "v3_controlled_alias_binding_verdict": "PASS_DIAGNOSTIC_ONLY",
+    "v3_diagnostic_review_transport_verdict": "PASS_DIAGNOSTIC_ONLY",
+    "v3_dual_diagnostic_transport_verdict": "PASS_DIAGNOSTIC_ONLY",
+    "v3_named_immutable_review_binding_verdict": "PASS_DIAGNOSTIC_ONLY",
+    "v4_classifier_artifact_coherence_verdict": "PASS",
+    "v4_full_pool_freeze_integrity_verdict": "PASS_DIAGNOSTIC_FREEZE__FAIL_SEALED_NORMALIZER_PROVENANCE",
+    "v4_review_freeze_integrity_verdict": "PASS_NO_FRESH_V4_REVIEW"
+  }
+}

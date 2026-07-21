@@ -1,0 +1,38 @@
+{
+  "created_at_utc": "2026-07-21T19:34:03.135810+00:00",
+  "exploratory_normalizer_inputs_forbidden": true,
+  "frozen_from_git_head": "57bf2e0f750a6192e7c840f88accf1cd04bccd51",
+  "input": {
+    "component_source_ids": 124,
+    "eligible_for_experiment_true": 0,
+    "exploratory_normalizer_path_records": 0,
+    "frozen_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_raw_p5/frozen_direct_raw_p5_v4_20260721T193342Z/direct_raw_p5_v4.proposed.jsonl",
+    "frozen_sha256": "d7c655b97334186d75c99ff69e23615065535224e609b40e62e1c50e26cde801",
+    "independent_doi_clusters": 15,
+    "multi_panel_parents": 15,
+    "overlapping_component_source_ids": 0,
+    "proposed_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_raw_p5/reproposed_direct_raw_p5_v4.jsonl",
+    "proposed_sha256": "d7c655b97334186d75c99ff69e23615065535224e609b40e62e1c50e26cde801",
+    "raw_source_table_records": 0,
+    "records": 139,
+    "single_panels": 124,
+    "source_normalization_records": 0,
+    "source_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_raw_p5/reproposed_direct_raw_p5_v4.jsonl",
+    "source_sha256": "d7c655b97334186d75c99ff69e23615065535224e609b40e62e1c50e26cde801",
+    "source_table_path_roots": {
+      "content_root": 124
+    }
+  },
+  "integrity_note": "This is a P5+ subset of the all-direct raw candidate inventory. Every component was re-proposed by V4 from a hash-bound published CSV/XLSX table and is rejected if normalization metadata, raw_source_table, or an exploratory_normalizer path appears. It is not K=62 sufficient.",
+  "k62_status": "blocked_insufficient_direct_raw_p5_doi_clusters",
+  "manifest_sha256": "e5618a52ba09b293e0e9b76cf97fe6d7738371b012d8cfefe6dca47168cb7381",
+  "proposal_rule_version": "simple-2d-v4",
+  "required_review_models": [
+    "claude-sonnet-4.6",
+    "gemini-3.5-flash"
+  ],
+  "requires_fresh_review": true,
+  "review_rubric_required": "proposal-external-validation-v4",
+  "schema_version": "c2-direct-raw-p5-v4-review-freeze-v1",
+  "stale_review_or_evidence_reuse_forbidden": true
+}

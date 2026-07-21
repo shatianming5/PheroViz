@@ -1,0 +1,66 @@
+{
+  "authoritative_proposal_inputs": [
+    {
+      "eligible_for_experiment_true": 0,
+      "label": "casecount_strict",
+      "multi_parents": 20,
+      "records": 147,
+      "review_input_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/frozen_v3_priority_review_inputs_20260722T035220_0800/casecount_strict.proposed.jsonl",
+      "review_input_sha256": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49",
+      "scope": "historic-reject-selected diagnostic subset",
+      "singles": 127,
+      "source_v3_frozen_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v3_20260722T024015_0800/priority_casecount_strict.proposed.jsonl",
+      "source_v3_frozen_sha256": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49"
+    },
+    {
+      "eligible_for_experiment_true": 0,
+      "label": "full_strict",
+      "multi_parents": 9,
+      "records": 85,
+      "review_input_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/frozen_v3_priority_review_inputs_20260722T035220_0800/full_strict.proposed.jsonl",
+      "review_input_sha256": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131",
+      "scope": "historic-reject-selected diagnostic subset",
+      "singles": 76,
+      "source_v3_frozen_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v3_20260722T024015_0800/priority_full_strict.proposed.jsonl",
+      "source_v3_frozen_sha256": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131"
+    }
+  ],
+  "binding_id": "frozen_v3_priority_review_inputs_20260722T035220_0800",
+  "created_at_utc": "2026-07-21T19:53:22.318895+00:00",
+  "integrity_note": "This binding copies only the already hash-bound V3 proposal inputs. It does not read review records, judge/model output, or evidence. It is a named immutable proposal-input binding for a fresh review, not a validation of any earlier review.",
+  "manifest_sha256": "ad6c061afd97d6e7ee2c762b46c81c463f7ff1e777c52fd56623a6782ae7d484",
+  "prior_review_or_evidence_status": "rejected: all review/evidence records predating this binding or bound to the mutable unversioned input paths are stale and must not be reused",
+  "proposal_rule_version": "simple-2d-v3",
+  "requires_fresh_review": true,
+  "review_rubric_required": "proposal-external-validation-v3",
+  "schema_version": "c2-v3-immutable-review-input-binding-v1",
+  "sealed_status": "diagnostic_only_stale_v3_strict_scope",
+  "source_v3_freeze_manifest": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v3_20260722T024015_0800/freeze_manifest.json",
+  "source_v3_freeze_manifest_internal_sha256": "f2d7417a5df6171bc2dca24192fec2ae73fd0e5c372980d99ce57dfc8acf6999",
+  "source_v3_freeze_manifest_sha256": "dc20456275739af301ff8c9e61c26802eee7d1f690e3eb633d81ea42448a85d0",
+  "stale_review_or_evidence_reuse_forbidden": true,
+  "superseded_mutable_path_observations": [
+    {
+      "authoritative_named_review_input": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/frozen_v3_priority_review_inputs_20260722T035220_0800/casecount_strict.proposed.jsonl",
+      "authoritative_named_review_input_sha256": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49",
+      "clarification_observed_at_utc": "2026-07-21T19:53:22.318895+00:00",
+      "former_mutable_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/inputs/casecount_strict.proposed.jsonl",
+      "mutable_path_is_non_authoritative": true,
+      "not_a_live_binding_or_review_input": true,
+      "original_manifest_field": "known_stale_predecessor_inputs.current_sha256",
+      "sha256_observed_at_clarification_publication": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49",
+      "sha256_observed_at_original_v3_freeze": "485e36ca4e32be0e9b58a0327088301813928a47627c38518ee02fac3a32f353"
+    },
+    {
+      "authoritative_named_review_input": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/frozen_v3_priority_review_inputs_20260722T035220_0800/full_strict.proposed.jsonl",
+      "authoritative_named_review_input_sha256": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131",
+      "clarification_observed_at_utc": "2026-07-21T19:53:22.318895+00:00",
+      "former_mutable_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/inputs/full_strict.proposed.jsonl",
+      "mutable_path_is_non_authoritative": true,
+      "not_a_live_binding_or_review_input": true,
+      "original_manifest_field": "known_stale_predecessor_inputs.current_sha256",
+      "sha256_observed_at_clarification_publication": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131",
+      "sha256_observed_at_original_v3_freeze": "f2b364455fa69d5360a5925b8fc2a9516f1c2da99e099e46c36b73cfdbf618d6"
+    }
+  ]
+}

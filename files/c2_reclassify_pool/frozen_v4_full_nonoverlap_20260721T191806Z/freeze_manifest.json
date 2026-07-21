@@ -1,0 +1,36 @@
+{
+  "created_at_utc": "2026-07-21T19:18:19.345594+00:00",
+  "frozen_from_git_head": "57bf2e0f750a6192e7c840f88accf1cd04bccd51",
+  "input": {
+    "component_source_ids": 1611,
+    "distinct_candidate_ids": 1835,
+    "distinct_doi_clusters": 204,
+    "eligible_for_experiment_true": 0,
+    "frozen_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_pool/frozen_v4_full_nonoverlap_20260721T191806Z/v4_full_nonoverlap.proposed.jsonl",
+    "frozen_sha256": "6486ed743344731cc00202427bd722cd16dc05a69507fca887c235a1c9766d6d",
+    "multi_panel_parents": 224,
+    "overlapping_component_source_ids": 0,
+    "preserved_proposal_code_commits": [
+      "8ae773ae41e19d805a7851cb14e2599a6bb7d49b"
+    ],
+    "proposal_rule_versions": [
+      "simple-2d-v4"
+    ],
+    "records": 1835,
+    "single_panels": 1611,
+    "source_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_pool/reproposed_pool_multi.jsonl",
+    "source_sha256": "6486ed743344731cc00202427bd722cd16dc05a69507fca887c235a1c9766d6d"
+  },
+  "integrity_note": "This is the complete source-structure-only V4 pool, copied from a HEAD-identical artifact after offline review preflight. Candidate IDs are unique and every single-panel component belongs to exactly one multi parent. It contains 224 multi parents across 204 DOI clusters; downstream DOI-cluster inference must select at most one qualified parent per DOI. No review, judge, or evidence output was read here.",
+  "manifest_sha256": "70caf43ede097fd8e83efbd6e0e8e17596f95bf0d0ca8d23d9325f94cd5b02cd",
+  "priority_or_overlapping_strict_batches_forbidden": true,
+  "proposal_rule_version": "simple-2d-v4",
+  "required_review_models": [
+    "claude-sonnet-4.6",
+    "gemini-3.5-flash"
+  ],
+  "requires_fresh_review": true,
+  "review_rubric_required": "proposal-external-validation-v4",
+  "schema_version": "c2-v4-full-pool-review-freeze-v1",
+  "stale_review_or_evidence_reuse_forbidden": true
+}

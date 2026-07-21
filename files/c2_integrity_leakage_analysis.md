@@ -79,11 +79,45 @@ chart family、expectation、proposal analysis 和 curation fields 替换为伪�
 
 * `reproposed_strict_rejects*.jsonl` 的成员由历史 reject status 选择，故它只能用于诊断性
   triage，**绝不能**定义最终 C2 universe；
-* 当前审计到的 source 已声明 `simple-2d-v4`，但已发布 report/artifacts 仍声明
-  `simple-2d-v3`，且 A2 输入 hash 不匹配当前 priority artifact。必须 freeze V4、重写
-  per-batch **full** review input、重新 review/evidence/build-cases；
-* 两个 strict batch 有重叠 candidate IDs，不能作为两个 bundle 一起封存。最终 pool 必须选一个
-  non-overlapping source universe，或在 review 前做确定性去重并重新绑定 evidence。
+* `reclassify_report_v4.json`、V4 strict artifacts 与 V4 freeze manifest 已相互 hash-bound。
+  `frozen_v4_20260721T190322Z` 的 canonical manifest SHA 为
+  `43dba72b…f42ed4`（file SHA `d5413b7a…de01899`）；4 个 copy/source hash、count
+  与 `requires_fresh_review` 均已独立复核通过。但尚无任何 review transport 绑定该 V4
+  freeze。
+  原 A2 checkpoint/evidence 绑定旧 V3 priority hash，已明确保存为 stale，禁止重用。命名且只读的
+  `files/c2_reclassify_review/frozen_v3_priority_review_inputs_20260722T035220_0800/`
+  （147 / 85 records）是有效的 immutable diagnostic transport。现有 c3ea/737c
+  unversioned aliases 也可用于诊断性 V3 re-review，但**仅当**每条 review 同时绑定后续
+  controlled binding（file `a330…`, internal `47823…`）、`input_manifest.json`
+  （file `9af…`）和相同 readonly V3 frozen source；aliases 单独不自认证。只有
+  pre-controlled-binding review/evidence（包括 485e/f2b3 predecessor）是 stale。
+  两种 V3 transport 都不能改变 historic judge-selected priority scope，也不能代替 exact V4
+  **full** input 的 fresh review/evidence/build-cases。V3 label construction 的 guarded
+  counterfactual rebuild 未读取 review/evidence 且逐字节复现；
+  当前 dual diagnostic transport clarification（file `beea…`, internal `2ed454…`）已独立验证
+  controlled aliases（manifest `9af…`）与 named readonly mirror（binding `711496…`）均与
+  V3 freeze 逐字节相同、只读且 source-only；fresh V3 diagnostic review 必须绑定其中一条完整
+  transport，alias path 单独不充分。atomic registry generation（file `fc842…`, internal
+  `e6a40…`）同时记录两条 transport，兼容 JSON/sidecar 通过一个 pointer 原子切换到 readonly
+  generation。两条 V3 transport 仍均为 diagnostic-only，不影响 V4 sealed gate；
+* 完整 V4 pool `reproposed_pool_multi.jsonl` 虽已对全部 1611 singles / 224 multis 作 source-only
+  reconstruction parity（0 label mismatch），但 **223/224 P>=5 multis（203/204 DOI）含
+  `exploratory_normalizer` component**。`data/c2_cases_v1/_manifest.jsonl` 明确其来自
+  `normalize_source_sheet`；按 sealed-path 红线它只能作为诊断 ceiling，**禁止 review/assemble/
+  execute**。即使其 HEAD-identical immutable freeze
+  `frozen_v4_full_nonoverlap_20260721T191806Z` 已通过 hash/unique-ID/non-overlap 审计，
+  也不能改变此 provenance disqualification。必须从 raw hash-bound、non-normalized P>=5
+  source 重建 pool 后，才可 fresh review。
+* 当前已冻结的 direct-raw replacement
+  `files/c2_reclassify_raw_p5/reproposed_direct_raw_p5_v4.jsonl` 是 source-only、无
+  `exploratory_normalizer` 的结构性合格 pool：从 5,377 个 raw candidates 重建的 370-record
+  direct inventory 和其 124-single / 15-canonical-P>=5-multi 子集均逐字节复现，且 guard
+  禁止读取任何 review/evidence。它有 **15 个独立 DOI**、尚无 fresh V4 dual-judge
+  review/evidence，故仍不能跨越 two-contrast Holm 的 **K=62** gate。它证明 raw 路径可行，
+  不能作为可执行 C2 benchmark。更重要的是，该 freeze/script 尚未 tracked，5,377-candidate
+  raw input 位于 git-ignored `nature_download/outputs/`；在 fresh review 前必须将 exact
+  input、139-record freeze、manifest 与 generator script force-add/commit 或放入等价的
+  hash-addressed immutable store。
 
 Wide melt 不改变评分的 ground truth，而是明确 ground-truth representation：raw hash-bound
 宽表在内存中按 sealed `source_value_columns` 变换为

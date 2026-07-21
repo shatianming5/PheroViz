@@ -83,6 +83,37 @@ def _candidate_id(record: Mapping[str, Any], label: str) -> str:
     return value
 
 
+def _uses_exploratory_normalizer(record: Mapping[str, Any]) -> bool:
+    if record.get("source_normalization") is not None:
+        return True
+    source = record.get("source_table")
+    if isinstance(source, Mapping):
+        if source.get("source_normalization") is not None:
+            return True
+        paths = (source.get("path"), source.get("relative_path"), source.get("path_root"))
+    else:
+        paths = ()
+    case = record.get("experiment_case")
+    if isinstance(case, Mapping):
+        paths = (*paths, case.get("data_path"))
+        panels = case.get("panels")
+        if isinstance(panels, list):
+            paths = (*paths, *(panel.get("data_path") for panel in panels if isinstance(panel, Mapping)))
+    return any(
+        "exploratory_normalizer" in str(path).casefold()
+        for path in paths
+        if path is not None
+    )
+
+
+def _assert_sealed_source_provenance(record: Mapping[str, Any], label: str) -> None:
+    if _uses_exploratory_normalizer(record):
+        raise C2BenchmarkBuildError(
+            f"{label} uses an exploratory-normalizer source; it is forbidden in "
+            "the sealed C2 path"
+        )
+
+
 def _assert_clean_worktree(repo_root: Path) -> str:
     completed = subprocess.run(
         ["git", "status", "--porcelain"],
@@ -130,6 +161,8 @@ def _bundle_evidence(
         )
 
     proposed_ids = {_candidate_id(record, "proposal") for record in proposed_records}
+    for record in proposed_records:
+        _assert_sealed_source_provenance(record, "proposal")
     review_ids = {_candidate_id(record, "review") for record in review_records}
     if review_ids != proposed_ids:
         raise C2BenchmarkBuildError(
@@ -213,6 +246,7 @@ def _preflight(
             )
         for candidate in _load_jsonl(candidate_path, "candidates"):
             candidate_id = _candidate_id(candidate, "candidate")
+            _assert_sealed_source_provenance(candidate, "candidate")
             if candidate_id in seen_candidates:
                 raise C2BenchmarkBuildError(
                     f"candidate ID is duplicated across candidate inputs: {candidate_id}"

@@ -1,0 +1,60 @@
+{
+  "counts": {
+    "all_direct_dois": 1,
+    "all_direct_multis": 1,
+    "dois_with_at_least_one_exploratory_normalizer_component": 203,
+    "exploratory_normalizer_component_singles": 1538,
+    "multis_with_at_least_one_exploratory_normalizer_component": 223,
+    "p5plus_component_singles": 1611,
+    "p5plus_distinct_dois": 204,
+    "p5plus_multi_candidates": 224,
+    "raw_direct_component_singles": 73,
+    "records": 1835
+  },
+  "detection_method": {
+    "manifest_crosscheck": "The same candidate has source_normalization.implementation == nature_download.corpus.source_table_normalizer.normalize_source_sheet in data/c2_cases_v1/_manifest.jsonl.",
+    "no_judge_or_review_input_used": true,
+    "path_and_manifest_sets_identical": true,
+    "path_rule": "A selected single is exploratory-normalized iff its hash-bound source/working path contains exploratory_normalizer."
+  },
+  "generated_at_utc": "2026-07-21T19:24:36.052363+00:00",
+  "input_artifacts": {
+    "c2_cases_manifest_path": "data/c2_cases_v1/_manifest.jsonl",
+    "c2_cases_manifest_sha256": "ae8838cd70ede12fffc9b50b6acaee81d2d0c8842dee65e1d51bb89e42163021",
+    "diagnostic_pool_path": "files/c2_reclassify_pool/reproposed_pool_multi.jsonl",
+    "diagnostic_pool_sha256": "6486ed743344731cc00202427bd722cd16dc05a69507fca887c235a1c9766d6d",
+    "frozen_copy_path": "files/c2_reclassify_pool/frozen_v4_full_nonoverlap_20260721T191806Z/v4_full_nonoverlap.proposed.jsonl",
+    "frozen_copy_sha256": "6486ed743344731cc00202427bd722cd16dc05a69507fca887c235a1c9766d6d"
+  },
+  "only_all_direct_multi": {
+    "candidate_id": "multi-s44319-025-00503-8-figure4-92dcdbfe621a",
+    "doi": "10.1038/s44319-025-00503-8",
+    "panel_count": 11,
+    "panel_ids": [
+      "c",
+      "d",
+      "e",
+      "f",
+      "g",
+      "h",
+      "i",
+      "j",
+      "l",
+      "m",
+      "n"
+    ]
+  },
+  "red_line": "No exploratory normalizer output may be used in a sealed C2 review, benchmark, or K=62 readiness claim.",
+  "schema_version": "c2-normalizer-redline-audit-v1",
+  "scope": "Diagnostic audit of the formerly review-ready V4 P5+ pool; no proposal labels or review outputs were used.",
+  "verdict": {
+    "current_pool_may_be_used_for_sealed_review_or_benchmark": false,
+    "current_pool_may_support_k62_readiness_claim": false,
+    "current_pool_verified_v4_dois": 0,
+    "former_204_doi_ceiling_status": "DIAGNOSTIC_ONLY_NOT_SEALED_ELIGIBLE",
+    "frozen_copy_status": "IMMUTABLE_BUT_DISQUALIFIED_FOR_SEALED_REVIEW",
+    "raw_direct_projection_doi_ceiling": 1,
+    "raw_direct_projection_meets_k62": false,
+    "required_remediation": "Build a separate raw, hash-bound, non-normalized P5+ pool; re-propose it source-structure-only; freeze it; then obtain fresh review/evidence. Do not mutate, regenerate, or review the disqualified frozen diagnostic copy as a sealed input."
+  }
+}
