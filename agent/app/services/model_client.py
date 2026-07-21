@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import io
 import json
 import os
 import re
@@ -260,8 +261,7 @@ class ModelClient:
         path = Path(image_path)
         if not path.is_file():
             raise ModelClientError(f"Image does not exist: {path}")
-        media_type = _image_media_type(path)
-        encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+        media_type, encoded = _encode_image_for_vlm(path)
         payload = {
             "model": selected_model,
             "max_tokens": max_tokens or self.config.max_tokens,
@@ -381,6 +381,37 @@ def _image_media_type(path: Path) -> str:
         return media_types[suffix]
     except KeyError as exc:
         raise ModelClientError(f"Unsupported image type: {suffix or '<none>'}") from exc
+
+
+def _encode_image_for_vlm(path: Path) -> tuple[str, str]:
+    """Return (media_type, base64) for a figure, downscaling oversized images.
+
+    Full-resolution scientific figures (multi-MB, >2500px) either exceed the
+    model context window (gateway returns HTTP 400 "Input exceeds the context
+    window") or abort the upload on the shared gateway, so every image call was
+    failing. VLM judges downscale internally regardless, so bounding the long
+    edge is loss-neutral for chart-type/axis judgements. Applied uniformly to
+    every call so curation/scoring stay deterministic. Long edge is bounded by
+    VLM_MAX_IMAGE_DIM (default 1024, empirically succeeds in ~5s; 1568/1.7MB
+    already trips the context-window limit).
+    """
+    try:
+        max_dim = int(os.getenv("VLM_MAX_IMAGE_DIM", "1024"))
+    except ValueError:
+        max_dim = 1024
+    if max_dim < 1:
+        max_dim = 1024
+    try:
+        with Image.open(path) as image:
+            if max(image.size) <= max_dim:
+                return _image_media_type(path), base64.b64encode(path.read_bytes()).decode("ascii")
+            resized = image.convert("RGB")
+            resized.thumbnail((max_dim, max_dim), Image.LANCZOS)
+            buffer = io.BytesIO()
+            resized.save(buffer, format="PNG", optimize=True)
+    except (OSError, ValueError) as exc:
+        raise ModelClientError(f"Cannot prepare image for VLM: {path}") from exc
+    return "image/png", base64.b64encode(buffer.getvalue()).decode("ascii")
 
 
 def _optional_str(value: Any) -> str | None:
