@@ -1,0 +1,315 @@
+{
+  "freeze_manifest": {
+    "input_sha256_asserted": true,
+    "internal_sha256": "e5618a52ba09b293e0e9b76cf97fe6d7738371b012d8cfefe6dca47168cb7381",
+    "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_raw_p5/frozen_direct_raw_p5_v4_20260721T193342Z/freeze_manifest.json"
+  },
+  "frozen_input": {
+    "distinct_multi_dois": 15,
+    "multi_panel_parents": 15,
+    "normalizer_assertion": {
+      "exploratory_normalizer_inputs_forbidden": true,
+      "exploratory_normalizer_path_records": 0,
+      "source_normalization_records": 0
+    },
+    "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_raw_p5/frozen_direct_raw_p5_v4_20260721T193342Z/direct_raw_p5_v4.proposed.jsonl",
+    "records": 139,
+    "sha256": "d7c655b97334186d75c99ff69e23615065535224e609b40e62e1c50e26cde801",
+    "single_panels": 124
+  },
+  "gate_verdict": {
+    "conservative_holm_K": 62,
+    "meets_conservative_holm_K": false,
+    "meets_optimistic_single_K": false,
+    "optimistic_single_K": 12,
+    "verdict": "FAIL: 3 verified raw P>=5 DOI is below both K=12 and K=62."
+  },
+  "multi_composite_rule": "parent passes iff every child single-panel review is accepted by both judges",
+  "multi_panel_pass_rate": {
+    "accepted": 3,
+    "rate": 0.2,
+    "reviewed": 15
+  },
+  "per_parent": [
+    {
+      "accepted_child_panel_count": 0,
+      "all_child_panels_accepted": false,
+      "derived_multi_status": "rejected",
+      "doi": "10.1038/s41467-023-36967-2",
+      "failure_categories": [
+        "binding",
+        "chart_family",
+        "semantic_or_visual"
+      ],
+      "multi_candidate_id": "multi-s41467-023-36967-2-figure3-72d966de4b57",
+      "panel_count": 6,
+      "parent_review_hash": "81ad0a853e69773afeec4b204c58b0cacb58bc45c9bded363c5220967c534edc",
+      "rejected_child_panel_count": 6,
+      "schema_invalid_child_candidate_ids": [],
+      "verdict": "fail"
+    },
+    {
+      "accepted_child_panel_count": 0,
+      "all_child_panels_accepted": false,
+      "derived_multi_status": "rejected",
+      "doi": "10.1038/s41467-023-37432-w",
+      "failure_categories": [
+        "chart_family"
+      ],
+      "multi_candidate_id": "multi-s41467-023-37432-w-figure2-41c8449370cf",
+      "panel_count": 5,
+      "parent_review_hash": "92c371e28363dfa043c00488645392f76bfa05ba83b37f13be15648f209b20d5",
+      "rejected_child_panel_count": 5,
+      "schema_invalid_child_candidate_ids": [],
+      "verdict": "fail"
+    },
+    {
+      "accepted_child_panel_count": 5,
+      "all_child_panels_accepted": false,
+      "derived_multi_status": "rejected",
+      "doi": "10.1038/s41467-023-38160-x",
+      "failure_categories": [
+        "chart_family",
+        "semantic_or_visual"
+      ],
+      "multi_candidate_id": "multi-s41467-023-38160-x-figure1-2aca30408ec7",
+      "panel_count": 10,
+      "parent_review_hash": "e0b2a5d854e3fb69fd6f9fd1a3bd9678f84b901d762347878008bfe0ad2a9619",
+      "rejected_child_panel_count": 5,
+      "schema_invalid_child_candidate_ids": [],
+      "verdict": "fail"
+    },
+    {
+      "accepted_child_panel_count": 2,
+      "all_child_panels_accepted": false,
+      "derived_multi_status": "rejected",
+      "doi": "10.1038/s44319-024-00227-1",
+      "failure_categories": [
+        "binding",
+        "chart_family",
+        "semantic_or_visual"
+      ],
+      "multi_candidate_id": "multi-s44319-024-00227-1-figure10-bbbd0fe8a0fe",
+      "panel_count": 8,
+      "parent_review_hash": "5257cd92af7e776d8908867e5e7757c613c5a4b959c6017704e604f20868751a",
+      "rejected_child_panel_count": 6,
+      "schema_invalid_child_candidate_ids": [],
+      "verdict": "fail"
+    },
+    {
+      "accepted_child_panel_count": 5,
+      "all_child_panels_accepted": false,
+      "derived_multi_status": "rejected",
+      "doi": "10.1038/s44319-025-00373-0",
+      "failure_categories": [
+        "binding"
+      ],
+      "multi_candidate_id": "multi-s44319-025-00373-0-figure3-7ece96d9ca7e",
+      "panel_count": 6,
+      "parent_review_hash": "7e191e66961bc0adaac296438a28bd0df59f7cbb8c5acc874c78e03980107ef7",
+      "rejected_child_panel_count": 1,
+      "schema_invalid_child_candidate_ids": [],
+      "verdict": "fail"
+    },
+    {
+      "accepted_child_panel_count": 6,
+      "all_child_panels_accepted": true,
+      "derived_multi_status": "accepted",
+      "doi": "10.1038/s44319-025-00484-8",
+      "failure_categories": [],
+      "multi_candidate_id": "multi-s44319-025-00484-8-figure1-2170381abcc1",
+      "panel_count": 6,
+      "parent_review_hash": "89958a58b79d2c08578aa686708794ec49dfbde1c733fc7f3d6613403e6dee9f",
+      "rejected_child_panel_count": 0,
+      "schema_invalid_child_candidate_ids": [],
+      "verdict": "pass"
+    },
+    {
+      "accepted_child_panel_count": 11,
+      "all_child_panels_accepted": false,
+      "derived_multi_status": "rejected",
+      "doi": "10.1038/s44319-025-00503-8",
+      "failure_categories": [
+        "binding",
+        "chart_family",
+        "schema_invalid",
+        "semantic_or_visual"
+      ],
+      "multi_candidate_id": "multi-s44319-025-00503-8-figure4-d4d26148d349",
+      "panel_count": 13,
+      "parent_review_hash": "1216f06f081420a0d631405dfd1d85ac447cbab883652d3543b6c2e9b6f093f4",
+      "rejected_child_panel_count": 2,
+      "schema_invalid_child_candidate_ids": [
+        "case-s44319-025-00503-8-figure4-panelc-597e16685e73"
+      ],
+      "verdict": "fail"
+    },
+    {
+      "accepted_child_panel_count": 8,
+      "all_child_panels_accepted": true,
+      "derived_multi_status": "accepted",
+      "doi": "10.1038/s44321-025-00216-4",
+      "failure_categories": [],
+      "multi_candidate_id": "multi-s44321-025-00216-4-figure1-34424c25d4ff",
+      "panel_count": 8,
+      "parent_review_hash": "b10ec47316a10b72bf7e6d1fb709f500e5b4fa2f8e52c0e75dbaf41a28708996",
+      "rejected_child_panel_count": 0,
+      "schema_invalid_child_candidate_ids": [],
+      "verdict": "pass"
+    },
+    {
+      "accepted_child_panel_count": 5,
+      "all_child_panels_accepted": false,
+      "derived_multi_status": "rejected",
+      "doi": "10.1038/s44321-025-00233-3",
+      "failure_categories": [
+        "chart_family"
+      ],
+      "multi_candidate_id": "multi-s44321-025-00233-3-figure3-521190fe8bfc",
+      "panel_count": 15,
+      "parent_review_hash": "31d7bcf375dd1b50baa11ab3ef00efceecca1e50b5409baa2373481f0d8f1062",
+      "rejected_child_panel_count": 10,
+      "schema_invalid_child_candidate_ids": [],
+      "verdict": "fail"
+    },
+    {
+      "accepted_child_panel_count": 4,
+      "all_child_panels_accepted": false,
+      "derived_multi_status": "rejected",
+      "doi": "10.7554/elife.25730",
+      "failure_categories": [
+        "chart_family"
+      ],
+      "multi_candidate_id": "multi-elife.25730-figure1-9f2705cb6ac8",
+      "panel_count": 5,
+      "parent_review_hash": "20d046c105164bda6b1795940aea863e56481e342c7fa290bfa1a8daa712ce90",
+      "rejected_child_panel_count": 1,
+      "schema_invalid_child_candidate_ids": [],
+      "verdict": "fail"
+    },
+    {
+      "accepted_child_panel_count": 0,
+      "all_child_panels_accepted": false,
+      "derived_multi_status": "rejected",
+      "doi": "10.7554/elife.29854",
+      "failure_categories": [
+        "chart_family"
+      ],
+      "multi_candidate_id": "multi-elife.29854-figure10-11c70ff0c58d",
+      "panel_count": 12,
+      "parent_review_hash": "d4d967304db286230a94dea39257d2502c0a750fa01fafa812804aa1f91d1264",
+      "rejected_child_panel_count": 12,
+      "schema_invalid_child_candidate_ids": [],
+      "verdict": "fail"
+    },
+    {
+      "accepted_child_panel_count": 0,
+      "all_child_panels_accepted": false,
+      "derived_multi_status": "rejected",
+      "doi": "10.7554/elife.38114",
+      "failure_categories": [
+        "chart_family",
+        "schema_invalid",
+        "semantic_or_visual"
+      ],
+      "multi_candidate_id": "multi-elife.38114-figure1-6e9d6cc49a6c",
+      "panel_count": 8,
+      "parent_review_hash": "55b628448fda39a11d0762336db9b896c8f32760ee5aa12f1c3ee670a348d1e7",
+      "rejected_child_panel_count": 8,
+      "schema_invalid_child_candidate_ids": [
+        "case-elife-38114-figure1-panelb-565cb25c6206",
+        "case-elife-38114-figure1-panelc-e3fe77563228",
+        "case-elife-38114-figure1-panelf-1fb5f8e79c57",
+        "case-elife-38114-figure1-panelh-3505923f13dd",
+        "case-elife-38114-figure1-paneli-6a08601e3336",
+        "case-elife-38114-figure1-panelk-dae7a40bb82f",
+        "case-elife-38114-figure1-panell-f1d71c20bec5"
+      ],
+      "verdict": "fail"
+    },
+    {
+      "accepted_child_panel_count": 6,
+      "all_child_panels_accepted": true,
+      "derived_multi_status": "accepted",
+      "doi": "10.7554/elife.49574",
+      "failure_categories": [],
+      "multi_candidate_id": "multi-elife.49574-figure1-a2051147c5bc",
+      "panel_count": 6,
+      "parent_review_hash": "65cc38bf4bca5d493248ba9477ec17e711aac3ad2b79e291905748d2bdeed129",
+      "rejected_child_panel_count": 0,
+      "schema_invalid_child_candidate_ids": [],
+      "verdict": "pass"
+    },
+    {
+      "accepted_child_panel_count": 4,
+      "all_child_panels_accepted": false,
+      "derived_multi_status": "rejected",
+      "doi": "10.7554/elife.50580",
+      "failure_categories": [
+        "chart_family"
+      ],
+      "multi_candidate_id": "multi-elife.50580-figure4-248c7af1a663",
+      "panel_count": 10,
+      "parent_review_hash": "408c8fbaf25cfb3347103e3d21275bca83146dd403a5f45602d783b8bd3c89a2",
+      "rejected_child_panel_count": 6,
+      "schema_invalid_child_candidate_ids": [],
+      "verdict": "fail"
+    },
+    {
+      "accepted_child_panel_count": 1,
+      "all_child_panels_accepted": false,
+      "derived_multi_status": "rejected",
+      "doi": "10.7554/elife.76541",
+      "failure_categories": [
+        "chart_family"
+      ],
+      "multi_candidate_id": "multi-elife.76541-figure3-3bc123fc139c",
+      "panel_count": 6,
+      "parent_review_hash": "6d70213e87134837a8d0fa1471be80cfa933db92cd537bf1ffc5fe004b414ceb",
+      "rejected_child_panel_count": 5,
+      "schema_invalid_child_candidate_ids": [],
+      "verdict": "fail"
+    }
+  ],
+  "provenance_eligibility": {
+    "code_commit": "87bcce26904f7649ff1781b2e4d911c6d86a3e69",
+    "code_dirty": true,
+    "note": "Review content and frozen-input binding are complete, but the bound run records code_dirty=true; do not represent it as clean-worktree sealed evidence without an integrity-approved clean rerun."
+  },
+  "python_cross_validation": {
+    "accepted_singles": 57,
+    "discrepancies": [],
+    "discrepancy_count": 0,
+    "method": "Independent raw JSONL/hash/review-hash/composite-rule recount; no model calls.",
+    "operational_model_call_failures": 0,
+    "reviewed_parents": 15,
+    "reviewed_singles": 124,
+    "verified_parents": 3
+  },
+  "review_input_sha256": "d7c655b97334186d75c99ff69e23615065535224e609b40e62e1c50e26cde801",
+  "review_input_sha256_asserted": true,
+  "reviews": {
+    "models": [
+      "claude-sonnet-4.6",
+      "gemini-3.5-flash"
+    ],
+    "operational_model_call_failures": 0,
+    "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/raw15_sealed_v4_20260722T082535_0800/full_review/reviews.jsonl",
+    "record_count": 139,
+    "sha256": "b64597819ae446b9b3be150a7f6dc574cbece1bd07fc92518621a35ecdae497a"
+  },
+  "schema_version": "c2-direct-raw-p5-v4-verified-Nprime-v1",
+  "scope": "all-direct raw P>=5 frozen V4 input; multi pass iff every constituent child single-panel review passes",
+  "single_panel_pass_rate": {
+    "accepted": 57,
+    "rate": 0.4596774193548387,
+    "reviewed": 124
+  },
+  "status": "completed",
+  "verified_N_prime": 3,
+  "verified_distinct_multi_dois": [
+    "10.1038/s44319-025-00484-8",
+    "10.1038/s44321-025-00216-4",
+    "10.7554/elife.49574"
+  ]
+}
