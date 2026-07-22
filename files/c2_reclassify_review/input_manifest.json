@@ -1,33 +1,81 @@
 {
-  "batches": {
-    "casecount_strict": {
-      "frozen_source": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v3_20260722T024015_0800/priority_casecount_strict.proposed.jsonl",
-      "frozen_source_sha256": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49",
-      "multi_panel": 20,
-      "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/inputs/casecount_strict.proposed.jsonl",
-      "records": 147,
-      "rule_versions": [
-        "simple-2d-v3"
-      ],
-      "sha256": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49",
-      "single_panel": 127
+  "freeze_manifest": {
+    "canonical_internal_sha256": "70caf43ede097fd8e83efbd6e0e8e17596f95bf0d0ca8d23d9325f94cd5b02cd",
+    "file_sha256": "c11ef8afbf6de25e56f8376065639a276567e0da5c2f13c84aff0a72a0881b7b",
+    "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_pool/frozen_v4_full_nonoverlap_20260721T191806Z/freeze_manifest.json",
+    "schema_version": "c2-v4-full-pool-review-freeze-v1"
+  },
+  "fresh_review_rules_if_a_sealed_eligible_transport_exists": {
+    "fresh_output_binding_requirements": [
+      "frozen proposed SHA-256",
+      "proposal_rule_version simple-2d-v4",
+      "proposal-external-validation-v4 rubric hash",
+      "empty fresh review output; no priority/V3 evidence reuse"
+    ],
+    "must_start_with_empty_review_outputs": true,
+    "required_jury": [
+      "claude-sonnet-4.6",
+      "gemini-3.5-flash"
+    ],
+    "required_rubric": "proposal-external-validation-v4",
+    "required_rubric_hash": "46b3d7fe022f0ce17207dc822c2a8abbe309b2bf3308c1f0853b49cd8afc3c36",
+    "reuse_of_priority_or_stale_review_evidence": "forbidden",
+    "rubric_version": "proposal-external-validation-v4",
+    "v3_checkpoint_runner": {
+      "path": "files/c2_reclassify_review/checkpoint_review_singles.py",
+      "permitted_for_this_transport": false,
+      "reason": "V3-specific runner must not be used for simple-2d-v4."
     },
-    "full_strict": {
-      "frozen_source": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v3_20260722T024015_0800/priority_full_strict.proposed.jsonl",
-      "frozen_source_sha256": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131",
-      "multi_panel": 9,
-      "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/inputs/full_strict.proposed.jsonl",
-      "records": 85,
-      "rule_versions": [
-        "simple-2d-v3"
-      ],
-      "sha256": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131",
-      "single_panel": 76
+    "v4_aware_execution_entrypoint": "nature_download/nature_all_in_one.py review-proposals"
+  },
+  "full_v4_transport": {
+    "distinct_doi_clusters": 204,
+    "frozen_from_git_head": "57bf2e0f750a6192e7c840f88accf1cd04bccd51",
+    "multi_panel_parents": 224,
+    "overlapping_component_source_ids": 0,
+    "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_pool/frozen_v4_full_nonoverlap_20260721T191806Z/v4_full_nonoverlap.proposed.jsonl",
+    "proposal_rule_version": "simple-2d-v4",
+    "read_only_mode": "0444",
+    "records": 1835,
+    "sha256": "6486ed743344731cc00202427bd722cd16dc05a69507fca887c235a1c9766d6d",
+    "single_panels": 1611
+  },
+  "purpose": "Replace stale A2 V3 priority manifest with exact full-V4 transport provenance while preventing prohibited sealed review.",
+  "schema_version": "c2-v4-full-nonoverlap-transport-provenance-v1",
+  "sealed_review_blocker": {
+    "affected_component_singles": 1538,
+    "affected_doi_clusters": 203,
+    "affected_multi_parents": 223,
+    "blocking_evidence_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_pool/SEALED_C2_BLOCKED_normalizer_pool.json",
+    "blocking_evidence_sha256": "542eb2e0428720b0fd44d703d54020a28367157e32a5fa760d22bc11801e8379",
+    "forbidden_uses": [
+      "dual-model review binding",
+      "C2 benchmark assembly",
+      "K=62 readiness or pass-rate claim"
+    ],
+    "live_dual_judge_review_started": false,
+    "normalizer_audit_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_pool/normalizer_redline_audit.json",
+    "normalizer_audit_sha256": "b9b1c7d65717a938205f9223e43faee736de1a9e1ac7c8db6cca0eb90d55bb7b",
+    "red_line": "No exploratory normalizer output may be used in a sealed C2 review, benchmark, or K=62 readiness claim.",
+    "required_remediation": "Build a separate raw, hash-bound, non-normalized P5+ pool; re-propose it source-structure-only; freeze it; then obtain fresh review/evidence. Do not mutate, regenerate, or review the disqualified frozen diagnostic copy as a sealed input.",
+    "status": "BLOCKED_EXPLORATORY_NORMALIZER"
+  },
+  "stale_a2_v3_manifest_preserved": {
+    "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/archived_stale_v3_input_manifest_20260722T081812_0800.json",
+    "schema_version": "c2-v3-live-review-input-v2",
+    "sha256": "9af7a8d2fc28d107caea93178ce21a8160a5611e0015acd0ba623107a6f62bde",
+    "stale_sources": {
+      "casecount_strict": {
+        "frozen_source": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v3_20260722T024015_0800/priority_casecount_strict.proposed.jsonl",
+        "frozen_source_sha256": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49",
+        "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/inputs/casecount_strict.proposed.jsonl"
+      },
+      "full_strict": {
+        "frozen_source": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v3_20260722T024015_0800/priority_full_strict.proposed.jsonl",
+        "frozen_source_sha256": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131",
+        "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/inputs/full_strict.proposed.jsonl"
+      }
     }
   },
-  "preserved_stale_checkpoint": "files/c2_reclassify_review/stale_pre_freeze_casecount_strict",
-  "schema_version": "c2-v3-live-review-input-v2",
-  "source_freeze": "files/c2_reclassify/frozen_v3_20260722T024015_0800/freeze_manifest.json",
-  "source_freeze_sha256": "dc20456275739af301ff8c9e61c26802eee7d1f690e3eb633d81ea42448a85d0",
-  "why_replaced": "The initial A1 aggregate changed while the first checkpoint was running. The A1 V3 freeze declares its priority inputs as hash-pinned and stale-review/evidence reuse forbidden; these exact frozen inputs supersede the preserved stale checkpoint."
+  "status": "BLOCKED_BEFORE_ANY_LIVE_REVIEW"
 }

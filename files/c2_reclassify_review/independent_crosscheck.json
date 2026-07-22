@@ -1,29 +1,55 @@
 {
   "discrepancies": [],
   "discrepancy_count": 0,
-  "frozen_input_binding": {
+  "freeze_manifest": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v4_20260721T190322Z/freeze_manifest.json",
+  "freeze_manifest_internal_sha256": "43dba72b0ac1a66bca8f7f1f3ad6a6a1267b51457bbe89560cc082ae91f42ed4",
+  "frozen_input_bindings": {
     "casecount_strict": {
-      "frozen_priority_sha256": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49",
-      "input_sha256": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49",
-      "review_binding_input_sha256s": [
-        "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49"
-      ],
-      "summary_input_sha256": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49"
+      "frozen_proposal_input": {
+        "label": "priority_casecount_strict",
+        "multi_parents": 20,
+        "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v4_20260721T190322Z/priority_casecount_strict.proposed.jsonl",
+        "proposal_rule_version": "simple-2d-v4",
+        "readonly": true,
+        "records": 147,
+        "scope": "historic-reject-selected diagnostic subset",
+        "sha256": "58f1d3050fb5fe89509956b639779d6afffbb8c145a4433cdd22b55244d7de94",
+        "singles": 127
+      },
+      "requires_fresh_review": true,
+      "schema_version": "c2-v4-frozen-review-input-binding-v1",
+      "v4_freeze_manifest": {
+        "file_sha256": "d5413b7ba7d2bcae2be7cc52eaabd60508a53f588a162a4ce4d32be55de01899",
+        "internal_sha256": "43dba72b0ac1a66bca8f7f1f3ad6a6a1267b51457bbe89560cc082ae91f42ed4",
+        "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v4_20260721T190322Z/freeze_manifest.json"
+      }
     },
     "full_strict": {
-      "frozen_priority_sha256": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131",
-      "input_sha256": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131",
-      "review_binding_input_sha256s": [
-        "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131"
-      ],
-      "summary_input_sha256": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131"
+      "frozen_proposal_input": {
+        "label": "priority_full_strict",
+        "multi_parents": 9,
+        "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v4_20260721T190322Z/priority_full_strict.proposed.jsonl",
+        "proposal_rule_version": "simple-2d-v4",
+        "readonly": true,
+        "records": 85,
+        "scope": "historic-reject-selected diagnostic subset",
+        "sha256": "0d38f5906a87d9b694fc333648e13cc38eb31ed29a180ccd0fc6dfcadef91997",
+        "singles": 76
+      },
+      "requires_fresh_review": true,
+      "schema_version": "c2-v4-frozen-review-input-binding-v1",
+      "v4_freeze_manifest": {
+        "file_sha256": "d5413b7ba7d2bcae2be7cc52eaabd60508a53f588a162a4ce4d32be55de01899",
+        "internal_sha256": "43dba72b0ac1a66bca8f7f1f3ad6a6a1267b51457bbe89560cc082ae91f42ed4",
+        "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v4_20260721T190322Z/freeze_manifest.json"
+      }
     }
   },
-  "method": "Independent raw JSONL recount; does not call aggregate_lift helpers.",
+  "method": "Independent raw JSONL recount of the fresh frozen-V4 run; no aggregate helpers and no model calls.",
   "recount": {
-    "N_prime": 7,
-    "accepted_reclassified_multis": 2,
-    "accepted_reclassified_singles": 24,
+    "N_prime": 8,
+    "accepted_reclassified_multis": 3,
+    "accepted_reclassified_singles": 49,
     "baseline_multi_N": 5,
     "former_single_rejects": 203
   }

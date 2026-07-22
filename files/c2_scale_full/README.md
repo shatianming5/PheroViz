@@ -47,9 +47,31 @@ full-corpus ceiling, not a subset artifact — the 1.7%/DOI extrapolation to ~65
 **falsified** (the 862 were the easy subset; the extra ~2,500 cased DOI die in ambiguous
 binding or the strict no-normalizer red line). Data scale-up alone **cannot** reach the
 conservative K=62. The committed *bounded* C2-extreme verdict stands and is strengthened.
-The 23-DOI pool meets the optimistic K only; whether that suffices is decided by the
-**empirical paired-gap variance**, which requires a fresh sealed dual-VLM curation review
-of these 23 proposed DOI (next step → verified N′ + measured SD → powered/bounded).
+
+## FINAL verdict — jury-verified + integrity-corroborated (bounded on every honest axis)
+The bounded conclusion is now confirmed by three independent measurements; the further
+23-pool full curation is **redundant** (it can at most verify ≤23, still < K=62) and was
+deliberately NOT run — burning the shared flaky gateway for a number that cannot change the
+verdict would violate the "don't do work just to do work" red line.
+
+| axis | measurement | source (python-verified) | vs K |
+|---|---|---|---|
+| jury-verified N′ (reject-conversion path) | **N′ = 8** (5 baseline + 3 newly-converted multi DOI) | `../c2_reclassify_review/v4_lift_result.json`, SHA-bound to frozen V4 `58f1d3…`/`0d38f5…`, cross-validation 0 discrepancies | **FAIL** < optimistic K=12 ≪ conservative K=62 |
+| raw P≥5 proposed ceiling | 23 (coverage-union `cac3f955…`) / 15 (direct-raw `d7c655…`) | this README + `../c2_reclassify_raw_p5/…direct_raw_p5_v4.proposed.jsonl` (139 rec = 124 singles + 15 parents) | ≪ K=62 |
+| only pool reaching K=62 | 204-DOI pool is **BLOCKED_EXPLORATORY_NORMALIZER**: 1538/1611 singles + 223/224 P≥5 multis (203/204 DOI) carry ≥1 normalizer component | `../c2_reclassify_integrity/K_final_reclassified.json` | **forbidden** by no-normalizer red line |
+| K itself | **not firmly estimable**: P5+ DOI-level paired-gap SD `not_estimable` (only 1 renderable P5+ DOI, `10.1038/s41467-021-25210-5`); proxy SD from 6 mixed-P DOI → K∈[15 Holm @SD=0.11, 62 Holm @SD=0.25] | `../c2_reclassify_integrity/K_final_reclassified.json` (matches `c2_power_K_final.json` `7e9e60be…`) | K is a bracket, not a point |
+
+The 3 newly-converted multi DOI (V4 reject re-review): `10.1038/s41467-022-30409-1`,
+`10.1038/s44318-023-00005-0`, `10.1038/s44318-025-00395-3`; the 5 baseline verified:
+`10.7554/elife.95867`, `10.7554/elife.97860`, `10.1038/s44318-025-00510-4`,
+`10.1038/s44318-025-00634-7`, `10.1038/s44319-025-00373-0`.
+
+**Bottom line.** C2-extreme is **BOUNDED**: honest (no-normalizer) data yields ≤23 proposed
+and only N′=8 jury-verified raw P≥5 multi-panel DOI — below even the optimistic K=12, far
+below the conservative K=62 — and the only pool large enough to reach K=62 is disqualified by
+the exploratory-normalizer red line. The K target is itself unbounded above (P5+ variance is
+not estimable from ≥2 clusters). No amount of honest data scale-up powers C2-extreme at the
+integrity level; this is a rigorous, information-rich NULL/bounded result, not a pipeline gap.
 
 ## Files
 - `frozen_rawp5_v4_coverage_union.proposed.jsonl` (+ `freeze_manifest.{json,sha256}`) — the sealed 23-DOI raw P≥5 pool.

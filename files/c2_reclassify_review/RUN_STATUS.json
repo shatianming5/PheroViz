@@ -1,6 +1,48 @@
 {
-  "status": "superseded_pending_current_immutable_v3_freeze",
-  "action": "gateway_paused",
-  "instruction_source": "recls-build integrity stop",
-  "restriction": "Do not use prior reviews, evidence, pass rates, or N-prime as current-V3 or sealed-C2 results until rebinding is verified."
+  "current_priority_diagnostic_run_root": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/fresh_frozen_v4_20260722T063416_0800",
+  "current_sealed_gate_K": 62,
+  "priority_v4_freeze_manifest": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v4_20260721T190322Z/freeze_manifest.json",
+  "priority_v4_freeze_manifest_internal_sha256": "43dba72b0ac1a66bca8f7f1f3ad6a6a1267b51457bbe89560cc082ae91f42ed4",
+  "full_v4_sealed_blocker": {
+    "affected_component_singles": 1538,
+    "affected_doi_clusters": 203,
+    "affected_multi_parents": 223,
+    "blocking_evidence_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_pool/SEALED_C2_BLOCKED_normalizer_pool.json",
+    "blocking_evidence_sha256": "542eb2e0428720b0fd44d703d54020a28367157e32a5fa760d22bc11801e8379",
+    "forbidden_uses": [
+      "dual-model review binding",
+      "C2 benchmark assembly",
+      "K=62 readiness or pass-rate claim"
+    ],
+    "live_dual_judge_review_started": false,
+    "normalizer_audit_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_pool/normalizer_redline_audit.json",
+    "normalizer_audit_sha256": "b9b1c7d65717a938205f9223e43faee736de1a9e1ac7c8db6cca0eb90d55bb7b",
+    "red_line": "No exploratory normalizer output may be used in a sealed C2 review, benchmark, or K=62 readiness claim.",
+    "required_remediation": "Build a separate raw, hash-bound, non-normalized P5+ pool; re-propose it source-structure-only; freeze it; then obtain fresh review/evidence. Do not mutate, regenerate, or review the disqualified frozen diagnostic copy as a sealed input.",
+    "status": "BLOCKED_EXPLORATORY_NORMALIZER"
+  },
+  "full_v4_transport_provenance": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/full_v4_nonoverlap_transport_provenance.json",
+  "measurement_discrepancy_count": 0,
+  "prior_artifact_names": [
+    "casecount_strict",
+    "full_strict",
+    "reviews.jsonl",
+    "summary.json",
+    "review_partitions.json",
+    "lift_measurement.json",
+    "independent_crosscheck.json",
+    "verdict.md",
+    "probe_casecount",
+    "frozen_v3_artifact_validation.json",
+    "v3_casecount_lift.json",
+    "V3_DIAGNOSTIC_DISPOSITION.json",
+    "CURRENT_FROZEN_V3_RUN.json"
+  ],
+  "prior_artifacts_archived_to": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/archived_v3_diagnostic_before_v4_promotion_20260722",
+  "priority_artifacts_disposition": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/V4_PRIORITY_DIAGNOSTIC_DISPOSITION.json",
+  "scope": "No sealed C2 review is currently authorized: priority V4 is diagnostic-only and the only frozen non-overlapping full V4 transport is normalizer-disqualified.",
+  "sealed_review_started": false,
+  "status": "sealed_full_v4_review_blocked_before_gateway",
+  "v3_review_evidence": "archived and not used for this V4 measurement",
+  "validation_discrepancy_count": 0
 }

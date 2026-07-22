@@ -1,21 +1,41 @@
 {
-  "code_commit": "57bf2e0f750a6192e7c840f88accf1cd04bccd51",
+  "code_commit": "87bcce26904f7649ff1781b2e4d911c6d86a3e69",
   "code_dirty": true,
-  "evidence_hash": "855c5aefa73385bb144446081abd1fe6eda97da426f29a1a3b08f984172be919",
+  "evidence_hash": "ec1234d3536a8d7c5f38ddb1e7a042011b723af4f087b0fd7d0cedc241941c05",
   "evidence_type": "external_validation",
+  "frozen_v4_input_binding": {
+    "frozen_proposal_input": {
+      "label": "priority_full_strict",
+      "multi_parents": 9,
+      "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v4_20260721T190322Z/priority_full_strict.proposed.jsonl",
+      "proposal_rule_version": "simple-2d-v4",
+      "readonly": true,
+      "records": 85,
+      "scope": "historic-reject-selected diagnostic subset",
+      "sha256": "0d38f5906a87d9b694fc333648e13cc38eb31ed29a180ccd0fc6dfcadef91997",
+      "singles": 76
+    },
+    "requires_fresh_review": true,
+    "schema_version": "c2-v4-frozen-review-input-binding-v1",
+    "v4_freeze_manifest": {
+      "file_sha256": "d5413b7ba7d2bcae2be7cc52eaabd60508a53f588a162a4ce4d32be55de01899",
+      "internal_sha256": "43dba72b0ac1a66bca8f7f1f3ad6a6a1267b51457bbe89560cc082ae91f42ed4",
+      "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v4_20260721T190322Z/freeze_manifest.json"
+    }
+  },
   "human_claims": 0,
-  "input_proposed_sha256": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131",
+  "input_proposed_sha256": "0d38f5906a87d9b694fc333648e13cc38eb31ed29a180ccd0fc6dfcadef91997",
   "judge_models": [
     "claude-sonnet-4.6",
     "gemini-3.5-flash"
   ],
-  "rubric_hash": "c58d94232a71b5ff9f5ec4518f3e83dcba6c34938fa762818b21726544d82c5f",
+  "rubric_hash": "46b3d7fe022f0ce17207dc822c2a8abbe309b2bf3308c1f0853b49cd8afc3c36",
   "schema_version": "1.0",
   "verifications": [
     {
       "candidate_id": "case-elife-25946-figure3-panelg-ded4af4ed3a3",
       "curation_status": "verified",
-      "evidence_ref": "review:7a543ab2444cc2d3536527d435fce314cdcd0c483c955c3235339e48f8587001",
+      "evidence_ref": "review:4eeedc91dce811e9eb6f46b93d1c76e7d29c9f12d119fa8ca786e570638fc02d",
       "evidence_type": "external_validation",
       "experiment_case": {
         "case_id": "case-elife-25946-figure3-panelg-ded4af4ed3a3",
@@ -73,7 +93,7 @@
         "split": null,
         "user_goal": "Create a scatter plot for Figure 3G showing values grouped by the source-table column headers `fl/fl`, `m2-/-`."
       },
-      "review_hash": "7a543ab2444cc2d3536527d435fce314cdcd0c483c955c3235339e48f8587001",
+      "review_hash": "4eeedc91dce811e9eb6f46b93d1c76e7d29c9f12d119fa8ca786e570638fc02d",
       "review_models": [
         "claude-sonnet-4-6",
         "gemini-3.5-flash"
@@ -82,14 +102,14 @@
       "status": "verified"
     },
     {
-      "candidate_id": "case-elife-74056-figure1-panelb-ca8088d3ba33",
+      "candidate_id": "case-elife-70701-figure7-panelb-71eefb8acf37",
       "curation_status": "verified",
-      "evidence_ref": "review:5a1251f34d10cc9f9fd2fea059587cde3f6e072d67e166e79073dac071611e2b",
+      "evidence_ref": "review:10bc2b9b70e22fc402c07e94bcd082973c91719eebfef7058767e36212a9eb33",
       "evidence_type": "external_validation",
       "experiment_case": {
-        "case_id": "case-elife-74056-figure1-panelb-ca8088d3ba33",
+        "case_id": "case-elife-70701-figure7-panelb-71eefb8acf37",
         "chart_family": "scatter",
-        "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged/elife-74056/source_data/elife-74056-fig1-data1-v2.xlsx",
+        "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged/elife-70701/source_data/elife-70701-fig7-data1-v3.xlsx",
         "evaluation_expectation": {
           "panel_groups": [],
           "panels": [
@@ -99,9 +119,9 @@
               "series": [
                 {
                   "kind": "scatter",
-                  "series_id": "__wide_value__",
-                  "x": "__wide_group__",
-                  "y": "__wide_value__"
+                  "series_id": "pH",
+                  "x": "Line",
+                  "y": "pH"
                 }
               ],
               "x_scale": "linear"
@@ -110,39 +130,102 @@
           "schema_version": "1.1.0"
         },
         "intent": {
-          "binding_mode": "wide_melt",
           "series": [
-            "__wide_value__"
+            "pH"
           ],
           "units": {},
-          "wide_melt": {
-            "dropped_index_columns": [],
-            "group_column": "__wide_group__",
-            "source_value_columns": [
-              "mir-138 floxed",
-              "mir-138 spongeub"
-            ],
-            "value_column": "__wide_value__"
-          },
-          "x": "__wide_group__",
+          "x": "Line",
           "x_scale": "categorical",
-          "y": "__wide_value__"
+          "y": "pH"
         },
         "panel_count": 1,
         "panel_id": "b",
         "panels": [
           {
-            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged/elife-74056/source_data/elife-74056-fig1-data1-v2.xlsx",
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged/elife-70701/source_data/elife-70701-fig7-data1-v3.xlsx",
             "panel_id": "b",
-            "sheet": "Figure 1b",
-            "user_goal": "Create a scatter plot for Figure 1B showing values grouped by the source-table column headers `mir-138 floxed`, `mir-138 spongeub`."
+            "sheet": "Fig7B",
+            "user_goal": "Create a scatter plot for Figure 7B showing `pH` against `Line`."
           }
         ],
-        "sheet": "Figure 1b",
+        "sheet": "Fig7B",
         "split": null,
-        "user_goal": "Create a scatter plot for Figure 1B showing values grouped by the source-table column headers `mir-138 floxed`, `mir-138 spongeub`."
+        "user_goal": "Create a scatter plot for Figure 7B showing `pH` against `Line`."
       },
-      "review_hash": "5a1251f34d10cc9f9fd2fea059587cde3f6e072d67e166e79073dac071611e2b",
+      "review_hash": "10bc2b9b70e22fc402c07e94bcd082973c91719eebfef7058767e36212a9eb33",
+      "review_models": [
+        "claude-sonnet-4-6",
+        "gemini-3.5-flash"
+      ],
+      "reviewer_or_source": "claude-sonnet-4-6+gemini-3.5-flash",
+      "status": "verified"
+    },
+    {
+      "candidate_id": "case-elife-84209-figure2-panele-15426423ed77",
+      "curation_status": "verified",
+      "evidence_ref": "review:e0d84a52f414efb95fe454cf6fd51fcdf8c9ebc6a1a8319e6a9070d3aac9d648",
+      "evidence_type": "external_validation",
+      "experiment_case": {
+        "case_id": "case-elife-84209-figure2-panele-15426423ed77",
+        "chart_family": "bar",
+        "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged/elife-84209/source_data/elife-84209-fig2-data1-v1.xlsx",
+        "evaluation_expectation": {
+          "panel_groups": [],
+          "panels": [
+            {
+              "axis_index": 0,
+              "panel_id": "e",
+              "series": [
+                {
+                  "kind": "bar",
+                  "series_id": "7R+ ILC1",
+                  "x": "Genotype",
+                  "y": "7R+ ILC1"
+                },
+                {
+                  "kind": "bar",
+                  "series_id": "7R- ILC1",
+                  "x": "Genotype",
+                  "y": "7R- ILC1"
+                },
+                {
+                  "kind": "bar",
+                  "series_id": "NK",
+                  "x": "Genotype",
+                  "y": "NK"
+                }
+              ],
+              "x_scale": "linear"
+            }
+          ],
+          "schema_version": "1.1.0"
+        },
+        "intent": {
+          "series": [
+            "7R+ ILC1",
+            "7R- ILC1",
+            "NK"
+          ],
+          "units": {},
+          "x": "Genotype",
+          "x_scale": "categorical",
+          "y": "7R+ ILC1"
+        },
+        "panel_count": 1,
+        "panel_id": "e",
+        "panels": [
+          {
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged/elife-84209/source_data/elife-84209-fig2-data1-v1.xlsx",
+            "panel_id": "e",
+            "sheet": "Figure 2E",
+            "user_goal": "Create a bar chart for Figure 2E showing `7R+ ILC1`, `7R- ILC1`, `NK` against `Genotype`."
+          }
+        ],
+        "sheet": "Figure 2E",
+        "split": null,
+        "user_goal": "Create a bar chart for Figure 2E showing `7R+ ILC1`, `7R- ILC1`, `NK` against `Genotype`."
+      },
+      "review_hash": "e0d84a52f414efb95fe454cf6fd51fcdf8c9ebc6a1a8319e6a9070d3aac9d648",
       "review_models": [
         "claude-sonnet-4-6",
         "gemini-3.5-flash"
@@ -153,7 +236,7 @@
     {
       "candidate_id": "case-s41467-021-24769-3-figure2-panelh-7a0f680f0205",
       "curation_status": "verified",
-      "evidence_ref": "review:5fcc3aba85e950ad6d63549b8935d4fb5f4ee7f90a7ff164d664346dfa803646",
+      "evidence_ref": "review:30199e47cb226c0a9b538813911b1036b2bf7b944a4745dd2a63cabca9b77526",
       "evidence_type": "external_validation",
       "experiment_case": {
         "case_id": "case-s41467-021-24769-3-figure2-panelh-7a0f680f0205",
@@ -204,7 +287,69 @@
         "split": null,
         "user_goal": "Create a bar chart for Figure 2H showing `Weight(g)` against `CTRL`."
       },
-      "review_hash": "5fcc3aba85e950ad6d63549b8935d4fb5f4ee7f90a7ff164d664346dfa803646",
+      "review_hash": "30199e47cb226c0a9b538813911b1036b2bf7b944a4745dd2a63cabca9b77526",
+      "review_models": [
+        "claude-sonnet-4-6",
+        "gemini-3.5-flash"
+      ],
+      "reviewer_or_source": "claude-sonnet-4-6+gemini-3.5-flash",
+      "status": "verified"
+    },
+    {
+      "candidate_id": "case-s41467-023-35832-6-figure2-panelf-2b1c7a1967cf",
+      "curation_status": "verified",
+      "evidence_ref": "review:11e6db0b34b9b2d92d2ec7235cce5de577560d1879b3a026b93505fb964d6409",
+      "evidence_type": "external_validation",
+      "experiment_case": {
+        "case_id": "case-s41467-023-35832-6-figure2-panelf-2b1c7a1967cf",
+        "chart_family": "scatter",
+        "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged/s41467-023-35832-6/source_data/41467_2023_35832_MOESM21_ESM.xlsx",
+        "evaluation_expectation": {
+          "panel_groups": [],
+          "panels": [
+            {
+              "axis_index": 0,
+              "panel_id": "f",
+              "series": [
+                {
+                  "kind": "scatter",
+                  "series_id": "Basement.Membranes (relative expression)",
+                  "x": "Fibroblast Subpopulation",
+                  "y": "Basement.Membranes (relative expression)"
+                }
+              ],
+              "x_scale": "linear",
+              "y_unit": "relative expression"
+            }
+          ],
+          "schema_version": "1.1.0"
+        },
+        "intent": {
+          "series": [
+            "Basement.Membranes (relative expression)"
+          ],
+          "units": {
+            "Basement.Membranes (relative expression)": "relative expression"
+          },
+          "x": "Fibroblast Subpopulation",
+          "x_scale": "categorical",
+          "y": "Basement.Membranes (relative expression)"
+        },
+        "panel_count": 1,
+        "panel_id": "f",
+        "panels": [
+          {
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged/s41467-023-35832-6/source_data/41467_2023_35832_MOESM21_ESM.xlsx",
+            "panel_id": "f",
+            "sheet": "Figure 2f",
+            "user_goal": "Create a scatter plot for Figure 2F showing `Basement.Membranes (relative expression)` against `Fibroblast Subpopulation`."
+          }
+        ],
+        "sheet": "Figure 2f",
+        "split": null,
+        "user_goal": "Create a scatter plot for Figure 2F showing `Basement.Membranes (relative expression)` against `Fibroblast Subpopulation`."
+      },
+      "review_hash": "11e6db0b34b9b2d92d2ec7235cce5de577560d1879b3a026b93505fb964d6409",
       "review_models": [
         "claude-sonnet-4-6",
         "gemini-3.5-flash"
@@ -215,11 +360,11 @@
     {
       "candidate_id": "case-s41467-023-36550-9-figure6-panelh-2604de198721",
       "curation_status": "verified",
-      "evidence_ref": "review:eba284b816508242ea15eaecfa6146ce4adc608a5e44d47b9a33b42312b4c750",
+      "evidence_ref": "review:0de2d39b268ad233370bd15770055b3317059b2d81fdbf3f213055c0308f8458",
       "evidence_type": "external_validation",
       "experiment_case": {
         "case_id": "case-s41467-023-36550-9-figure6-panelh-2604de198721",
-        "chart_family": "scatter",
+        "chart_family": "bar",
         "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged/s41467-023-36550-9/source_data/41467_2023_36550_MOESM4_ESM.xlsx",
         "evaluation_expectation": {
           "panel_groups": [],
@@ -229,7 +374,7 @@
               "panel_id": "h",
               "series": [
                 {
-                  "kind": "scatter",
+                  "kind": "bar",
                   "series_id": "__wide_value__",
                   "x": "__wide_group__",
                   "y": "__wide_value__"
@@ -269,14 +414,14 @@
             "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged/s41467-023-36550-9/source_data/41467_2023_36550_MOESM4_ESM.xlsx",
             "panel_id": "h",
             "sheet": "Fig. 6h",
-            "user_goal": "Create a scatter plot for Figure 6H showing values grouped by the source-table column headers `1`, `2`, `3`, `4`, `5`."
+            "user_goal": "Create a bar chart for Figure 6H showing values grouped by the source-table column headers `1`, `2`, `3`, `4`, `5`."
           }
         ],
         "sheet": "Fig. 6h",
         "split": null,
-        "user_goal": "Create a scatter plot for Figure 6H showing values grouped by the source-table column headers `1`, `2`, `3`, `4`, `5`."
+        "user_goal": "Create a bar chart for Figure 6H showing values grouped by the source-table column headers `1`, `2`, `3`, `4`, `5`."
       },
-      "review_hash": "eba284b816508242ea15eaecfa6146ce4adc608a5e44d47b9a33b42312b4c750",
+      "review_hash": "0de2d39b268ad233370bd15770055b3317059b2d81fdbf3f213055c0308f8458",
       "review_models": [
         "claude-sonnet-4-6",
         "gemini-3.5-flash"
@@ -285,14 +430,135 @@
       "status": "verified"
     },
     {
-      "candidate_id": "case-s41467-025-58773-8-figure4-paneld-494835f356d6",
+      "candidate_id": "case-s41467-023-38160-x-figure1-panela-123183d201d5",
       "curation_status": "verified",
-      "evidence_ref": "review:f9095f7ad16923911608c14ab2f4e82a916458389c974d675e71df889a2d1c19",
+      "evidence_ref": "review:971e1744b19235ea61997368556a8831ae8b15b3052727a5561e3f52d69fb169",
       "evidence_type": "external_validation",
       "experiment_case": {
-        "case_id": "case-s41467-025-58773-8-figure4-paneld-494835f356d6",
+        "case_id": "case-s41467-023-38160-x-figure1-panela-123183d201d5",
         "chart_family": "scatter",
-        "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged/s41467-025-58773-8/source_data/41467_2025_58773_MOESM4_ESM.xlsx",
+        "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged/s41467-023-38160-x/source_data/41467_2023_38160_MOESM6_ESM.xlsx",
+        "evaluation_expectation": {
+          "panel_groups": [],
+          "panels": [
+            {
+              "axis_index": 0,
+              "panel_id": "a",
+              "series": [
+                {
+                  "kind": "scatter",
+                  "series_id": "POLD1 (log2(TPM+1))",
+                  "x": "Tissue type",
+                  "y": "POLD1 (log2(TPM+1))"
+                }
+              ],
+              "x_scale": "linear"
+            }
+          ],
+          "schema_version": "1.1.0"
+        },
+        "intent": {
+          "series": [
+            "POLD1 (log2(TPM+1))"
+          ],
+          "units": {},
+          "x": "Tissue type",
+          "x_scale": "categorical",
+          "y": "POLD1 (log2(TPM+1))"
+        },
+        "panel_count": 1,
+        "panel_id": "a",
+        "panels": [
+          {
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged/s41467-023-38160-x/source_data/41467_2023_38160_MOESM6_ESM.xlsx",
+            "panel_id": "a",
+            "sheet": "Fig. 1a",
+            "user_goal": "Create a scatter plot for Figure 1A showing `POLD1 (log2(TPM+1))` against `Tissue type`."
+          }
+        ],
+        "sheet": "Fig. 1a",
+        "split": null,
+        "user_goal": "Create a scatter plot for Figure 1A showing `POLD1 (log2(TPM+1))` against `Tissue type`."
+      },
+      "review_hash": "971e1744b19235ea61997368556a8831ae8b15b3052727a5561e3f52d69fb169",
+      "review_models": [
+        "claude-sonnet-4-6",
+        "gemini-3.5-flash"
+      ],
+      "reviewer_or_source": "claude-sonnet-4-6+gemini-3.5-flash",
+      "status": "verified"
+    },
+    {
+      "candidate_id": "case-s41467-023-38160-x-figure1-panelc-e6778fcb64f9",
+      "curation_status": "verified",
+      "evidence_ref": "review:e41a03e8b151ced84306312d4ee670cdb182a1fec829a660b89531922a4c6329",
+      "evidence_type": "external_validation",
+      "experiment_case": {
+        "case_id": "case-s41467-023-38160-x-figure1-panelc-e6778fcb64f9",
+        "chart_family": "scatter",
+        "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged/s41467-023-38160-x/source_data/41467_2023_38160_MOESM6_ESM.xlsx",
+        "evaluation_expectation": {
+          "panel_groups": [],
+          "panels": [
+            {
+              "axis_index": 0,
+              "panel_id": "c",
+              "series": [
+                {
+                  "kind": "scatter",
+                  "series_id": "POLD1 log2(FPKM+1)",
+                  "x": "Stage",
+                  "y": "POLD1 log2(FPKM+1)"
+                }
+              ],
+              "x_scale": "linear",
+              "y_unit": "FPKM+1"
+            }
+          ],
+          "schema_version": "1.1.0"
+        },
+        "intent": {
+          "series": [
+            "POLD1 log2(FPKM+1)"
+          ],
+          "units": {
+            "POLD1 log2(FPKM+1)": "FPKM+1"
+          },
+          "x": "Stage",
+          "x_scale": "categorical",
+          "y": "POLD1 log2(FPKM+1)"
+        },
+        "panel_count": 1,
+        "panel_id": "c",
+        "panels": [
+          {
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged/s41467-023-38160-x/source_data/41467_2023_38160_MOESM6_ESM.xlsx",
+            "panel_id": "c",
+            "sheet": "Fig. 1c",
+            "user_goal": "Create a scatter plot for Figure 1C showing `POLD1 log2(FPKM+1)` against `Stage`."
+          }
+        ],
+        "sheet": "Fig. 1c",
+        "split": null,
+        "user_goal": "Create a scatter plot for Figure 1C showing `POLD1 log2(FPKM+1)` against `Stage`."
+      },
+      "review_hash": "e41a03e8b151ced84306312d4ee670cdb182a1fec829a660b89531922a4c6329",
+      "review_models": [
+        "claude-sonnet-4-6",
+        "gemini-3.5-flash"
+      ],
+      "reviewer_or_source": "claude-sonnet-4-6+gemini-3.5-flash",
+      "status": "verified"
+    },
+    {
+      "candidate_id": "case-s41467-023-38160-x-figure1-paneld-485e077e11d8",
+      "curation_status": "verified",
+      "evidence_ref": "review:bf95da0ef7123fcf595340365d942e7a37a9ce5666e1708f8c1b80f47bf18efa",
+      "evidence_type": "external_validation",
+      "experiment_case": {
+        "case_id": "case-s41467-023-38160-x-figure1-paneld-485e077e11d8",
+        "chart_family": "scatter",
+        "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged/s41467-023-38160-x/source_data/41467_2023_38160_MOESM6_ESM.xlsx",
         "evaluation_expectation": {
           "panel_groups": [],
           "panels": [
@@ -302,9 +568,71 @@
               "series": [
                 {
                   "kind": "scatter",
-                  "series_id": "__wide_value__",
-                  "x": "__wide_group__",
-                  "y": "__wide_value__"
+                  "series_id": "POLD1 log2(FPKM+1)",
+                  "x": "Grade",
+                  "y": "POLD1 log2(FPKM+1)"
+                }
+              ],
+              "x_scale": "linear",
+              "y_unit": "FPKM+1"
+            }
+          ],
+          "schema_version": "1.1.0"
+        },
+        "intent": {
+          "series": [
+            "POLD1 log2(FPKM+1)"
+          ],
+          "units": {
+            "POLD1 log2(FPKM+1)": "FPKM+1"
+          },
+          "x": "Grade",
+          "x_scale": "categorical",
+          "y": "POLD1 log2(FPKM+1)"
+        },
+        "panel_count": 1,
+        "panel_id": "d",
+        "panels": [
+          {
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged/s41467-023-38160-x/source_data/41467_2023_38160_MOESM6_ESM.xlsx",
+            "panel_id": "d",
+            "sheet": "Fig. 1d",
+            "user_goal": "Create a scatter plot for Figure 1D showing `POLD1 log2(FPKM+1)` against `Grade`."
+          }
+        ],
+        "sheet": "Fig. 1d",
+        "split": null,
+        "user_goal": "Create a scatter plot for Figure 1D showing `POLD1 log2(FPKM+1)` against `Grade`."
+      },
+      "review_hash": "bf95da0ef7123fcf595340365d942e7a37a9ce5666e1708f8c1b80f47bf18efa",
+      "review_models": [
+        "claude-sonnet-4-6",
+        "gemini-3.5-flash"
+      ],
+      "reviewer_or_source": "claude-sonnet-4-6+gemini-3.5-flash",
+      "status": "verified"
+    },
+    {
+      "candidate_id": "case-s41467-023-38160-x-figure1-paneli-3df3c9817e3c",
+      "curation_status": "verified",
+      "evidence_ref": "review:0580ab2720391fd3e27f6dfeb7a2de6a10e0aca8812e3bc87f552ae84fa29e9a",
+      "evidence_type": "external_validation",
+      "experiment_case": {
+        "case_id": "case-s41467-023-38160-x-figure1-paneli-3df3c9817e3c",
+        "chart_family": "scatter",
+        "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged/s41467-023-38160-x/source_data/41467_2023_38160_MOESM6_ESM.xlsx",
+        "evaluation_expectation": {
+          "panel_groups": [],
+          "panels": [
+            {
+              "axis_index": 0,
+              "panel_id": "i",
+              "series": [
+                {
+                  "kind": "scatter",
+                  "series_id": "POLD1 score",
+                  "x": "Stage",
+                  "y": "POLD1 score"
                 }
               ],
               "x_scale": "linear"
@@ -313,42 +641,88 @@
           "schema_version": "1.1.0"
         },
         "intent": {
-          "binding_mode": "wide_melt",
           "series": [
-            "__wide_value__"
+            "POLD1 score"
           ],
           "units": {},
-          "wide_melt": {
-            "dropped_index_columns": [],
-            "group_column": "__wide_group__",
-            "source_value_columns": [
-              "h2 C232S+K228C kC214S",
-              "h2 C232S+T222C kE123C+C214S",
-              "h2 C232S kC214S",
-              "h2",
-              "h1"
-            ],
-            "value_column": "__wide_value__"
-          },
-          "x": "__wide_group__",
+          "x": "Stage",
           "x_scale": "categorical",
-          "y": "__wide_value__"
+          "y": "POLD1 score"
         },
         "panel_count": 1,
-        "panel_id": "d",
+        "panel_id": "i",
         "panels": [
           {
-            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged/s41467-025-58773-8/source_data/41467_2025_58773_MOESM4_ESM.xlsx",
-            "panel_id": "d",
-            "sheet": "Fig 4d",
-            "user_goal": "Create a scatter plot for Figure 4D showing values grouped by the source-table column headers `h2 C232S+K228C kC214S`, `h2 C232S+T222C kE123C+C214S`, `h2 C232S kC214S`, `h2`, `h1`."
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged/s41467-023-38160-x/source_data/41467_2023_38160_MOESM6_ESM.xlsx",
+            "panel_id": "i",
+            "sheet": "Fig. 1i",
+            "user_goal": "Create a scatter plot for Figure 1I showing `POLD1 score` against `Stage`."
           }
         ],
-        "sheet": "Fig 4d",
+        "sheet": "Fig. 1i",
         "split": null,
-        "user_goal": "Create a scatter plot for Figure 4D showing values grouped by the source-table column headers `h2 C232S+K228C kC214S`, `h2 C232S+T222C kE123C+C214S`, `h2 C232S kC214S`, `h2`, `h1`."
+        "user_goal": "Create a scatter plot for Figure 1I showing `POLD1 score` against `Stage`."
       },
-      "review_hash": "f9095f7ad16923911608c14ab2f4e82a916458389c974d675e71df889a2d1c19",
+      "review_hash": "0580ab2720391fd3e27f6dfeb7a2de6a10e0aca8812e3bc87f552ae84fa29e9a",
+      "review_models": [
+        "claude-sonnet-4-6",
+        "gemini-3.5-flash"
+      ],
+      "reviewer_or_source": "claude-sonnet-4-6+gemini-3.5-flash",
+      "status": "verified"
+    },
+    {
+      "candidate_id": "case-s41467-023-38160-x-figure1-panelj-73181a5bc5f6",
+      "curation_status": "verified",
+      "evidence_ref": "review:9a81e0b2fa453b319418eec9c1023ff041d457f9d29e50ad5d76dd957e73c563",
+      "evidence_type": "external_validation",
+      "experiment_case": {
+        "case_id": "case-s41467-023-38160-x-figure1-panelj-73181a5bc5f6",
+        "chart_family": "scatter",
+        "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged/s41467-023-38160-x/source_data/41467_2023_38160_MOESM6_ESM.xlsx",
+        "evaluation_expectation": {
+          "panel_groups": [],
+          "panels": [
+            {
+              "axis_index": 0,
+              "panel_id": "j",
+              "series": [
+                {
+                  "kind": "scatter",
+                  "series_id": "POLD1 score",
+                  "x": "T stage",
+                  "y": "POLD1 score"
+                }
+              ],
+              "x_scale": "linear"
+            }
+          ],
+          "schema_version": "1.1.0"
+        },
+        "intent": {
+          "series": [
+            "POLD1 score"
+          ],
+          "units": {},
+          "x": "T stage",
+          "x_scale": "categorical",
+          "y": "POLD1 score"
+        },
+        "panel_count": 1,
+        "panel_id": "j",
+        "panels": [
+          {
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged/s41467-023-38160-x/source_data/41467_2023_38160_MOESM6_ESM.xlsx",
+            "panel_id": "j",
+            "sheet": "Fig. 1j",
+            "user_goal": "Create a scatter plot for Figure 1J showing `POLD1 score` against `T stage`."
+          }
+        ],
+        "sheet": "Fig. 1j",
+        "split": null,
+        "user_goal": "Create a scatter plot for Figure 1J showing `POLD1 score` against `T stage`."
+      },
+      "review_hash": "9a81e0b2fa453b319418eec9c1023ff041d457f9d29e50ad5d76dd957e73c563",
       "review_models": [
         "claude-sonnet-4-6",
         "gemini-3.5-flash"
@@ -359,7 +733,7 @@
     {
       "candidate_id": "case-s44318-023-00005-0-figure1-panelh-513248c811f2",
       "curation_status": "verified",
-      "evidence_ref": "review:08f57ef6d113187c106a02b9e370e6bb9a2f76feea9391dba3df538aa68cd52f",
+      "evidence_ref": "review:6c333f768dae6b1991c757c2b04008071d5b4d981c2477934ecb749a42e80223",
       "evidence_type": "external_validation",
       "experiment_case": {
         "case_id": "case-s44318-023-00005-0-figure1-panelh-513248c811f2",
@@ -410,7 +784,76 @@
         "split": null,
         "user_goal": "Create a scatter plot for Figure 1H showing `rate` against `[ATP]`."
       },
-      "review_hash": "08f57ef6d113187c106a02b9e370e6bb9a2f76feea9391dba3df538aa68cd52f",
+      "review_hash": "6c333f768dae6b1991c757c2b04008071d5b4d981c2477934ecb749a42e80223",
+      "review_models": [
+        "claude-sonnet-4-6",
+        "gemini-3.5-flash"
+      ],
+      "reviewer_or_source": "claude-sonnet-4-6+gemini-3.5-flash",
+      "status": "verified"
+    },
+    {
+      "candidate_id": "case-s44319-024-00176-9-figure4-panelb-9ab0d6d48f6a",
+      "curation_status": "verified",
+      "evidence_ref": "review:09abce23c95385b86fe1ecb9766a9344b65c697fc86e02b2ef7b9595bbaf14d5",
+      "evidence_type": "external_validation",
+      "experiment_case": {
+        "case_id": "case-s44319-024-00176-9-figure4-panelb-9ab0d6d48f6a",
+        "chart_family": "bar",
+        "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged/s44319-024-00176-9/source_data/44319_2024_176_MOESM6_ESM_SourceDara_ForFigure4C,4I-K.xlsx",
+        "evaluation_expectation": {
+          "panel_groups": [],
+          "panels": [
+            {
+              "axis_index": 0,
+              "panel_id": "b",
+              "series": [
+                {
+                  "kind": "bar",
+                  "series_id": "__wide_value__",
+                  "x": "__wide_group__",
+                  "y": "__wide_value__"
+                }
+              ],
+              "x_scale": "linear"
+            }
+          ],
+          "schema_version": "1.1.0"
+        },
+        "intent": {
+          "binding_mode": "wide_melt",
+          "series": [
+            "__wide_value__"
+          ],
+          "units": {},
+          "wide_melt": {
+            "dropped_index_columns": [],
+            "group_column": "__wide_group__",
+            "source_value_columns": [
+              "shControl",
+              "shSIRT6"
+            ],
+            "value_column": "__wide_value__"
+          },
+          "x": "__wide_group__",
+          "x_scale": "categorical",
+          "y": "__wide_value__"
+        },
+        "panel_count": 1,
+        "panel_id": "b",
+        "panels": [
+          {
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged/s44319-024-00176-9/source_data/44319_2024_176_MOESM6_ESM_SourceDara_ForFigure4C,4I-K.xlsx",
+            "panel_id": "b",
+            "sheet": "Figure 4B",
+            "user_goal": "Create a bar chart for Figure 4B showing values grouped by the source-table column headers `shControl`, `shSIRT6`."
+          }
+        ],
+        "sheet": "Figure 4B",
+        "split": null,
+        "user_goal": "Create a bar chart for Figure 4B showing values grouped by the source-table column headers `shControl`, `shSIRT6`."
+      },
+      "review_hash": "09abce23c95385b86fe1ecb9766a9344b65c697fc86e02b2ef7b9595bbaf14d5",
       "review_models": [
         "claude-sonnet-4-6",
         "gemini-3.5-flash"
@@ -421,7 +864,7 @@
     {
       "candidate_id": "case-s44319-024-00227-1-figure10-panelc-a8a89e7263ad",
       "curation_status": "verified",
-      "evidence_ref": "review:6b71df8cd394df62a9a187fe3eb738a86cc43bd73e2834c13399778329a712a8",
+      "evidence_ref": "review:33504b2a3fc21bb995b038b93ffc2b8a5e898dd18400cd04a6f1754b6a972cb8",
       "evidence_type": "external_validation",
       "experiment_case": {
         "case_id": "case-s44319-024-00227-1-figure10-panelc-a8a89e7263ad",
@@ -472,7 +915,220 @@
         "split": null,
         "user_goal": "Create a bar chart for Figure 10C showing `MYMX (% of DM CNT)` against `Sample`."
       },
-      "review_hash": "6b71df8cd394df62a9a187fe3eb738a86cc43bd73e2834c13399778329a712a8",
+      "review_hash": "33504b2a3fc21bb995b038b93ffc2b8a5e898dd18400cd04a6f1754b6a972cb8",
+      "review_models": [
+        "claude-sonnet-4-6",
+        "gemini-3.5-flash"
+      ],
+      "reviewer_or_source": "claude-sonnet-4-6+gemini-3.5-flash",
+      "status": "verified"
+    },
+    {
+      "candidate_id": "case-s44321-025-00233-3-figure3-panelg-043283cae102",
+      "curation_status": "verified",
+      "evidence_ref": "review:3834dc5c3868d6b13aa82aac1ae4ea21295b1191e2ebe61cd3014c822b73730d",
+      "evidence_type": "external_validation",
+      "experiment_case": {
+        "case_id": "case-s44321-025-00233-3-figure3-panelg-043283cae102",
+        "chart_family": "bar",
+        "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged/s44321-025-00233-3/source_data/44321_2025_233_MOESM7_ESM_Figure3-Numericaldata.xlsx",
+        "evaluation_expectation": {
+          "panel_groups": [],
+          "panels": [
+            {
+              "axis_index": 0,
+              "panel_id": "g",
+              "series": [
+                {
+                  "kind": "bar",
+                  "series_id": "__wide_value__",
+                  "x": "__wide_group__",
+                  "y": "__wide_value__"
+                }
+              ],
+              "x_scale": "linear"
+            }
+          ],
+          "schema_version": "1.1.0"
+        },
+        "intent": {
+          "binding_mode": "wide_melt",
+          "series": [
+            "__wide_value__"
+          ],
+          "units": {},
+          "wide_melt": {
+            "dropped_index_columns": [
+              "Animal#"
+            ],
+            "group_column": "__wide_group__",
+            "source_value_columns": [
+              "Fbxw7f/f ",
+              "Cdh16Cre;Fbxw7f/f "
+            ],
+            "value_column": "__wide_value__"
+          },
+          "x": "__wide_group__",
+          "x_scale": "categorical",
+          "y": "__wide_value__"
+        },
+        "panel_count": 1,
+        "panel_id": "g",
+        "panels": [
+          {
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged/s44321-025-00233-3/source_data/44321_2025_233_MOESM7_ESM_Figure3-Numericaldata.xlsx",
+            "panel_id": "g",
+            "sheet": "Figure3G",
+            "user_goal": "Create a bar chart for Figure 3G showing values grouped by the source-table column headers `Fbxw7f/f `, `Cdh16Cre;Fbxw7f/f `."
+          }
+        ],
+        "sheet": "Figure3G",
+        "split": null,
+        "user_goal": "Create a bar chart for Figure 3G showing values grouped by the source-table column headers `Fbxw7f/f `, `Cdh16Cre;Fbxw7f/f `."
+      },
+      "review_hash": "3834dc5c3868d6b13aa82aac1ae4ea21295b1191e2ebe61cd3014c822b73730d",
+      "review_models": [
+        "claude-sonnet-4-6",
+        "gemini-3.5-flash"
+      ],
+      "reviewer_or_source": "claude-sonnet-4-6+gemini-3.5-flash",
+      "status": "verified"
+    },
+    {
+      "candidate_id": "case-s44321-025-00233-3-figure3-panelj-e418f4bb953a",
+      "curation_status": "verified",
+      "evidence_ref": "review:ac4ffd5d051af5f615e83d9f2f4b202b98b2ead64d7d74f13846c4a74e4f666c",
+      "evidence_type": "external_validation",
+      "experiment_case": {
+        "case_id": "case-s44321-025-00233-3-figure3-panelj-e418f4bb953a",
+        "chart_family": "bar",
+        "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged/s44321-025-00233-3/source_data/44321_2025_233_MOESM7_ESM_Figure3-Numericaldata.xlsx",
+        "evaluation_expectation": {
+          "panel_groups": [],
+          "panels": [
+            {
+              "axis_index": 0,
+              "panel_id": "j",
+              "series": [
+                {
+                  "kind": "bar",
+                  "series_id": "__wide_value__",
+                  "x": "__wide_group__",
+                  "y": "__wide_value__"
+                }
+              ],
+              "x_scale": "linear"
+            }
+          ],
+          "schema_version": "1.1.0"
+        },
+        "intent": {
+          "binding_mode": "wide_melt",
+          "series": [
+            "__wide_value__"
+          ],
+          "units": {},
+          "wide_melt": {
+            "dropped_index_columns": [
+              "Animal#"
+            ],
+            "group_column": "__wide_group__",
+            "source_value_columns": [
+              "Fbxw7f/f ",
+              "Cdh16Cre;Fbxw7f/f "
+            ],
+            "value_column": "__wide_value__"
+          },
+          "x": "__wide_group__",
+          "x_scale": "categorical",
+          "y": "__wide_value__"
+        },
+        "panel_count": 1,
+        "panel_id": "j",
+        "panels": [
+          {
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged/s44321-025-00233-3/source_data/44321_2025_233_MOESM7_ESM_Figure3-Numericaldata.xlsx",
+            "panel_id": "j",
+            "sheet": "Figure3J",
+            "user_goal": "Create a bar chart for Figure 3J showing values grouped by the source-table column headers `Fbxw7f/f `, `Cdh16Cre;Fbxw7f/f `."
+          }
+        ],
+        "sheet": "Figure3J",
+        "split": null,
+        "user_goal": "Create a bar chart for Figure 3J showing values grouped by the source-table column headers `Fbxw7f/f `, `Cdh16Cre;Fbxw7f/f `."
+      },
+      "review_hash": "ac4ffd5d051af5f615e83d9f2f4b202b98b2ead64d7d74f13846c4a74e4f666c",
+      "review_models": [
+        "claude-sonnet-4-6",
+        "gemini-3.5-flash"
+      ],
+      "reviewer_or_source": "claude-sonnet-4-6+gemini-3.5-flash",
+      "status": "verified"
+    },
+    {
+      "candidate_id": "case-s44321-025-00233-3-figure3-panelm-f90072cb5549",
+      "curation_status": "verified",
+      "evidence_ref": "review:ba7ed7e3f10170f99b4eed41fd18afd61230d34bf3d5c30756d7be0c82bcedb6",
+      "evidence_type": "external_validation",
+      "experiment_case": {
+        "case_id": "case-s44321-025-00233-3-figure3-panelm-f90072cb5549",
+        "chart_family": "bar",
+        "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged/s44321-025-00233-3/source_data/44321_2025_233_MOESM7_ESM_Figure3-Numericaldata.xlsx",
+        "evaluation_expectation": {
+          "panel_groups": [],
+          "panels": [
+            {
+              "axis_index": 0,
+              "panel_id": "m",
+              "series": [
+                {
+                  "kind": "bar",
+                  "series_id": "__wide_value__",
+                  "x": "__wide_group__",
+                  "y": "__wide_value__"
+                }
+              ],
+              "x_scale": "linear"
+            }
+          ],
+          "schema_version": "1.1.0"
+        },
+        "intent": {
+          "binding_mode": "wide_melt",
+          "series": [
+            "__wide_value__"
+          ],
+          "units": {},
+          "wide_melt": {
+            "dropped_index_columns": [
+              "Animal#"
+            ],
+            "group_column": "__wide_group__",
+            "source_value_columns": [
+              "Fbxw7f/f ",
+              "Cdh16Cre;Fbxw7f/f "
+            ],
+            "value_column": "__wide_value__"
+          },
+          "x": "__wide_group__",
+          "x_scale": "categorical",
+          "y": "__wide_value__"
+        },
+        "panel_count": 1,
+        "panel_id": "m",
+        "panels": [
+          {
+            "data_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/nature_download/outputs/extreme_merged/s44321-025-00233-3/source_data/44321_2025_233_MOESM7_ESM_Figure3-Numericaldata.xlsx",
+            "panel_id": "m",
+            "sheet": "Figure3M",
+            "user_goal": "Create a bar chart for Figure 3M showing values grouped by the source-table column headers `Fbxw7f/f `, `Cdh16Cre;Fbxw7f/f `."
+          }
+        ],
+        "sheet": "Figure3M",
+        "split": null,
+        "user_goal": "Create a bar chart for Figure 3M showing values grouped by the source-table column headers `Fbxw7f/f `, `Cdh16Cre;Fbxw7f/f `."
+      },
+      "review_hash": "ba7ed7e3f10170f99b4eed41fd18afd61230d34bf3d5c30756d7be0c82bcedb6",
       "review_models": [
         "claude-sonnet-4-6",
         "gemini-3.5-flash"

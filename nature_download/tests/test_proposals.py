@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 import hashlib
 import json
 from pathlib import Path
@@ -500,6 +501,18 @@ def test_v4_large_categorical_groups_become_dot_plot_scatter(
     analysis = analyze_table(pd.read_csv(table), rule_version=PROPOSAL_RULE_V4)
     assert analysis.chart_family == "scatter"
     assert analysis.x == "Line"
+
+
+def test_v4_mixed_excel_group_labels_do_not_crash_dot_plot_detection() -> None:
+    frame = pd.DataFrame(
+        {
+            "Group": [1] * 5 + [datetime(2024, 1, 1)] * 5,
+            "Value": list(range(10)),
+        }
+    )
+    analysis = analyze_table(frame, rule_version=PROPOSAL_RULE_V4)
+    assert analysis.chart_family == "scatter"
+    assert analysis.x == "Group"
 
 
 def test_v4_small_categorical_groups_remain_aggregate_bar(
