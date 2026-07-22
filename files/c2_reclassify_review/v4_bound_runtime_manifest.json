@@ -1,0 +1,28 @@
+{
+  "copy_verified_byte_identical": true,
+  "corpus_python_files": {
+    "__init__.py": "109e488fd21a4d4a9d8869bb999f161c51fff6833abe8351c4e95ba2e94480c8",
+    "benchmark.py": "8ab00ebbecacc57fd609e94d4f69ffb47f9812a1505c2693c50bfc31e2544a48",
+    "build_combined_records.py": "43191e7cb6e33c1f27698ba5018c7eae33ae28ba44ed6d097d85ace8b3bd8c60",
+    "c2_p5plus_doi_clusters.py": "25234955e16f5fcb767213f0957568a0264c1bba0069bd2d96db9d2be97578de",
+    "cases.py": "645ae19cbdb6488fcc384bbbca6bdbe622d4a06b3b2d5d9d2a69bf547820d642",
+    "cli.py": "1149a79a170951e2d28cb507409298c2810bed3734ab496b6919f83b17729bdb",
+    "completeness.py": "f1cf8e813c656eabed335503cc5792d19d825aac40b6f75b338e05966eb30802",
+    "discovery.py": "486558ed63a33de19b8fd34c7daedcc69ce99cafce20f13ad691c30366662dfd",
+    "honest_yield_survey.py": "7e2a57c38022a75fa98c6fdacc24f4f53efcf1e8b3d082950976a6b481b79a0e",
+    "policy.py": "e6a8afbbd944baa1a8dfce5ba5388eccb5852ff66d0755b1defd13b9e5be8d68",
+    "proposals.py": "11b3340ec6bd1357764371ec651614adac111d8747344656b4b169d5ae876bde",
+    "provenance.py": "1113898489430cb7086412f301cad25c3d4dc942f05fd0f0773f992d19b33966",
+    "reviews.py": "28fe8ebede94819cd575540f1e78c3eede9fb83c4f5a256792ffff2836d9ccc4",
+    "source_table_normalizer.py": "b6f8589501ae5c0622a3b9597ed2db02bd5fe054b425b5e40549d0fdcd6d0882",
+    "splits.py": "b31550a4582f84d5dc2395328806a972c2bf63ecd6ea10bc58a091d1c32ce4a3"
+  },
+  "model_client": {
+    "factory_resolution": "checkpoint_review_singles_frozen_v4.py imports this repository-root client because the corpus runtime snapshot intentionally excludes an agent package.",
+    "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/agent/app/services/model_client.py",
+    "sha256": "47ca8fe8caab6076bbadc162da8ae5be785f5e4e6958b3a996f958a5d0a24a17"
+  },
+  "schema_version": "c2-v4-bound-review-runtime-v1",
+  "source_git_commit": "0673c4abb3f73a44a9fdfcc591af92633960896f",
+  "source_git_dirty": true
+}

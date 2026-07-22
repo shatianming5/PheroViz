@@ -1,0 +1,39 @@
+{
+  "N_raw": {
+    "total_raw_multi_dois": 15,
+    "verified_distinct_multi_dois": 3,
+    "verified_dois": [
+      "10.1038/s44319-025-00484-8",
+      "10.1038/s44321-025-00216-4",
+      "10.7554/elife.49574"
+    ]
+  },
+  "artifact_validation_discrepancies": 0,
+  "claimed_16_reconciled_to_exact_input_count": 15,
+  "exact_raw_p5_doi_count": 15,
+  "freeze_manifest_internal_sha256": "e5618a52ba09b293e0e9b76cf97fe6d7738371b012d8cfefe6dca47168cb7381",
+  "gateway_mode": "serial",
+  "independent_measurement_discrepancies": 0,
+  "invalid_204_doi_normalizer_pool_used": false,
+  "priority_evidence_reused": false,
+  "probe": "passed: 3 candidates, 6 structured dual-judge responses, binding reproduced",
+  "raw16_result_alias_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/raw16_sealed_result.json",
+  "result_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/raw15_sealed_result.json",
+  "review_input_sha256": "d7c655b97334186d75c99ff69e23615065535224e609b40e62e1c50e26cde801",
+  "review_rubric_hash": "46b3d7fe022f0ce17207dc822c2a8abbe309b2bf3308c1f0853b49cd8afc3c36",
+  "run_root": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/raw15_sealed_v4_20260722T082535_0800",
+  "scope": "all-direct raw P5 15-DOI C2-extreme measurement; ceiling 15 cannot satisfy K=41-62",
+  "sealing_eligibility": {
+    "bound_code_commit": "87bcce26904f7649ff1781b2e4d911c6d86a3e69",
+    "bound_code_dirty": true,
+    "eligible_as_sealed_evidence": false,
+    "reason": "review binding records code_dirty=true; result is diagnostic measurement only.",
+    "required_for_future_sealed_review": "clean committed worktree plus fresh exact immutable V4 pool SHA binding and dual-model review."
+  },
+  "single_panel_pass_rate": {
+    "accepted": 57,
+    "rate": 0.4596774193548387,
+    "reviewed": 124
+  },
+  "status": "completed_diagnostic_measurement_code_dirty"
+}

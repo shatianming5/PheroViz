@@ -214,8 +214,8 @@ def baseline_for_batch(label: str, paths: Mapping[str, Path]) -> tuple[
     return reviews, rejected_single, accepted_multi_dois, discrepancies
 
 
-def probe_result() -> dict[str, Any]:
-    path = OUT / "probe_casecount/reviews.jsonl"
+def probe_result(probe_dir: str) -> dict[str, Any]:
+    path = OUT / probe_dir / "reviews.jsonl"
     if not path.is_file():
         return {"available": False}
     records = read_jsonl(path)
@@ -255,6 +255,8 @@ def main() -> None:
     parser.add_argument("--run-root", type=Path, required=True)
     parser.add_argument("--freeze-manifest", type=Path, required=True)
     parser.add_argument("--freeze-manifest-internal-sha256", required=True)
+    parser.add_argument("--freeze-version", choices=("v3", "v4"), default="v3")
+    parser.add_argument("--probe-dir")
     args = parser.parse_args()
     OUT = args.run_root.resolve()
     manifest_path = args.freeze_manifest.resolve(strict=True)
@@ -269,6 +271,21 @@ def main() -> None:
         != manifest_internal
     ):
         raise SystemExit("frozen V3 manifest internal SHA-256 mismatch")
+    freeze_version = args.freeze_version
+    is_v4 = freeze_version == "v4"
+    if is_v4 and (
+        manifest.get("proposal_rule_version") != "simple-2d-v4"
+        or manifest.get("review_rubric_required") != "proposal-external-validation-v4"
+        or manifest.get("requires_fresh_review") is not True
+    ):
+        raise SystemExit("frozen V4 manifest rubric/rule binding mismatch")
+    binding_field = f"frozen_{freeze_version}_input_binding"
+    manifest_field = f"{freeze_version}_freeze_manifest"
+    binding_schema = f"c2-{freeze_version}-frozen-review-input-binding-v1"
+    default_probe_dir = (
+        "probe_casecount_model_factory_fixed" if is_v4 else "probe_casecount"
+    )
+    probe_dir = args.probe_dir or default_probe_dir
     frozen_entries = {
         str(item.get("label") or ""): item
         for item in manifest.get("inputs", [])
@@ -318,33 +335,36 @@ def main() -> None:
             discrepancies.append(f"{label}:wrong-reproposal-batch-marker")
         if frozen_entry.get("frozen_sha256") != sha256_file(input_path):
             discrepancies.append(f"{label}:input-sha256-mismatch")
+        expected_input_binding = {
+            "label": f"priority_{label}",
+            "path": str(input_path),
+            "sha256": sha256_file(input_path),
+            "records": frozen_entry.get("records"),
+            "singles": frozen_entry.get("singles"),
+            "multi_parents": frozen_entry.get("multi_parents"),
+            "scope": frozen_entry.get("scope"),
+            "readonly": True,
+        }
+        if is_v4:
+            expected_input_binding["proposal_rule_version"] = "simple-2d-v4"
         expected_freeze_binding = {
-            "schema_version": "c2-v3-frozen-review-input-binding-v1",
-            "v3_freeze_manifest": {
+            "schema_version": binding_schema,
+            manifest_field: {
                 "path": str(manifest_path),
                 "internal_sha256": manifest_internal,
                 "file_sha256": sha256_file(manifest_path),
             },
-            "frozen_proposal_input": {
-                "label": f"priority_{label}",
-                "path": str(input_path),
-                "sha256": sha256_file(input_path),
-                "records": frozen_entry.get("records"),
-                "singles": frozen_entry.get("singles"),
-                "multi_parents": frozen_entry.get("multi_parents"),
-                "scope": frozen_entry.get("scope"),
-                "readonly": True,
-            },
+            "frozen_proposal_input": expected_input_binding,
             "requires_fresh_review": True,
         }
         if any(
-            review.get("binding", {}).get("frozen_v3_input_binding")
+            review.get("binding", {}).get(binding_field)
             != expected_freeze_binding
             for review in reviews
         ):
-            discrepancies.append(f"{label}:frozen-v3-review-binding-mismatch")
-        if summary.get("frozen_v3_input_binding") != expected_freeze_binding:
-            discrepancies.append(f"{label}:frozen-v3-summary-binding-mismatch")
+            discrepancies.append(f"{label}:frozen-{freeze_version}-review-binding-mismatch")
+        if summary.get(binding_field) != expected_freeze_binding:
+            discrepancies.append(f"{label}:frozen-{freeze_version}-summary-binding-mismatch")
         discrepancies.extend(f"{label}:{item}" for item in verify_review_hashes(reviews))
 
         counts = status_counts(reviews)
@@ -366,8 +386,8 @@ def main() -> None:
             evidence_ids: set[str] = set()
         else:
             evidence = read_json(evidence_path)
-            if evidence.get("frozen_v3_input_binding") != expected_freeze_binding:
-                discrepancies.append(f"{label}:frozen-v3-evidence-binding-mismatch")
+            if evidence.get(binding_field) != expected_freeze_binding:
+                discrepancies.append(f"{label}:frozen-{freeze_version}-evidence-binding-mismatch")
             evidence_ids = {
                 str(item.get("candidate_id") or "")
                 for item in evidence.get("verifications") or []
@@ -433,7 +453,7 @@ def main() -> None:
         partition_index[label] = {
             "input": str(input_path),
             "input_sha256": sha256_file(input_path),
-            "frozen_v3_input_binding": expected_freeze_binding,
+            binding_field: expected_freeze_binding,
             "reviews": str(review_path),
             "reviews_sha256": sha256_file(review_path),
             "summary": str(summary_path),
@@ -471,8 +491,8 @@ def main() -> None:
             "this root is a read-only concatenation keyed by (reproposal_batch, candidate_id)."
         ),
         "input_manifest_sha256": sha256_file(manifest_path),
-        "frozen_v3_manifest": str(manifest_path),
-        "frozen_v3_manifest_internal_sha256": manifest_internal,
+        f"frozen_{freeze_version}_manifest": str(manifest_path),
+        f"frozen_{freeze_version}_manifest_internal_sha256": manifest_internal,
         "review_partitions": partition_index,
         "single_reviewed": aggregate_counts["single_panel"]["reviewed"],
         "single_accepted": aggregate_counts["single_panel"]["accepted"],
@@ -503,25 +523,29 @@ def main() -> None:
 
     lift = {
         "measurement_method": (
-            "The two immutable V3 priority batches are separately reviewed because "
+            f"The two immutable {freeze_version.upper()} priority batches are separately reviewed because "
             "candidate IDs are only unique within their baseline provenance batch. "
             "All 203 former-reject single records are paired one-to-one with their "
             "same-batch baseline reject by candidate_id."
         ),
         "measurement_scope": {
-            "classification": "diagnostic-only historic-reject-selected V3 subset",
+            "classification": (
+                f"diagnostic-only historic-reject-selected {freeze_version.upper()} subset"
+            ),
             "not_a_sealed_C2_universe_claim": True,
+            "superseded_by_v4": not is_v4,
+            "not_a_final_N_prime_gate_evaluation": not is_v4,
             "reason": (
-                "A1's frozen V3 priority inputs contain the 203 historic baseline "
+                f"A1's frozen {freeze_version.upper()} priority inputs contain the 203 historic baseline "
                 "single-panel rejects and their parents. The measured rates describe "
                 "only that reclassified subset, not a final sealed-C2 universe."
             ),
         },
-        "probe": probe_result(),
+        "probe": probe_result(probe_dir),
         "input": {
-            "frozen_v3_manifest": str(manifest_path),
-            "frozen_v3_manifest_file_sha256": sha256_file(manifest_path),
-            "frozen_v3_manifest_internal_sha256": manifest_internal,
+            f"frozen_{freeze_version}_manifest": str(manifest_path),
+            f"frozen_{freeze_version}_manifest_file_sha256": sha256_file(manifest_path),
+            f"frozen_{freeze_version}_manifest_internal_sha256": manifest_internal,
             "partitions": partition_index,
         },
         "baseline": {
@@ -625,20 +649,29 @@ def main() -> None:
 
     conversion = lift["former_reject_to_accept"]
     multi = lift["verified_multi_doi"]
+    status_notice = (
+        "> **STATUS: V3 DIAGNOSTIC ONLY — SUPERSEDED BY FROZEN V4.** Do not use "
+        "this V3 N′ as the final gate result.\n\n"
+        if not is_v4
+        else ""
+    )
+    gate_line = (
+        f"- Diagnostic V3 N′={multi['N_prime']} versus K=12: "
+        f"{'REACHES' if multi['reaches_K'] else 'does not reach'} the gate; V4 is decisive.\n"
+        if not is_v4
+        else f"- V4 subset N′={multi['N_prime']} versus K=12: "
+        f"{'REACHES' if multi['reaches_K'] else 'does not reach'} the gate.\n"
+    )
     verdict = (
         "# C2 reclassification verdict\n\n"
-        "- Scope: diagnostic-only historic-reject-selected V3 subset; not a sealed-C2 "
-        "universe pass-rate claim.\n"
-        f"- Fresh review binding: frozen V3 manifest internal SHA-256 {manifest_internal}.\n"
-        f"- Former-reject → accept: {conversion['accepted']}/{conversion['former_rejects']} "
-        f"({conversion['conversion_rate']:.3%}).\n"
-        f"- Reclassified single pass rate: {accepted_single}/{total_single} "
-        f"({rate(accepted_single, total_single):.3%}).\n"
-        f"- Reclassified multi pass rate: {accepted_multi}/{total_multi} "
-        f"({rate(accepted_multi, total_multi):.3%}).\n"
-        f"- N′={multi['N_prime']} versus K=12: "
-        f"{'REACHES' if multi['reaches_K'] else 'does not reach'} the gate.\n"
-        f"- Python cross-validation discrepancies: {len(discrepancies)}.\n"
+        + status_notice
+        + f"- Scope: diagnostic-only historic-reject-selected {freeze_version.upper()} subset; not a sealed-C2 universe pass-rate claim.\n"
+        + f"- Fresh review binding: frozen {freeze_version.upper()} manifest internal SHA-256 {manifest_internal}.\n"
+        + f"- Former-reject → accept: {conversion['accepted']}/{conversion['former_rejects']} ({conversion['conversion_rate']:.3%}).\n"
+        + f"- Reclassified single pass rate: {accepted_single}/{total_single} ({rate(accepted_single, total_single):.3%}).\n"
+        + f"- Reclassified multi pass rate: {accepted_multi}/{total_multi} ({rate(accepted_multi, total_multi):.3%}).\n"
+        + gate_line
+        + f"- Python cross-validation discrepancies: {len(discrepancies)}.\n"
     )
     (OUT / "verdict.md").write_text(verdict, encoding="utf-8")
     print(json.dumps(lift["python_cross_validation"], ensure_ascii=False))

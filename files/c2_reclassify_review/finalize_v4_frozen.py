@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Finalize frozen-V3 checkpoint reviews without weakening their provenance."""
+"""Finalize frozen-V4 checkpoint reviews with the snapshotted V4 runtime."""
 
 from __future__ import annotations
 
@@ -10,11 +10,11 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from frozen_v3_binding import decorate_binding, frozen_v3_input_binding
+from frozen_v4_binding import decorate_binding, frozen_v4_input_binding
 
 
 ROOT = Path(__file__).resolve().parents[2]
-RUNTIME = ROOT / "files/c2_reclassify_review/v3_bound_runtime/nature_download"
+RUNTIME = ROOT / "files/c2_reclassify_review/v4_bound_runtime/nature_download"
 sys.path.insert(0, str(RUNTIME))
 
 import corpus.reviews as reviews
@@ -47,7 +47,10 @@ def common_binding(
     dirties = {binding.get("code_dirty") for binding in bindings}
     model_tuples = {tuple(binding.get("request_models") or []) for binding in bindings}
     rubrics = {binding.get("rubric_hash") for binding in bindings}
-    freeze_bindings = {json.dumps(binding.get("frozen_v3_input_binding"), sort_keys=True) for binding in bindings}
+    freeze_bindings = {
+        json.dumps(binding.get("frozen_v4_input_binding"), sort_keys=True)
+        for binding in bindings
+    }
     if (
         len(commits) != 1
         or len(dirties) != 1
@@ -64,9 +67,9 @@ def common_binding(
         not isinstance(commit, str)
         or not isinstance(dirty, bool)
         or len(models) < 2
-        or rubric_hash != reviews.REVIEW_RUBRIC_V3_HASH
+        or rubric_hash != reviews.REVIEW_RUBRIC_V4_HASH
     ):
-        raise SystemExit("checkpoint does not carry a V3 two-judge binding")
+        raise SystemExit("checkpoint does not carry a V4 two-judge binding")
     return reviews.GitState(commit=commit, dirty=dirty), models, rubric_hash
 
 
@@ -105,14 +108,14 @@ def seal_top_level_outputs(out: Path, freeze_binding: dict[str, Any]) -> dict[st
     evidence_path = out / "evidence.json"
     evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
     evidence.pop("evidence_hash", None)
-    evidence["frozen_v3_input_binding"] = freeze_binding
+    evidence["frozen_v4_input_binding"] = freeze_binding
     evidence = reviews._seal(evidence, "evidence_hash")
     write_json(evidence_path, evidence)
 
     summary_path = out / "summary.json"
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
     summary.pop("summary_hash", None)
-    summary["frozen_v3_input_binding"] = freeze_binding
+    summary["frozen_v4_input_binding"] = freeze_binding
     summary = reviews._seal(summary, "summary_hash")
     write_json(summary_path, summary)
     write_text(out / "summary.sha256", summary["summary_hash"] + "\n")
@@ -131,7 +134,7 @@ def main() -> None:
 
     proposed = Path(args.proposed).resolve(strict=True)
     out = Path(args.out).resolve()
-    freeze_binding = frozen_v3_input_binding(
+    freeze_binding = frozen_v4_input_binding(
         freeze_manifest=Path(args.freeze_manifest),
         expected_manifest_internal_sha256=args.freeze_manifest_internal_sha256,
         frozen_input=proposed,
@@ -171,12 +174,12 @@ def main() -> None:
                     allowed_chart_families=families,
                 )
                 if binding != record.get("binding"):
-                    raise SystemExit("bound V3 runtime does not reproduce checkpoint binding")
+                    raise SystemExit("V4 runtime does not reproduce checkpoint binding")
         print(
             json.dumps(
                 {
                     "binding_reproduced": True,
-                    "frozen_v3_input_binding": freeze_binding,
+                    "frozen_v4_input_binding": freeze_binding,
                     "reviewed_single_count": len(reviewed_single_ids),
                 },
                 sort_keys=True,
@@ -200,7 +203,7 @@ def main() -> None:
                 "bound_code_commit": state.commit,
                 "bound_code_dirty": state.dirty,
                 "judge_models": list(models),
-                "frozen_v3_input_binding": freeze_binding,
+                "frozen_v4_input_binding": freeze_binding,
                 "summary": summary,
                 "review_count": len(result["reviews"]),
             },

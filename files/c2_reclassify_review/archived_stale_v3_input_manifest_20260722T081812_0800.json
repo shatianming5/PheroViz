@@ -1,0 +1,33 @@
+{
+  "batches": {
+    "casecount_strict": {
+      "frozen_source": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v3_20260722T024015_0800/priority_casecount_strict.proposed.jsonl",
+      "frozen_source_sha256": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49",
+      "multi_panel": 20,
+      "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/inputs/casecount_strict.proposed.jsonl",
+      "records": 147,
+      "rule_versions": [
+        "simple-2d-v3"
+      ],
+      "sha256": "c3ea1e106e8aa0307f5911bb5dc8323aa096267e2777bf315791c2c61d8fca49",
+      "single_panel": 127
+    },
+    "full_strict": {
+      "frozen_source": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify/frozen_v3_20260722T024015_0800/priority_full_strict.proposed.jsonl",
+      "frozen_source_sha256": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131",
+      "multi_panel": 9,
+      "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/inputs/full_strict.proposed.jsonl",
+      "records": 85,
+      "rule_versions": [
+        "simple-2d-v3"
+      ],
+      "sha256": "737c7e4be43abdfcec29a682f61cef6f6ea76655b9446f675da5cad93afbe131",
+      "single_panel": 76
+    }
+  },
+  "preserved_stale_checkpoint": "files/c2_reclassify_review/stale_pre_freeze_casecount_strict",
+  "schema_version": "c2-v3-live-review-input-v2",
+  "source_freeze": "files/c2_reclassify/frozen_v3_20260722T024015_0800/freeze_manifest.json",
+  "source_freeze_sha256": "dc20456275739af301ff8c9e61c26802eee7d1f690e3eb633d81ea42448a85d0",
+  "why_replaced": "The initial A1 aggregate changed while the first checkpoint was running. The A1 V3 freeze declares its priority inputs as hash-pinned and stale-review/evidence reuse forbidden; these exact frozen inputs supersede the preserved stale checkpoint."
+}

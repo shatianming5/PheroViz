@@ -1,0 +1,37 @@
+{
+  "current_sealed_gate_K": 62,
+  "fresh_sealed_review_started": false,
+  "full_v4_transport_provenance": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/full_v4_nonoverlap_transport_provenance.json",
+  "priority_reviews_reusable_for_sealed_claim": false,
+  "raw15_c2_extreme_measurement": {
+    "N_raw": {
+      "total_raw_multi_dois": 15,
+      "verified_distinct_multi_dois": 3,
+      "verified_dois": [
+        "10.1038/s44319-025-00484-8",
+        "10.1038/s44321-025-00216-4",
+        "10.7554/elife.49574"
+      ]
+    },
+    "artifact_validation_discrepancies": 0,
+    "does_not_remove_204_doi_normalizer_blocker": true,
+    "independent_measurement_discrepancies": 0,
+    "result_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/raw15_sealed_result.json",
+    "review_input_sha256": "d7c655b97334186d75c99ff69e23615065535224e609b40e62e1c50e26cde801",
+    "sealing_eligibility": {
+      "bound_code_commit": "87bcce26904f7649ff1781b2e4d911c6d86a3e69",
+      "bound_code_dirty": true,
+      "eligible_as_sealed_evidence": false,
+      "reason": "review binding records code_dirty=true; result is diagnostic measurement only.",
+      "required_for_future_sealed_review": "clean committed worktree plus fresh exact immutable V4 pool SHA binding and dual-model review."
+    },
+    "single_panel_pass_rate": {
+      "accepted": 57,
+      "rate": 0.4596774193548387,
+      "reviewed": 124
+    },
+    "status": "completed_validated"
+  },
+  "required_next_step": "Build a separate raw, hash-bound, non-normalized P5+ pool; re-propose it source-structure-only; freeze it; then obtain fresh review/evidence. Do not mutate, regenerate, or review the disqualified frozen diagnostic copy as a sealed input.",
+  "status": "BLOCKED_EXPLORATORY_NORMALIZER"
+}
