@@ -1,0 +1,29 @@
+{
+  "discrepancies": [],
+  "discrepancy_count": 0,
+  "method": "Independent direct raw JSONL recount of raw15 result; no measurement helpers and no model calls.",
+  "recount": {
+    "multi_reviewed": 15,
+    "operational_panels": [],
+    "schema_invalid_panels": [
+      "case-elife-38114-figure1-panelb-565cb25c6206",
+      "case-elife-38114-figure1-panelc-e3fe77563228",
+      "case-elife-38114-figure1-panelf-1fb5f8e79c57",
+      "case-elife-38114-figure1-panelh-3505923f13dd",
+      "case-elife-38114-figure1-paneli-6a08601e3336",
+      "case-elife-38114-figure1-panelk-dae7a40bb82f",
+      "case-elife-38114-figure1-panell-f1d71c20bec5",
+      "case-s44319-025-00503-8-figure4-panelc-597e16685e73"
+    ],
+    "single_accepted": 57,
+    "single_panel_pass_rate": 0.4596774193548387,
+    "single_reviewed": 124,
+    "verified_distinct_multi_dois_N_raw": 3,
+    "verified_dois": [
+      "10.1038/s44319-025-00484-8",
+      "10.1038/s44321-025-00216-4",
+      "10.7554/elife.49574"
+    ]
+  },
+  "review_input_sha256": "d7c655b97334186d75c99ff69e23615065535224e609b40e62e1c50e26cde801"
+}

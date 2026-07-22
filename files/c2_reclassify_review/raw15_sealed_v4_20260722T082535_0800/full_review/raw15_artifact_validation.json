@@ -1,0 +1,34 @@
+{
+  "counts": {
+    "multi_accepted": 3,
+    "multi_reviewed": 15,
+    "rejected": 79,
+    "single_accepted": 57,
+    "single_reviewed": 124
+  },
+  "error_count": 0,
+  "errors": [],
+  "frozen_v4_input_binding": {
+    "frozen_proposal_input": {
+      "label": "direct_raw_p5_v4",
+      "multi_parents": 15,
+      "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_raw_p5/frozen_direct_raw_p5_v4_20260721T193342Z/direct_raw_p5_v4.proposed.jsonl",
+      "proposal_rule_version": "simple-2d-v4",
+      "readonly": true,
+      "records": 139,
+      "scope": "all-direct raw P5 C2-extreme universe (K62-insufficient)",
+      "sha256": "d7c655b97334186d75c99ff69e23615065535224e609b40e62e1c50e26cde801",
+      "singles": 124
+    },
+    "requires_fresh_review": true,
+    "schema_version": "c2-v4-frozen-review-input-binding-v1",
+    "v4_freeze_manifest": {
+      "file_sha256": "6272fba077b226fde7d5f8ef76d2b455039d4ddeef255cd60f8910ff091b7744",
+      "internal_sha256": "e5618a52ba09b293e0e9b76cf97fe6d7738371b012d8cfefe6dca47168cb7381",
+      "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_raw_p5/frozen_direct_raw_p5_v4_20260721T193342Z/freeze_manifest.json"
+    }
+  },
+  "method": "Independent direct-raw V4 provenance, binding, review-hash, derived-multi, evidence, and summary validation; no model calls.",
+  "review_count": 139,
+  "review_sha256": "b64597819ae446b9b3be150a7f6dc574cbece1bd07fc92518621a35ecdae497a"
+}

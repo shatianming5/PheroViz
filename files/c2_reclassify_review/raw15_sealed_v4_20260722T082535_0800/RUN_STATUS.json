@@ -1,0 +1,79 @@
+{
+  "N_raw": {
+    "total_raw_multi_dois": 15,
+    "verified_distinct_multi_dois": 3,
+    "verified_dois": [
+      "10.1038/s44319-025-00484-8",
+      "10.1038/s44321-025-00216-4",
+      "10.7554/elife.49574"
+    ]
+  },
+  "artifact_validation_discrepancies": 0,
+  "claimed_16_reconciled_to_exact_input_count": 15,
+  "exact_raw_p5_doi_count": 15,
+  "freeze_manifest": {
+    "internal_sha256": "e5618a52ba09b293e0e9b76cf97fe6d7738371b012d8cfefe6dca47168cb7381",
+    "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_raw_p5/frozen_direct_raw_p5_v4_20260721T193342Z/freeze_manifest.json",
+    "schema_version": "c2-direct-raw-p5-v4-review-freeze-v1"
+  },
+  "frozen_input": {
+    "independent_dois": 15,
+    "multi_parents": 15,
+    "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_raw_p5/frozen_direct_raw_p5_v4_20260721T193342Z/direct_raw_p5_v4.proposed.jsonl",
+    "read_only": true,
+    "records": 139,
+    "sha256": "d7c655b97334186d75c99ff69e23615065535224e609b40e62e1c50e26cde801",
+    "singles": 124
+  },
+  "full_204_doi_normalizer_pool_used": false,
+  "independent_measurement_discrepancies": 0,
+  "priority_v3_or_v4_review_evidence_reused": false,
+  "raw16_result_alias_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/raw16_sealed_result.json",
+  "result_path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/files/c2_reclassify_review/raw15_sealed_result.json",
+  "review_protocol": {
+    "gateway_serial_only": true,
+    "models": [
+      "claude-sonnet-4.6",
+      "gemini-3.5-flash"
+    ],
+    "resume_required": true,
+    "rubric": "proposal-external-validation-v4",
+    "rubric_hash": "46b3d7fe022f0ce17207dc822c2a8abbe309b2bf3308c1f0853b49cd8afc3c36"
+  },
+  "scope": "all-direct raw P5 C2-extreme 15-DOI universe; maximum ceiling 15 and insufficient for K=62",
+  "sealing_eligibility": {
+    "bound_code_commit": "87bcce26904f7649ff1781b2e4d911c6d86a3e69",
+    "bound_code_dirty": true,
+    "eligible_as_sealed_evidence": false,
+    "reason": "review binding records code_dirty=true; result is diagnostic measurement only.",
+    "required_for_future_sealed_review": "clean committed worktree plus fresh exact immutable V4 pool SHA binding and dual-model review."
+  },
+  "single_panel_pass_rate": {
+    "accepted": 57,
+    "rate": 0.4596774193548387,
+    "reviewed": 124
+  },
+  "status": "completed_diagnostic_measurement_code_dirty",
+  "unresolved_noncontent": {
+    "operational_panel_candidate_ids": [],
+    "schema_invalid_panel_candidate_ids": [
+      "case-elife-38114-figure1-panelb-565cb25c6206",
+      "case-elife-38114-figure1-panelc-e3fe77563228",
+      "case-elife-38114-figure1-panelf-1fb5f8e79c57",
+      "case-elife-38114-figure1-panelh-3505923f13dd",
+      "case-elife-38114-figure1-paneli-6a08601e3336",
+      "case-elife-38114-figure1-panelk-dae7a40bb82f",
+      "case-elife-38114-figure1-panell-f1d71c20bec5",
+      "case-s44319-025-00503-8-figure4-panelc-597e16685e73"
+    ]
+  },
+  "validated_probe": {
+    "all_structured_json": true,
+    "binding_reproduced": true,
+    "dual_judge_responses": 6,
+    "probe_candidates": 3,
+    "review_input_sha256": "d7c655b97334186d75c99ff69e23615065535224e609b40e62e1c50e26cde801",
+    "rubric_hash": "46b3d7fe022f0ce17207dc822c2a8abbe309b2bf3308c1f0853b49cd8afc3c36",
+    "status": "passed"
+  }
+}
