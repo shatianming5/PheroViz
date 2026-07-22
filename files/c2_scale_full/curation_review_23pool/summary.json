@@ -1,0 +1,533 @@
+{
+  "completed_parent_count": 23,
+  "frozen_input_binding": {
+    "freeze_manifest": {
+      "file_sha256": "1154425e52ec883bfa6065802f41f3fdb5a954d187024fe3c146e795205f30dc",
+      "internal_sha256": "30b210ea04fae0f8c1a108e2f2743ea02dcd301fd005900a76de3a49cda98a1a",
+      "normalizer_count": 0,
+      "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/.c2_scale_full_sealed_87bcce2/files/c2_scale_full/freeze_manifest.json"
+    },
+    "frozen_input": {
+      "multi_parents": 23,
+      "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/.c2_scale_full_sealed_87bcce2/files/c2_scale_full/frozen_rawp5_v4_coverage_union.proposed.jsonl",
+      "readonly": true,
+      "records": 208,
+      "sha256": "cac3f955de62a5777a0476e4814d112b489ac67f0ecce33f2b56c592d07036f9",
+      "singles": 185
+    },
+    "judge_models": [
+      "claude-sonnet-4.6",
+      "gemini-3.5-flash"
+    ],
+    "rubric_hash": "965edd7d421c2a8129b86dcfc34d597e5bb01fbddaecbe26faaf4e671c4dcc23",
+    "runtime": {
+      "code_commit": "87bcce26904f7649ff1781b2e4d911c6d86a3e69",
+      "code_dirty": false,
+      "repo_root": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/.c2_scale_full_sealed_87bcce2",
+      "runner_sha256": "f3df2fae4acda7a00950b1ca35b8673d30549752548ff4add0a90f7d2fe6daa7"
+    },
+    "schema_version": "c2-raw-p5-parent-curation-frozen-binding-v1"
+  },
+  "gateway_error_count": 3,
+  "generated_at_utc": "2026-07-22T01:48:14.563179Z",
+  "input_record_counts": {
+    "multi_panel_parents": 23,
+    "normalizer_references": 0,
+    "note": "The immutable manifest reports 185 single context rows; 23 parents plus 185 singles equals 208 total records.",
+    "single_panel_context_rows": 185,
+    "total_records": 208
+  },
+  "input_sha256": "cac3f955de62a5777a0476e4814d112b489ac67f0ecce33f2b56c592d07036f9",
+  "per_doi": [
+    {
+      "candidate_id": "multi-elife.101990-figure1-9f591366d870",
+      "doi": "10.7554/elife.101990",
+      "failure_reasons": [],
+      "figure_no": 1,
+      "jury_agreement": "both-accept",
+      "panel_ids": [
+        "c",
+        "d",
+        "f",
+        "g",
+        "h",
+        "i",
+        "j",
+        "k",
+        "l"
+      ],
+      "review_hash": "436b6cc25ebd9c671dd8813cc37ddc0c3ed017e1be53b6a9b8a310d9e9b318a4",
+      "verdict": "accepted"
+    },
+    {
+      "candidate_id": "multi-elife.25730-figure1-9f2705cb6ac8",
+      "doi": "10.7554/elife.25730",
+      "failure_reasons": [
+        "Panel L is incorrectly identified as a scatter plot instead of a bar/column chart representing mean values."
+      ],
+      "figure_no": 1,
+      "jury_agreement": "judge-disagreement",
+      "panel_ids": [
+        "f",
+        "g",
+        "h",
+        "i",
+        "l"
+      ],
+      "review_hash": "8f1baf952cf12556725d53ea13a8e32dc11766e384b86e0546cdaab14fb606e8",
+      "verdict": "rejected"
+    },
+    {
+      "candidate_id": "multi-elife.29854-figure10-11c70ff0c58d",
+      "doi": "10.7554/elife.29854",
+      "failure_reasons": [
+        "Two panels failed validation: panel d has a table with mostly zeros inconsistent with the figure data, and panel l shows KO values substantially below 100% in the table while the figure shows near-equal WT and KO bars.",
+        "Several panels (h, i, j) have source tables whose data values are significantly inconsistent with the bar heights plotted in the figure."
+      ],
+      "figure_no": 10,
+      "jury_agreement": "both-reject",
+      "panel_ids": [
+        "d",
+        "h",
+        "i",
+        "j",
+        "k",
+        "l",
+        "o",
+        "p",
+        "q",
+        "r",
+        "s",
+        "t"
+      ],
+      "review_hash": "eb4c5539afb5e92c7636985879a3500b47932b79c3119ff040641b7c10af6c64",
+      "verdict": "rejected"
+    },
+    {
+      "candidate_id": "multi-elife.30057-figure4-3c6272ac1341",
+      "doi": "10.7554/elife.30057",
+      "failure_reasons": [
+        "Panel J is incorrectly interpreted as a bar chart instead of a line/scatter chart, and its table sample does not match the x-axis concentration values shown in the figure."
+      ],
+      "figure_no": 4,
+      "jury_agreement": "judge-disagreement",
+      "panel_ids": [
+        "d",
+        "g",
+        "h",
+        "j",
+        "n"
+      ],
+      "review_hash": "0e0ae34426e1a9ee78a8004a2639d728c64b0a8e66b95c87a85f778327971c26",
+      "verdict": "rejected"
+    },
+    {
+      "candidate_id": "multi-elife.38114-figure1-6e9d6cc49a6c",
+      "doi": "10.7554/elife.38114",
+      "failure_reasons": [],
+      "figure_no": 1,
+      "jury_agreement": "both-accept",
+      "panel_ids": [
+        "b",
+        "c",
+        "e",
+        "f",
+        "h",
+        "i",
+        "k",
+        "l"
+      ],
+      "review_hash": "042fbb751b78e242e53f34d102d64b898368163f7a975114ffc54c3e6805c251",
+      "verdict": "accepted"
+    },
+    {
+      "candidate_id": "multi-elife.49574-figure1-a2051147c5bc",
+      "doi": "10.7554/elife.49574",
+      "failure_reasons": [],
+      "figure_no": 1,
+      "jury_agreement": "both-accept",
+      "panel_ids": [
+        "f",
+        "g",
+        "h",
+        "i",
+        "j",
+        "k"
+      ],
+      "review_hash": "538c2eede5139bf32ae069c35666087cac4385c50c21da8de4e1d520164a2dd0",
+      "verdict": "accepted"
+    },
+    {
+      "candidate_id": "multi-elife.50580-figure4-248c7af1a663",
+      "doi": "10.7554/elife.50580",
+      "failure_reasons": [
+        "Panels C and G are line profile plots representing values along the length of the cilium, but their proposed bindings incorrectly map the x-axis to the categorical genotype columns (__wide_group__) instead of the sequential spatial index."
+      ],
+      "figure_no": 4,
+      "jury_agreement": "judge-disagreement",
+      "panel_ids": [
+        "c",
+        "d",
+        "e",
+        "g",
+        "h",
+        "i",
+        "k",
+        "l",
+        "m",
+        "n"
+      ],
+      "review_hash": "c1636c30df65cc2134ec2659e745c6428237f082926cc0b982e4a0d281d5f2e1",
+      "verdict": "rejected"
+    },
+    {
+      "candidate_id": "multi-elife.76541-figure3-3bc123fc139c",
+      "doi": "10.7554/elife.76541",
+      "failure_reasons": [],
+      "figure_no": 3,
+      "jury_agreement": "both-accept",
+      "panel_ids": [
+        "g",
+        "h",
+        "i",
+        "j",
+        "o",
+        "p"
+      ],
+      "review_hash": "38fe5d0fc495942d78809c7def62935f5e8a7286ce8a42093ce1ed8618a456c7",
+      "verdict": "accepted"
+    },
+    {
+      "candidate_id": "multi-elife.78294-figure3-1961f030e944",
+      "doi": "10.7554/elife.78294",
+      "failure_reasons": [],
+      "figure_no": 3,
+      "jury_agreement": "both-accept",
+      "panel_ids": [
+        "c",
+        "d",
+        "g",
+        "h",
+        "i",
+        "j",
+        "k",
+        "l",
+        "m",
+        "n",
+        "o",
+        "p"
+      ],
+      "review_hash": "0d58a9946b2b50bfaa96f0a9d88006d7382d8f8e800874fd6c763c5b67608c8e",
+      "verdict": "accepted"
+    },
+    {
+      "candidate_id": "multi-elife.86493-figure7-13febd4624a6",
+      "doi": "10.7554/elife.86493",
+      "failure_reasons": [
+        "Panel D fails validation because the source table does not clearly show the genotype grouping (WT vs KO) needed to reproduce the panel, with sample rows appearing to show only one genotype label.",
+        "Panel C has an incorrect x-axis mapping where the grouping variable (genotype) and the categorical variable (clusters A, B, C) are swapped compared to the figure layout."
+      ],
+      "figure_no": 7,
+      "jury_agreement": "both-reject",
+      "panel_ids": [
+        "c",
+        "d",
+        "e",
+        "f",
+        "i"
+      ],
+      "review_hash": "390d016d0b7117e3003be2a78883538f66c99853f5b2ef4aad0919c4fc795b01",
+      "verdict": "rejected"
+    },
+    {
+      "candidate_id": "multi-elife.92342-figure10-accf416e442d",
+      "doi": "10.7554/elife.92342",
+      "failure_reasons": [
+        "Panel k is incorrectly classified with chart_family 'scatter' instead of 'bar'."
+      ],
+      "figure_no": 10,
+      "jury_agreement": "judge-disagreement",
+      "panel_ids": [
+        "d",
+        "e",
+        "f",
+        "g",
+        "i",
+        "j",
+        "k"
+      ],
+      "review_hash": "3ad5a130541b4584cd34c5d470f66a4205e06701025c87acb65af9fdc4ef319d",
+      "verdict": "rejected"
+    },
+    {
+      "candidate_id": "multi-elife.92645-figure3-54efb54d7d6a",
+      "doi": "10.7554/elife.92645",
+      "failure_reasons": [
+        "Panels F and G have a column label mismatch: the source tables list 'nc' as the second group but the figure panels display 'RNAnc', making the binding unverifiable without assumption."
+      ],
+      "figure_no": 3,
+      "jury_agreement": "judge-disagreement",
+      "panel_ids": [
+        "d",
+        "e",
+        "f",
+        "g",
+        "h",
+        "i",
+        "j",
+        "k",
+        "l",
+        "m",
+        "n",
+        "o",
+        "p"
+      ],
+      "review_hash": "0fd2d9ed24fab8a4fd30487460cc2257afe7b8c8b70a7a5734385615cb84c83a",
+      "verdict": "rejected"
+    },
+    {
+      "candidate_id": "multi-elife.95944-figure1-ffb6d45a5164",
+      "doi": "10.7554/elife.95944",
+      "failure_reasons": [
+        "Panel E is valid. Panels F, G, H, and I all show mismatches between the figure panel content and the supplied source table data, indicating a systematic offset in the panel-to-sheet mapping across these four panels.",
+        "Panel E is correctly mapped, but panels F, G, H, and I are misaligned with their respective source sheets because Panel F in the figure is a trace plot, causing a shift in the subsequent panel letter-to-source-sheet mappings."
+      ],
+      "figure_no": 1,
+      "jury_agreement": "both-reject",
+      "panel_ids": [
+        "e",
+        "f",
+        "g",
+        "h",
+        "i"
+      ],
+      "review_hash": "44440d7c7fc4081704ff70a9075a6a091ddc71e4132d7ddfc1c96d82d15382c1",
+      "verdict": "rejected"
+    },
+    {
+      "candidate_id": "multi-elife.96718-figure1-5ede1f3a769a",
+      "doi": "10.7554/elife.96718",
+      "failure_reasons": [
+        "Panels E, F, and H use incorrect chart_family (scatter instead of histogram/bar) for histogram panels, making the proposed bindings unable to reproduce those panels correctly. Panel H also has a potential unit mismatch (proportions vs percentages). Panels D and G are valid.",
+        "Several panels (d, e, f, h) have incorrect binding configurations where independent/index columns (like 'Lag' or 'Edges') are incorrectly included in the wide_melt operation, which would prevent the plots from being correctly reproduced."
+      ],
+      "figure_no": 1,
+      "jury_agreement": "both-reject",
+      "panel_ids": [
+        "d",
+        "e",
+        "f",
+        "g",
+        "h"
+      ],
+      "review_hash": "f304dda06f0e30da6291d173991059de5d30a9e73d1a22ab2d67ce2168cefb0a",
+      "verdict": "rejected"
+    },
+    {
+      "candidate_id": "multi-s41467-023-36967-2-figure3-72d966de4b57",
+      "doi": "10.1038/s41467-023-36967-2",
+      "failure_reasons": [
+        "Panels c, d, e, and f are mismatched: the supplied source tables and bindings do not correspond to the actual panel content visible in the figure. Panels g and h are correctly matched.",
+        "Several panels (d and e) are non-data images that are incorrectly treated as quantitative plots, and others (c and f) are mapped to incorrect source sheets and columns that do not represent the depicted data."
+      ],
+      "figure_no": 3,
+      "jury_agreement": "both-reject",
+      "panel_ids": [
+        "c",
+        "d",
+        "e",
+        "f",
+        "g",
+        "h"
+      ],
+      "review_hash": "2a3d49917c35646a27fce1adaf296c4ca6ac22c2bd5c10d11b264182b662ca28",
+      "verdict": "rejected"
+    },
+    {
+      "candidate_id": "multi-s41467-023-37432-w-figure2-41c8449370cf",
+      "doi": "10.1038/s41467-023-37432-w",
+      "failure_reasons": [
+        "All five panels are incorrectly described as 'line' chart family when they are violin plots (a, e) and horizontal stacked bar charts (f, g, h). The x/y bindings are also inconsistent with the actual figure encodings. No panel verdict is valid.",
+        "All listed panels have incorrect chart family classifications (violins and stacked bar charts labeled as line charts) and incorrect bindings."
+      ],
+      "figure_no": 2,
+      "jury_agreement": "both-reject",
+      "panel_ids": [
+        "a",
+        "e",
+        "f",
+        "g",
+        "h"
+      ],
+      "review_hash": "b00d13db4cda0e8214ddab7424cd7cbf5c68d7c0a836ee1ae61d3efca529eff5",
+      "verdict": "rejected"
+    },
+    {
+      "candidate_id": "multi-s41467-023-38160-x-figure1-2aca30408ec7",
+      "doi": "10.1038/s41467-023-38160-x",
+      "failure_reasons": [
+        "Panel b has incorrect chart_family (bar instead of line/paired-line). Panel d table values appear to be raw FPKM not log2-transformed, inconsistent with the figure axis label.",
+        "Several panels have mismatch errors: panel b is classified as a bar chart instead of a paired line plot, and panel d's data values in the source table are untransformed raw values while the column header and figure show log-transformed values, preventing direct reproduction."
+      ],
+      "figure_no": 1,
+      "jury_agreement": "both-reject",
+      "panel_ids": [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e",
+        "f",
+        "g",
+        "h",
+        "i",
+        "j"
+      ],
+      "review_hash": "e20146becd99e105b110bf852a9e5fab40761fe4d0f8fab2a4f9a60febe5fa82",
+      "verdict": "rejected"
+    },
+    {
+      "candidate_id": "multi-s44319-024-00227-1-figure10-bbbd0fe8a0fe",
+      "doi": "10.1038/s44319-024-00227-1",
+      "failure_reasons": [
+        "Two panels (h and j) have mismatched normalization labels between the table headers and the figure axis labels, making those bindings invalid. All other panels are consistent.",
+        "Panels D and E are correlation scatter plots but are incorrectly represented as bar charts with wrong coordinate/variable bindings."
+      ],
+      "figure_no": 10,
+      "jury_agreement": "both-reject",
+      "panel_ids": [
+        "b",
+        "c",
+        "d",
+        "e",
+        "g",
+        "h",
+        "i",
+        "j"
+      ],
+      "review_hash": "8b52d21e076c156ef52b1a9da517656cbdd1bb16c25fdd81113dd450ef28e0ff",
+      "verdict": "rejected"
+    },
+    {
+      "candidate_id": "multi-s44319-025-00373-0-figure3-7ece96d9ca7e",
+      "doi": "10.1038/s44319-025-00373-0",
+      "failure_reasons": [],
+      "figure_no": 3,
+      "jury_agreement": "both-accept",
+      "panel_ids": [
+        "d",
+        "e",
+        "i",
+        "j",
+        "m",
+        "n"
+      ],
+      "review_hash": "4ba63ffeac4b228a88e75cfc13eee58cd48d52e750a965f775dd574d0b9f1ad4",
+      "verdict": "accepted"
+    },
+    {
+      "candidate_id": "multi-s44319-025-00484-8-figure1-2170381abcc1",
+      "doi": "10.1038/s44319-025-00484-8",
+      "failure_reasons": [],
+      "figure_no": 1,
+      "jury_agreement": "both-accept",
+      "panel_ids": [
+        "b",
+        "c",
+        "d",
+        "h",
+        "j",
+        "l"
+      ],
+      "review_hash": "e3de382f8336f65d4c5de96f33303e05a05563576f5bbdd48905677eb46c7d18",
+      "verdict": "accepted"
+    },
+    {
+      "candidate_id": "multi-s44319-025-00503-8-figure4-d4d26148d349",
+      "doi": "10.1038/s44319-025-00503-8",
+      "failure_reasons": [
+        "Panel C has an incorrect binding configuration that maps the two treatment columns as X and Y coordinates of a scatter plot instead of melting them into separate categories for a box plot representation."
+      ],
+      "figure_no": 4,
+      "jury_agreement": "judge-disagreement",
+      "panel_ids": [
+        "b",
+        "c",
+        "d",
+        "e",
+        "f",
+        "g",
+        "h",
+        "i",
+        "j",
+        "k",
+        "l",
+        "m",
+        "n"
+      ],
+      "review_hash": "e867f7134b114a45dd1f55dd6566e81b2063d391f92fdebe765d7de45f35a401",
+      "verdict": "rejected"
+    },
+    {
+      "candidate_id": "multi-s44321-025-00216-4-figure1-34424c25d4ff",
+      "doi": "10.1038/s44321-025-00216-4",
+      "failure_reasons": [],
+      "figure_no": 1,
+      "jury_agreement": "both-accept",
+      "panel_ids": [
+        "c",
+        "d",
+        "e",
+        "f",
+        "g",
+        "h",
+        "i",
+        "j"
+      ],
+      "review_hash": "957761a1ea6d4bbb9f8e1d7017f40029882b50f49a31ee68b63aa7524ac3eb6e",
+      "verdict": "accepted"
+    },
+    {
+      "candidate_id": "multi-s44321-025-00233-3-figure3-521190fe8bfc",
+      "doi": "10.1038/s44321-025-00233-3",
+      "failure_reasons": [],
+      "figure_no": 3,
+      "jury_agreement": "both-accept",
+      "panel_ids": [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e",
+        "f",
+        "g",
+        "h",
+        "i",
+        "j",
+        "k",
+        "l",
+        "m",
+        "n",
+        "o"
+      ],
+      "review_hash": "4554c0d034645952a39842c4fc6dde7e578e0d4b0069f3f04de736d3ad8abb19",
+      "verdict": "accepted"
+    }
+  ],
+  "rejected_parent_count": 14,
+  "review_protocol": {
+    "fresh_review_only": true,
+    "models": [
+      "claude-sonnet-4.6",
+      "gemini-3.5-flash"
+    ],
+    "parent_pass_rule": "both judges return valid=true for every listed panel",
+    "review_unit": "multi_panel parent",
+    "serial_gateway_calls": true
+  },
+  "reviewed_parent_count": 23,
+  "schema_version": "c2-raw-p5-parent-curation-summary-v1",
+  "status": "complete",
+  "unresolved_parent_count": 0,
+  "verified_N_prime": 9
+}

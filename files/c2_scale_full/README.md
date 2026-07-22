@@ -49,15 +49,15 @@ binding or the strict no-normalizer red line). Data scale-up alone **cannot** re
 conservative K=62. The committed *bounded* C2-extreme verdict stands and is strengthened.
 
 ## FINAL verdict — jury-verified + integrity-corroborated (bounded on every honest axis)
-The bounded conclusion is now confirmed by three independent measurements; the further
-23-pool full curation is **redundant** (it can at most verify ≤23, still < K=62) and was
-deliberately NOT run — burning the shared flaky gateway for a number that cannot change the
-verdict would violate the "don't do work just to do work" red line.
+The bounded conclusion is confirmed by **four** independent measurements, the strongest of
+which is the **pristine-sealed** (`code_dirty=false`) dual-VLM curation of the full 23-DOI
+coverage-union pool: **N′ = 9/23**, still far below every K gate. Every honest axis agrees.
 
 | axis | measurement | source (python-verified) | vs K |
 |---|---|---|---|
-| jury-verified N′ (reject-conversion path) | **N′ = 8** (5 baseline + 3 newly-converted multi DOI) — ⚠ NOTE: the 5-DOI baseline is **normalizer-inflated** (only `s44319-025-00373-0` is genuinely raw-P5; the other 4 relied on `exploratory_normalizer` to reach P5), so the clean-raw count is the row below, not 8 | `../c2_reclassify_review/v4_lift_result.json`, SHA-bound to frozen V4 `58f1d3…`/`0d38f5…`, cross-validation 0 discrepancies | **FAIL** < optimistic K=12 ≪ conservative K=62 |
-| **clean-raw N′ (direct-raw pool, dual-VLM jury)** | **3 verified P≥5 multi DOI** of 15 proposed (`elife.49574`, `s44319-025-00484-8`, `s44321-025-00216-4`); singles 57/124; 12 rejected (panel reasons: chart_family 48, semantic/visual 19, binding 15, schema 8) | `../c2_reclassify_review/raw15_sealed_result.json` + `…/raw15_sealed_v4_20260722T082535_0800/full_review/summary.json`, SHA `d7c655…` pinned, independent recount 0 discrepancies, judges claude-sonnet-4.6 + gemini-3.5-flash. ⚠ **diagnostic-grade**: `code_dirty=true` → `eligible_as_sealed_evidence=false` (a pristine-sealed run needs a clean committed worktree) | **FAIL** — 3 ≪ optimistic K=12 ≪ Holm K=[41,62]; universe ceiling 15 cannot reach the Holm range |
+| **pristine-sealed N′ (23-DOI coverage-union curation)** | **N′ = 9 verified P≥5 multi DOI of 23** (`elife.{101990,38114,49574,76541,78294}`, `s44319-025-{00373-0,00484-8}`, `s44321-025-{00216-4,00233-3}`); 14 rejected (8 both-reject + 6 judge-disagreement, detailed failure reasons); gateway_error 3 | `curation_review_23pool/summary.json` + `reviews.jsonl` (23 parent reviews), SHA `cac3f955…` pinned, **`code_dirty=false`** (commit `87bcce2`) → sealed-eligible, 0 data-normalizer (only license-URL normalization), independent recount 0 discrepancies (3-way: summary/crosscheck/re-count), judges claude-sonnet-4.6 + gemini-3.5-flash | **FAIL** — 9 < single K=12 < optimistic Holm K=15 ≪ conservative Holm K=[41,62] |
+| jury-verified N′ (reject-conversion path) | **N′ = 8** (5 baseline + 3 newly-converted multi DOI) — ⚠ NOTE: the 5-DOI baseline is **normalizer-inflated** (only `s44319-025-00373-0` is genuinely raw-P5; the other 4 relied on `exploratory_normalizer` to reach P5) | `../c2_reclassify_review/v4_lift_result.json`, SHA-bound to frozen V4 `58f1d3…`/`0d38f5…`, cross-validation 0 discrepancies | **FAIL** < optimistic K=12 ≪ conservative K=62 |
+| clean-raw N′ (direct-raw pool, dual-VLM jury) | **3 verified P≥5 multi DOI** of 15 proposed (`elife.49574`, `s44319-025-00484-8`, `s44321-025-00216-4`); singles 57/124; 12 rejected (panel reasons: chart_family 48, semantic/visual 19, binding 15, schema 8) | `../c2_reclassify_review/raw15_sealed_result.json`, SHA `d7c655…` pinned, independent recount 0 discrepancies. ⚠ **diagnostic-grade**: `code_dirty=true` → `eligible_as_sealed_evidence=false` (this stricter direct-raw run corroborates the pristine-sealed 23-pool above) | **FAIL** — 3 ≪ optimistic K=12 ≪ Holm K=[41,62] |
 | raw P≥5 proposed ceiling | 23 (coverage-union `cac3f955…`) / 15 (direct-raw `d7c655…`) | this README + `../c2_reclassify_raw_p5/…direct_raw_p5_v4.proposed.jsonl` (139 rec = 124 singles + 15 parents) | ≪ K=62 |
 | only pool reaching K=62 | 204-DOI pool is **BLOCKED_EXPLORATORY_NORMALIZER**: 1538/1611 singles + 223/224 P≥5 multis (203/204 DOI) carry ≥1 normalizer component | `../c2_reclassify_integrity/K_final_reclassified.json` | **forbidden** by no-normalizer red line |
 | K itself | **not firmly estimable**: P5+ DOI-level paired-gap SD `not_estimable` (only 1 renderable P5+ DOI, `10.1038/s41467-021-25210-5`); proxy SD from 6 mixed-P DOI → K∈[15 Holm @SD=0.11, 62 Holm @SD=0.25] | `../c2_reclassify_integrity/K_final_reclassified.json` (matches `c2_power_K_final.json` `7e9e60be…`) | K is a bracket, not a point |
@@ -67,18 +67,16 @@ The 3 newly-converted multi DOI (V4 reject re-review): `10.1038/s41467-022-30409
 `10.7554/elife.95867`, `10.7554/elife.97860`, `10.1038/s44318-025-00510-4`,
 `10.1038/s44318-025-00634-7`, `10.1038/s44319-025-00373-0`.
 
-**Bottom line.** C2-extreme is **BOUNDED**. The honest (no-normalizer) raw P≥5 multi-panel
-universe is only **15 DOI** total; a dual-VLM jury verifies just **3** of them
-(`elife.49574`, `s44319-025-00484-8`, `s44321-025-00216-4`), and the genuinely-raw baseline
-is **1** (the old "baseline 5" was normalizer-inflated). The reject-conversion path adds no
-real lift (single 11.8%, multi 6.9%). Every honest number — 3 clean-raw verified, ≤15/23
-proposed — is below even the optimistic K=12, far below the conservative Holm K=[41,62]; and
-the only pool large enough to reach K=62 is disqualified by the exploratory-normalizer red
-line, while K itself is unbounded above (P5+ variance not estimable from ≥2 clusters). No
-amount of honest data scale-up powers C2-extreme at the integrity level; this is a rigorous,
-information-rich NULL/bounded result, not a pipeline gap. (The raw-15 jury run is
-diagnostic-grade — `code_dirty=true`; a pristine-sealed re-run needs a clean committed
-worktree, but it cannot change the bounded conclusion because the universe ceiling is 15.)
+**Bottom line.** C2-extreme is **BOUNDED**. The strongest honest evidence is the
+**pristine-sealed** (`code_dirty=false`, SHA `cac3f955`) dual-VLM curation of the full 23-DOI
+coverage-union raw P≥5 pool: only **9 of 23** parents pass both judges — below the single
+K=12, the optimistic Holm K=15, and far below the conservative Holm K=[41,62]. The stricter
+direct-raw pool (15 DOI, diagnostic-grade) corroborates with just **3** verified, and the
+reject-conversion path adds no real lift (its "baseline 5" was normalizer-inflated; genuine
+raw baseline = 1). The only pool large enough to reach K=62 (204 DOI) is disqualified by the
+exploratory-normalizer red line, and K itself is unbounded above (P5+ variance not estimable
+from ≥2 clusters). No amount of honest data scale-up powers C2-extreme at the integrity
+level; this is a rigorous, information-rich NULL/bounded result, not a pipeline gap.
 
 ## Files
 - `frozen_rawp5_v4_coverage_union.proposed.jsonl` (+ `freeze_manifest.{json,sha256}`) — the sealed 23-DOI raw P≥5 pool.

@@ -1,0 +1,28 @@
+{
+  "freeze_manifest": {
+    "file_sha256": "1154425e52ec883bfa6065802f41f3fdb5a954d187024fe3c146e795205f30dc",
+    "internal_sha256": "30b210ea04fae0f8c1a108e2f2743ea02dcd301fd005900a76de3a49cda98a1a",
+    "normalizer_count": 0,
+    "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/.c2_scale_full_sealed_87bcce2/files/c2_scale_full/freeze_manifest.json"
+  },
+  "frozen_input": {
+    "multi_parents": 23,
+    "path": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/.c2_scale_full_sealed_87bcce2/files/c2_scale_full/frozen_rawp5_v4_coverage_union.proposed.jsonl",
+    "readonly": true,
+    "records": 208,
+    "sha256": "cac3f955de62a5777a0476e4814d112b489ac67f0ecce33f2b56c592d07036f9",
+    "singles": 185
+  },
+  "judge_models": [
+    "claude-sonnet-4.6",
+    "gemini-3.5-flash"
+  ],
+  "rubric_hash": "965edd7d421c2a8129b86dcfc34d597e5bb01fbddaecbe26faaf4e671c4dcc23",
+  "runtime": {
+    "code_commit": "87bcce26904f7649ff1781b2e4d911c6d86a3e69",
+    "code_dirty": false,
+    "repo_root": "/Users/tommy/Downloads/mayi/PheroViz-c2-closure-integration-terra/.c2_scale_full_sealed_87bcce2",
+    "runner_sha256": "f3df2fae4acda7a00950b1ca35b8673d30549752548ff4add0a90f7d2fe6daa7"
+  },
+  "schema_version": "c2-raw-p5-parent-curation-frozen-binding-v1"
+}
